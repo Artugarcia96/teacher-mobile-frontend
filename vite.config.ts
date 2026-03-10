@@ -10,6 +10,9 @@ export default defineConfig({
     react(),
     legacy()
   ],
+  server: {
+    allowedHosts: ['.trycloudflare.com']
+  },
   test: {
     globals: true,
     environment: 'jsdom',

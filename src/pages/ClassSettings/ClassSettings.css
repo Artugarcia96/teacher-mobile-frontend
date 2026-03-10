@@ -1,0 +1,231 @@
+.settings-content {
+  --padding-top: var(--space-lg);
+}
+
+.settings-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4xl);
+}
+
+/* Sections */
+.settings-section {
+  margin-bottom: var(--space-2xl);
+  padding: 0 var(--space-lg);
+}
+
+.settings-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.settings-section__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+/* Info Card */
+.settings-info-card {
+  background: var(--ion-card-background);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  padding: var(--space-md);
+}
+
+.settings-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) 0;
+}
+
+.settings-info-row:not(:last-child) {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.settings-info-label {
+  font-size: var(--font-size-sm);
+  color: #64748B;
+}
+
+.settings-info-value {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+/* Lectures */
+.settings-lectures {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.lecture-card {
+  background: var(--ion-card-background);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.lecture-card:active {
+  transform: scale(0.98);
+}
+
+.lecture-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.lecture-card__name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.lecture-card__schedule {
+  font-size: var(--font-size-sm);
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.lecture-card__schedule ion-icon {
+  font-size: 14px;
+}
+
+/* Empty State */
+.settings-empty {
+  text-align: center;
+  padding: var(--space-2xl);
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: var(--radius-lg);
+  border: 1px dashed rgba(15, 23, 42, 0.1);
+}
+
+.settings-empty p {
+  color: #94A3B8;
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-size-sm);
+}
+
+/* Actions */
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* Schedule Section in Modal */
+.schedule-section {
+  margin-top: var(--space-lg);
+  padding: 0 var(--space-lg);
+}
+
+.schedule-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.schedule-section__header h3 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  margin: 0;
+}
+
+.schedule-empty {
+  text-align: center;
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+  padding: var(--space-lg);
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: var(--radius-md);
+}
+
+.schedule-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.schedule-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+}
+
+.schedule-slot__day {
+  flex: 1.2;
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+
+.schedule-slot__time {
+  flex: 1;
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+
+.schedule-slot__separator {
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+}
+
+/* Modal Sheet */
+.modal-sheet {
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.modal-sheet--scrollable {
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.modal-sheet__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-lg);
+  padding: 0 var(--space-lg);
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .settings-info-card,
+  .lecture-card {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .settings-info-row:not(:last-child) {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .settings-empty {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .schedule-slot,
+  .schedule-empty {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}

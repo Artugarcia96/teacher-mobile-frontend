@@ -1,0 +1,293 @@
+.classes-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-4xl);
+}
+
+/* ─── Controls section ─── */
+.classes-controls {
+  padding: var(--space-sm) var(--space-lg) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.classes-search {
+  --background: #ffffff;
+  --border-radius: var(--radius-md);
+  --box-shadow: var(--shadow-xs);
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.classes-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-xs);
+}
+
+.classes-sort__icon {
+  font-size: 16px;
+  color: var(--ion-color-medium);
+}
+
+.classes-sort__chips {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.classes-sort__chip {
+  background: rgba(100, 116, 139, 0.06);
+  border: 1px solid rgba(100, 116, 139, 0.12);
+  border-radius: var(--radius-full);
+  padding: var(--space-xs) var(--space-sm);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.classes-sort__chip:active {
+  transform: scale(0.96);
+}
+
+.classes-sort__chip--active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: #ffffff;
+}
+
+/* ─── Class cards grid ─── */
+.classes-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.class-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-xl);
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.class-card:active {
+  transform: scale(0.98);
+}
+
+.class-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--font-size-lg);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.class-card__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.class-card__name {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.class-card__meta {
+  font-size: var(--font-size-sm);
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.class-card__stats {
+  display: flex;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.class-card__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 44px;
+}
+
+.class-card__stat-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--ion-text-color);
+  line-height: 1;
+}
+
+.class-card__stat-label {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  margin-top: 2px;
+}
+
+/* Modal sheet (shared pattern) */
+.modal-sheet {
+  padding: var(--space-2xl) var(--space-xl);
+}
+
+.modal-sheet__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-lg);
+  letter-spacing: -0.02em;
+}
+
+.modal-hint {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  text-align: center;
+  margin: var(--space-lg) 0 0;
+  padding: 0 var(--space-lg);
+}
+
+/* ─── Scrollable modal ─── */
+.modal-sheet--scrollable {
+  overflow-y: auto;
+  padding-bottom: var(--space-3xl);
+}
+
+/* ─── Curso date range ─── */
+.curso-dates {
+  margin-top: var(--space-lg);
+}
+
+.curso-dates__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #64748B;
+  display: block;
+  margin-bottom: var(--space-sm);
+  padding-left: var(--space-xs);
+}
+
+.curso-dates__row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.curso-dates__field {
+  flex: 1;
+  --background: rgba(15, 23, 42, 0.03);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --min-height: 52px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* ─── Inline schedule in creation modal ─── */
+.sched-inline-toggle {
+  --background: rgba(var(--ion-color-primary-rgb), 0.04);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-lg);
+  --min-height: 56px;
+  margin-top: var(--space-lg);
+  border-radius: var(--radius-md);
+}
+
+.sched-inline-toggle h3 {
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+}
+
+.sched-inline-toggle p {
+  font-size: var(--font-size-xs) !important;
+  color: #94A3B8 !important;
+  margin: 2px 0 0 !important;
+}
+
+.sched-inline {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(var(--ion-color-primary-rgb), 0.03);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.sched-inline__days {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+.sched-inline__time {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.sched-inline__time-field {
+  flex: 1;
+  --background: rgba(15, 23, 42, 0.03);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --min-height: 48px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .classes-search {
+    --background: #16161A;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .classes-sort__chip {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .class-card {
+    background: #16161A;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .modal-sheet { background: #16161A; }
+
+  .sched-inline-toggle {
+    --background: rgba(var(--ion-color-primary-rgb), 0.08);
+  }
+
+  .sched-inline {
+    background: rgba(var(--ion-color-primary-rgb), 0.06);
+    border-color: rgba(var(--ion-color-primary-rgb), 0.12);
+  }
+
+  .sched-inline__time-field {
+    --background: rgba(255, 255, 255, 0.04);
+  }
+
+  .curso-dates__field {
+    --background: rgba(255, 255, 255, 0.04);
+  }
+}

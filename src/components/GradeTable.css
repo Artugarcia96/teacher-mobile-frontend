@@ -1,0 +1,317 @@
+.grade-table-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.grade-table-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.exam-categories {
+  padding: 0 var(--space-sm);
+}
+
+.exam-legend {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-medium);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-dot.global-exam {
+  background: #DC2626;
+}
+
+.legend-dot.topic-exam {
+  background: #2563EB;
+}
+
+.legend-dot.practice-exam {
+  background: #059669;
+}
+
+.exam-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.exam-name {
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+}
+
+.exam-category-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.exam-global .exam-category-dot {
+  background: #DC2626;
+}
+
+.exam-topic .exam-category-dot {
+  background: #2563EB;
+}
+
+.exam-practice .exam-category-dot {
+  background: #059669;
+}
+
+.grade-table-exam-selector {
+  padding: 0 var(--space-sm);
+}
+
+.grade-table-exam-select {
+  --background: #ffffff;
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-sm);
+  box-shadow: var(--shadow-xs);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.grade-table-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-md);
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-medium);
+}
+
+.grade-table-info--bottom {
+  justify-content: center;
+  padding-top: var(--space-sm);
+}
+
+/* ─── List view for single exam ─── */
+.grade-table-list-view {
+  padding: 0 var(--space-sm);
+}
+
+.grade-table-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.grade-table-list-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--ion-text-color);
+}
+
+.grade-table-list-link {
+  background: none;
+  border: none;
+  color: var(--ion-color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.grade-table-list-link:hover {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.grade-table-list {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.grade-table-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.grade-table-list-item:last-child {
+  border-bottom: none;
+}
+
+.grade-table-list-item:hover {
+  background: rgba(var(--ion-color-primary-rgb), 0.04);
+}
+
+.grade-table-list-item:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.grade-table-list-name {
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.grade-table-list-grade {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+}
+
+/* ─── Table wrapper ─── */
+.grade-table-wrapper {
+  overflow-x: auto;
+  padding: var(--space-md) var(--space-sm) var(--space-xl);
+  margin: 0 var(--space-xs);
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.grade-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-size-sm);
+  min-width: 400px;
+}
+
+.grade-table th {
+  position: sticky;
+  top: 0;
+  background: var(--ion-background-color);
+  padding: var(--space-md) var(--space-md);
+  font-weight: 600;
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+}
+
+.grade-table-exam {
+  cursor: pointer;
+  text-align: center;
+  min-width: 84px;
+  transition: color var(--transition-fast);
+}
+
+.grade-table-exam:hover {
+  color: var(--ion-color-primary);
+}
+
+.grade-table-student {
+  text-align: left;
+  min-width: 140px;
+}
+
+.grade-table td {
+  padding: var(--space-md) var(--space-md);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.03);
+}
+
+.grade-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.grade-table tbody tr:hover td {
+  background: rgba(15, 23, 42, 0.015);
+}
+
+.grade-table-student-name {
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--ion-color-primary);
+  transition: color var(--transition-fast);
+}
+
+.grade-table-student-name:hover {
+  text-decoration: underline;
+}
+
+.grade-table-cell {
+  text-align: center;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+}
+
+.grade-table-avg {
+  text-align: center;
+  min-width: 52px;
+}
+
+.grade-table-avg-cell {
+  font-weight: 700;
+  color: var(--ion-text-color);
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .grade-table-exam-select {
+    --background: #16161A;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .grade-table-list {
+    background: #16161A;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .grade-table-list-item {
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .grade-table-list-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .grade-table-list-item:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .grade-table-wrapper {
+    background: #16161A;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .grade-table th {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .grade-table td {
+    border-color: rgba(255, 255, 255, 0.03);
+  }
+
+  .grade-table tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}

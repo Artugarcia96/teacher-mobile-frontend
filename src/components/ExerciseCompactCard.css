@@ -1,0 +1,123 @@
+.exercise-compact-card {
+  margin: 0;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+  isolation: isolate;
+  position: relative;
+  box-shadow: var(--shadow-sm) !important;
+  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.exercise-compact-card:active {
+  transform: scale(0.98);
+}
+
+.exercise-compact-card--selected {
+  border-color: var(--ion-color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.25) !important;
+}
+
+.exercise-compact-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  accent-color: var(--ion-color-primary);
+}
+
+.exercise-compact-rename-icon {
+  font-size: 13px;
+  color: var(--ion-color-medium);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.exercise-compact-content {
+  padding: var(--space-lg) !important;
+}
+
+.exercise-compact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.exercise-compact-topic {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--ion-text-color);
+  line-height: 1.3;
+  flex: 1;
+  margin-right: var(--space-sm);
+}
+
+.exercise-compact-delete {
+  --padding-start: 4px;
+  --padding-end: 4px;
+  --padding-top: 4px;
+  --padding-bottom: 4px;
+  margin: 0;
+  min-height: 28px;
+  min-width: 28px;
+}
+
+.exercise-compact-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.exercise-compact-meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+}
+
+.exercise-compact-meta-item ion-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.exercise-compact-info {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.exercise-compact-questions,
+.exercise-compact-areas {
+  font-size: var(--font-size-xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.exercise-compact-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.exercise-compact-btn {
+  flex: 1;
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+  font-size: var(--font-size-xs);
+  --border-radius: var(--radius-sm);
+}
+
+.exercise-compact-btn ion-icon { font-size: 14px; }
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .exercise-compact-card {
+    background: #16161A !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+}

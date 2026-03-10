@@ -1,0 +1,348 @@
+.exam-editor-content {
+  --padding-top: 0;
+  --padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.exam-editor-form {
+  flex: 1;
+  padding: var(--space-lg);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ─── Upload item ─── */
+.upload-item {
+  --background: rgba(var(--ion-color-primary-rgb), 0.06);
+  --border-radius: var(--radius-lg);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-lg);
+  --min-height: 64px;
+  margin-bottom: var(--space-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.upload-item:hover {
+  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+}
+
+.upload-item-icon {
+  font-size: 24px;
+  color: var(--ion-color-primary);
+}
+
+.upload-success-icon {
+  font-size: 20px;
+  color: var(--ion-color-success);
+}
+
+.upload-item h3 {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  margin: 0;
+}
+
+.upload-item p {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  margin: 2px 0 0;
+}
+
+/* ─── Form grid ─── */
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.form-item {
+  --background: rgba(15, 23, 42, 0.03);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-lg);
+  --min-height: 56px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.form-row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.form-item-half {
+  flex: 1;
+}
+
+/* ─── Generate mode ─── */
+.gen-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Topics selection */
+.gen-topics {
+  margin-top: var(--space-sm);
+}
+
+.gen-topics__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.gen-topics__count {
+  font-size: var(--font-size-xs) !important;
+  padding: 2px 8px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.gen-topics__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.gen-topics__empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+}
+
+.gen-topics__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.gen-topic-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1.5px solid rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.gen-topic-chip--active {
+  border-color: var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.04);
+}
+
+.gen-topic-chip:active {
+  transform: scale(0.98);
+}
+
+.gen-topic-chip__check {
+  --size: 20px;
+  pointer-events: none;
+}
+
+.gen-topic-chip__name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.gen-topic-chip__materials {
+  font-size: var(--font-size-xs) !important;
+  padding: 2px 6px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+/* Config */
+.gen-config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.gen-config__row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+/* Personalization */
+.gen-personalize {
+  margin-top: var(--space-xs);
+}
+
+.gen-personalize__toggle {
+  --background: rgba(var(--ion-color-primary-rgb), 0.04);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-lg);
+  --min-height: 64px;
+  border-radius: var(--radius-md);
+}
+
+.gen-personalize__toggle h3 {
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+}
+
+.gen-personalize__toggle p {
+  font-size: var(--font-size-xs) !important;
+  color: #94A3B8 !important;
+  margin: 2px 0 0 !important;
+}
+
+.gen-personalize__info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  margin-top: var(--space-sm);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-primary);
+  line-height: 1.4;
+}
+
+.gen-personalize__info ion-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ─── Downloads section ─── */
+.exam-downloads {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.exam-downloads__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #64748B;
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.exam-downloads__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.exam-downloads__buttons ion-button {
+  --border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.exam-downloads__hint {
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-primary);
+  margin: var(--space-md) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+/* ─── Actions ─── */
+.assign-toggle-compact {
+  --background: rgba(var(--ion-color-success-rgb), 0.08);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-lg);
+  --min-height: 48px;
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-md);
+}
+
+.assign-toggle-compact ion-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.exam-editor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: var(--ion-background-color);
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+  margin-top: auto;
+}
+
+.save-btn {
+  --border-radius: var(--radius-md);
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  font-weight: 600;
+  font-size: var(--font-size-md);
+}
+
+.gen-btn {
+  --box-shadow: var(--shadow-primary);
+}
+
+.gen-error {
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-danger);
+  text-align: center;
+  margin: 0 0 var(--space-sm);
+}
+
+.exam-editor-actions ion-button {
+  --border-radius: var(--radius-md);
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  font-weight: 600;
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .exam-editor-actions {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .form-item { --background: rgba(255, 255, 255, 0.04); }
+  .upload-item { --background: rgba(var(--ion-color-primary-rgb), 0.1); }
+
+  .gen-topic-chip {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .gen-topic-chip--active {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+  }
+
+  .gen-personalize__toggle {
+    --background: rgba(var(--ion-color-primary-rgb), 0.08);
+  }
+
+  .gen-personalize__info {
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+  }
+
+  .exam-downloads {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exam-downloads__hint {
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+  }
+}

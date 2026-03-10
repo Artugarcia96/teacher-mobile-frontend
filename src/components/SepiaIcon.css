@@ -1,0 +1,50 @@
+/* SepiaIcon responsive sizing */
+.sepia-icon {
+  transition: transform 0.2s ease;
+}
+
+.sepia-icon:hover {
+  transform: scale(1.05);
+}
+
+/* Make icons bigger on larger screens */
+@media (min-width: 768px) {
+  .sepia-icon--responsive {
+    width: 1.25em !important;
+    height: 1.25em !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sepia-icon--responsive {
+    width: 1.5em !important;
+    height: 1.5em !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .sepia-icon--responsive {
+    width: 1.75em !important;
+    height: 1.75em !important;
+  }
+}
+
+/* Login page specific sizing */
+.login-icon-wrap .sepia-icon {
+  width: 96px !important;
+  height: 96px !important;
+}
+
+@media (min-width: 768px) {
+  .login-icon-wrap .sepia-icon {
+    width: 120px !important;
+    height: 120px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .login-icon-wrap .sepia-icon {
+    width: 144px !important;
+    height: 144px !important;
+  }
+}

@@ -1,0 +1,56 @@
+.ev-editor {
+  padding: var(--space-2xl) var(--space-xl) var(--space-3xl);
+}
+
+.ev-editor__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-xl);
+  letter-spacing: -0.02em;
+}
+
+.ev-editor__field {
+  --background: rgba(15, 23, 42, 0.03);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-lg);
+  --min-height: 52px;
+  margin: 0 0 var(--space-md);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.ev-editor__field--half {
+  flex: 1;
+}
+
+.ev-editor__row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.ev-editor__save {
+  margin-top: var(--space-xl);
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  --border-radius: var(--radius-md);
+  font-weight: 600;
+}
+
+.ev-editor__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.ev-editor__actions ion-button {
+  font-size: var(--font-size-sm);
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  .ev-editor__field {
+    --background: rgba(255, 255, 255, 0.04);
+  }
+}

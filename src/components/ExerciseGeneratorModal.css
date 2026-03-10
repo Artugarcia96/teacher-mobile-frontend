@@ -1,0 +1,335 @@
+.exgen {
+  padding: var(--space-2xl) var(--space-xl) var(--space-3xl);
+  overflow-y: auto;
+}
+
+.exgen__header {
+  margin-bottom: var(--space-lg);
+}
+
+.exgen__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+  color: var(--ion-text-color);
+}
+
+.exgen__subtitle {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  margin: var(--space-xs) 0 0;
+}
+
+/* ─── Source type toggle ─── */
+.exgen__source-toggle {
+  margin-bottom: var(--space-lg);
+}
+
+.exgen__source-toggle ion-segment {
+  margin: 0;
+  width: 100%;
+}
+
+/* ─── Areas ─── */
+.exgen__areas {
+  background: rgba(var(--ion-color-warning-rgb), 0.08);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border: 1px solid rgba(var(--ion-color-warning-rgb), 0.12);
+}
+
+.exgen__areas-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: #92400E;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.exgen__areas-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.exgen__area-badge {
+  font-size: var(--font-size-xs) !important;
+  padding: 3px 8px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+/* ─── Empty ─── */
+.exgen__empty {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-lg);
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+/* ─── Select field ─── */
+.exgen__field {
+  margin-bottom: var(--space-md);
+}
+
+.exgen__select {
+  --background: #ffffff;
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-md);
+  --min-height: 48px;
+  margin: 0 0 var(--space-md);
+  box-shadow: var(--shadow-xs);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+/* ─── Topics list ─── */
+.exgen__topics-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.exgen__topic-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1.5px solid rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.exgen__topic-chip--active {
+  border-color: var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.04);
+}
+
+.exgen__topic-chip:active { transform: scale(0.98); }
+.exgen__topic-check { --size: 18px; pointer-events: none; }
+.exgen__topic-name { flex: 1; font-size: var(--font-size-sm); font-weight: 500; }
+.exgen__topic-count { font-size: 10px !important; padding: 2px 6px !important; border-radius: var(--radius-full) !important; }
+
+/* ─── Students section ─── */
+.exgen__students {
+  margin-bottom: var(--space-md);
+}
+
+.exgen__students-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.exgen__students-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.exgen__students-count {
+  font-size: 10px !important;
+  padding: 2px 7px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.exgen__students-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.exgen__filter-chip {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  color: #64748B;
+  transition: all var(--transition-fast);
+}
+
+.exgen__filter-chip--active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: #ffffff;
+}
+
+.exgen__filter-chip--warn.exgen__filter-chip--active {
+  background: var(--ion-color-warning);
+  border-color: var(--ion-color-warning);
+}
+
+.exgen__students-list {
+  max-height: 180px;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.exgen__student-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.exgen__student-row + .exgen__student-row {
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.exgen__student-row:active { background: rgba(15, 23, 42, 0.02); }
+.exgen__student-check { --size: 18px; pointer-events: none; }
+.exgen__student-name { flex: 1; font-size: var(--font-size-sm); font-weight: 500; }
+.exgen__student-code { font-size: var(--font-size-xs); color: #94A3B8; font-family: monospace; }
+.exgen__student-warn { font-size: 10px !important; padding: 2px 5px !important; border-radius: var(--radius-full) !important; }
+
+/* ─── Options ─── */
+.exgen__options-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-sm) var(--space-xs);
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.exgen__options-toggle:hover { color: var(--ion-color-primary); }
+
+.exgen__options {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  margin-bottom: var(--space-md);
+  box-shadow: var(--shadow-xs);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.exgen__options .exgen__select {
+  --background: transparent;
+  box-shadow: none;
+  border: none;
+  margin: 0;
+}
+
+.exgen__textarea-item {
+  --background: transparent;
+  --padding-start: var(--space-md);
+}
+
+.exgen__textarea-item ion-textarea { font-size: var(--font-size-sm); }
+
+/* ─── Error / Success / Button ─── */
+.exgen__error { text-align: center; padding: var(--space-sm); margin-bottom: var(--space-md); }
+
+.exgen__success {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: rgba(var(--ion-color-success-rgb), 0.1);
+  border-radius: var(--radius-md);
+  color: var(--ion-color-success);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  margin-top: var(--space-lg);
+}
+
+.exgen__success-icon { font-size: var(--font-size-xl); }
+
+.exgen__success-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.exgen__batch-downloads {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.exgen__batch-downloads ion-button {
+  --border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.exgen__done-btn {
+  margin-top: var(--space-xs);
+  font-size: var(--font-size-sm);
+}
+
+.exgen__button {
+  margin-top: var(--space-lg);
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  --border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .exgen__select {
+    --background: #1E1E24;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .exgen__options {
+    background: #1E1E24;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .exgen__areas {
+    background: rgba(var(--ion-color-warning-rgb), 0.12);
+    border: 1px solid rgba(var(--ion-color-warning-rgb), 0.2);
+  }
+  .exgen__areas-label { color: #FBBF24; }
+  .exgen__topic-chip {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .exgen__topic-chip--active {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+  }
+  .exgen__students-list {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  .exgen__student-row + .exgen__student-row { border-color: rgba(255, 255, 255, 0.04); }
+  .exgen__filter-chip {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #A1A1AA;
+  }
+}

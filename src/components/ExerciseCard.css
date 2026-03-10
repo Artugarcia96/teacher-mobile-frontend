@@ -1,0 +1,141 @@
+.exercise-card {
+  margin: 0;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+  isolation: isolate;
+  position: relative;
+  box-shadow: var(--shadow-sm) !important;
+  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+}
+
+.exercise-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.exercise-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.exercise-card-title {
+  font-size: var(--font-size-base) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+.exercise-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  margin-bottom: var(--space-md);
+}
+
+.exercise-card-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.exercise-card-area {
+  font-size: var(--font-size-xs) !important;
+  border-radius: var(--radius-full) !important;
+  padding: 2px 8px !important;
+}
+
+.exercise-card-questions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.exercise-card-q {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: var(--radius-sm);
+}
+
+.exercise-card-q-num {
+  font-weight: 700;
+  color: var(--ion-color-primary);
+  min-width: 18px;
+}
+
+.exercise-card-q-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.exercise-card-solution-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.exercise-card-more {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  padding: var(--space-xs) var(--space-md);
+}
+
+.exercise-card-downloads {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid rgba(15, 23, 42, 0.04);
+}
+
+.exercise-card-downloads ion-button {
+  flex: 1;
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  font-size: var(--font-size-xs);
+}
+
+.exercise-card-rename-btn {
+  --padding-start: 4px;
+  --padding-end: 4px;
+  --padding-top: 4px;
+  --padding-bottom: 4px;
+  margin: 0 0 0 4px;
+  min-height: 24px;
+  min-width: 24px;
+  vertical-align: middle;
+}
+
+.exercise-card-delete-btn {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+  margin: 0;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .exercise-card {
+    background: #16161A !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .exercise-card-q {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .exercise-card-downloads {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+}

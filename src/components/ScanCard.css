@@ -1,0 +1,329 @@
+.scan-card {
+  margin: var(--space-sm) 0;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+}
+
+.scan-card-saved {
+  opacity: 0.85;
+  border-left: 3px solid var(--ion-color-success) !important;
+}
+
+.scan-card-content {
+  padding: var(--space-md) !important;
+}
+
+/* ─── Top row: index + student + grade + save ─── */
+.scan-card-top-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.scan-card-index {
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  min-width: 24px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.scan-card-preview-icon {
+  font-size: 12px;
+  color: var(--ion-color-primary);
+}
+
+.scan-card-student-select {
+  flex: 1;
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  font-size: var(--font-size-sm);
+  min-height: 36px;
+  max-width: none;
+}
+
+.scan-card-grade-inline {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.scan-card-grade-input {
+  width: 48px;
+  --background: rgba(15, 23, 42, 0.04);
+  --padding-start: 6px;
+  --padding-end: 2px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: var(--font-size-base);
+  text-align: center;
+  height: 32px;
+}
+
+.scan-card-max {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.scan-card-status {
+  padding: 3px 8px;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+}
+
+.scan-card-save-btn {
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  height: 32px;
+  font-size: var(--font-size-sm);
+  --border-radius: var(--radius-sm);
+}
+
+/* ─── AI student hint ─── */
+.scan-card-ai-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.08);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-tertiary-shade);
+}
+
+.scan-card-ai-hint ion-icon { font-size: 14px; }
+
+/* ─── AI Results Section ─── */
+.scan-card-ai-section {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.04);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(var(--ion-color-tertiary-rgb), 0.08);
+}
+
+.scan-card-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.scan-card-ai-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.scan-card-ai-stats ion-icon { font-size: 14px; }
+.scan-card-ai-stats ion-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.scan-card-ai-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--ion-color-tertiary-shade);
+}
+
+.scan-card-pct {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.scan-card-pct-pass {
+  color: var(--ion-color-success-shade);
+  background: rgba(var(--ion-color-success-rgb), 0.10);
+}
+
+.scan-card-pct-fail {
+  color: var(--ion-color-danger-shade);
+  background: rgba(var(--ion-color-danger-rgb), 0.10);
+}
+
+/* ─── Blank questions warning ─── */
+.scan-card-blank-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(var(--ion-color-warning-rgb), 0.10);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-warning-shade);
+  font-weight: 500;
+  margin-bottom: var(--space-sm);
+}
+
+.scan-card-blank-warning ion-icon { font-size: 14px; }
+
+/* ─── Question breakdown ─── */
+.scan-card-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scan-card-question {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 5px var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.scan-card-question ion-icon { font-size: 14px; flex-shrink: 0; }
+
+.scan-q-id {
+  font-weight: 600;
+  min-width: 24px;
+  flex-shrink: 0;
+}
+
+.scan-q-status-label {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.scan-q-status-correct { background: rgba(var(--ion-color-success-rgb), 0.12); color: var(--ion-color-success-shade); }
+.scan-q-status-partial { background: rgba(var(--ion-color-warning-rgb), 0.12); color: var(--ion-color-warning-shade); }
+.scan-q-status-incorrect { background: rgba(var(--ion-color-danger-rgb), 0.12); color: var(--ion-color-danger-shade); }
+.scan-q-status-blank { background: rgba(15, 23, 42, 0.06); color: #94A3B8; }
+
+.scan-q-feedback {
+  color: #94A3B8;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-card-question-correct { background: rgba(var(--ion-color-success-rgb), 0.05); }
+.scan-card-question-partial { background: rgba(var(--ion-color-warning-rgb), 0.05); }
+.scan-card-question-incorrect { background: rgba(var(--ion-color-danger-rgb), 0.05); }
+.scan-card-question-blank { background: rgba(15, 23, 42, 0.03); }
+
+.scan-card-show-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  background: none;
+  border: none;
+  color: var(--ion-color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  padding: var(--space-xs) 0;
+  margin-top: 2px;
+}
+
+.scan-card-show-more ion-icon { font-size: 14px; }
+
+/* ─── Weak areas ─── */
+.scan-card-weak-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--space-sm);
+}
+
+.scan-card-weak-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: rgba(var(--ion-color-warning-rgb), 0.10);
+  color: var(--ion-color-warning-shade);
+}
+
+/* ─── Summary ─── */
+.scan-card-summary {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  line-height: 1.5;
+}
+
+/* ─── AI button & error ─── */
+.scan-card-ai-btn {
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-xs);
+}
+
+.scan-card-ai-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-danger);
+}
+
+.scan-card-ai-error ion-icon { font-size: 14px; flex-shrink: 0; }
+
+/* ─── Notes ─── */
+.scan-card-notes-item {
+  margin-top: var(--space-sm);
+  --background: rgba(15, 23, 42, 0.03);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --min-height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.scan-card-notes-item ion-textarea {
+  font-size: var(--font-size-sm);
+  --padding-top: var(--space-sm);
+  --padding-bottom: var(--space-sm);
+}
+
+.scan-card-notes-display {
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .scan-card {
+    background: #16161A !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .scan-card-grade-input { --background: rgba(255, 255, 255, 0.06); }
+  .scan-card-ai-section {
+    background: rgba(139, 92, 246, 0.06);
+    border-color: rgba(139, 92, 246, 0.10);
+  }
+  .scan-card-question-blank { background: rgba(255, 255, 255, 0.03); }
+  .scan-card-blank-warning { background: rgba(var(--ion-color-warning-rgb), 0.08); }
+  .scan-q-status-blank { background: rgba(255, 255, 255, 0.06); }
+  .scan-card-weak-tag { background: rgba(var(--ion-color-warning-rgb), 0.08); }
+  .scan-card-notes-item { --background: rgba(255, 255, 255, 0.04); }
+  .scan-card-notes-display { background: rgba(255, 255, 255, 0.04); }
+}

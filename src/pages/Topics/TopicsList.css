@@ -1,0 +1,113 @@
+.topics-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-4xl);
+}
+
+.topics-search {
+  --background: #ffffff;
+  --border-radius: var(--radius-md);
+  --box-shadow: var(--shadow-xs);
+  margin: var(--space-sm) var(--space-md);
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.topics-list {
+  padding: var(--space-sm) 0;
+}
+
+.topic-item__number {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.topic-item__name {
+  font-size: var(--font-size-base) !important;
+  font-weight: 600 !important;
+}
+
+.topic-item__desc {
+  font-size: var(--font-size-xs) !important;
+  color: #94A3B8 !important;
+  margin-top: 2px !important;
+}
+
+.topic-item__badge {
+  font-size: var(--font-size-xs) !important;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 3px 8px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+/* Modal shared styles (reuses .modal-sheet from Classes.css) */
+
+/* File upload section */
+.topic-upload-section {
+  margin-top: var(--space-md);
+  padding: 0 var(--space-md);
+}
+
+.topic-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.topic-file-chip {
+  max-width: 100%;
+}
+
+.topic-file-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic-file-remove {
+  cursor: pointer;
+  color: var(--ion-color-danger);
+}
+
+.topic-upload-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  padding: 0 var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-medium);
+}
+
+.topic-upload-progress ion-progress-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: var(--radius-sm);
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  .topics-search {
+    --background: #16161A;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .topic-item__number {
+    background: rgba(var(--ion-color-primary-rgb), 0.15);
+  }
+}
