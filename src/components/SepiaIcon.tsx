@@ -7,7 +7,7 @@ import './SepiaIcon.css';
 interface SepiaIconProps {
   size?: number;
   className?: string;
-  variant?: 'default' | 'white';
+  variant?: 'default' | 'white' | 'colored';
   responsive?: boolean;
 }
 
@@ -17,7 +17,11 @@ const SepiaIcon: React.FC<SepiaIconProps> = ({
   variant = 'default',
   responsive = true 
 }) => {
-  const iconSrc = variant === 'white' ? '/squid-white-no-hex.svg' : '/squid_no_hex.svg';
+  const iconSrc = variant === 'white'
+    ? '/assets/icon/squid-white.svg'
+    : variant === 'colored'
+      ? '/assets/icon/squid.svg'
+      : '/squid_no_hex.svg';
   
   const classes = [
     'sepia-icon',

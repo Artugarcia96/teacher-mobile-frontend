@@ -21,6 +21,45 @@
   margin: var(--space-xs) 0 0;
 }
 
+/* ─── Mode toggle (transversal / por clase) ─── */
+.exgen__mode-toggle {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.exgen__mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: #ffffff;
+  border: 2px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.exgen__mode-btn:active {
+  transform: scale(0.98);
+}
+
+.exgen__mode-btn--active {
+  border-color: var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
+  color: var(--ion-color-primary);
+}
+
+.exgen__mode-btn ion-icon {
+  font-size: 18px;
+}
+
 /* ─── Source type toggle ─── */
 .exgen__source-toggle {
   margin-bottom: var(--space-lg);
@@ -90,6 +129,145 @@
   font-size: var(--font-size-sm);
 }
 
+/* ─── Exam/Student Picker ─── */
+.exgen__exam-picker,
+.exgen__students {
+  margin-bottom: var(--space-md);
+}
+
+.exgen__picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.exgen__picker-header:hover {
+  border-color: var(--ion-color-primary);
+}
+
+.exgen__picker-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.exgen__picker-dropdown {
+  margin-top: var(--space-sm);
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.exgen__picker-search {
+  --border-radius: 0;
+  --box-shadow: none;
+  --background: transparent;
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.exgen__picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.exgen__picker-list--students {
+  max-height: 240px;
+}
+
+.exgen__picker-group {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.exgen__picker-group:last-child {
+  border-bottom: none;
+}
+
+.exgen__picker-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(15, 23, 42, 0.02);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.exgen__picker-group-header ion-icon {
+  font-size: 14px;
+  color: var(--ion-color-primary);
+}
+
+.exgen__picker-group-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--ion-color-primary);
+  cursor: pointer;
+  padding: 2px 6px;
+  text-transform: none;
+}
+
+.exgen__picker-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.exgen__picker-item:hover {
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.exgen__picker-item--selected {
+  background: rgba(var(--ion-color-primary-rgb), 0.04);
+}
+
+.exgen__picker-item ion-checkbox {
+  --size: 18px;
+  pointer-events: none;
+}
+
+.exgen__picker-item-name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.exgen__picker-item-code {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  font-family: monospace;
+}
+
+.exgen__picker-item-warn {
+  font-size: 10px !important;
+  padding: 2px 5px !important;
+  border-radius: var(--radius-full) !important;
+}
+
 /* ─── Topics list ─── */
 .exgen__topics-list {
   display: flex;
@@ -121,10 +299,6 @@
 .exgen__topic-count { font-size: 10px !important; padding: 2px 6px !important; border-radius: var(--radius-full) !important; }
 
 /* ─── Students section ─── */
-.exgen__students {
-  margin-bottom: var(--space-md);
-}
-
 .exgen__students-header {
   display: flex;
   align-items: center;
@@ -150,6 +324,9 @@
 .exgen__students-actions {
   display: flex;
   gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  flex-wrap: wrap;
 }
 
 .exgen__filter-chip {
@@ -301,6 +478,16 @@
 
 /* ─── Dark theme ─── */
 @media (prefers-color-scheme: dark) {
+  .exgen__mode-btn {
+    background: #1E1E24;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #A1A1AA;
+  }
+  .exgen__mode-btn--active {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.15);
+    color: var(--ion-color-primary);
+  }
   .exgen__select {
     --background: #1E1E24;
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -322,8 +509,34 @@
     border-color: var(--ion-color-primary);
     background: rgba(var(--ion-color-primary-rgb), 0.1);
   }
+  .exgen__picker-header {
+    background: #1E1E24;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .exgen__picker-dropdown {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .exgen__picker-search {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  .exgen__picker-group {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  .exgen__picker-group-header {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .exgen__picker-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .exgen__picker-item--selected {
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+  }
   .exgen__students-list {
     background: #16161A;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  .exgen__students-actions {
     border-color: rgba(255, 255, 255, 0.06);
   }
   .exgen__student-row + .exgen__student-row { border-color: rgba(255, 255, 255, 0.04); }

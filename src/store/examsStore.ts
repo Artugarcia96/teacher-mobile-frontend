@@ -3,7 +3,8 @@ import { Exam } from '../types';
 import { exams as examsApi } from '../services/api';
 
 interface GenerateExamParams {
-  class_id: string;
+  class_id?: string;
+  lecture_id?: string;
   topic_ids: string[];
   name: string;
   exam_date: string;
@@ -19,7 +20,7 @@ interface ExamsState {
   exams: Exam[];
   loading: boolean;
   fetchExams: (classId?: string) => Promise<void>;
-  addExam: (data: { name: string; classId: string; date: string; maxScore: number; isPersonalized?: boolean }, file?: File) => Promise<string>;
+  addExam: (data: { name: string; classId?: string; lectureId?: string; date: string; maxScore: number; isPersonalized?: boolean }, file?: File) => Promise<string>;
   generateExam: (data: GenerateExamParams) => Promise<string>;
   updateExam: (id: string, data: Partial<Exam>) => Promise<void>;
   assignExam: (id: string) => Promise<void>;
@@ -38,6 +39,7 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
         id: e.id,
         name: e.name,
         classId: e.class_id,
+        lectureId: e.lecture_id,
         date: e.exam_date,
         maxScore: e.max_score,
         status: e.status,
@@ -45,6 +47,8 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
         documentType: e.document_type,
         isPersonalized: e.is_personalized || false,
         hasGeneratedQuestions: e.has_generated_questions || false,
+        className: e.class_name,
+        lectureName: e.lecture_name,
       }));
       set({ exams: data, loading: false });
     } catch {
@@ -54,13 +58,21 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
 
   addExam: async (data, file) => {
     const res = await examsApi.create(
-      { name: data.name, class_id: data.classId, exam_date: data.date, max_score: data.maxScore, is_personalized: data.isPersonalized },
+      { 
+        name: data.name, 
+        class_id: data.classId || undefined, 
+        lecture_id: data.lectureId || undefined,
+        exam_date: data.date, 
+        max_score: data.maxScore, 
+        is_personalized: data.isPersonalized 
+      },
       file
     );
     const newExam: Exam = {
       id: res.data.id,
       name: res.data.name,
       classId: res.data.class_id,
+      lectureId: res.data.lecture_id,
       date: res.data.exam_date,
       maxScore: res.data.max_score,
       status: res.data.status,
@@ -68,6 +80,8 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
       documentType: res.data.document_type,
       isPersonalized: res.data.is_personalized || false,
       hasGeneratedQuestions: res.data.has_generated_questions || false,
+      className: res.data.class_name,
+      lectureName: res.data.lecture_name,
     };
     set((s) => ({ exams: [...s.exams, newExam] }));
     return res.data.id;
@@ -79,6 +93,7 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
       id: res.data.id,
       name: res.data.name,
       classId: res.data.class_id,
+      lectureId: res.data.lecture_id,
       date: res.data.exam_date,
       maxScore: res.data.max_score,
       status: res.data.status,
@@ -86,6 +101,8 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
       documentType: res.data.document_type,
       isPersonalized: res.data.is_personalized || false,
       hasGeneratedQuestions: res.data.has_generated_questions || false,
+      className: res.data.class_name,
+      lectureName: res.data.lecture_name,
     };
     set((s) => ({ exams: [...s.exams, newExam] }));
     return res.data.id;

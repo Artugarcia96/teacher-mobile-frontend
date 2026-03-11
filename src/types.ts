@@ -41,7 +41,8 @@ export interface Note {
 export interface Exam {
   id: string;
   name: string;
-  classId: string;
+  classId?: string;
+  lectureId?: string;
   date: string;
   maxScore: number;
   status: ExamStatus;
@@ -49,6 +50,8 @@ export interface Exam {
   documentType?: 'pdf' | 'image';
   isPersonalized?: boolean;
   hasGeneratedQuestions?: boolean;
+  className?: string;
+  lectureName?: string;
 }
 
 export interface AIQuestionFeedback {
@@ -89,6 +92,20 @@ export interface Exercise {
   refinementPrompt?: string;
   pdfExercisesUrl?: string;
   pdfSolutionsUrl?: string;
+  correctionStatus?: 'in_progress' | 'corrected' | null;
+}
+
+export interface ExerciseCorrectionResult {
+  id: string;
+  exerciseId: string;
+  studentId: string | null;
+  paperUrl?: string;
+  aiAnalysis?: AIAnalysis;
+  grade: number | null;
+  teacherNotes?: string;
+  weakAreas?: string[];
+  savedAt?: string;
+  createdAt?: string;
 }
 
 export interface ExerciseQuestion {
@@ -155,6 +172,33 @@ export interface BulkUploadNeedsReview {
 export interface BulkUploadResult {
   autoMatched: BulkUploadMatch[];
   needsReview: BulkUploadNeedsReview[];
+  studentsWithoutPapers: { studentId: string; studentName: string; code: string }[];
+}
+
+// Class-level bulk upload (for multiple exercises at once)
+export interface ClassBulkUploadMatch {
+  correctionId: string;
+  exerciseId: string;
+  exerciseName: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  confidence: number;
+}
+
+export interface ClassBulkUploadNeedsReview {
+  correctionId: string;
+  exerciseId: string | null;
+  exerciseName: string | null;
+  detectedCode: string | null;
+  reason: string;
+  suggestions: { studentId: string; studentName: string; code: string }[];
+}
+
+export interface ClassBulkUploadResult {
+  autoMatched: ClassBulkUploadMatch[];
+  needsReview: ClassBulkUploadNeedsReview[];
+  exercisesAffected: { exerciseId: string; exerciseName: string; matchedCount: number }[];
   studentsWithoutPapers: { studentId: string; studentName: string; code: string }[];
 }
 

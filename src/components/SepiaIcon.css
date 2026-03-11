@@ -29,22 +29,12 @@
   }
 }
 
-/* Login page specific sizing */
+/* Login: fixed size, no hover scale */
 .login-icon-wrap .sepia-icon {
-  width: 96px !important;
-  height: 96px !important;
+  width: 80px !important;
+  height: 80px !important;
 }
 
-@media (min-width: 768px) {
-  .login-icon-wrap .sepia-icon {
-    width: 120px !important;
-    height: 120px !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  .login-icon-wrap .sepia-icon {
-    width: 144px !important;
-    height: 144px !important;
-  }
+.login-icon-wrap .sepia-icon:hover {
+  transform: none;
 }

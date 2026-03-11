@@ -1,6 +1,7 @@
 import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonBadge, IonButton, IonIcon, IonAlert } from '@ionic/react';
-import { downloadOutline, documentTextOutline, checkmarkCircleOutline, trashOutline, createOutline } from 'ionicons/icons';
+import { downloadOutline, documentTextOutline, checkmarkCircleOutline, trashOutline, createOutline, checkboxOutline } from 'ionicons/icons';
 import { useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import { Exercise } from '../types';
 import { exercises as exercisesApi } from '../services/api';
 import './ExerciseCard.css';
@@ -13,8 +14,13 @@ interface Props {
 }
 
 const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRename }) => {
+  const history = useHistory();
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showRenameAlert, setShowRenameAlert] = useState(false);
+
+  const handleCorrection = () => {
+    history.push(`/exercise-correction/${exercise.id}`);
+  };
 
   const handleDownload = (type: 'exercises' | 'solutions') => {
     const url = type === 'exercises'
@@ -46,8 +52,9 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
     }
   };
 
+  const areas = exercise.weakAreas || [];
   const displayName = exercise.name
-    || (exercise.weakAreas.length > 0 ? exercise.weakAreas.slice(0, 2).join(', ') : 'Ejercicios de práctica');
+    || (areas.length > 0 ? areas.slice(0, 2).join(', ') : 'Ejercicios de práctica');
 
   return (
     <>
@@ -86,28 +93,28 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
         </IonCardHeader>
       <IonCardContent>
         <div className="exercise-card-meta">
-          <span>{exercise.questions.length} preguntas</span>
+          <span>{(exercise.questions || []).length} preguntas</span>
           <span>{formatDate(exercise.assignedAt)}</span>
         </div>
 
-        {exercise.weakAreas.length > 0 && (
+        {(exercise.weakAreas || []).length > 0 && (
           <div className="exercise-card-areas">
-            {exercise.weakAreas.map((area) => (
+            {(exercise.weakAreas || []).map((area) => (
               <IonBadge key={area} color="warning" className="exercise-card-area">{area}</IonBadge>
             ))}
           </div>
         )}
 
         <div className="exercise-card-questions">
-          {exercise.questions.slice(0, 2).map((q, i) => (
+          {(exercise.questions || []).slice(0, 2).map((q, i) => (
             <div key={q.id || i} className="exercise-card-q">
               <span className="exercise-card-q-num">{i + 1}.</span>
               <span className="exercise-card-q-text">{q.text?.substring(0, 80)}{q.text?.length > 80 ? '...' : ''}</span>
               {q.solution && <IonIcon icon={checkmarkCircleOutline} color="success" className="exercise-card-solution-icon" />}
             </div>
           ))}
-          {exercise.questions.length > 2 && (
-            <div className="exercise-card-more">+ {exercise.questions.length - 2} preguntas más</div>
+          {(exercise.questions || []).length > 2 && (
+            <div className="exercise-card-more">+ {(exercise.questions || []).length - 2} preguntas más</div>
           )}
         </div>
 
@@ -130,6 +137,15 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
           >
             <IonIcon icon={downloadOutline} slot="start" />
             Con soluciones
+          </IonButton>
+          <IonButton
+            size="small"
+            fill="solid"
+            color="tertiary"
+            onClick={handleCorrection}
+          >
+            <IonIcon icon={checkboxOutline} slot="start" />
+            Corregir
           </IonButton>
         </div>
       </IonCardContent>

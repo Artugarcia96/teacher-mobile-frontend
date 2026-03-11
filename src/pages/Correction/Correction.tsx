@@ -5,12 +5,12 @@ import {
   IonSpinner, IonSegment, IonSegmentButton, IonLabel, IonSelect, IonSelectOption,
   IonChip, IonModal,
 } from '@ionic/react';
-import { closeOutline, cameraOutline, checkmarkCircleOutline, pencilOutline, eyeOutline, cloudUploadOutline, checkmarkOutline, warningOutline, helpOutline, sparkles, expandOutline, funnelOutline, swapVerticalOutline, trendingDownOutline } from 'ionicons/icons';
+import { closeOutline, cameraOutline, checkmarkCircleOutline, pencilOutline, eyeOutline, cloudUploadOutline, checkmarkOutline, warningOutline, helpOutline, sparkles, expandOutline, funnelOutline, swapVerticalOutline, trendingDownOutline, downloadOutline, ellipsisVertical } from 'ionicons/icons';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
-import { corrections as correctionsApi } from '../../services/api';
+import { corrections as correctionsApi, exams as examsApi } from '../../services/api';
 import { BulkUploadResult, BulkUploadNeedsReview } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
@@ -47,6 +47,13 @@ const Correction: React.FC = () => {
   
   const isReviewMode = exam?.status === 'corrected';
   const [viewMode, setViewMode] = useState<'review' | 'edit'>(isReviewMode ? 'review' : 'edit');
+
+  // Guard: if exam was deleted while this page is still mounted, redirect back
+  useEffect(() => {
+    if (!loading && allExams.length > 0 && !exam) {
+      history.replace('/tabs/exams');
+    }
+  }, [exam, loading, allExams.length, history]);
   
   const [filterBy, setFilterBy] = useState<'all' | 'passed' | 'failed'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'grade-asc' | 'grade-desc'>('name');
@@ -68,7 +75,7 @@ const Correction: React.FC = () => {
   }, [fetchExams]);
 
   useEffect(() => {
-    if (exam) {
+    if (exam && exam.classId) {
       fetchStudents(exam.classId);
       fetchCorrections(examId);
     }
@@ -210,7 +217,11 @@ const Correction: React.FC = () => {
   const getFullPaperUrl = (paperUrl?: string) => {
     if (!paperUrl) return null;
     if (paperUrl.startsWith('http')) return paperUrl;
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    baseUrl = baseUrl.replace(/\/+$/, '');
+    if (paperUrl.startsWith('/uploads/')) {
+      return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
+    }
     return `${baseUrl}${paperUrl}`;
   };
 
@@ -256,7 +267,7 @@ const Correction: React.FC = () => {
     try {
       const correction = examCorrections.find((c) => c.id === correctionId);
       let weakAreas = correction?.aiAnalysis?.weakAreas || [];
-      if (weakAreas.length === 0 && local.grade < exam.maxScore * 0.5) {
+      if (weakAreas.length === 0 && local.grade < (exam?.maxScore || 10) * 0.5) {
         weakAreas = ['Revisar'];
       }
       
@@ -328,11 +339,12 @@ const Correction: React.FC = () => {
 
   const gradeDistribution = useMemo(() => {
     const dist = { excellent: 0, good: 0, borderline: 0, fail: 0, missing: 0 };
+    const maxScore = exam?.maxScore || 10;
     examCorrections.forEach((c) => {
       if (c.grade === null) {
         dist.missing++;
       } else {
-        const pct = c.grade / exam.maxScore;
+        const pct = c.grade / maxScore;
         if (pct >= 0.8) dist.excellent++;
         else if (pct >= 0.6) dist.good++;
         else if (pct >= 0.5) dist.borderline++;
@@ -340,7 +352,7 @@ const Correction: React.FC = () => {
       }
     });
     return dist;
-  }, [examCorrections, exam.maxScore]);
+  }, [examCorrections, exam?.maxScore]);
 
   const classWeakAreas = useMemo(() => {
     const areaCount: Record<string, number> = {};
@@ -357,12 +369,13 @@ const Correction: React.FC = () => {
   }, [examCorrections]);
 
   const filteredCorrections = useMemo(() => {
+    const maxScore = exam?.maxScore || 10;
     return examCorrections.filter((c) => {
       if (filterBy === 'all') return true;
-      const passed = c.grade !== null && c.grade / exam.maxScore >= 0.5;
+      const passed = c.grade !== null && c.grade / maxScore >= 0.5;
       return filterBy === 'passed' ? passed : !passed;
     });
-  }, [examCorrections, filterBy, exam.maxScore]);
+  }, [examCorrections, filterBy, exam?.maxScore]);
 
   const sortedCorrections = useMemo(() => {
     const getStudentName = (studentId?: string) => students.find((s) => s.id === studentId)?.name || '';
@@ -401,6 +414,58 @@ const Correction: React.FC = () => {
     }
   };
 
+  const handleDownloadExam = () => {
+    if (!exam) return;
+    const token = localStorage.getItem('access_token');
+    const url = examsApi.downloadExamUrl(exam.id);
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Download failed');
+        return res.blob();
+      })
+      .then((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${exam.name}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch((err) => console.error('Download error:', err));
+  };
+
+  const handleDownloadSolutions = () => {
+    if (!exam) return;
+    const token = localStorage.getItem('access_token');
+    const url = examsApi.downloadSolutionsUrl(exam.id);
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Download failed');
+        return res.blob();
+      })
+      .then((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${exam.name}_soluciones.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch((err) => console.error('Download error:', err));
+  };
+
+  if (!exam) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding">
+          <div className="exams-loading"><IonSpinner color="primary" /></div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
   return (
     <IonPage>
       <IonHeader>
@@ -412,6 +477,11 @@ const Correction: React.FC = () => {
           </IonButtons>
           <IonTitle>{exam.name}</IonTitle>
           <IonButtons slot="end">
+            {(exam.documentUrl || exam.hasGeneratedQuestions) && (
+              <IonButton onClick={handleDownloadExam} title="Descargar examen">
+                <IonIcon icon={downloadOutline} />
+              </IonButton>
+            )}
             {isReviewMode ? (
               <IonBadge color="success" className="progress-badge">Corregido</IonBadge>
             ) : (
@@ -729,6 +799,10 @@ const Correction: React.FC = () => {
                   {missingStudents.length} sin examen
                 </IonBadge>
               )}
+
+              <IonButton size="small" fill="clear" color="medium" onClick={() => history.push(`/tabs/exams/${examId}`)}>
+                <IonIcon icon={pencilOutline} slot="start" /> Editar examen
+              </IonButton>
             </div>
 
             {loading && examCorrections.length === 0 && (

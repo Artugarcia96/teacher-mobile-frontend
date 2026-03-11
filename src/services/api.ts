@@ -2,6 +2,11 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+const getBaseUrl = () => {
+  const base = API_URL || '';
+  return base.endsWith('/') ? base.slice(0, -1) : base;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' }
@@ -95,13 +100,14 @@ export const students = {
 export const exams = {
   list: (classId?: string) => api.get('/exams/', { params: classId ? { class_id: classId } : {} }),
   get: (id: string) => api.get(`/exams/${id}`),
-  create: (data: { name: string; class_id: string; exam_date: string; max_score: number; is_personalized?: boolean }, file?: File) => {
+  create: (data: { name: string; class_id?: string; lecture_id?: string; exam_date: string; max_score: number; is_personalized?: boolean }, file?: File) => {
     const formData = new FormData();
     formData.append('name', data.name);
-    formData.append('class_id', data.class_id);
+    if (data.class_id && data.class_id.trim()) formData.append('class_id', data.class_id);
+    if (data.lecture_id && data.lecture_id.trim()) formData.append('lecture_id', data.lecture_id);
     formData.append('exam_date', data.exam_date);
     formData.append('max_score', String(data.max_score));
-    formData.append('is_personalized', String(data.is_personalized || false));
+    if (data.is_personalized) formData.append('is_personalized', 'true');
     if (file) formData.append('document', file);
     return api.post('/exams/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -111,12 +117,12 @@ export const exams = {
   delete: (id: string) => api.delete(`/exams/${id}`),
   assign: (id: string) => api.post(`/exams/${id}/assign`),
   generate: (data: {
-    class_id: string; topic_ids: string[]; name: string; exam_date: string;
+    class_id?: string; lecture_id?: string; topic_ids: string[]; name: string; exam_date: string;
     num_questions?: number; max_score?: number; difficulty?: string;
     question_types?: string[]; refinement_prompt?: string; is_personalized?: boolean;
   }) => api.post('/exams/generate', data, { timeout: 300000 }),
-  downloadExamUrl: (id: string) => `${api.defaults.baseURL}/exams/${id}/download`,
-  downloadSolutionsUrl: (id: string) => `${api.defaults.baseURL}/exams/${id}/solutions`,
+  downloadExamUrl: (id: string) => `${getBaseUrl()}/exams/${id}/download`,
+  downloadSolutionsUrl: (id: string) => `${getBaseUrl()}/exams/${id}/solutions`,
 };
 
 export const corrections = {
@@ -174,13 +180,42 @@ export const exercises = {
   update: (id: string, data: any) => api.put(`/exercises/${id}`, data),
   rename: (id: string, name: string) => api.patch(`/exercises/${id}/rename`, { name }),
   delete: (id: string) => api.delete(`/exercises/${id}`),
-  downloadExercisesPdf: (id: string) => `${api.defaults.baseURL}/exercises/${id}/pdf/exercises`,
-  downloadSolutionsPdf: (id: string) => `${api.defaults.baseURL}/exercises/${id}/pdf/solutions`,
+  downloadExercisesPdf: (id: string) => `${getBaseUrl()}/exercises/${id}/pdf/exercises`,
+  downloadSolutionsPdf: (id: string) => `${getBaseUrl()}/exercises/${id}/pdf/solutions`,
   batchDownload: (exerciseIds: string[], includeSolutions: boolean) =>
     api.post('/exercises/batch-download', { exercise_ids: exerciseIds, include_solutions: includeSolutions }, {
       responseType: 'blob',
       timeout: 120000,
     }),
+};
+
+export const exerciseCorrections = {
+  list: (exerciseId: string) => api.get(`/exercise-corrections/${exerciseId}`),
+  bulkUpload: (exerciseId: string, files: File[]) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('papers', f));
+    return api.post(`/exercise-corrections/${exerciseId}/bulk-upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000
+    });
+  },
+  // Class-level bulk upload: upload papers for a specific exercise group
+  classBulkUpload: (classId: string, files: File[], exerciseIds?: string[]) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('papers', f));
+    // Pass exercise IDs as query param to filter which exercises to accept
+    const params = exerciseIds?.length ? `?exercise_ids=${exerciseIds.join(',')}` : '';
+    return api.post(`/exercise-corrections/class/${classId}/bulk-upload${params}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000
+    });
+  },
+  update: (correctionId: string, data: { student_id?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) =>
+    api.put(`/exercise-corrections/${correctionId}`, data),
+  finish: (exerciseId: string) => api.post(`/exercise-corrections/${exerciseId}/finish`),
+  processAI: (correctionId: string) => api.post(`/exercise-corrections/${correctionId}/process-ai`, null, {
+    timeout: 300000
+  })
 };
 
 export const topics = {

@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   IonPage, IonContent, IonButtons, IonBackButton,
   IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonList, IonItem,
   IonInput, IonModal, IonSearchbar, IonItemSliding, IonItemOptions, IonItemOption,
-  IonSpinner, IonAlert, IonProgressBar,
+  IonSpinner, IonAlert, IonProgressBar, useIonViewWillEnter,
 } from '@ionic/react';
 import { 
   addOutline, downloadOutline, cloudUploadOutline, bookOutline, calendarOutline, 
@@ -15,6 +15,8 @@ import { useClassesStore } from '../../store/classesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
+import { classes as classesApi } from '../../services/api';
+import { ClassGroup } from '../../types';
 import GradeTable from '../../components/GradeTable';
 import EmptyState from '../../components/EmptyState';
 import ScheduleSetupSheet from '../../components/ScheduleSetupSheet';
@@ -63,9 +65,10 @@ const GradeBook: React.FC = () => {
 
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
+  const allCorrections = useCorrectionStore((s) => s.corrections);
   const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
 
-  const classGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
+  const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
   const exams = useMemo(() => allExams.filter((e) => e.classId === classId), [allExams, classId]);
 
@@ -78,13 +81,31 @@ const GradeBook: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [showScheduleSheet, setShowScheduleSheet] = useState(false);
   const [showBulkExerciseModal, setShowBulkExerciseModal] = useState(false);
+  const [detailedClassData, setDetailedClassData] = useState<ClassGroup | null>(null);
+
+  const classGroup = detailedClassData || basicClassGroup;
+
+  const fetchClassDetails = useCallback(async () => {
+    if (!classId) return;
+    try {
+      const response = await classesApi.get(classId);
+      setDetailedClassData(response.data);
+    } catch (err) {
+      console.error('Failed to fetch class details:', err);
+    }
+  }, [classId]);
 
   useEffect(() => {
     fetchClasses();
     fetchStudents(classId);
     fetchExams(classId);
     fetchAllCorrections();
-  }, [classId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections]);
+    fetchClassDetails();
+  }, [classId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails]);
+
+  useIonViewWillEnter(() => {
+    fetchClassDetails();
+  });
 
   const validStudentNames = studentInputs.filter((n) => n.trim().length > 0);
 
@@ -157,6 +178,34 @@ const GradeBook: React.FC = () => {
     }
   };
 
+  const handleExportGrades = () => {
+    if (students.length === 0 || exams.length === 0) return;
+    
+    const sortedExams = [...exams].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const header = ['Alumno', ...sortedExams.map(e => e.name)];
+    
+    const rows = students.map(student => {
+      const grades = sortedExams.map(exam => {
+        const correction = allCorrections.find(c => c.examId === exam.id && c.studentId === student.id);
+        return correction?.grade !== undefined && correction?.grade !== null ? String(correction.grade) : '';
+      });
+      return [student.name, ...grades];
+    });
+    
+    const csvContent = [header, ...rows]
+      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `notas_${classGroup?.name || 'clase'}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  };
+
   const filteredRoster = students.filter((s) =>
     s.name.toLowerCase().includes(rosterSearch.toLowerCase())
   );
@@ -219,7 +268,7 @@ const GradeBook: React.FC = () => {
           >
             <IonSegmentButton value="overview"><IonLabel>Resumen</IonLabel></IonSegmentButton>
             <IonSegmentButton value="subjects"><IonLabel>Asignaturas</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="grades"><IonLabel>Calificaciones</IonLabel></IonSegmentButton>
+            <IonSegmentButton value="grades"><IonLabel>Notas</IonLabel></IonSegmentButton>
             <IonSegmentButton value="roster"><IonLabel>Alumnos</IonLabel></IonSegmentButton>
           </IonSegment>
         </div>
@@ -475,7 +524,7 @@ const GradeBook: React.FC = () => {
                   <IonButton size="small" onClick={() => history.push('/tabs/exams/new')}>
                     <IonIcon icon={addOutline} slot="start" /> Nuevo examen
                   </IonButton>
-                  <IonButton size="small" fill="outline">
+                  <IonButton size="small" fill="outline" onClick={handleExportGrades}>
                     <IonIcon icon={downloadOutline} slot="start" /> Exportar
                   </IonButton>
                 </div>

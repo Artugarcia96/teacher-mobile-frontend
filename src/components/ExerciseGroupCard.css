@@ -1,0 +1,242 @@
+.exercise-group-card {
+  margin: 0 0 var(--space-sm);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.exercise-group-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.exercise-group-card-content {
+  padding: var(--space-md) !important;
+}
+
+/* Header */
+.exercise-group-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.exercise-group-card-title {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--ion-text-color);
+  margin: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.exercise-group-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.exercise-group-card-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.exercise-group-card-chevron {
+  color: #94A3B8;
+  font-size: 18px;
+}
+
+/* Meta */
+.exercise-group-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.exercise-group-card-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  color: #64748B;
+}
+
+.exercise-group-card-meta-item ion-icon {
+  font-size: 14px;
+}
+
+/* Progress */
+.exercise-group-card-progress {
+  margin: var(--space-sm) 0 0;
+}
+
+.exercise-group-card-progress ion-progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  --background: rgba(0, 0, 0, 0.06);
+}
+
+.exercise-group-card-progress-labels {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+}
+
+.progress-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.progress-label ion-icon {
+  font-size: 12px;
+}
+
+.progress-label.corrected {
+  color: var(--ion-color-success);
+}
+
+.progress-label.in-progress {
+  color: var(--ion-color-warning);
+}
+
+.progress-label.pending {
+  color: #94A3B8;
+}
+
+/* Modal Actions */
+.exercise-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.exercise-modal-actions ion-button {
+  --padding-start: 12px;
+  --padding-end: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Modal Summary */
+.exercise-modal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: white;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.exercise-modal-summary ion-chip {
+  height: 28px;
+  font-size: 12px;
+}
+
+/* Modal Student List */
+.exercise-modal-list {
+  padding: 0;
+}
+
+.exercise-modal-student-item {
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-sm);
+  --inner-padding-end: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.exercise-modal-student-item:last-child {
+  border-bottom: none;
+}
+
+.exercise-student-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.exercise-student-status ion-icon {
+  font-size: 20px;
+}
+
+.exercise-modal-student-item ion-label h3 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+
+.exercise-modal-student-item ion-label p {
+  font-size: var(--font-size-xs);
+  color: #64748B;
+  margin: 0;
+}
+
+.exercise-student-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.exercise-student-actions ion-button {
+  --padding-start: 10px;
+  --padding-end: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  height: 32px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .exercise-group-card {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exercise-group-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .exercise-group-card-meta-item {
+    color: #94A3B8;
+  }
+
+  .exercise-group-card-progress ion-progress-bar {
+    --background: rgba(255, 255, 255, 0.1);
+  }
+
+  .progress-label.pending {
+    color: #64748B;
+  }
+
+  .exercise-modal-actions {
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exercise-modal-summary {
+    background: var(--ion-background-color);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exercise-modal-student-item {
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .exercise-modal-student-item ion-label p {
+    color: #94A3B8;
+  }
+}

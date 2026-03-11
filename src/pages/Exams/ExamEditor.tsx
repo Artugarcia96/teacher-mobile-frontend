@@ -1,18 +1,20 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
   IonButton, IonItem, IonLabel, IonInput, IonSelect, IonSelectOption, IonIcon,
   IonSpinner, IonToggle, IonCheckbox, IonTextarea, IonBadge, IonSegment, IonSegmentButton,
+  IonAlert,
 } from '@ionic/react';
 import {
   cloudUploadOutline, documentOutline, checkmarkCircleOutline, sparklesOutline,
-  downloadOutline, documentTextOutline,
+  downloadOutline, documentTextOutline, trashOutline,
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useTopicsStore } from '../../store/topicsStore';
-import { exams as examsApi } from '../../services/api';
+import { exams as examsApi, classes as classesApi } from '../../services/api';
+import { Lecture } from '../../types';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import './ExamEditor.css';
 
@@ -32,6 +34,7 @@ const ExamEditor: React.FC = () => {
   const generateExam = useExamsStore((s) => s.generateExam);
   const updateExam = useExamsStore((s) => s.updateExam);
   const assignExam = useExamsStore((s) => s.assignExam);
+  const deleteExam = useExamsStore((s) => s.deleteExam);
 
   const topicsList = useTopicsStore((s) => s.topics);
   const topicsLoading = useTopicsStore((s) => s.loading);
@@ -40,6 +43,9 @@ const ExamEditor: React.FC = () => {
   // Shared fields
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
+  const [lectureId, setLectureId] = useState('');
+  const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [lecturesLoading, setLecturesLoading] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [maxScore, setMaxScore] = useState(10);
   const [saving, setSaving] = useState(false);
@@ -53,6 +59,9 @@ const ExamEditor: React.FC = () => {
   // Shared personalization
   const [isPersonalized, setIsPersonalized] = useState(false);
 
+  // Delete confirmation
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+
   // Generate mode
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
   const [numQuestions, setNumQuestions] = useState(10);
@@ -61,6 +70,24 @@ const ExamEditor: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+
+  // Fetch lectures when class changes
+  const fetchLectures = useCallback(async (cId: string) => {
+    if (!cId) {
+      setLectures([]);
+      return;
+    }
+    setLecturesLoading(true);
+    try {
+      const res = await classesApi.get(cId);
+      setLectures(res.data.lectures || []);
+    } catch (err) {
+      console.error('Failed to fetch lectures:', err);
+      setLectures([]);
+    } finally {
+      setLecturesLoading(false);
+    }
+  }, []);
 
   const classTopics = useMemo(
     () => topicsList.filter((t) => t.classId === classId),
@@ -77,7 +104,8 @@ const ExamEditor: React.FC = () => {
   useEffect(() => {
     if (exam) {
       setName(exam.name);
-      setClassId(exam.classId);
+      setClassId(exam.classId || '');
+      setLectureId(exam.lectureId || '');
       setDate(exam.date);
       setMaxScore(exam.maxScore);
       setIsPersonalized(exam.isPersonalized || false);
@@ -85,8 +113,13 @@ const ExamEditor: React.FC = () => {
   }, [exam]);
 
   useEffect(() => {
-    if (classId) fetchTopics(classId);
-  }, [classId, fetchTopics]);
+    if (classId) {
+      fetchTopics(classId);
+      fetchLectures(classId);
+    } else {
+      setLectures([]);
+    }
+  }, [classId, fetchTopics, fetchLectures]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -102,14 +135,21 @@ const ExamEditor: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !classId) return;
+    if (!name.trim()) return;
     setSaving(true);
     try {
       if (isNew) {
-        const id = await addExam({ name: name.trim(), classId, date, maxScore, isPersonalized }, file || undefined);
+        const id = await addExam({ 
+          name: name.trim(), 
+          classId: classId || undefined, 
+          lectureId: lectureId || undefined,
+          date, 
+          maxScore, 
+          isPersonalized 
+        }, file || undefined);
         history.replace(`/tabs/exams/${id}`);
       } else if (exam) {
-        await updateExam(exam.id, { name, classId, date, maxScore });
+        await updateExam(exam.id, { name, classId: classId || undefined, lectureId: lectureId || undefined, date, maxScore });
         history.goBack();
       }
     } catch (err) {
@@ -140,13 +180,24 @@ const ExamEditor: React.FC = () => {
       .catch((err) => console.error('Download error:', err));
   };
 
+  const handleDelete = async () => {
+    if (!exam) return;
+    try {
+      await deleteExam(exam.id);
+      history.replace('/tabs/exams');
+    } catch (err) {
+      console.error('Failed to delete exam:', err);
+    }
+  };
+
   const handleGenerate = async () => {
-    if (!name.trim() || !classId || selectedTopicIds.length === 0) return;
+    if (!name.trim() || selectedTopicIds.length === 0) return;
     setGenerating(true);
     setGenError('');
     try {
       const id = await generateExam({
-        class_id: classId,
+        class_id: classId || undefined,
+        lecture_id: lectureId || undefined,
         topic_ids: selectedTopicIds,
         name: name.trim(),
         exam_date: date,
@@ -179,6 +230,13 @@ const ExamEditor: React.FC = () => {
             <IonBackButton defaultHref="/tabs/exams" text="" />
           </IonButtons>
           <IonTitle>{isNew ? 'Nuevo examen' : name || 'Editar'}</IonTitle>
+          {!isNew && (
+            <IonButtons slot="end">
+              <IonButton color="danger" onClick={() => setShowDeleteAlert(true)}>
+                <IonIcon icon={trashOutline} />
+              </IonButton>
+            </IonButtons>
+          )}
         </IonToolbar>
         {isNew && (
           <IonToolbar>
@@ -223,18 +281,45 @@ const ExamEditor: React.FC = () => {
             <div className="gen-section">
               {/* Class selector */}
               <IonItem lines="none" className="form-item">
-                <IonLabel position="stacked">Clase</IonLabel>
+                <IonLabel position="stacked">Clase (opcional)</IonLabel>
                 <IonSelect
                   value={classId}
-                  onIonChange={(e) => { setClassId(e.detail.value); setSelectedTopicIds([]); }}
+                  onIonChange={(e) => { 
+                    setClassId(e.detail.value || ''); 
+                    setLectureId('');
+                    setSelectedTopicIds([]); 
+                  }}
                   interface="popover"
-                  placeholder="Seleccionar clase"
+                  placeholder="Global / Transversal"
                 >
+                  <IonSelectOption value="">Global / Transversal</IonSelectOption>
                   {classes.map((c) => (
                     <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
                   ))}
                 </IonSelect>
               </IonItem>
+
+              {/* Lecture selector - only if class is selected */}
+              {classId && (
+                <IonItem lines="none" className="form-item">
+                  <IonLabel position="stacked">Asignatura (opcional)</IonLabel>
+                  {lecturesLoading ? (
+                    <IonSpinner name="dots" />
+                  ) : (
+                    <IonSelect
+                      value={lectureId}
+                      onIonChange={(e) => setLectureId(e.detail.value || '')}
+                      interface="popover"
+                      placeholder="Todas las asignaturas"
+                    >
+                      <IonSelectOption value="">Todas las asignaturas</IonSelectOption>
+                      {lectures.map((l) => (
+                        <IonSelectOption key={l.id} value={l.id}>{l.name}</IonSelectOption>
+                      ))}
+                    </IonSelect>
+                  )}
+                </IonItem>
+              )}
 
               {/* Topics selection */}
               {classId && (
@@ -331,19 +416,46 @@ const ExamEditor: React.FC = () => {
               </IonItem>
 
               {isNew && (
-                <IonItem lines="none" className="form-item">
-                  <IonLabel position="stacked">Clase</IonLabel>
-                  <IonSelect
-                    value={classId}
-                    onIonChange={(e) => setClassId(e.detail.value)}
-                    interface="popover"
-                    placeholder="Seleccionar"
-                  >
-                    {classes.map((c) => (
-                      <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
-                    ))}
-                  </IonSelect>
-                </IonItem>
+                <>
+                  <IonItem lines="none" className="form-item">
+                    <IonLabel position="stacked">Clase (opcional)</IonLabel>
+                    <IonSelect
+                      value={classId}
+                      onIonChange={(e) => { 
+                        setClassId(e.detail.value || ''); 
+                        setLectureId('');
+                      }}
+                      interface="popover"
+                      placeholder="Global / Transversal"
+                    >
+                      <IonSelectOption value="">Global / Transversal</IonSelectOption>
+                      {classes.map((c) => (
+                        <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
+                      ))}
+                    </IonSelect>
+                  </IonItem>
+
+                  {classId && (
+                    <IonItem lines="none" className="form-item">
+                      <IonLabel position="stacked">Asignatura (opcional)</IonLabel>
+                      {lecturesLoading ? (
+                        <IonSpinner name="dots" />
+                      ) : (
+                        <IonSelect
+                          value={lectureId}
+                          onIonChange={(e) => setLectureId(e.detail.value || '')}
+                          interface="popover"
+                          placeholder="Todas las asignaturas"
+                        >
+                          <IonSelectOption value="">Todas las asignaturas</IonSelectOption>
+                          {lectures.map((l) => (
+                            <IonSelectOption key={l.id} value={l.id}>{l.name}</IonSelectOption>
+                          ))}
+                        </IonSelect>
+                      )}
+                    </IonItem>
+                  )}
+                </>
               )}
 
               <div className="form-row">
@@ -437,8 +549,8 @@ const ExamEditor: React.FC = () => {
             </div>
           )}
 
-          {/* ─── DOWNLOAD SECTION (existing exams) ─── */}
-          {exam && !isNew && (
+          {/* ─── DOWNLOAD SECTION (existing exams with documents) ─── */}
+          {exam && !isNew && (exam.documentUrl || exam.hasGeneratedQuestions) && (
             <div className="exam-downloads">
               <span className="exam-downloads__label">Descargas</span>
               <div className="exam-downloads__buttons">
@@ -478,7 +590,7 @@ const ExamEditor: React.FC = () => {
             <IonButton
               expand="block"
               onClick={handleSave}
-              disabled={!name.trim() || !classId || saving}
+              disabled={!name.trim() || saving}
               className="save-btn"
             >
               {saving ? <IonSpinner name="crescent" /> : isNew ? 'Crear examen' : 'Guardar cambios'}
@@ -493,7 +605,7 @@ const ExamEditor: React.FC = () => {
               <IonButton
                 expand="block"
                 onClick={handleGenerate}
-                disabled={generating || !name.trim() || !classId || selectedTopicIds.length === 0}
+                disabled={generating || !name.trim() || selectedTopicIds.length === 0}
                 className="save-btn gen-btn"
               >
                 {generating ? (
@@ -540,6 +652,17 @@ const ExamEditor: React.FC = () => {
             preselectedExamId={exam.id}
           />
         )}
+
+        <IonAlert
+          isOpen={showDeleteAlert}
+          onDidDismiss={() => setShowDeleteAlert(false)}
+          header="Eliminar examen"
+          message={`¿Eliminar "${name}"? También se eliminarán las correcciones asociadas.`}
+          buttons={[
+            { text: 'Cancelar', role: 'cancel' },
+            { text: 'Eliminar', role: 'destructive', handler: handleDelete }
+          ]}
+        />
       </IonContent>
     </IonPage>
   );

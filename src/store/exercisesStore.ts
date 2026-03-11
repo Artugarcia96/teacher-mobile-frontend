@@ -3,18 +3,28 @@ import { Exercise } from '../types';
 import { exercises as exercisesApi } from '../services/api';
 
 function mapExercise(e: any): Exercise {
+  const questions = Array.isArray(e.questions) ? e.questions : [];
+  const weakAreas = Array.isArray(e.weak_areas) ? e.weak_areas : [];
+  
   return {
     id: e.id,
     name: e.name,
     studentId: e.student_id,
     sourceExamId: e.source_exam_id,
     sourceExamIds: e.source_exam_ids,
-    weakAreas: e.weak_areas || [],
-    questions: e.questions || [],
-    assignedAt: e.assigned_at,
+    weakAreas,
+    questions: questions.map((q: any) => ({
+      id: q.id || String(Math.random()),
+      text: q.text || '',
+      hint: q.hint,
+      solution: q.solution,
+      points: q.points,
+    })),
+    assignedAt: e.assigned_at || new Date().toISOString(),
     refinementPrompt: e.refinement_prompt,
     pdfExercisesUrl: e.pdf_exercises_url,
     pdfSolutionsUrl: e.pdf_solutions_url,
+    correctionStatus: e.correction_status || null,
   };
 }
 
@@ -68,7 +78,16 @@ export const useExercisesStore = create<ExercisesState>((set) => ({
   },
 
   deleteExercise: async (id) => {
-    await exercisesApi.delete(id);
-    set((s) => ({ exercises: s.exercises.filter((e) => e.id !== id) }));
+    // Optimistically remove from state first
+    const currentExercises = useExercisesStore.getState().exercises;
+    set({ exercises: currentExercises.filter((e) => e.id !== id) });
+    
+    try {
+      await exercisesApi.delete(id);
+    } catch (error) {
+      // Restore on failure
+      set({ exercises: currentExercises });
+      throw error;
+    }
   },
 }));

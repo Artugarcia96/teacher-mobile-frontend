@@ -1,6 +1,7 @@
 import { IonCard, IonCardContent, IonBadge, IonButton, IonIcon, IonAlert } from '@ionic/react';
-import { downloadOutline, documentTextOutline, trashOutline, personOutline, timeOutline, createOutline } from 'ionicons/icons';
+import { downloadOutline, documentTextOutline, trashOutline, personOutline, timeOutline, createOutline, checkboxOutline } from 'ionicons/icons';
 import { useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import { Exercise } from '../types';
 import { exercises as exercisesApi } from '../services/api';
 import './ExerciseCompactCard.css';
@@ -15,8 +16,13 @@ interface Props {
 }
 
 const ExerciseCompactCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRename, selected, onToggleSelect }) => {
+  const history = useHistory();
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showRenameAlert, setShowRenameAlert] = useState(false);
+
+  const handleCorrection = () => {
+    history.push(`/exercise-correction/${exercise.id}`);
+  };
 
   const handleDownload = (type: 'exercises' | 'solutions') => {
     const url = type === 'exercises'
@@ -53,9 +59,10 @@ const ExerciseCompactCard: React.FC<Props> = ({ exercise, studentName, onDelete,
 
   const getDisplayName = () => {
     if (exercise.name) return exercise.name;
-    if (exercise.weakAreas.length === 0) return 'Ejercicios de práctica';
-    if (exercise.weakAreas.length === 1) return exercise.weakAreas[0];
-    return `${exercise.weakAreas[0]} y ${exercise.weakAreas.length - 1} más`;
+    const areas = exercise.weakAreas || [];
+    if (areas.length === 0) return 'Ejercicios de práctica';
+    if (areas.length === 1) return areas[0];
+    return `${areas[0]} y ${areas.length - 1} más`;
   };
 
   return (
@@ -105,11 +112,11 @@ const ExerciseCompactCard: React.FC<Props> = ({ exercise, studentName, onDelete,
 
           <div className="exercise-compact-info">
             <IonBadge color="primary" className="exercise-compact-questions">
-              {exercise.questions.length} preguntas
+              {(exercise.questions || []).length} preguntas
             </IonBadge>
-            {exercise.weakAreas.length > 1 && (
+            {(exercise.weakAreas || []).length > 1 && (
               <IonBadge color="warning" className="exercise-compact-areas">
-                {exercise.weakAreas.length} áreas
+                {(exercise.weakAreas || []).length} áreas
               </IonBadge>
             )}
           </div>
@@ -135,6 +142,16 @@ const ExerciseCompactCard: React.FC<Props> = ({ exercise, studentName, onDelete,
             >
               <IonIcon icon={downloadOutline} slot="start" />
               Soluciones
+            </IonButton>
+            <IonButton
+              size="small"
+              fill="solid"
+              color="tertiary"
+              onClick={handleCorrection}
+              className="exercise-compact-btn"
+            >
+              <IonIcon icon={checkboxOutline} slot="start" />
+              Corregir
             </IonButton>
           </div>
         </IonCardContent>

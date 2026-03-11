@@ -3,13 +3,13 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton,
   IonSearchbar, IonIcon, IonSpinner, IonChip, IonAlert, IonBadge,
   IonItem, IonLabel, IonProgressBar, IonModal, IonList, IonButtons,
-  IonAccordionGroup, IonAccordion, IonInput,
+  IonAccordionGroup, IonAccordion, IonInput, IonSelect, IonSelectOption,
 } from '@ionic/react';
 import {
   cloudUploadOutline, documentTextOutline, imageOutline, folderOpenOutline,
   closeCircleOutline, trashOutline, eyeOutline, downloadOutline,
   schoolOutline, chevronDownOutline, bookOutline, addOutline,
-  createOutline,
+  createOutline, globeOutline,
 } from 'ionicons/icons';
 import { useMaterialsStore } from '../../store/materialsStore';
 import EmptyState from '../../components/EmptyState';
@@ -20,6 +20,9 @@ const FILE_TYPE_ICONS: Record<string, string> = {
   image: imageOutline,
   other: folderOpenOutline,
 };
+
+const GLOBAL_CLASS_NAME = 'Global';
+const GLOBAL_CLASS_SUBJECT = 'Material Transversal';
 
 const Materials: React.FC = () => {
   const structure = useMaterialsStore((s) => s.structure);
@@ -32,6 +35,7 @@ const Materials: React.FC = () => {
   const createTopic = useMaterialsStore((s) => s.createTopic);
 
   const [search, setSearch] = useState('');
+  const [classFilter, setClassFilter] = useState<string>('all');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [expandedClasses, setExpandedClasses] = useState<string[]>([]);
@@ -45,6 +49,7 @@ const Materials: React.FC = () => {
 
   // Quick create state
   const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+  const [isCreatingGlobalClass, setIsCreatingGlobalClass] = useState(false);
   const [newClassName, setNewClassName] = useState('');
   const [newClassSubject, setNewClassSubject] = useState('');
   const [creatingClass, setCreatingClass] = useState(false);
@@ -60,34 +65,61 @@ const Materials: React.FC = () => {
     fetchStructure();
   }, [fetchStructure]);
 
-  // Filter structure based on search
+  // Check if global class exists
+  const globalClass = useMemo(() => 
+    structure.find((c) => c.className === GLOBAL_CLASS_NAME && c.classSubject === GLOBAL_CLASS_SUBJECT),
+    [structure]
+  );
+
+  // Sort structure: Global first, then alphabetically
+  const sortedStructure = useMemo(() => {
+    return [...structure].sort((a, b) => {
+      const aIsGlobal = a.className === GLOBAL_CLASS_NAME && a.classSubject === GLOBAL_CLASS_SUBJECT;
+      const bIsGlobal = b.className === GLOBAL_CLASS_NAME && b.classSubject === GLOBAL_CLASS_SUBJECT;
+      if (aIsGlobal && !bIsGlobal) return -1;
+      if (!aIsGlobal && bIsGlobal) return 1;
+      return a.className.localeCompare(b.className);
+    });
+  }, [structure]);
+
+  // Filter structure based on search and class filter
   const filteredStructure = useMemo(() => {
-    if (!search) return structure;
+    let result = sortedStructure;
     
-    const term = search.toLowerCase();
-    return structure
-      .map((c) => ({
-        ...c,
-        topics: c.topics
-          .map((t) => ({
-            ...t,
-            materials: t.materials.filter((m) =>
-              m.name.toLowerCase().includes(term)
+    // Apply class filter
+    if (classFilter !== 'all') {
+      result = result.filter((c) => c.classId === classFilter);
+    }
+    
+    // Apply search filter
+    if (search) {
+      const term = search.toLowerCase();
+      result = result
+        .map((c) => ({
+          ...c,
+          topics: c.topics
+            .map((t) => ({
+              ...t,
+              materials: t.materials.filter((m) =>
+                m.name.toLowerCase().includes(term)
+              ),
+            }))
+            .filter(
+              (t) =>
+                t.name.toLowerCase().includes(term) ||
+                t.materials.length > 0
             ),
-          }))
-          .filter(
-            (t) =>
-              t.name.toLowerCase().includes(term) ||
-              t.materials.length > 0
-          ),
-      }))
-      .filter(
-        (c) =>
-          c.className.toLowerCase().includes(term) ||
-          c.classSubject.toLowerCase().includes(term) ||
-          c.topics.length > 0
-      );
-  }, [structure, search]);
+        }))
+        .filter(
+          (c) =>
+            c.className.toLowerCase().includes(term) ||
+            c.classSubject.toLowerCase().includes(term) ||
+            c.topics.length > 0
+        );
+    }
+    
+    return result;
+  }, [sortedStructure, search, classFilter]);
 
   const totalMaterials = useMemo(() => 
     structure.reduce((acc, c) => 
@@ -202,18 +234,28 @@ const Materials: React.FC = () => {
   };
 
   const handleCreateClass = async () => {
-    if (!newClassName.trim() || !newClassSubject.trim()) return;
+    const name = isCreatingGlobalClass ? GLOBAL_CLASS_NAME : newClassName.trim();
+    const subject = isCreatingGlobalClass ? GLOBAL_CLASS_SUBJECT : newClassSubject.trim();
+    
+    if (!name || !subject) return;
+    
     setCreatingClass(true);
     try {
-      const newClass = await createClass(newClassName.trim(), newClassSubject.trim());
+      const newClass = await createClass(name, subject);
       setExpandedClasses((prev) => [...prev, newClass.classId]);
       setNewClassName('');
       setNewClassSubject('');
       setShowCreateClassModal(false);
+      setIsCreatingGlobalClass(false);
     } catch {
       // Error handled in store
     }
     setCreatingClass(false);
+  };
+
+  const handleCreateGlobalClass = async () => {
+    setIsCreatingGlobalClass(true);
+    setShowCreateClassModal(true);
   };
 
   const handleCreateTopic = async (classId: string) => {
@@ -237,7 +279,8 @@ const Materials: React.FC = () => {
   };
 
   const getFileUrl = (url: string) => {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    baseUrl = baseUrl.replace(/\/+$/, '');
     if (url.startsWith('/uploads/')) {
       return `${baseUrl}/files${url.replace('/uploads', '')}`;
     }
@@ -257,14 +300,18 @@ const Materials: React.FC = () => {
 
   // Get all topics for the upload modal dropdown
   const allTopicsForUpload = useMemo(() => 
-    structure.flatMap((c) =>
+    sortedStructure.flatMap((c) =>
       c.topics.map((t) => ({
         topicId: t.id,
         topicName: t.name,
         className: c.className,
         classSubject: c.classSubject,
+        isGlobal: c.className === GLOBAL_CLASS_NAME && c.classSubject === GLOBAL_CLASS_SUBJECT,
       }))
-    ), [structure]);
+    ), [sortedStructure]);
+
+  const isGlobalClass = (c: typeof structure[0]) => 
+    c.className === GLOBAL_CLASS_NAME && c.classSubject === GLOBAL_CLASS_SUBJECT;
 
   return (
     <IonPage>
@@ -272,7 +319,7 @@ const Materials: React.FC = () => {
         <IonToolbar>
           <IonTitle>Materiales</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={() => setShowCreateClassModal(true)} title="Nueva clase">
+            <IonButton onClick={() => { setIsCreatingGlobalClass(false); setShowCreateClassModal(true); }} title="Nueva clase">
               <IonIcon icon={createOutline} />
             </IonButton>
           </IonButtons>
@@ -304,6 +351,25 @@ const Materials: React.FC = () => {
               className="materials-search"
               debounce={300}
             />
+
+            {/* Class filter dropdown */}
+            {structure.length > 1 && (
+              <div className="materials-class-filter">
+                <IonSelect
+                  value={classFilter}
+                  onIonChange={(e) => setClassFilter(e.detail.value)}
+                  interface="popover"
+                  className="materials-class-select"
+                >
+                  <IonSelectOption value="all">Todas las clases</IonSelectOption>
+                  {sortedStructure.map((c) => (
+                    <IonSelectOption key={c.classId} value={c.classId}>
+                      {isGlobalClass(c) ? '🌐 Global / Transversal' : `${c.className} — ${c.classSubject}`}
+                    </IonSelectOption>
+                  ))}
+                </IonSelect>
+              </div>
+            )}
 
             {structure.length > 0 && (
               <div className="materials-filters">
@@ -354,165 +420,188 @@ const Materials: React.FC = () => {
             />
           ) : (
             <div className="materials-accordion-container">
+              {/* Global class quick-add if not exists */}
+              {!globalClass && (
+                <button
+                  className="materials-global-btn"
+                  onClick={handleCreateGlobalClass}
+                >
+                  <IonIcon icon={globeOutline} />
+                  <div className="materials-global-btn__text">
+                    <span className="materials-global-btn__title">Material Transversal</span>
+                    <span className="materials-global-btn__subtitle">Crear sección para material global</span>
+                  </div>
+                  <IonIcon icon={addOutline} className="materials-global-btn__add" />
+                </button>
+              )}
+
               <IonAccordionGroup multiple value={expandedClasses}>
-                {filteredStructure.map((classData) => (
-                  <IonAccordion
-                    key={classData.classId}
-                    value={classData.classId}
-                    className="materials-class-accordion"
-                    toggleIcon={chevronDownOutline}
-                    toggleIconSlot="end"
-                  >
-                    <IonItem
-                      slot="header"
-                      className="materials-class-header"
-                      onClick={() => toggleClass(classData.classId)}
+                {filteredStructure.map((classData) => {
+                  const isGlobal = isGlobalClass(classData);
+                  
+                  return (
+                    <IonAccordion
+                      key={classData.classId}
+                      value={classData.classId}
+                      className={`materials-class-accordion ${isGlobal ? 'materials-class-accordion--global' : ''}`}
+                      toggleIcon={chevronDownOutline}
+                      toggleIconSlot="end"
                     >
-                      <div className="materials-class-icon" slot="start">
-                        <IonIcon icon={schoolOutline} />
-                      </div>
-                      <IonLabel>
-                        <h2 className="materials-class-name">{classData.className}</h2>
-                        <p className="materials-class-subject">{classData.classSubject}</p>
-                      </IonLabel>
-                      <IonBadge slot="end" color="primary" className="materials-class-badge">
-                        {classData.topics.reduce((acc, t) => acc + t.materials.length, 0)}
-                      </IonBadge>
-                    </IonItem>
-
-                    <div slot="content" className="materials-topics-container">
-                      {classData.topics.length === 0 ? (
-                        <div className="materials-no-topics">
-                          <p>Esta clase no tiene temas aún</p>
+                      <IonItem
+                        slot="header"
+                        className="materials-class-header"
+                        onClick={() => toggleClass(classData.classId)}
+                      >
+                        <div className={`materials-class-icon ${isGlobal ? 'materials-class-icon--global' : ''}`} slot="start">
+                          <IonIcon icon={isGlobal ? globeOutline : schoolOutline} />
                         </div>
-                      ) : (
-                        <IonAccordionGroup multiple value={expandedTopics}>
-                          {classData.topics.map((topic) => (
-                            <IonAccordion
-                              key={topic.id}
-                              value={topic.id}
-                              className="materials-topic-accordion"
-                              toggleIcon={chevronDownOutline}
-                              toggleIconSlot="end"
-                            >
-                              <IonItem
-                                slot="header"
-                                className="materials-topic-header"
-                                onClick={() => toggleTopic(topic.id)}
+                        <IonLabel>
+                          <h2 className="materials-class-name">
+                            {isGlobal ? 'Global / Transversal' : classData.className}
+                          </h2>
+                          <p className="materials-class-subject">
+                            {isGlobal ? 'Material para todas las clases' : classData.classSubject}
+                          </p>
+                        </IonLabel>
+                        <IonBadge slot="end" color={isGlobal ? 'tertiary' : 'primary'} className="materials-class-badge">
+                          {classData.topics.reduce((acc, t) => acc + t.materials.length, 0)}
+                        </IonBadge>
+                      </IonItem>
+
+                      <div slot="content" className="materials-topics-container">
+                        {classData.topics.length === 0 ? (
+                          <div className="materials-no-topics">
+                            <p>Esta {isGlobal ? 'sección' : 'clase'} no tiene temas aún</p>
+                          </div>
+                        ) : (
+                          <IonAccordionGroup multiple value={expandedTopics}>
+                            {classData.topics.map((topic) => (
+                              <IonAccordion
+                                key={topic.id}
+                                value={topic.id}
+                                className="materials-topic-accordion"
+                                toggleIcon={chevronDownOutline}
+                                toggleIconSlot="end"
                               >
-                                <div className="materials-topic-icon" slot="start">
-                                  <IonIcon icon={bookOutline} />
-                                </div>
-                                <IonLabel>
-                                  <h3 className="materials-topic-name">{topic.name}</h3>
-                                </IonLabel>
-                                <IonBadge slot="end" color="medium" className="materials-topic-badge">
-                                  {topic.materials.length}
-                                </IonBadge>
-                              </IonItem>
-
-                              <div slot="content" className="materials-files-container">
-                                {topic.materials.length === 0 ? (
-                                  <p className="materials-empty-topic">Sin materiales</p>
-                                ) : (
-                                  topic.materials.map((m) => (
-                                    <div key={m.id} className="material-file-row">
-                                      <div className="material-file-icon">
-                                        <IonIcon icon={FILE_TYPE_ICONS[m.documentType || 'other']} />
-                                      </div>
-                                      <div className="material-file-info">
-                                        <span className="material-file-name">{m.name}</span>
-                                        <span className="material-file-date">{formatDate(m.uploadedAt)}</span>
-                                      </div>
-                                      <div className="material-file-actions">
-                                        <a
-                                          href={getFileUrl(m.documentUrl)}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="material-file-action"
-                                          title="Ver"
-                                        >
-                                          <IonIcon icon={eyeOutline} />
-                                        </a>
-                                        <a
-                                          href={getFileUrl(m.documentUrl)}
-                                          download={m.name}
-                                          className="material-file-action"
-                                          title="Descargar"
-                                        >
-                                          <IonIcon icon={downloadOutline} />
-                                        </a>
-                                        <button
-                                          className="material-file-action material-file-action--danger"
-                                          onClick={() => setDeleteTarget({ id: m.id, name: m.name })}
-                                          title="Eliminar"
-                                        >
-                                          <IonIcon icon={trashOutline} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-
-                                <button
-                                  className="material-add-btn"
-                                  onClick={() => triggerUploadForTopic(topic.id)}
+                                <IonItem
+                                  slot="header"
+                                  className="materials-topic-header"
+                                  onClick={() => toggleTopic(topic.id)}
                                 >
-                                  <IonIcon icon={cloudUploadOutline} />
-                                  <span>Subir archivo</span>
-                                </button>
-                              </div>
-                            </IonAccordion>
-                          ))}
-                        </IonAccordionGroup>
-                      )}
+                                  <div className="materials-topic-icon" slot="start">
+                                    <IonIcon icon={bookOutline} />
+                                  </div>
+                                  <IonLabel>
+                                    <h3 className="materials-topic-name">{topic.name}</h3>
+                                  </IonLabel>
+                                  <IonBadge slot="end" color="medium" className="materials-topic-badge">
+                                    {topic.materials.length}
+                                  </IonBadge>
+                                </IonItem>
 
-                      {/* Add topic inline form */}
-                      {addingTopicToClassId === classData.classId ? (
-                        <div className="materials-add-topic-form">
-                          <IonInput
-                            value={newTopicName}
-                            onIonInput={(e) => setNewTopicName(e.detail.value ?? '')}
-                            placeholder="Nombre del tema"
-                            className="materials-add-topic-input"
-                            onKeyDown={(e) => e.key === 'Enter' && handleCreateTopic(classData.classId)}
-                          />
-                          <IonButton
-                            size="small"
-                            onClick={() => handleCreateTopic(classData.classId)}
-                            disabled={creatingTopic || !newTopicName.trim()}
+                                <div slot="content" className="materials-files-container">
+                                  {topic.materials.length === 0 ? (
+                                    <p className="materials-empty-topic">Sin materiales</p>
+                                  ) : (
+                                    topic.materials.map((m) => (
+                                      <div key={m.id} className="material-file-row">
+                                        <div className="material-file-icon">
+                                          <IonIcon icon={FILE_TYPE_ICONS[m.documentType || 'other']} />
+                                        </div>
+                                        <div className="material-file-info">
+                                          <span className="material-file-name">{m.name}</span>
+                                          <span className="material-file-date">{formatDate(m.uploadedAt)}</span>
+                                        </div>
+                                        <div className="material-file-actions">
+                                          <a
+                                            href={getFileUrl(m.documentUrl)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="material-file-action"
+                                            title="Ver"
+                                          >
+                                            <IonIcon icon={eyeOutline} />
+                                          </a>
+                                          <a
+                                            href={getFileUrl(m.documentUrl)}
+                                            download={m.name}
+                                            className="material-file-action"
+                                            title="Descargar"
+                                          >
+                                            <IonIcon icon={downloadOutline} />
+                                          </a>
+                                          <button
+                                            className="material-file-action material-file-action--danger"
+                                            onClick={() => setDeleteTarget({ id: m.id, name: m.name })}
+                                            title="Eliminar"
+                                          >
+                                            <IonIcon icon={trashOutline} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+
+                                  <button
+                                    className="material-add-btn"
+                                    onClick={() => triggerUploadForTopic(topic.id)}
+                                  >
+                                    <IonIcon icon={cloudUploadOutline} />
+                                    <span>Subir archivo</span>
+                                  </button>
+                                </div>
+                              </IonAccordion>
+                            ))}
+                          </IonAccordionGroup>
+                        )}
+
+                        {/* Add topic inline form */}
+                        {addingTopicToClassId === classData.classId ? (
+                          <div className="materials-add-topic-form">
+                            <IonInput
+                              value={newTopicName}
+                              onIonInput={(e) => setNewTopicName(e.detail.value ?? '')}
+                              placeholder="Nombre del tema"
+                              className="materials-add-topic-input"
+                              onKeyDown={(e) => e.key === 'Enter' && handleCreateTopic(classData.classId)}
+                            />
+                            <IonButton
+                              size="small"
+                              onClick={() => handleCreateTopic(classData.classId)}
+                              disabled={creatingTopic || !newTopicName.trim()}
+                            >
+                              {creatingTopic ? <IonSpinner name="crescent" /> : 'Crear'}
+                            </IonButton>
+                            <IonButton
+                              size="small"
+                              fill="clear"
+                              onClick={() => {
+                                setAddingTopicToClassId(null);
+                                setNewTopicName('');
+                              }}
+                            >
+                              Cancelar
+                            </IonButton>
+                          </div>
+                        ) : (
+                          <button
+                            className="materials-add-topic-btn"
+                            onClick={() => setAddingTopicToClassId(classData.classId)}
                           >
-                            {creatingTopic ? <IonSpinner name="crescent" /> : 'Crear'}
-                          </IonButton>
-                          <IonButton
-                            size="small"
-                            fill="clear"
-                            onClick={() => {
-                              setAddingTopicToClassId(null);
-                              setNewTopicName('');
-                            }}
-                          >
-                            Cancelar
-                          </IonButton>
-                        </div>
-                      ) : (
-                        <button
-                          className="materials-add-topic-btn"
-                          onClick={() => setAddingTopicToClassId(classData.classId)}
-                        >
-                          <IonIcon icon={addOutline} />
-                          <span>Añadir tema</span>
-                        </button>
-                      )}
-                    </div>
-                  </IonAccordion>
-                ))}
+                            <IonIcon icon={addOutline} />
+                            <span>Añadir tema</span>
+                          </button>
+                        )}
+                      </div>
+                    </IonAccordion>
+                  );
+                })}
               </IonAccordionGroup>
 
               {/* Add class card */}
               <button
                 className="materials-add-class-btn"
-                onClick={() => setShowCreateClassModal(true)}
+                onClick={() => { setIsCreatingGlobalClass(false); setShowCreateClassModal(true); }}
               >
                 <IonIcon icon={addOutline} />
                 <span>Nueva clase</span>
@@ -571,15 +660,30 @@ const Materials: React.FC = () => {
                   className="materials-topic-select"
                 >
                   <option value="">Selecciona un tema...</option>
-                  {structure.map((c) => (
-                    <optgroup key={c.classId} label={`${c.className} — ${c.classSubject}`}>
-                      {c.topics.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
+                  {/* Global topics first */}
+                  {allTopicsForUpload.some((t) => t.isGlobal) && (
+                    <optgroup label="🌐 Global / Transversal">
+                      {allTopicsForUpload
+                        .filter((t) => t.isGlobal)
+                        .map((t) => (
+                          <option key={t.topicId} value={t.topicId}>
+                            {t.topicName}
+                          </option>
+                        ))}
                     </optgroup>
-                  ))}
+                  )}
+                  {/* Other classes */}
+                  {sortedStructure
+                    .filter((c) => !isGlobalClass(c))
+                    .map((c) => (
+                      <optgroup key={c.classId} label={`${c.className} — ${c.classSubject}`}>
+                        {c.topics.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                 </select>
               </IonItem>
             </IonList>
@@ -608,39 +712,52 @@ const Materials: React.FC = () => {
             setShowCreateClassModal(false);
             setNewClassName('');
             setNewClassSubject('');
+            setIsCreatingGlobalClass(false);
           }}
           initialBreakpoint={0.45}
           breakpoints={[0, 0.45, 0.7]}
         >
           <div className="modal-sheet">
-            <h2 className="modal-sheet__title">Nueva clase</h2>
+            <h2 className="modal-sheet__title">
+              {isCreatingGlobalClass ? 'Crear Material Transversal' : 'Nueva clase'}
+            </h2>
 
-            <IonList>
-              <IonItem>
-                <IonLabel position="stacked">Nombre</IonLabel>
-                <IonInput
-                  value={newClassName}
-                  onIonInput={(e) => setNewClassName(e.detail.value ?? '')}
-                  placeholder="ej. 3A, 2º ESO B"
-                />
-              </IonItem>
-              <IonItem>
-                <IonLabel position="stacked">Asignatura</IonLabel>
-                <IonInput
-                  value={newClassSubject}
-                  onIonInput={(e) => setNewClassSubject(e.detail.value ?? '')}
-                  placeholder="ej. Matemáticas, Física"
-                />
-              </IonItem>
-            </IonList>
+            {isCreatingGlobalClass ? (
+              <div className="materials-global-info">
+                <IonIcon icon={globeOutline} className="materials-global-info__icon" />
+                <p>
+                  Se creará una sección especial para material que aplica a todas las clases.
+                  Podrás organizar temas y subir archivos que sean transversales.
+                </p>
+              </div>
+            ) : (
+              <IonList>
+                <IonItem>
+                  <IonLabel position="stacked">Nombre</IonLabel>
+                  <IonInput
+                    value={newClassName}
+                    onIonInput={(e) => setNewClassName(e.detail.value ?? '')}
+                    placeholder="ej. 3A, 2º ESO B"
+                  />
+                </IonItem>
+                <IonItem>
+                  <IonLabel position="stacked">Asignatura</IonLabel>
+                  <IonInput
+                    value={newClassSubject}
+                    onIonInput={(e) => setNewClassSubject(e.detail.value ?? '')}
+                    placeholder="ej. Matemáticas, Física"
+                  />
+                </IonItem>
+              </IonList>
+            )}
 
             <IonButton
               expand="block"
               onClick={handleCreateClass}
               className="ion-margin-top"
-              disabled={creatingClass || !newClassName.trim() || !newClassSubject.trim()}
+              disabled={creatingClass || (!isCreatingGlobalClass && (!newClassName.trim() || !newClassSubject.trim()))}
             >
-              {creatingClass ? <IonSpinner name="crescent" /> : 'Crear clase'}
+              {creatingClass ? <IonSpinner name="crescent" /> : (isCreatingGlobalClass ? 'Crear sección global' : 'Crear clase')}
             </IonButton>
           </div>
         </IonModal>

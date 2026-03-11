@@ -1,147 +1,81 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonSelect, IonSelectOption,
-  IonItem, IonLabel, IonSegment, IonSegmentButton, IonList, IonCheckbox,
-  IonBadge, IonTextarea, IonSpinner, IonIcon, IonChip, IonSearchbar,
+  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonButtons,
+  IonIcon, IonSpinner, IonBadge, IonSearchbar,
+  IonAccordionGroup, IonAccordion, IonItem, IonLabel, IonFab, IonFabButton,
+  IonSelect, IonSelectOption, IonChip, IonCard, IonCardContent, IonModal,
+  IonToast, IonProgressBar,
 } from '@ionic/react';
 import {
-  sparkles, alertCircleOutline, chevronDownOutline, chevronUpOutline,
-  filterOutline, downloadOutline, documentTextOutline,
-  checkboxOutline, closeOutline, chevronForwardOutline,
-  checkmarkCircle, ellipseOutline,
+  sparkles, chevronDownOutline, schoolOutline, globeOutline,
+  checkmarkOutline, warningOutline, helpOutline, closeOutline,
 } from 'ionicons/icons';
-import { useLocation } from 'react-router-dom';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
+import { useExercisesStore } from '../../store/exercisesStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
-import { useExercisesStore } from '../../store/exercisesStore';
-import { useTopicsStore } from '../../store/topicsStore';
-import { exercises as exercisesApi } from '../../services/api';
-import ExerciseCompactCard from '../../components/ExerciseCompactCard';
+import { exerciseCorrections } from '../../services/api';
+import { ClassBulkUploadResult, Exercise } from '../../types';
+import ExerciseGroupCard from '../../components/ExerciseGroupCard';
+import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import EmptyState from '../../components/EmptyState';
 import './Exercises.css';
 
-const Exercises: React.FC = () => {
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const preselectedStudentId = queryParams.get('studentId');
+interface ExerciseStructure {
+  classId: string;
+  className: string;
+  classSubject: string;
+  exerciseGroups: {
+    name: string;
+    exercises: Exercise[];
+    studentCount: number;
+    totalQuestions: number;
+    latestDate: string;
+  }[];
+  totalExercises: number;
+  studentCount: number;
+}
 
+const Exercises: React.FC = () => {
   const allClasses = useClassesStore((s) => s.classes);
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
   
   const allStudents = useStudentsStore((s) => s.students);
   const fetchAllStudents = useStudentsStore((s) => s.fetchAllStudents);
   
-  const allExams = useExamsStore((s) => s.exams);
-  const fetchExams = useExamsStore((s) => s.fetchExams);
-  
-  const corrections = useCorrectionStore((s) => s.corrections);
-  const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
-  
   const exercises = useExercisesStore((s) => s.exercises);
   const fetchExercises = useExercisesStore((s) => s.fetchExercises);
-  const generateExercises = useExercisesStore((s) => s.generateExercises);
-  const deleteExercise = useExercisesStore((s) => s.deleteExercise);
-  const renameExercise = useExercisesStore((s) => s.renameExercise);
   const loading = useExercisesStore((s) => s.loading);
 
-  const topicsList = useTopicsStore((s) => s.topics);
-  const fetchTopics = useTopicsStore((s) => s.fetchTopics);
+  const fetchExams = useExamsStore((s) => s.fetchExams);
+  const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
 
-  const [tab, setTab] = useState<'generate' | 'assigned'>('assigned');
-  const [preselectedHandled, setPreselectedHandled] = useState(false);
+  const [search, setSearch] = useState('');
+  const [classFilter, setClassFilter] = useState<string>('all');
+  const [expandedClasses, setExpandedClasses] = useState<string[]>([]);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+
+  // Bulk upload state
+  const bulkInputRef = useRef<HTMLInputElement>(null);
+  const [bulkUploadClassId, setBulkUploadClassId] = useState<string | null>(null);
+  const [bulkUploadExerciseIds, setBulkUploadExerciseIds] = useState<string[]>([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<ClassBulkUploadResult | null>(null);
+  const [reviewAssignments, setReviewAssignments] = useState<Record<string, string>>({});
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [confirmingReview, setConfirmingReview] = useState(false);
   
-  // Generate tab state
-  const [sourceType, setSourceType] = useState<'exam' | 'topic'>('exam');
-  const [selectedClassId, setSelectedClassId] = useState('');
-  const [selectedExamId, setSelectedExamId] = useState('');
-  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [exerciseName, setExerciseName] = useState('');
-  const [refinement, setRefinement] = useState('');
-  const [difficulty, setDifficulty] = useState<'easier' | 'same' | 'harder'>('same');
-  const [numQuestions, setNumQuestions] = useState(5);
-  const [showOptions, setShowOptions] = useState(false);
-  const [showStudentList, setShowStudentList] = useState(false);
-  const [showTopicList, setShowTopicList] = useState(false);
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState('');
-  const [studentSearch, setStudentSearch] = useState('');
-  
-  // Assigned tab state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'date' | 'student' | 'questions'>('date');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
-  const [batchDownloading, setBatchDownloading] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  // Processing feedback state
+  const [processingToast, setProcessingToast] = useState<{
+    isOpen: boolean;
+    message: string;
+    color?: string;
+    duration?: number;
+  }>({ isOpen: false, message: '' });
+  const [aiProcessingCount, setAiProcessingCount] = useState<{ current: number; total: number } | null>(null);
 
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
-
-  const correctedExams = useMemo(() => {
-    return allExams.filter((e) => e.status === 'corrected');
-  }, [allExams]);
-
-  const examsWithIssues = useMemo(() => {
-    const examIdsWithIssues = new Set<string>();
-    corrections
-      .filter((c) => c.weakAreas && c.weakAreas.length > 0)
-      .forEach((c) => examIdsWithIssues.add(c.examId));
-    return examIdsWithIssues;
-  }, [corrections]);
-
-  const effectiveClassId = useMemo(() => {
-    if (sourceType === 'exam' && selectedExamId) {
-      const exam = allExams.find((e) => e.id === selectedExamId);
-      return exam?.classId || '';
-    }
-    return selectedClassId;
-  }, [sourceType, selectedExamId, selectedClassId, allExams]);
-
-  const studentsInClass = useMemo(() => {
-    if (!effectiveClassId) return [];
-    return allStudents.filter((s) => s.classId === effectiveClassId);
-  }, [effectiveClassId, allStudents]);
-
-  const filteredStudentsInClass = useMemo(() => {
-    if (!studentSearch) return studentsInClass;
-    const term = studentSearch.toLowerCase();
-    return studentsInClass.filter((s) => s.name.toLowerCase().includes(term));
-  }, [studentsInClass, studentSearch]);
-
-  const classTopics = useMemo(
-    () => topicsList.filter((t) => t.classId === effectiveClassId),
-    [topicsList, effectiveClassId]
-  );
-
-  const studentIdsWithIssues = useMemo(() => {
-    if (!selectedExamId) return new Set<string>();
-    const ids = new Set<string>();
-    corrections
-      .filter((c) => c.examId === selectedExamId && c.weakAreas && c.weakAreas.length > 0)
-      .forEach((c) => {
-        if (c.studentId) ids.add(c.studentId);
-      });
-    return ids;
-  }, [selectedExamId, corrections]);
-
-  const examWeakAreas = useMemo(() => {
-    if (!selectedExamId || selectedStudentIds.length === 0) return [];
-    const areas = new Set<string>();
-    corrections
-      .filter((c) => 
-        c.examId === selectedExamId && 
-        selectedStudentIds.includes(c.studentId) &&
-        c.weakAreas
-      )
-      .forEach((c) => {
-        c.weakAreas?.forEach((area) => areas.add(area));
-      });
-    return Array.from(areas);
-  }, [selectedExamId, selectedStudentIds, corrections]);
 
   useEffect(() => {
     fetchClasses();
@@ -151,223 +85,313 @@ const Exercises: React.FC = () => {
     fetchAllCorrections();
   }, [fetchClasses, fetchAllStudents, fetchExercises, fetchExams, fetchAllCorrections]);
 
-  useEffect(() => {
-    if (effectiveClassId) fetchTopics(effectiveClassId);
-  }, [effectiveClassId, fetchTopics]);
+  // Stats
+  const stats = useMemo(() => {
+    const studentIds = new Set(exercises.map((e) => e.studentId));
+    return {
+      total: exercises.length,
+      students: studentIds.size,
+      questions: exercises.reduce((acc, e) => acc + (e.questions || []).length, 0),
+    };
+  }, [exercises]);
 
-  useEffect(() => {
-    if (preselectedStudentId && !preselectedHandled && allStudents.length > 0 && correctedExams.length > 0) {
-      const student = allStudents.find(s => s.id === preselectedStudentId);
-      if (student) {
-        const studentExams = correctedExams.filter(e => e.classId === student.classId);
-        if (studentExams.length > 0) {
-          setSelectedExamId(studentExams[0].id);
-          setSelectedStudentIds([preselectedStudentId]);
-          setPreselectedHandled(true);
-          setTab('generate');
-        }
-      }
-    }
-  }, [preselectedStudentId, preselectedHandled, allStudents, correctedExams]);
-
-  useEffect(() => {
-    if (preselectedStudentId && !preselectedHandled) return;
+  // Filter exercises by search and class
+  const filtered = useMemo(() => {
+    let result = exercises;
     
-    if (sourceType === 'exam' && selectedExamId) {
-      if (studentIdsWithIssues.size > 0) {
-        setSelectedStudentIds(Array.from(studentIdsWithIssues));
-      } else {
-        setSelectedStudentIds(studentsInClass.map(s => s.id));
-      }
-    } else if (sourceType === 'topic' && selectedClassId && selectedTopicIds.length > 0) {
-      setSelectedStudentIds(studentsInClass.map(s => s.id));
-    } else if (sourceType === 'exam') {
-      setSelectedStudentIds([]);
-    }
-  }, [sourceType, selectedExamId, selectedClassId, selectedTopicIds, studentIdsWithIssues, studentsInClass, preselectedStudentId, preselectedHandled]);
-
-  const toggleStudent = (id: string) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
-
-  const toggleTopic = (topic: string) => {
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-    );
-  };
-
-  const toggleTopicId = (id: string) => {
-    setSelectedTopicIds((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    );
-  };
-
-  const canGenerate = useMemo(() => {
-    if (!exerciseName.trim() || selectedStudentIds.length === 0 || generating) return false;
-    if (sourceType === 'exam') return !!selectedExamId;
-    return selectedTopicIds.length > 0;
-  }, [exerciseName, selectedStudentIds, generating, sourceType, selectedExamId, selectedTopicIds]);
-
-  const handleGenerate = async () => {
-    if (!canGenerate) return;
-    setGenerating(true);
-    setError('');
-    try {
-      await generateExercises({
-        studentIds: selectedStudentIds,
-        name: exerciseName,
-        sourceExamIds: sourceType === 'exam' ? [selectedExamId] : undefined,
-        sourceTopicIds: sourceType === 'topic' ? selectedTopicIds : undefined,
-        focusTopics: selectedTopics.length > 0 ? selectedTopics : undefined,
-        refinementPrompt: refinement || undefined,
-        difficulty,
-        numQuestions
-      });
-      setSelectedStudentIds([]);
-      setSelectedExamId('');
-      setSelectedClassId('');
-      setSelectedTopicIds([]);
-      setSelectedTopics([]);
-      setExerciseName('');
-      setRefinement('');
-      setTab('assigned');
-    } catch (err: any) {
-      console.error('Failed to generate exercises:', err);
-      setError(err.response?.data?.detail || 'Error al generar ejercicios');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const selectedStudentNames = useMemo(() => {
-    return selectedStudentIds
-      .map((id) => allStudents.find((s) => s.id === id)?.name)
-      .filter(Boolean);
-  }, [selectedStudentIds, allStudents]);
-
-  const filteredAndSortedExercises = useMemo(() => {
-    let filtered = exercises;
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter((exercise) => {
-        const student = allStudents.find((s) => s.id === exercise.studentId);
+    if (search) {
+      const term = search.toLowerCase();
+      result = result.filter((ex) => {
+        const student = allStudents.find((s) => s.id === ex.studentId);
         const studentName = student?.name?.toLowerCase() || '';
-        const weakAreas = exercise.weakAreas.join(' ').toLowerCase();
-        const name = exercise.name?.toLowerCase() || '';
-        return studentName.includes(term) || weakAreas.includes(term) || name.includes(term);
+        const name = ex.name?.toLowerCase() || '';
+        return studentName.includes(term) || name.includes(term);
       });
     }
+    
+    if (classFilter !== 'all') {
+      result = result.filter((ex) => {
+        const student = allStudents.find((s) => s.id === ex.studentId);
+        const studentClassId = student?.classId || '__global__';
+        return studentClassId === classFilter;
+      });
+    }
+    
+    return result;
+  }, [exercises, search, allStudents, classFilter]);
 
-    filtered = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'date':
-          return new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime();
-        case 'student': {
-          const studentA = allStudents.find((s) => s.id === a.studentId)?.name || '';
-          const studentB = allStudents.find((s) => s.id === b.studentId)?.name || '';
-          return studentA.localeCompare(studentB);
+  // Build hierarchical structure: Class > Exercise Name > Exercises
+  const structure = useMemo(() => {
+    const result: ExerciseStructure[] = [];
+    
+    // Group exercises by class (via student)
+    const byClass = new Map<string, typeof filtered>();
+    filtered.forEach((ex) => {
+      const student = allStudents.find((s) => s.id === ex.studentId);
+      const classId = student?.classId || '__global__';
+      if (!byClass.has(classId)) {
+        byClass.set(classId, []);
+      }
+      byClass.get(classId)!.push(ex);
+    });
+    
+    // Build structure for each class
+    byClass.forEach((classExercises, classId) => {
+      const cls = classId === '__global__' ? null : classes.find((c) => c.id === classId);
+      
+      // Group exercises by name within this class
+      const byName = new Map<string, typeof classExercises>();
+      classExercises.forEach((ex) => {
+        const name = ex.name || 'Sin nombre';
+        if (!byName.has(name)) {
+          byName.set(name, []);
         }
-        case 'questions':
-          return b.questions.length - a.questions.length;
-        default:
-          return 0;
-      }
+        byName.get(name)!.push(ex);
+      });
+      
+      const exerciseGroups: ExerciseStructure['exerciseGroups'] = [];
+      byName.forEach((exs, name) => {
+        const sorted = [...exs].sort((a, b) => 
+          new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime()
+        );
+        exerciseGroups.push({
+          name,
+          exercises: sorted,
+          studentCount: new Set(sorted.map((e) => e.studentId)).size,
+          totalQuestions: sorted.reduce((acc, e) => acc + (e.questions || []).length, 0),
+          latestDate: sorted[0]?.assignedAt || '',
+        });
+      });
+      
+      // Sort groups by latest date
+      exerciseGroups.sort((a, b) => 
+        new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
+      );
+      
+      const uniqueStudents = new Set(classExercises.map((e) => e.studentId));
+      
+      result.push({
+        classId,
+        className: cls?.name || 'Global',
+        classSubject: cls?.subject || 'Ejercicios transversales',
+        exerciseGroups,
+        totalExercises: classExercises.length,
+        studentCount: uniqueStudents.size,
+      });
     });
-
-    return filtered;
-  }, [exercises, searchTerm, sortBy, allStudents]);
-
-  // Group exercises by name for the grouped view
-  const groupedExercises = useMemo(() => {
-    const groups = new Map<string, typeof exercises>();
-    filteredAndSortedExercises.forEach((ex) => {
-      const key = ex.name || 'Sin nombre';
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)!.push(ex);
+    
+    // Sort: Global first if exists, then by class name
+    result.sort((a, b) => {
+      if (a.classId === '__global__') return -1;
+      if (b.classId === '__global__') return 1;
+      return a.className.localeCompare(b.className);
     });
-    return Array.from(groups.entries()).map(([name, exs]) => ({
-      name,
-      exercises: exs,
-      count: exs.length,
-      latestDate: exs[0]?.assignedAt || '',
-    }));
-  }, [filteredAndSortedExercises]);
+    
+    return result;
+  }, [filtered, classes, allStudents]);
 
-  const toggleGroupExpanded = (name: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
-      return next;
-    });
-  };
-
-  const handleDeleteExercise = async (id: string) => {
-    try {
-      await deleteExercise(id);
-      setSelectedExerciseIds((prev) => prev.filter((eid) => eid !== id));
-    } catch (error) {
-      console.error('Failed to delete exercise:', error);
-    }
-  };
-
-  const handleRenameExercise = async (id: string, name: string) => {
-    try {
-      await renameExercise(id, name);
-    } catch (error) {
-      console.error('Failed to rename exercise:', error);
-    }
-  };
-
-  const toggleExerciseSelect = (id: string) => {
-    setSelectedExerciseIds((prev) =>
-      prev.includes(id) ? prev.filter((eid) => eid !== id) : [...prev, id]
+  const toggleClass = (classId: string) => {
+    setExpandedClasses((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
     );
   };
 
-  const toggleGroupSelect = (groupExerciseIds: string[]) => {
-    setSelectedExerciseIds((prev) => {
-      const allSelected = groupExerciseIds.every((id) => prev.includes(id));
-      if (allSelected) {
-        return prev.filter((id) => !groupExerciseIds.includes(id));
-      }
-      const merged = new Set([...prev, ...groupExerciseIds]);
-      return Array.from(merged);
-    });
+  const expandAll = () => {
+    setExpandedClasses(structure.map((s) => s.classId));
   };
 
-  const handleBatchDownload = async (includeSolutions: boolean) => {
-    if (selectedExerciseIds.length === 0) return;
-    setBatchDownloading(true);
+  const collapseAll = () => {
+    setExpandedClasses([]);
+  };
+
+  // Bulk upload handlers
+  const handleBulkUploadClick = (classId: string, exerciseIds: string[]) => {
+    setBulkUploadClassId(classId);
+    setBulkUploadExerciseIds(exerciseIds);
+    bulkInputRef.current?.click();
+  };
+
+  // Single student upload (just one exercise)
+  const handleSingleUploadClick = (classId: string, exerciseId: string, studentName: string) => {
+    setBulkUploadClassId(classId);
+    setBulkUploadExerciseIds([exerciseId]);
+    bulkInputRef.current?.click();
+  };
+
+  const handleBulkFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !bulkUploadClassId) return;
+    
+    setBulkUploading(true);
     try {
-      const res = await exercisesApi.batchDownload(selectedExerciseIds, includeSolutions);
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = includeSolutions ? 'todos_con_soluciones.pdf' : 'todos_ejercicios.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(a.href);
+      const response = await exerciseCorrections.classBulkUpload(
+        bulkUploadClassId, 
+        Array.from(files),
+        bulkUploadExerciseIds  // Pass the expected exercise IDs
+      );
+      const data = response.data;
+      
+      const result: ClassBulkUploadResult = {
+        autoMatched: (data.auto_matched || []).map((m: any) => ({
+          correctionId: m.correction_id,
+          exerciseId: m.exercise_id,
+          exerciseName: m.exercise_name,
+          studentId: m.student_id,
+          studentName: m.student_name,
+          studentCode: m.student_code,
+          confidence: m.confidence,
+        })),
+        needsReview: (data.needs_review || []).map((r: any) => ({
+          correctionId: r.correction_id,
+          exerciseId: r.exercise_id,
+          exerciseName: r.exercise_name,
+          detectedCode: r.detected_code,
+          reason: r.reason,
+          suggestions: r.suggestions || [],
+        })),
+        exercisesAffected: (data.exercises_affected || []).map((e: any) => ({
+          exerciseId: e.exercise_id,
+          exerciseName: e.exercise_name,
+          matchedCount: e.matched_count,
+        })),
+        studentsWithoutPapers: (data.students_without_papers || []).map((s: any) => ({
+          studentId: s.student_id,
+          studentName: s.student_name,
+          code: s.code,
+        })),
+      };
+      
+      // Pre-populate reviewAssignments with auto-matched proposals (editable)
+      const initialAssignments: Record<string, string> = {};
+      result.autoMatched.forEach((m) => {
+        initialAssignments[m.correctionId] = m.studentId;
+      });
+      setReviewAssignments(initialAssignments);
+      setBulkResult(result);
+      setShowReviewModal(true);
+      await fetchExercises();
     } catch (err) {
-      console.error('Batch download error:', err);
+      console.error('Bulk upload error:', err);
     } finally {
-      setBatchDownloading(false);
+      setBulkUploading(false);
+      e.target.value = '';
     }
   };
 
-  const exitSelectMode = () => {
-    setSelectMode(false);
-    setSelectedExerciseIds([]);
+  const handleReviewAssignment = (correctionId: string, studentId: string) => {
+    setReviewAssignments((prev) => ({ ...prev, [correctionId]: studentId }));
   };
+
+  const handleConfirmReviewAssignments = async () => {
+    setConfirmingReview(true);
+    
+    // All assignments (auto-matched proposals + manual) that have a student
+    const assignedCorrectionIds: string[] = [];
+    const allAssignments = Object.entries(reviewAssignments).filter(([_, studentId]) => studentId);
+    
+    for (const [correctionId, studentId] of allAssignments) {
+      try {
+        await exerciseCorrections.update(correctionId, { student_id: studentId });
+        assignedCorrectionIds.push(correctionId);
+      } catch (err) {
+        console.error('Failed to assign student:', err);
+      }
+    }
+    
+    // Close modal and show processing toast
+    setShowReviewModal(false);
+    setBulkResult(null);
+    setReviewAssignments({});
+    setConfirmingReview(false);
+    
+    if (assignedCorrectionIds.length === 0) {
+      setProcessingToast({
+        isOpen: true,
+        message: 'No hay ejercicios para corregir',
+        color: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+    
+    // Show processing indicator
+    setAiProcessingCount({ current: 0, total: assignedCorrectionIds.length });
+    setProcessingToast({
+      isOpen: true,
+      message: `Corrigiendo 0 de ${assignedCorrectionIds.length} ejercicios...`,
+      color: 'primary',
+      duration: undefined, // Keep open until done
+    });
+    
+    // Process AI for all assigned corrections with progress updates
+    let processed = 0;
+    for (let i = 0; i < assignedCorrectionIds.length; i += 5) {
+      const batch = assignedCorrectionIds.slice(i, i + 5);
+      await Promise.all(batch.map(async (id) => {
+        try {
+          await exerciseCorrections.processAI(id);
+        } catch (err) {
+          console.error('AI processing failed:', err);
+        } finally {
+          processed++;
+          setAiProcessingCount({ current: processed, total: assignedCorrectionIds.length });
+          setProcessingToast({
+            isOpen: true,
+            message: `Corrigiendo ${processed} de ${assignedCorrectionIds.length} ejercicios...`,
+            color: 'primary',
+            duration: undefined,
+          });
+        }
+      }));
+    }
+    
+    // Done - show success toast
+    setAiProcessingCount(null);
+    setProcessingToast({
+      isOpen: true,
+      message: `✓ ${assignedCorrectionIds.length} ejercicio${assignedCorrectionIds.length > 1 ? 's' : ''} corregido${assignedCorrectionIds.length > 1 ? 's' : ''}`,
+      color: 'success',
+      duration: 3000,
+    });
+    
+    await fetchExercises();
+  };
+
+  const handleDismissReview = () => {
+    setShowReviewModal(false);
+    setBulkResult(null);
+    setReviewAssignments({});
+  };
+
+  const getReasonText = (reason: string) => {
+    const reasons: Record<string, string> = {
+      'no_qr_found': 'Sin QR detectado',
+      'no_code': 'Sin código detectado',
+      'partial_code': 'Código parcialmente legible',
+      'no_match': 'Código no coincide',
+      'duplicate_code': 'Código duplicado',
+      'already_assigned': 'Alumno ya asignado',
+      'wrong_exercise': 'Ejercicio incorrecto',
+      'wrong_class_exercise': 'Ejercicio de otra clase',
+      'no_exercise_detected': 'Ejercicio no detectado',
+      'qr_error': 'Error leyendo QR',
+    };
+    return reasons[reason] || reason;
+  };
+
+  const hasExpandedItems = expandedClasses.length > 0;
+
+  // Classes that have exercises (for the filter dropdown)
+  const classesWithExercises = useMemo(() => {
+    const classIds = new Set<string>();
+    exercises.forEach((ex) => {
+      const student = allStudents.find((s) => s.id === ex.studentId);
+      if (student?.classId) {
+        classIds.add(student.classId);
+      }
+    });
+    return classes.filter((c) => classIds.has(c.id));
+  }, [exercises, allStudents, classes]);
 
   return (
     <IonPage>
@@ -375,560 +399,331 @@ const Exercises: React.FC = () => {
         <IonToolbar>
           <IonTitle>Ejercicios</IonTitle>
         </IonToolbar>
-        <IonToolbar>
-          <IonSegment value={tab} onIonChange={(e) => setTab(e.detail.value as typeof tab)}>
-            <IonSegmentButton value="assigned"><IonLabel>Asignados</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="generate"><IonLabel>Generar</IonLabel></IonSegmentButton>
-          </IonSegment>
-        </IonToolbar>
       </IonHeader>
 
-      <IonContent className="ion-padding exercises-content">
-        {tab === 'generate' && (
-          <div className="generate-stepper">
-            {/* Progress indicator */}
-            <div className="stepper-progress">
-              <div className={`stepper-dot ${exerciseName.trim() ? 'stepper-dot--completed' : 'stepper-dot--active'}`} />
-              <div className={`stepper-line ${exerciseName.trim() ? 'stepper-line--completed' : ''}`} />
-              <div className={`stepper-dot ${(sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? 'stepper-dot--completed' : exerciseName.trim() ? 'stepper-dot--active' : ''}`} />
-              <div className={`stepper-line ${(sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? 'stepper-line--completed' : ''}`} />
-              <div className={`stepper-dot ${selectedStudentIds.length > 0 ? 'stepper-dot--completed' : (sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? 'stepper-dot--active' : ''}`} />
-            </div>
+      <IonContent>
+        <div className="exercises-controls">
+          <IonSearchbar
+            value={search}
+            onIonInput={(e) => setSearch(e.detail.value ?? '')}
+            placeholder="Buscar ejercicios..."
+            className="exercises-search"
+          />
 
-            {/* Step 1: Name */}
-            <div className="stepper-step">
-              <div className="stepper-step__header">
-                <div className={`stepper-step__number ${exerciseName.trim() ? 'stepper-step__number--completed' : ''}`}>
-                  {exerciseName.trim() ? <IonIcon icon={checkmarkCircle} style={{ fontSize: 16 }} /> : '1'}
-                </div>
-                <span className="stepper-step__title">Nombre del ejercicio</span>
-              </div>
-              <div className="stepper-step__content">
-                <input
-                  type="text"
-                  value={exerciseName}
-                  onChange={(e) => setExerciseName(e.target.value)}
-                  placeholder="Ej: Repaso fracciones, Práctica verbos..."
-                  style={{
-                    width: '100%',
-                    border: '1px solid rgba(30, 41, 59, 0.1)',
-                    borderRadius: 'var(--radius-sm)',
-                    outline: 'none',
-                    background: 'transparent',
-                    fontSize: '14px',
-                    padding: '12px',
-                  }}
-                />
-              </div>
+          {/* Class filter dropdown */}
+          {classesWithExercises.length > 1 && (
+            <div className="exercises-class-filter">
+              <IonSelect
+                value={classFilter}
+                onIonChange={(e) => setClassFilter(e.detail.value)}
+                interface="popover"
+                className="exercises-class-select"
+              >
+                <IonSelectOption value="all">Todas las clases</IonSelectOption>
+                {classesWithExercises.map((c) => (
+                  <IonSelectOption key={c.id} value={c.id}>
+                    {c.name} — {c.subject}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
             </div>
+          )}
 
-            {/* Step 2: Source */}
-            <div className="stepper-step">
-              <div className="stepper-step__header">
-                <div className={`stepper-step__number ${(sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? 'stepper-step__number--completed' : ''}`}>
-                  {(sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? <IonIcon icon={checkmarkCircle} style={{ fontSize: 16 }} /> : '2'}
-                </div>
-                <span className="stepper-step__title">Fuente de contenido</span>
-              </div>
-              <div className="stepper-step__content">
-                <IonSegment
-                  value={sourceType}
-                  onIonChange={(e) => {
-                    const val = e.detail.value as 'exam' | 'topic';
-                    setSourceType(val);
-                    setSelectedExamId('');
-                    setSelectedClassId('');
-                    setSelectedTopicIds([]);
-                    setSelectedStudentIds([]);
-                    setSelectedTopics([]);
-                  }}
-                  style={{ margin: 0, width: '100%', marginBottom: 'var(--space-md)' }}
+          {/* Stats */}
+          <div className="exercises-stats">
+            <div className="exercises-stat">
+              <span className="exercises-stat__value">{stats.total}</span>
+              <span className="exercises-stat__label">Ejercicios</span>
+            </div>
+            <div className="exercises-stat">
+              <span className="exercises-stat__value">{stats.students}</span>
+              <span className="exercises-stat__label">Alumnos</span>
+            </div>
+            <div className="exercises-stat">
+              <span className="exercises-stat__value">{stats.questions}</span>
+              <span className="exercises-stat__label">Preguntas</span>
+            </div>
+          </div>
+
+          {/* Controls */}
+          {structure.length > 0 && (
+            <div className="exercises-toolbar">
+              <span className="exercises-count">
+                {structure.length} {structure.length === 1 ? 'clase' : 'clases'}
+              </span>
+              <button className="exercises-expand-btn" onClick={hasExpandedItems ? collapseAll : expandAll}>
+                {hasExpandedItems ? 'Colapsar todo' : 'Expandir todo'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {loading && exercises.length === 0 ? (
+          <div className="exercises-loading"><IonSpinner color="primary" /></div>
+        ) : exercises.length === 0 ? (
+          <EmptyState
+            icon="🏋️"
+            title="Sin ejercicios"
+            subtitle="Genera ejercicios personalizados para tus alumnos"
+            actionLabel="Generar ejercicios"
+            onAction={() => setShowGenerateModal(true)}
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon="🔍"
+            title="Sin resultados"
+            subtitle="No hay ejercicios que coincidan"
+          />
+        ) : (
+          <div className="exercises-accordion-container">
+            <IonAccordionGroup multiple value={expandedClasses}>
+              {structure.map((classData) => (
+                <IonAccordion
+                  key={classData.classId}
+                  value={classData.classId}
+                  className="exercises-class-accordion"
+                  toggleIcon={chevronDownOutline}
+                  toggleIconSlot="end"
                 >
-                  <IonSegmentButton value="exam"><IonLabel>Examen corregido</IonLabel></IonSegmentButton>
-                  <IonSegmentButton value="topic"><IonLabel>Temario</IonLabel></IonSegmentButton>
-                </IonSegment>
-
-                {sourceType === 'exam' && (
-                  correctedExams.length === 0 ? (
-                    <div className="exercises-empty-state">
-                      <IonIcon icon={alertCircleOutline} />
-                      <p>No hay exámenes corregidos.<br/>Corrige algunos exámenes primero.</p>
+                  <IonItem
+                    slot="header"
+                    className="exercises-class-header"
+                    onClick={() => toggleClass(classData.classId)}
+                  >
+                    <div className="exercises-class-icon" slot="start">
+                      <IonIcon icon={classData.classId === '__global__' ? globeOutline : schoolOutline} />
                     </div>
-                  ) : (
-                    <IonItem lines="none" className="compact-select">
-                      <IonLabel>Examen</IonLabel>
-                      <IonSelect
-                        value={selectedExamId}
-                        onIonChange={(e) => setSelectedExamId(e.detail.value)}
-                        interface="popover"
-                        placeholder="Seleccionar examen"
-                      >
-                        {correctedExams.map((exam) => {
-                          const cls = allClasses.find((c) => c.id === exam.classId);
-                          const hasIssues = examsWithIssues.has(exam.id);
-                          const issueCount = corrections.filter(
-                            (c) => c.examId === exam.id && c.weakAreas && c.weakAreas.length > 0
-                          ).length;
-                          return (
-                            <IonSelectOption key={exam.id} value={exam.id}>
-                              {exam.name} ({cls?.name}){hasIssues ? ` — ${issueCount} con problemas` : ''}
-                            </IonSelectOption>
-                          );
-                        })}
-                      </IonSelect>
-                    </IonItem>
-                  )
-                )}
+                    <IonLabel>
+                      <h2 className="exercises-class-name">{classData.className}</h2>
+                      <p className="exercises-class-subject">{classData.classSubject}</p>
+                    </IonLabel>
+                    <IonBadge color="medium" className="exercises-student-badge">
+                      {classData.studentCount} {classData.studentCount === 1 ? 'alumno' : 'alumnos'}
+                    </IonBadge>
+                    <IonBadge slot="end" color="primary" className="exercises-count-badge">
+                      {classData.totalExercises}
+                    </IonBadge>
+                  </IonItem>
 
-                {sourceType === 'topic' && (
-                  <>
-                    <IonItem lines="none" className="compact-select">
-                      <IonLabel>Clase</IonLabel>
-                      <IonSelect
-                        value={selectedClassId}
-                        onIonChange={(e) => {
-                          setSelectedClassId(e.detail.value);
-                          setSelectedTopicIds([]);
-                          setSelectedStudentIds([]);
-                        }}
-                        interface="popover"
-                        placeholder="Seleccionar clase"
-                      >
-                        {classes.map((c) => (
-                          <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
-                        ))}
-                      </IonSelect>
-                    </IonItem>
-
-                    {selectedClassId && (
-                      classTopics.length === 0 ? (
-                        <div className="exercises-empty-state">
-                          <IonIcon icon={alertCircleOutline} />
-                          <p>No hay temas para esta clase.<br/>Añade temas en la sección de temario.</p>
-                        </div>
-                      ) : (
-                        <div className="exercises-topic-select" style={{ marginTop: 'var(--space-sm)' }}>
-                          <span className="exercises-topic-label">Temas ({selectedTopicIds.length} seleccionados)</span>
-                          <div className="exercises-topic-chips">
-                            {classTopics.map((topic) => (
-                              <IonChip
-                                key={topic.id}
-                                color={selectedTopicIds.includes(topic.id) ? 'primary' : 'medium'}
-                                onClick={() => toggleTopicId(topic.id)}
-                              >
-                                <IonCheckbox checked={selectedTopicIds.includes(topic.id)} style={{ marginRight: 6, '--size': '16px' }} />
-                                <IonLabel className="text-truncate">{topic.name}</IonLabel>
-                                <IonBadge color="medium" style={{ marginLeft: 4, fontSize: '10px' }}>{topic.materialCount}</IonBadge>
-                              </IonChip>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Step 3: Students (only shown when source is selected) */}
-            {((sourceType === 'exam' && selectedExamId) || (sourceType === 'topic' && selectedTopicIds.length > 0)) && (
-              <div className="stepper-step">
-                <div className="stepper-step__header">
-                  <div className={`stepper-step__number ${selectedStudentIds.length > 0 ? 'stepper-step__number--completed' : ''}`}>
-                    {selectedStudentIds.length > 0 ? <IonIcon icon={checkmarkCircle} style={{ fontSize: 16 }} /> : '3'}
+                  <div slot="content" className="exercises-groups-container">
+                    {/* Simple list of exercise group cards */}
+                    {classData.exerciseGroups.map((group) => {
+                      const classStudents = allStudents.filter(s => s.classId === classData.classId);
+                      return (
+                        <ExerciseGroupCard
+                          key={`${classData.classId}-${group.name}`}
+                          group={group}
+                          classId={classData.classId}
+                          students={classStudents}
+                          onUploadClick={handleBulkUploadClick}
+                          onSingleUploadClick={handleSingleUploadClick}
+                          uploading={bulkUploading && bulkUploadClassId === classData.classId}
+                        />
+                      );
+                    })}
                   </div>
-                  <span className="stepper-step__title">Alumnos</span>
-                  <span className="stepper-step__subtitle">{selectedStudentIds.length} seleccionados</span>
-                </div>
-                <div className="stepper-step__content">
-                  <div className="students-quick-actions" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                    <IonChip 
-                      color={selectedStudentIds.length === studentsInClass.length ? 'primary' : 'medium'}
-                      onClick={() => setSelectedStudentIds(studentsInClass.map((s) => s.id))}
-                    >
-                      Todos ({studentsInClass.length})
+                </IonAccordion>
+              ))}
+            </IonAccordionGroup>
+          </div>
+        )}
+
+        {/* FAB for generating */}
+        <IonFab vertical="bottom" horizontal="end" slot="fixed" className="exercises-fab">
+          <IonFabButton onClick={() => setShowGenerateModal(true)}>
+            <IonIcon icon={sparkles} />
+          </IonFabButton>
+        </IonFab>
+
+        {/* Generate Modal */}
+        <ExerciseGeneratorModal
+          isOpen={showGenerateModal}
+          onDismiss={() => setShowGenerateModal(false)}
+        />
+
+        {/* Hidden file input for bulk upload */}
+        <input
+          type="file"
+          ref={bulkInputRef}
+          style={{ display: 'none' }}
+          accept=".jpg,.jpeg,.png,.pdf"
+          multiple
+          onChange={handleBulkFilesSelected}
+        />
+
+        {/* Bulk upload review modal */}
+        <IonModal isOpen={showReviewModal} onDidDismiss={handleDismissReview} className="exercises-bulk-modal">
+          <IonHeader>
+            <IonToolbar>
+              <IonTitle>Resultado de carga</IonTitle>
+              <IonButtons slot="end">
+                <IonButton onClick={handleDismissReview}>
+                  <IonIcon icon={closeOutline} />
+                </IonButton>
+              </IonButtons>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="exercises-bulk-modal-content">
+            {bulkResult && (() => {
+              const classStudents = bulkUploadClassId
+                ? allStudents.filter((s) => s.classId === bulkUploadClassId)
+                : [];
+              const assignedStudentIds = new Set(Object.values(reviewAssignments).filter(Boolean));
+              const allItems = [
+                ...bulkResult.autoMatched.map((m) => ({
+                  correctionId: m.correctionId,
+                  exerciseName: m.exerciseName,
+                  detectedCode: m.studentCode,
+                  reason: 'auto_matched' as string,
+                  isAutoMatched: true,
+                })),
+                ...bulkResult.needsReview.map((item) => ({
+                  correctionId: item.correctionId,
+                  exerciseName: item.exerciseName,
+                  detectedCode: item.detectedCode,
+                  reason: item.reason,
+                  isAutoMatched: false,
+                })),
+              ];
+
+              return (
+                <div className="bulk-review-section">
+                  {/* Stats */}
+                  <div className="bulk-review-stats">
+                    <IonChip color="success">
+                      <IonIcon icon={checkmarkOutline} />
+                      {bulkResult.autoMatched.length} detectados
                     </IonChip>
-                    {sourceType === 'exam' && studentIdsWithIssues.size > 0 && (
-                      <IonChip 
-                        color={selectedStudentIds.length === studentIdsWithIssues.size ? 'warning' : 'medium'}
-                        onClick={() => setSelectedStudentIds(Array.from(studentIdsWithIssues))}
-                      >
-                        Con problemas ({studentIdsWithIssues.size})
+                    {bulkResult.needsReview.length > 0 && (
+                      <IonChip color="warning">
+                        <IonIcon icon={warningOutline} />
+                        {bulkResult.needsReview.length} pendientes
                       </IonChip>
                     )}
-                    <IonChip 
-                      color="medium"
-                      onClick={() => setShowStudentList(!showStudentList)}
-                    >
-                      {showStudentList ? 'Ocultar lista' : 'Ver lista'}
-                      <IonIcon icon={showStudentList ? chevronUpOutline : chevronDownOutline} style={{ marginLeft: 4 }} />
-                    </IonChip>
+                    {bulkResult.studentsWithoutPapers.length > 0 && (
+                      <IonChip color="medium">
+                        <IonIcon icon={helpOutline} />
+                        {bulkResult.studentsWithoutPapers.length} sin ejercicio
+                      </IonChip>
+                    )}
                   </div>
 
-                  {showStudentList && (
-                    <>
-                      {studentsInClass.length > 5 && (
-                        <IonSearchbar
-                          value={studentSearch}
-                          onIonInput={(e) => setStudentSearch(e.detail.value ?? '')}
-                          placeholder="Buscar alumno..."
-                          className="students-search"
-                        />
-                      )}
-                      <IonList className="students-checklist">
-                        {filteredStudentsInClass.map((student) => {
-                          const hasIssues = sourceType === 'exam' && studentIdsWithIssues.has(student.id);
-                          return (
-                            <IonItem key={student.id} lines="none" className="student-check-item">
-                              <IonCheckbox 
-                                slot="start" 
-                                checked={selectedStudentIds.includes(student.id)}
-                                onIonChange={() => toggleStudent(student.id)}
-                              />
-                              <IonLabel className="text-truncate">{student.name}</IonLabel>
-                              {hasIssues && <IonBadge color="warning" slot="end">!</IonBadge>}
-                            </IonItem>
-                          );
-                        })}
-                        {filteredStudentsInClass.length === 0 && studentSearch && (
-                          <IonItem lines="none" className="student-check-item">
-                            <IonLabel color="medium">Sin resultados</IonLabel>
-                          </IonItem>
-                        )}
-                      </IonList>
-                    </>
-                  )}
-
-                  {/* Weak areas focus (exam mode only) */}
-                  {sourceType === 'exam' && examWeakAreas.length > 0 && (
-                    <div style={{ marginTop: 'var(--space-md)' }}>
-                      <div 
-                        className="weak-areas-inline weak-areas-clickable"
-                        onClick={() => setShowTopicList(!showTopicList)}
-                      >
-                        <span>Temas a reforzar:</span>
-                        {selectedTopics.length > 0 ? (
-                          <>
-                            {selectedTopics.slice(0, 3).map((area) => (
-                              <IonBadge key={area} color="primary">{area}</IonBadge>
-                            ))}
-                            {selectedTopics.length > 3 && (
-                              <IonBadge color="medium">+{selectedTopics.length - 3}</IonBadge>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {examWeakAreas.slice(0, 3).map((area) => (
-                              <IonBadge key={area} color="warning">{area}</IonBadge>
-                            ))}
-                            {examWeakAreas.length > 3 && (
-                              <IonBadge color="medium">+{examWeakAreas.length - 3}</IonBadge>
-                            )}
-                            <span className="auto-label">Auto</span>
-                          </>
-                        )}
-                        <IonIcon icon={showTopicList ? chevronUpOutline : chevronDownOutline} />
-                      </div>
-
-                      {showTopicList && (
-                        <div className="topic-select-panel">
-                          <div className="students-quick-actions">
-                            <IonChip 
-                              color={selectedTopics.length === 0 ? 'primary' : 'medium'}
-                              onClick={() => setSelectedTopics([])}
-                            >
-                              Automático
-                            </IonChip>
-                            <IonChip 
-                              color={selectedTopics.length === examWeakAreas.length ? 'warning' : 'medium'}
-                              onClick={() => setSelectedTopics([...examWeakAreas])}
-                            >
-                              Todos ({examWeakAreas.length})
-                            </IonChip>
-                          </div>
-                          <IonList className="students-checklist">
-                            {examWeakAreas.map((area) => (
-                              <IonItem key={area} lines="none" className="student-check-item">
-                                <IonCheckbox 
-                                  slot="start" 
-                                  checked={selectedTopics.includes(area)}
-                                  onIonChange={() => toggleTopic(area)}
-                                />
-                                <IonLabel className="text-truncate">{area}</IonLabel>
-                              </IonItem>
-                            ))}
-                          </IonList>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Advanced options (collapsible, outside steps) */}
-            {((sourceType === 'exam' && selectedExamId) || (sourceType === 'topic' && selectedTopicIds.length > 0)) && (
-              <>
-                <div 
-                  className="options-toggle"
-                  onClick={() => setShowOptions(!showOptions)}
-                >
-                  <span>Opciones avanzadas</span>
-                  <IonIcon icon={showOptions ? chevronUpOutline : chevronDownOutline} />
-                </div>
-
-                {showOptions && (
-                  <div className="options-panel">
-                    <IonItem lines="none" className="compact-select">
-                      <IonLabel>Dificultad</IonLabel>
-                      <IonSelect value={difficulty} onIonChange={(e) => setDifficulty(e.detail.value)} interface="popover">
-                        <IonSelectOption value="easier">Más fácil</IonSelectOption>
-                        <IonSelectOption value="same">Mismo nivel</IonSelectOption>
-                        <IonSelectOption value="harder">Más difícil</IonSelectOption>
-                      </IonSelect>
-                    </IonItem>
-                    <IonItem lines="none" className="compact-select">
-                      <IonLabel>Preguntas</IonLabel>
-                      <IonSelect value={numQuestions} onIonChange={(e) => setNumQuestions(e.detail.value)} interface="popover">
-                        {[3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                          <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                  {/* Exercises affected summary */}
+                  {bulkResult.exercisesAffected.length > 0 && (
+                    <div className="bulk-exercises-affected">
+                      <p className="bulk-section-label">Ejercicios afectados:</p>
+                      <div className="bulk-exercises-list">
+                        {bulkResult.exercisesAffected.map((ex) => (
+                          <IonChip key={ex.exerciseId} color="primary" outline>
+                            {ex.exerciseName}: {ex.matchedCount} detectados
+                          </IonChip>
                         ))}
-                      </IonSelect>
-                    </IonItem>
-                    <IonItem lines="none" className="compact-textarea">
-                      <IonTextarea
-                        value={refinement}
-                        onIonInput={(e) => setRefinement(e.detail.value ?? '')}
-                        placeholder="Instrucciones adicionales (opcional)"
-                        rows={2}
-                      />
-                    </IonItem>
-                  </div>
-                )}
-
-                {/* Requirements checklist */}
-                <div className="generate-requirements">
-                  <div className={`generate-requirement ${exerciseName.trim() ? 'generate-requirement--met' : 'generate-requirement--missing'}`}>
-                    <IonIcon icon={exerciseName.trim() ? checkmarkCircle : ellipseOutline} />
-                    <span>Nombre del ejercicio</span>
-                  </div>
-                  <div className={`generate-requirement ${(sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? 'generate-requirement--met' : 'generate-requirement--missing'}`}>
-                    <IonIcon icon={(sourceType === 'exam' ? selectedExamId : selectedTopicIds.length > 0) ? checkmarkCircle : ellipseOutline} />
-                    <span>Fuente seleccionada</span>
-                  </div>
-                  <div className={`generate-requirement ${selectedStudentIds.length > 0 ? 'generate-requirement--met' : 'generate-requirement--missing'}`}>
-                    <IonIcon icon={selectedStudentIds.length > 0 ? checkmarkCircle : ellipseOutline} />
-                    <span>Al menos 1 alumno</span>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="exercises-error">
-                    <IonBadge color="danger">{error}</IonBadge>
-                  </div>
-                )}
-
-                <IonButton 
-                  expand="block" 
-                  className="generate-btn" 
-                  onClick={handleGenerate} 
-                  disabled={!canGenerate}
-                >
-                  {generating ? (
-                    <><IonSpinner name="crescent" /> Generando...</>
-                  ) : (
-                    <><IonIcon icon={sparkles} slot="start" /> Generar ejercicios</>
-                  )}
-                </IonButton>
-              </>
-            )}
-          </div>
-        )}
-
-        {tab === 'assigned' && (
-          <div className="exercises-assigned">
-            {loading && (
-              <div className="exercises-skeleton">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="skeleton-group">
-                    <div className="skeleton-group__header">
-                      <div className="skeleton skeleton-group__chevron" />
-                      <div className="skeleton skeleton-group__title" />
-                      <div className="skeleton skeleton-group__badge" />
-                      <div className="skeleton skeleton-group__date" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {!loading && exercises.length === 0 ? (
-              <EmptyState icon="🏋️" title="Aún no hay ejercicios" actionLabel="Generar" onAction={() => setTab('generate')} />
-            ) : (
-              <>
-                <div className="exercises-assigned-controls">
-                  <IonSearchbar
-                    value={searchTerm}
-                    onIonInput={(e) => setSearchTerm(e.detail.value!)}
-                    placeholder="Buscar por nombre, estudiante o área..."
-                    className="exercises-search"
-                  />
+                  )}
 
-                  
-                  <div className="exercises-controls-row">
-                    <div className="exercises-right-controls">
-                      {!selectMode ? (
-                        <IonButton
-                          fill="clear"
-                          size="small"
-                          onClick={() => setSelectMode(true)}
-                        >
-                          <IonIcon icon={checkboxOutline} slot="start" />
-                          Seleccionar
-                        </IonButton>
+                  {/* All papers as editable proposals */}
+                  <div className="bulk-review-cards">
+                    <p className="bulk-section-label">
+                      Revisa las asignaciones propuestas antes de confirmar:
+                    </p>
+                    {allItems.map((item, idx) => (
+                      <IonCard key={item.correctionId} className={`bulk-review-card ${item.isAutoMatched ? 'bulk-review-card-auto' : ''}`}>
+                        <IonCardContent className="bulk-review-card-content">
+                          <div className="bulk-review-card-info">
+                            <span className="bulk-review-card-index">Papel {idx + 1}</span>
+                            <div className="bulk-review-card-meta">
+                              {item.detectedCode && (
+                                <span className="detected-code">Código: {item.detectedCode}</span>
+                              )}
+                              {item.exerciseName && (
+                                <span className="detected-exercise">Ejercicio: {item.exerciseName}</span>
+                              )}
+                              {item.isAutoMatched ? (
+                                <IonBadge color="success" className="auto-badge">Auto</IonBadge>
+                              ) : (
+                                <span className="reason-text">{getReasonText(item.reason)}</span>
+                              )}
+                            </div>
+                            <IonSelect
+                              interface="popover"
+                              placeholder="Seleccionar alumno"
+                              value={reviewAssignments[item.correctionId] || ''}
+                              onIonChange={(e) => handleReviewAssignment(item.correctionId, e.detail.value)}
+                              className="bulk-review-select"
+                            >
+                              {classStudents
+                                .filter((s) => !assignedStudentIds.has(s.id) || reviewAssignments[item.correctionId] === s.id)
+                                .map((s) => (
+                                  <IonSelectOption key={`${item.correctionId}-${s.id}`} value={s.id}>
+                                    {s.name} {s.studentId ? `(${s.studentId})` : ''}
+                                  </IonSelectOption>
+                                ))}
+                              <IonSelectOption key={`${item.correctionId}-none`} value="">— Sin asignar —</IonSelectOption>
+                            </IonSelect>
+                          </div>
+                        </IonCardContent>
+                      </IonCard>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="bulk-review-actions">
+                    <IonButton
+                      expand="block"
+                      onClick={handleConfirmReviewAssignments}
+                      disabled={confirmingReview}
+                      className="bulk-review-confirm-btn"
+                    >
+                      {confirmingReview ? (
+                        <><IonSpinner name="crescent" /> Asignando y analizando...</>
                       ) : (
-                        <IonButton
-                          fill="clear"
-                          size="small"
-                          color="medium"
-                          onClick={exitSelectMode}
-                        >
-                          <IonIcon icon={closeOutline} slot="start" />
-                          Cancelar
-                        </IonButton>
+                        <><IonIcon icon={sparkles} slot="start" /> Confirmar y analizar con IA</>
                       )}
-                      <IonButton
-                        fill="clear"
-                        size="small"
-                        onClick={() => setShowFilters(!showFilters)}
-                      >
-                        <IonIcon icon={filterOutline} slot="start" />
-                        Filtros
-                      </IonButton>
-                    </div>
+                    </IonButton>
+                    <IonButton
+                      expand="block"
+                      fill="clear"
+                      color="medium"
+                      onClick={handleDismissReview}
+                      disabled={confirmingReview}
+                    >
+                      Omitir
+                    </IonButton>
                   </div>
-
-                  {/* Batch download bar */}
-                  {selectMode && (
-                    <div className="exercises-batch-bar">
-                      <div className="exercises-batch-info">
-                        <span>{selectedExerciseIds.length} seleccionados</span>
-                        <IonButton
-                          fill="clear"
-                          size="small"
-                          onClick={() => setSelectedExerciseIds(filteredAndSortedExercises.map((e) => e.id))}
-                        >
-                          Seleccionar todos
-                        </IonButton>
-                      </div>
-                      <div className="exercises-batch-actions">
-                        <IonButton
-                          size="small"
-                          fill="outline"
-                          disabled={selectedExerciseIds.length === 0 || batchDownloading}
-                          onClick={() => handleBatchDownload(false)}
-                        >
-                          <IonIcon icon={documentTextOutline} slot="start" />
-                          {batchDownloading ? 'Descargando...' : 'Ejercicios'}
-                        </IonButton>
-                        <IonButton
-                          size="small"
-                          fill="outline"
-                          color="success"
-                          disabled={selectedExerciseIds.length === 0 || batchDownloading}
-                          onClick={() => handleBatchDownload(true)}
-                        >
-                          <IonIcon icon={downloadOutline} slot="start" />
-                          {batchDownloading ? 'Descargando...' : 'Con soluciones'}
-                        </IonButton>
-                      </div>
-                    </div>
-                  )}
-
-                  {showFilters && (
-                    <div className="exercises-filters">
-                      <IonItem lines="none" className="filter-item">
-                        <IonLabel>Ordenar por</IonLabel>
-                        <IonSelect
-                          value={sortBy}
-                          onIonChange={(e) => setSortBy(e.detail.value)}
-                          interface="popover"
-                        >
-                          <IonSelectOption value="date">Fecha</IonSelectOption>
-                          <IonSelectOption value="student">Estudiante</IonSelectOption>
-                          <IonSelectOption value="questions">Nº preguntas</IonSelectOption>
-                        </IonSelect>
-                      </IonItem>
-                    </div>
-                  )}
                 </div>
-
-                {searchTerm && (
-                  <div className="exercises-results-count">
-                    {filteredAndSortedExercises.length} de {exercises.length} ejercicios
-                  </div>
-                )}
-
-                {/* Grouped view */}
-                <div className="exercises-grouped-view">
-                  {groupedExercises.map((group) => {
-                    const groupIds = group.exercises.map((ex) => ex.id);
-                    const allGroupSelected = selectMode && groupIds.length > 0 && groupIds.every((id) => selectedExerciseIds.includes(id));
-                    const someGroupSelected = selectMode && !allGroupSelected && groupIds.some((id) => selectedExerciseIds.includes(id));
-                    return (
-                    <div key={group.name} className="exercise-group">
-                      <div
-                        className="exercise-group__header"
-                        onClick={() => toggleGroupExpanded(group.name)}
-                      >
-                        {selectMode && (
-                          <IonCheckbox
-                            checked={allGroupSelected}
-                            indeterminate={someGroupSelected}
-                            className="exercise-group__checkbox"
-                            onClick={(e) => e.stopPropagation()}
-                            onIonChange={() => toggleGroupSelect(groupIds)}
-                          />
-                        )}
-                        <IonIcon
-                          icon={expandedGroups.has(group.name) ? chevronDownOutline : chevronForwardOutline}
-                          className="exercise-group__chevron"
-                        />
-                        <span className="exercise-group__name">{group.name}</span>
-                        <IonBadge color="primary" className="exercise-group__count">
-                          {group.count} {group.count === 1 ? 'alumno' : 'alumnos'}
-                        </IonBadge>
-                        <span className="exercise-group__date">
-                          {new Date(group.latestDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                        </span>
-                      </div>
-                      {expandedGroups.has(group.name) && (
-                        <div className="exercise-group__content">
-                          {group.exercises.map((ex) => {
-                            const student = allStudents.find((s) => s.id === ex.studentId);
-                            return (
-                              <ExerciseCompactCard
-                                key={ex.id}
-                                exercise={ex}
-                                studentName={student?.name}
-                                onDelete={handleDeleteExercise}
-                                onRename={handleRenameExercise}
-                                selected={selectMode ? selectedExerciseIds.includes(ex.id) : undefined}
-                                onToggleSelect={selectMode ? toggleExerciseSelect : undefined}
-                              />
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+              );
+            })()}
+          </IonContent>
+        </IonModal>
       </IonContent>
+
+      {/* Processing toast notification */}
+      <IonToast
+        isOpen={processingToast.isOpen}
+        message={processingToast.message}
+        color={processingToast.color || 'primary'}
+        duration={processingToast.duration ?? 0}
+        position="bottom"
+        onDidDismiss={() => setProcessingToast({ isOpen: false, message: '' })}
+      />
+
+      {/* Floating progress bar when AI is processing */}
+      {aiProcessingCount && (
+        <div className="ai-processing-overlay">
+          <div className="ai-processing-card">
+            <IonSpinner name="crescent" color="primary" />
+            <div className="ai-processing-text">
+              <strong>Corrigiendo ejercicios</strong>
+              <span>{aiProcessingCount.current} de {aiProcessingCount.total}</span>
+            </div>
+            <IonProgressBar 
+              value={aiProcessingCount.current / aiProcessingCount.total} 
+              color="primary"
+            />
+          </div>
+        </div>
+      )}
     </IonPage>
   );
 };

@@ -19,6 +19,7 @@ import ExamEditor from './pages/Exams/ExamEditor';
 import Exercises from './pages/Exercises/Exercises';
 import Materials from './pages/Materials/Materials';
 import Correction from './pages/Correction/Correction';
+import ExerciseCorrection from './pages/ExerciseCorrection/ExerciseCorrection';
 import { auth } from './services/api';
 
 import '@ionic/react/css/core.css';
@@ -54,6 +55,7 @@ const App: React.FC = () => (
       <IonRouterOutlet>
         <Route exact path="/login" component={Login} />
         <PrivateRoute exact path="/correction/:examId" component={Correction} />
+        <PrivateRoute exact path="/exercise-correction/:exerciseId" component={ExerciseCorrection} />
       </IonRouterOutlet>
 
       <Route

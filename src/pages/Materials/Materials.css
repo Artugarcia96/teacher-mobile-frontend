@@ -48,6 +48,22 @@
   border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
+/* Class filter dropdown */
+.materials-class-filter {
+  margin-bottom: var(--space-xs);
+}
+
+.materials-class-select {
+  width: 100%;
+  background: var(--ion-card-background);
+  border-radius: var(--radius-md);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 .materials-filters {
   display: flex;
   gap: var(--space-sm);
@@ -87,6 +103,102 @@
 /* Accordion container */
 .materials-accordion-container {
   padding: 0 var(--space-md) var(--space-xl);
+}
+
+/* Global class quick-add button */
+.materials-global-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-lg);
+  border: 2px dashed rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(168, 85, 247, 0.05));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.materials-global-btn:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(168, 85, 247, 0.1));
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.materials-global-btn > ion-icon:first-child {
+  font-size: 28px;
+  color: #8B5CF6;
+}
+
+.materials-global-btn__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.materials-global-btn__title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: #7C3AED;
+}
+
+.materials-global-btn__subtitle {
+  font-size: var(--font-size-sm);
+  color: #A78BFA;
+  margin-top: 2px;
+}
+
+.materials-global-btn__add {
+  font-size: 20px;
+  color: #8B5CF6;
+  padding: var(--space-xs);
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+/* Global class accordion styling */
+.materials-class-accordion--global {
+  border-color: rgba(139, 92, 246, 0.2);
+  background: linear-gradient(135deg, #ffffff, rgba(139, 92, 246, 0.02));
+}
+
+.materials-class-accordion--global::part(content) {
+  background: linear-gradient(135deg, #f8f5ff, #faf8ff);
+}
+
+.materials-class-icon--global {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15));
+}
+
+.materials-class-icon--global ion-icon {
+  color: #8B5CF6;
+}
+
+/* Global info in create modal */
+.materials-global-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(168, 85, 247, 0.08));
+  border-radius: var(--radius-lg);
+  margin: var(--space-md) 0;
+  text-align: center;
+}
+
+.materials-global-info__icon {
+  font-size: 48px;
+  color: #8B5CF6;
+}
+
+.materials-global-info p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: #64748B;
+  line-height: 1.5;
 }
 
 /* Class accordion */
@@ -593,5 +705,30 @@
 
   .materials-drop-overlay {
     background: rgba(var(--ion-color-primary-rgb), 0.15);
+  }
+
+  .materials-class-select {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .materials-global-btn {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(168, 85, 247, 0.1));
+    border-color: rgba(139, 92, 246, 0.3);
+  }
+
+  .materials-global-btn:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(168, 85, 247, 0.18));
+  }
+
+  .materials-class-accordion--global {
+    background: linear-gradient(135deg, #1e1e22, rgba(139, 92, 246, 0.05));
+  }
+
+  .materials-class-accordion--global::part(content) {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(168, 85, 247, 0.03));
+  }
+
+  .materials-global-info {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(168, 85, 247, 0.12));
   }
 }
