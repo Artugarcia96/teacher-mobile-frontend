@@ -119,6 +119,29 @@
   --gradient-warm: linear-gradient(135deg, #E87A1C 0%, #F59E0B 100%);
   --gradient-success: linear-gradient(135deg, #059669 0%, #10B981 100%);
 
+  /* Utility colors - Text */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #64748B;
+  --color-text-tertiary: #94A3B8;
+  --color-text-muted: #CBD5E1;
+  
+  /* Utility colors - Status */
+  --color-status-pending: #D97706;
+  --color-status-pending-bg: rgba(217, 119, 6, 0.1);
+  --color-status-success: #059669;
+  --color-status-success-bg: rgba(5, 150, 105, 0.1);
+  --color-status-danger: #DC2626;
+  --color-status-danger-bg: rgba(220, 38, 38, 0.1);
+  --color-status-info: #6366F1;
+  --color-status-info-bg: rgba(99, 102, 241, 0.1);
+  
+  /* Utility colors - Backgrounds */
+  --color-surface: #ffffff;
+  --color-surface-hover: rgba(15, 23, 42, 0.02);
+  --color-surface-subtle: rgba(15, 23, 42, 0.03);
+  --color-border: rgba(15, 23, 42, 0.04);
+  --color-border-strong: rgba(15, 23, 42, 0.06);
+  
   /* Legacy compat */
   --app-content-padding: var(--space-lg);
   --app-card-margin: var(--space-md);
@@ -657,6 +680,29 @@ ion-segment-button:focus-visible {
     --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.6);
     --shadow-primary: 0 4px 14px rgba(44, 158, 146, 0.4);
     --shadow-primary-lg: 0 8px 24px rgba(44, 158, 146, 0.5);
+    
+    /* Utility colors - Text (dark mode) */
+    --color-text-primary: #F1F5F9;
+    --color-text-secondary: #A1A1AA;
+    --color-text-tertiary: #71717A;
+    --color-text-muted: #52525B;
+    
+    /* Utility colors - Status (dark mode - brighter for contrast) */
+    --color-status-pending: #FBBF24;
+    --color-status-pending-bg: rgba(217, 119, 6, 0.15);
+    --color-status-success: #34D399;
+    --color-status-success-bg: rgba(5, 150, 105, 0.15);
+    --color-status-danger: #F87171;
+    --color-status-danger-bg: rgba(220, 38, 38, 0.15);
+    --color-status-info: #818CF8;
+    --color-status-info-bg: rgba(99, 102, 241, 0.15);
+    
+    /* Utility colors - Backgrounds (dark mode) */
+    --color-surface: #16161A;
+    --color-surface-hover: rgba(255, 255, 255, 0.04);
+    --color-surface-subtle: rgba(255, 255, 255, 0.04);
+    --color-border: rgba(255, 255, 255, 0.06);
+    --color-border-strong: rgba(255, 255, 255, 0.08);
   }
 
   ion-card {
@@ -738,5 +784,366 @@ ion-segment-button:focus-visible {
   ion-chip {
     --background: #1E1E24;
     --color: #ffffff;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STANDARDIZED COMPONENT PATTERNS
+   Reusable classes for consistent UI across the app
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Modal Sheet Pattern ─── */
+.modal-sheet {
+  padding: var(--space-2xl) var(--space-xl);
+}
+
+.modal-sheet__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-lg);
+  letter-spacing: -0.02em;
+  color: var(--ion-text-color);
+}
+
+.modal-sheet__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-md);
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal-sheet { background: #16161A; }
+}
+
+/* ─── Standard Card Pattern ─── */
+.std-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.std-card:active {
+  transform: scale(0.98);
+}
+
+.std-card--clickable {
+  cursor: pointer;
+}
+
+.std-card--selected {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.15);
+}
+
+/* ─── Status Badges ─── */
+.status-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.status-badge--pending {
+  background: var(--color-status-pending-bg);
+  color: var(--color-status-pending);
+}
+
+.status-badge--success {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success);
+}
+
+.status-badge--danger {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger);
+}
+
+.status-badge--info {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info);
+}
+
+.status-badge--muted {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+
+/* ─── Alert Banner Pattern ─── */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.alert-banner:active {
+  transform: scale(0.98);
+}
+
+.alert-banner--warning {
+  background: linear-gradient(135deg, var(--color-status-pending-bg) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.alert-banner--success {
+  background: linear-gradient(135deg, var(--color-status-success-bg) 0%, rgba(5, 150, 105, 0.05) 100%);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.alert-banner--info {
+  background: linear-gradient(135deg, var(--color-status-info-bg) 0%, rgba(99, 102, 241, 0.05) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.alert-banner__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 20px;
+}
+
+.alert-banner--warning .alert-banner__icon {
+  background: var(--ion-color-warning);
+  color: #ffffff;
+}
+
+.alert-banner__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alert-banner__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.alert-banner__subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+/* ─── Action Button Cards (Grid) ─── */
+.action-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+.action-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-xs);
+  font-family: inherit;
+  text-align: center;
+}
+
+.action-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.action-card:active {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.action-card__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  line-height: 1.3;
+}
+
+/* ─── Loading State ─── */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-4xl);
+  min-height: 200px;
+}
+
+/* ─── Empty State Enhancement ─── */
+.empty-state--compact {
+  min-height: 160px;
+  padding: var(--space-2xl) var(--space-xl);
+}
+
+/* ─── Collapsible List Item ─── */
+.list-item-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.list-item-card:active {
+  transform: scale(0.98);
+}
+
+.list-item-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.list-item-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.list-item-card__title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.list-item-card__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.list-item-card__arrow {
+  font-size: 18px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ─── Inline Form Row ─── */
+.inline-form-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.inline-form-row__input {
+  flex: 1;
+}
+
+/* ─── Quick Stats Grid ─── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: var(--space-md);
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-sm);
+  transition: transform var(--transition-fast);
+}
+
+.stat-card:active {
+  transform: scale(0.97);
+}
+
+.stat-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.stat-card__value {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--ion-text-color);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.stat-card__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Dark mode for standardized components */
+@media (prefers-color-scheme: dark) {
+  .std-card,
+  .action-card,
+  .list-item-card,
+  .stat-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+
+  .alert-banner--warning {
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
+    border-color: rgba(217, 119, 6, 0.3);
+  }
+
+  .alert-banner--success {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.08) 100%);
+    border-color: rgba(5, 150, 105, 0.3);
+  }
+
+  .alert-banner--info {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.08) 100%);
+    border-color: rgba(99, 102, 241, 0.3);
   }
 }

@@ -4,22 +4,26 @@ import {
   setupIonicReact,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { homeOutline, schoolOutline, documentTextOutline, pencilOutline, folderOutline } from 'ionicons/icons';
+import { calendarOutline, schoolOutline } from 'ionicons/icons';
 
 import Login from './pages/Login/Login';
-import Dashboard from './pages/Dashboard/Dashboard';
+import Calendar from './pages/Calendar/Calendar';
 import Classes from './pages/Classes/Classes';
 import ClassSettings from './pages/ClassSettings/ClassSettings';
 import GradeBook from './pages/GradeBook/GradeBook';
+import SubjectGradeBook from './pages/GradeBook/SubjectGradeBook';
 import StudentFile from './pages/StudentFile/StudentFile';
 import TopicsList from './pages/Topics/TopicsList';
 import TopicDetail from './pages/Topics/TopicDetail';
-import Exams from './pages/Exams/Exams';
 import ExamEditor from './pages/Exams/ExamEditor';
-import Exercises from './pages/Exercises/Exercises';
-import Materials from './pages/Materials/Materials';
+import ExamDetail from './pages/Exams/ExamDetail';
+import ExamsList from './pages/Exams/ExamsList';
+import ExercisesList from './pages/Exercises/ExercisesList';
+import ExerciseDetail from './pages/Exercises/ExerciseDetail';
 import Correction from './pages/Correction/Correction';
 import ExerciseCorrection from './pages/ExerciseCorrection/ExerciseCorrection';
+import ExerciseBulkCorrection from './pages/ExerciseCorrection/ExerciseBulkCorrection';
+import PostClassNotePrompt from './components/PostClassNotePrompt';
 import { auth } from './services/api';
 
 import '@ionic/react/css/core.css';
@@ -56,53 +60,91 @@ const App: React.FC = () => (
         <Route exact path="/login" component={Login} />
         <PrivateRoute exact path="/correction/:examId" component={Correction} />
         <PrivateRoute exact path="/exercise-correction/:exerciseId" component={ExerciseCorrection} />
+        <PrivateRoute exact path="/exercise-bulk-correction/:classId" component={ExerciseBulkCorrection} />
       </IonRouterOutlet>
 
       <Route
         path="/tabs"
         render={() =>
           auth.isLoggedIn() ? (
-            <IonTabs>
-              <IonRouterOutlet>
-                <Route exact path="/tabs/dashboard" component={Dashboard} />
-                <Route exact path="/tabs/classes" component={Classes} />
-                <Route exact path="/tabs/classes/:classId" component={GradeBook} />
-                <Route exact path="/tabs/classes/:classId/settings" component={ClassSettings} />
-                <Route exact path="/tabs/classes/:classId/students/:id" component={StudentFile} />
-                <Route exact path="/tabs/classes/:classId/topics" component={TopicsList} />
-                <Route exact path="/tabs/classes/:classId/topics/:topicId" component={TopicDetail} />
-                <Route exact path="/tabs/exams" component={Exams} />
-                <Route exact path="/tabs/exams/:examId" component={ExamEditor} />
-                <Route exact path="/tabs/exercises" component={Exercises} />
-                <Route exact path="/tabs/materials" component={Materials} />
-                <Route exact path="/tabs">
-                  <Redirect to="/tabs/dashboard" />
-                </Route>
-              </IonRouterOutlet>
+            <>
+              <IonTabs>
+                <IonRouterOutlet>
+                  {/* Main tabs */}
+                  <Route exact path="/tabs/calendar" component={Calendar} />
+                  <Route exact path="/tabs/classes" component={Classes} />
+                  
+                  {/* Class-specific routes */}
+                  <Route exact path="/tabs/classes/:classId" component={GradeBook} />
+                  <Route exact path="/tabs/classes/:classId/settings" component={ClassSettings} />
+                  <Route exact path="/tabs/classes/:classId/students/:id" component={StudentFile} />
+                  <Route exact path="/tabs/classes/:classId/topics" component={TopicsList} />
+                  <Route exact path="/tabs/classes/:classId/topics/:topicId" component={TopicDetail} />
+                  <Route exact path="/tabs/classes/:classId/exams" component={ExamsList} />
+                  <Route
+                    exact
+                    path="/tabs/classes/:classId/exams/:examId"
+                    render={(props) =>
+                      props.match.params.examId === 'new'
+                        ? <ExamEditor {...props} />
+                        : <ExamDetail {...props} />
+                    }
+                  />
+                  <Route exact path="/tabs/classes/:classId/exercises" component={ExercisesList} />
+                  <Route exact path="/tabs/classes/:classId/exercises/:exerciseId" component={ExerciseDetail} />
 
-              <IonTabBar slot="bottom">
-                <IonTabButton tab="dashboard" href="/tabs/dashboard">
-                  <IonIcon icon={homeOutline} />
-                  <IonLabel>Inicio</IonLabel>
-                </IonTabButton>
-                <IonTabButton tab="classes" href="/tabs/classes">
-                  <IonIcon icon={schoolOutline} />
-                  <IonLabel>Clases</IonLabel>
-                </IonTabButton>
-                <IonTabButton tab="exams" href="/tabs/exams">
-                  <IonIcon icon={documentTextOutline} />
-                  <IonLabel>Exámenes</IonLabel>
-                </IonTabButton>
-                <IonTabButton tab="exercises" href="/tabs/exercises">
-                  <IonIcon icon={pencilOutline} />
-                  <IonLabel>Ejercicios</IonLabel>
-                </IonTabButton>
-                <IonTabButton tab="materials" href="/tabs/materials">
-                  <IonIcon icon={folderOutline} />
-                  <IonLabel>Materiales</IonLabel>
-                </IonTabButton>
-              </IonTabBar>
-            </IonTabs>
+                  {/* Subject-scoped routes within a class */}
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId" component={SubjectGradeBook} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/topics" component={TopicsList} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/topics/:topicId" component={TopicDetail} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exams" component={ExamsList} />
+                  <Route
+                    exact
+                    path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId"
+                    render={(props) =>
+                      props.match.params.examId === 'new'
+                        ? <ExamEditor {...props} />
+                        : <ExamDetail {...props} />
+                    }
+                  />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exercises" component={ExercisesList} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exercises/:exerciseId" component={ExerciseDetail} />
+                  
+                  {/* Global exam editor (for backwards compatibility and calendar access) */}
+                  <Route exact path="/tabs/exams/new" component={ExamEditor} />
+                  <Route exact path="/tabs/exams/:examId" component={ExamEditor} />
+                  
+                  {/* Redirects for old routes */}
+                  <Route exact path="/tabs/dashboard">
+                    <Redirect to="/tabs/calendar" />
+                  </Route>
+                  <Route exact path="/tabs/exams">
+                    <Redirect to="/tabs/classes" />
+                  </Route>
+                  <Route exact path="/tabs/exercises">
+                    <Redirect to="/tabs/classes" />
+                  </Route>
+                  <Route exact path="/tabs/materials">
+                    <Redirect to="/tabs/classes" />
+                  </Route>
+                  <Route exact path="/tabs">
+                    <Redirect to="/tabs/calendar" />
+                  </Route>
+                </IonRouterOutlet>
+
+                <IonTabBar slot="bottom">
+                  <IonTabButton tab="calendar" href="/tabs/calendar">
+                    <IonIcon icon={calendarOutline} />
+                    <IonLabel>Calendario</IonLabel>
+                  </IonTabButton>
+                  <IonTabButton tab="classes" href="/tabs/classes">
+                    <IonIcon icon={schoolOutline} />
+                    <IonLabel>Clases</IonLabel>
+                  </IonTabButton>
+                </IonTabBar>
+              </IonTabs>
+              <PostClassNotePrompt />
+            </>
           ) : (
             <Redirect to="/login" />
           )
@@ -110,7 +152,7 @@ const App: React.FC = () => (
       />
 
       <Route exact path="/">
-        <Redirect to={auth.isLoggedIn() ? '/tabs/dashboard' : '/login'} />
+        <Redirect to={auth.isLoggedIn() ? '/tabs/calendar' : '/login'} />
       </Route>
     </IonReactRouter>
   </IonApp>

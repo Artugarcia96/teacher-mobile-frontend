@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { IonCard, IonCardContent, IonBadge, IonIcon } from '@ionic/react';
-import { checkmarkCircle, closeCircle, alertCircle, helpCircle, chevronDownOutline, chevronUpOutline, documentTextOutline, expandOutline } from 'ionicons/icons';
+import { IonBadge, IonIcon, IonButton, IonInput, IonSpinner } from '@ionic/react';
+import { checkmarkCircle, closeCircle, alertCircle, helpCircle, chevronDownOutline, chevronUpOutline, expandOutline, documentTextOutline, warningOutline, downloadOutline, pencilOutline, checkmarkOutline, closeOutline } from 'ionicons/icons';
 import { AIAnalysis } from '../types';
 import './CorrectionReviewCard.css';
 
@@ -12,9 +12,13 @@ interface Props {
   teacherNotes?: string;
   weakAreas?: string[];
   aiAnalysis?: AIAnalysis;
+  aiProcessed?: boolean;
   highlighted?: boolean;
   paperUrl?: string;
   onPreviewPaper?: () => void;
+  onDownloadPaper?: () => void;
+  onGradeChange?: (newGrade: number) => void;
+  savingGrade?: boolean;
 }
 
 const statusConfig = {
@@ -24,166 +28,194 @@ const statusConfig = {
   blank: { icon: helpCircle, color: 'medium', label: 'Sin respuesta' },
 };
 
+function isImageUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return /\.(jpe?g|png|gif|webp)(\?.*)?$/.test(lower);
+}
+
 const CorrectionReviewCard: React.FC<Props> = ({
-  index, studentName, grade, maxScore, teacherNotes, weakAreas, aiAnalysis, highlighted, paperUrl, onPreviewPaper
+  studentName, grade, maxScore, teacherNotes, weakAreas, aiAnalysis, aiProcessed, highlighted, paperUrl, onPreviewPaper, onDownloadPaper, onGradeChange, savingGrade
 }) => {
-  const [showDetails, setShowDetails] = useState(highlighted || false);
+  const hasContent = !!(aiAnalysis?.questions.length) || !!teacherNotes || !!aiAnalysis?.summary
+    || (weakAreas && weakAreas.length > 0) || !!paperUrl;
+  const [expanded, setExpanded] = useState(highlighted || false);
+  const [isEditingGrade, setIsEditingGrade] = useState(false);
+  const [editedGrade, setEditedGrade] = useState<number | null>(grade);
   
   const passed = grade !== null && grade / maxScore >= 0.5;
-  const gradePercent = grade !== null ? (grade / maxScore) * 100 : null;
+  const gradePercent = grade !== null ? Math.round((grade / maxScore) * 100) : null;
+  const noGrade = grade === null;
   
+  const handleGradeSave = () => {
+    if (editedGrade !== null && onGradeChange) {
+      onGradeChange(editedGrade);
+    }
+    setIsEditingGrade(false);
+  };
+  
+  const handleGradeCancel = () => {
+    setEditedGrade(grade);
+    setIsEditingGrade(false);
+  };
+
   const questionStats = aiAnalysis?.questions.reduce(
-    (acc, q) => {
-      acc[q.status] = (acc[q.status] || 0) + 1;
-      return acc;
-    },
+    (acc, q) => { acc[q.status] = (acc[q.status] || 0) + 1; return acc; },
     {} as Record<string, number>
   ) || {};
 
   const totalQuestions = aiAnalysis?.questions.length || 0;
-  const blankCount = questionStats.blank || 0;
-  const hasQuestionDetails = !!(aiAnalysis?.questions.length);
-  const hasNotes = !!teacherNotes;
-  const hasSummary = !!aiAnalysis?.summary;
-
-  const correctPercent = totalQuestions > 0
-    ? Math.round((((questionStats.correct || 0) + (questionStats.partial || 0) * 0.5) / totalQuestions) * 100)
-    : null;
+  const showThumb = paperUrl && isImageUrl(paperUrl);
+  const showPdfLink = paperUrl && !isImageUrl(paperUrl);
 
   return (
-    <IonCard className={`review-card ${highlighted ? 'review-card-highlighted' : ''} ${passed ? 'review-card-passed' : 'review-card-failed'}`}>
-      <IonCardContent className="review-card-content">
-        <div className="review-card-main">
-          {/* Paper thumbnail */}
-          {paperUrl && (
-            <div className="review-card-thumb" onClick={onPreviewPaper}>
-              <img src={paperUrl} alt="Examen" />
-              <div className="review-card-thumb-overlay">
-                <IonIcon icon={expandOutline} />
-              </div>
-            </div>
+    <div className={`rv-row ${expanded ? 'rv-row--open' : ''} ${highlighted ? 'rv-row--highlighted' : ''} ${noGrade ? 'rv-row--no-grade' : ''}`}>
+      <button className="rv-row__header" onClick={() => hasContent && setExpanded(!expanded)}>
+        <div className="rv-row__left">
+          <span className="rv-row__name">{studentName}</span>
+          {!expanded && noGrade && !aiProcessed && (
+            <span className="rv-row__pending-hint">
+              <IonIcon icon={warningOutline} /> Pendiente de corrección
+            </span>
           )}
-          
-          <div className="review-card-info">
-            {/* Header: index, name, grade */}
-            <div className="review-card-header">
-              <div className="review-card-identity">
-                <span className="review-card-index">#{index + 1}</span>
-                <span className="review-card-name">{studentName}</span>
-              </div>
-              <div className="review-card-grades">
-                {correctPercent !== null && (
-                  <span className={`review-card-ai-pct ${correctPercent >= 50 ? 'review-pct-pass' : 'review-pct-fail'}`}>
-                    {correctPercent}%
-                  </span>
-                )}
-                <div className={`review-card-grade-box ${passed ? 'grade-box-pass' : 'grade-box-fail'}`}>
-                  <span className="grade-value">{grade ?? '—'}</span>
-                  <span className="grade-max">/{maxScore}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            {gradePercent !== null && (
-              <div className="review-card-progress">
-                <div 
-                  className={`review-card-progress-bar ${passed ? 'progress-pass' : 'progress-fail'}`}
-                  style={{ width: `${gradePercent}%` }}
-                />
-              </div>
-            )}
-
-            {/* Quick stats row - always visible when AI data exists */}
-            {aiAnalysis && totalQuestions > 0 && (
-              <div className="review-card-quick-stats">
-                <div className="review-card-stat-badges">
-                  {questionStats.correct !== undefined && questionStats.correct > 0 && <IonBadge color="success">{questionStats.correct} ✓</IonBadge>}
-                  {questionStats.partial !== undefined && questionStats.partial > 0 && <IonBadge color="warning">{questionStats.partial} ~</IonBadge>}
-                  {questionStats.incorrect !== undefined && questionStats.incorrect > 0 && <IonBadge color="danger">{questionStats.incorrect} ✗</IonBadge>}
-                  {questionStats.blank !== undefined && questionStats.blank > 0 && <IonBadge color="medium">{questionStats.blank} —</IonBadge>}
-                </div>
-                {blankCount > 0 && (
-                  <span className="review-card-blank-note">
-                    {blankCount} sin responder
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Weak areas - show upfront if exist */}
-            {weakAreas && weakAreas.length > 0 && (
-              <div className="review-card-weak-inline">
-                {weakAreas.slice(0, 3).map((area, idx) => (
-                  <span key={idx} className="review-weak-tag-inline">{area}</span>
-                ))}
-                {weakAreas.length > 3 && <span className="review-weak-more">+{weakAreas.length - 3}</span>}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Expandable action row */}
-        <div className="review-card-actions">
-          {(hasQuestionDetails || hasNotes || hasSummary) && (
-            <button 
-              className="review-card-toggle-btn" 
-              onClick={() => setShowDetails(!showDetails)}
-            >
-              <IonIcon icon={documentTextOutline} />
-              <span>{showDetails ? 'Ocultar' : 'Ver'} detalles</span>
-              <IonIcon icon={showDetails ? chevronUpOutline : chevronDownOutline} className="toggle-chevron" />
-            </button>
-          )}
-          {onPreviewPaper && !paperUrl && (
-            <button className="review-card-view-btn" onClick={onPreviewPaper}>
-              <IonIcon icon={expandOutline} />
-              <span>Ver examen</span>
-            </button>
+          {!expanded && !noGrade && weakAreas && weakAreas.length > 0 && (
+            <span className="rv-row__weak-hint">{weakAreas.slice(0, 2).join(', ')}</span>
           )}
         </div>
+        <div className="rv-row__right">
+          {gradePercent !== null && !isEditingGrade && (
+            <span className={`rv-row__pct ${passed ? 'rv-row__pct--pass' : 'rv-row__pct--fail'}`}>
+              {gradePercent}%
+            </span>
+          )}
+          {isEditingGrade ? (
+            <div className="rv-row__grade-edit" onClick={(e) => e.stopPropagation()}>
+              <IonInput
+                type="number"
+                min={0}
+                max={maxScore}
+                value={editedGrade ?? ''}
+                placeholder="—"
+                onIonInput={(e) => {
+                  const val = parseFloat(e.detail.value ?? '');
+                  if (!isNaN(val)) setEditedGrade(val);
+                }}
+                className="rv-row__grade-input"
+              />
+              <span className="rv-row__grade-max">/{maxScore}</span>
+              <IonButton fill="clear" size="small" onClick={handleGradeSave} disabled={savingGrade}>
+                {savingGrade ? <IonSpinner name="crescent" /> : <IonIcon icon={checkmarkOutline} color="success" />}
+              </IonButton>
+              <IonButton fill="clear" size="small" onClick={handleGradeCancel}>
+                <IonIcon icon={closeOutline} color="medium" />
+              </IonButton>
+            </div>
+          ) : (
+            <div className="rv-row__grade-display" onClick={(e) => { e.stopPropagation(); if (onGradeChange) setIsEditingGrade(true); }}>
+              <span className={`rv-row__grade ${noGrade ? 'rv-row__grade--none' : passed ? 'rv-row__grade--pass' : 'rv-row__grade--fail'}`}>
+                {grade !== null ? grade : '—'}<span className="rv-row__grade-max">/{maxScore}</span>
+              </span>
+              {onGradeChange && (
+                <IonIcon icon={pencilOutline} className="rv-row__edit-icon" />
+              )}
+            </div>
+          )}
+          {hasContent && (
+            <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="rv-row__chevron" />
+          )}
+        </div>
+      </button>
 
-        {showDetails && (
-          <div className="review-card-details">
-            {/* Question breakdown */}
-            {aiAnalysis && aiAnalysis.questions.length > 0 && (
-              <div className="review-card-questions">
-                <div className="review-questions-grid">
-                  {aiAnalysis.questions.map((q) => {
-                    const cfg = statusConfig[q.status] || statusConfig.blank;
-                    return (
-                      <div key={q.id} className={`review-question-compact review-question-${q.status}`}>
-                        <div className="review-q-header">
-                          <IonIcon icon={cfg.icon} color={cfg.color} />
-                          <span className="review-q-id">P{q.id}</span>
-                        </div>
-                        {q.feedback && <span className="review-q-feedback-compact">{q.feedback}</span>}
-                      </div>
-                    );
-                  })}
+      {expanded && hasContent && (
+        <div className="rv-row__body">
+          {/* Paper preview + question stats */}
+          <div className="rv-row__top-section">
+            {showThumb && (
+              <div className="rv-row__thumb" onClick={onPreviewPaper}>
+                <img src={paperUrl} alt="Examen" />
+                <div className="rv-row__thumb-overlay">
+                  <IonIcon icon={expandOutline} />
                 </div>
               </div>
             )}
-
-            {/* Teacher notes */}
-            {teacherNotes && (
-              <div className="review-card-notes">
-                <span className="notes-label">Notas del profesor</span>
-                <p className="notes-text">{teacherNotes}</p>
+            {showPdfLink && (
+              <div className="rv-row__pdf-actions">
+                <button className="rv-row__pdf-link" onClick={onPreviewPaper} type="button">
+                  <IonIcon icon={documentTextOutline} />
+                  <span>Ver examen</span>
+                </button>
+                {onDownloadPaper && (
+                  <button className="rv-row__pdf-link rv-row__pdf-link--download" onClick={onDownloadPaper} type="button">
+                    <IonIcon icon={downloadOutline} />
+                    <span>Descargar</span>
+                  </button>
+                )}
               </div>
             )}
-
-            {/* AI summary */}
-            {aiAnalysis?.summary && (
-              <div className="review-card-ai-summary">
-                <span className="summary-label">Resumen IA</span>
-                <p className="summary-text">{aiAnalysis.summary}</p>
-              </div>
+            {showThumb && onDownloadPaper && (
+              <button className="rv-row__download-btn" onClick={onDownloadPaper} type="button">
+                <IonIcon icon={downloadOutline} />
+                <span>Descargar</span>
+              </button>
             )}
+            <div className="rv-row__stats">
+              {totalQuestions > 0 && (
+                <div className="rv-row__stat-badges">
+                  {questionStats.correct > 0 && <IonBadge color="success">{questionStats.correct} ✓</IonBadge>}
+                  {questionStats.partial > 0 && <IonBadge color="warning">{questionStats.partial} ~</IonBadge>}
+                  {questionStats.incorrect > 0 && <IonBadge color="danger">{questionStats.incorrect} ✗</IonBadge>}
+                  {questionStats.blank > 0 && <IonBadge color="medium">{questionStats.blank} —</IonBadge>}
+                </div>
+              )}
+              {weakAreas && weakAreas.length > 0 && (
+                <div className="rv-row__weak-tags">
+                  {weakAreas.map((area, idx) => (
+                    <span key={idx} className="rv-row__weak-tag">{area}</span>
+                  ))}
+                </div>
+              )}
+              {noGrade && !aiProcessed && (
+                <div className="rv-row__no-ai-msg">
+                  <IonIcon icon={warningOutline} color="warning" />
+                  <span>Sin analizar — cambia a modo "Editar" para procesar con IA</span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </IonCardContent>
-    </IonCard>
+
+          {/* Question-by-question breakdown */}
+          {aiAnalysis && totalQuestions > 0 && (
+            <div className="rv-row__questions">
+              {aiAnalysis.questions.map((q) => {
+                const cfg = statusConfig[q.status] || statusConfig.blank;
+                return (
+                  <div key={q.id} className={`rv-row__q rv-row__q--${q.status}`}>
+                    <div className="rv-row__q-head">
+                      <IonIcon icon={cfg.icon} color={cfg.color} />
+                      <span className="rv-row__q-id">P{q.id}</span>
+                    </div>
+                    {q.feedback && <span className="rv-row__q-feedback">{q.feedback}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {teacherNotes && (
+            <div className="rv-row__section">
+              <span className="rv-row__section-label">Notas del profesor</span>
+              <p className="rv-row__section-text">{teacherNotes}</p>
+            </div>
+          )}
+
+          {aiAnalysis?.summary && (
+            <div className="rv-row__section">
+              <span className="rv-row__section-label">Resumen IA</span>
+              <p className="rv-row__section-text">{aiAnalysis.summary}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

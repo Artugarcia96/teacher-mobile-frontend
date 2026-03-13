@@ -3,25 +3,27 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
   IonButton, IonItem, IonLabel, IonInput, IonSelect, IonSelectOption, IonIcon,
   IonSpinner, IonToggle, IonCheckbox, IonTextarea, IonBadge, IonSegment, IonSegmentButton,
-  IonAlert,
+  IonAlert, IonChip, IonList, IonAccordion, IonAccordionGroup,
 } from '@ionic/react';
 import {
   cloudUploadOutline, documentOutline, checkmarkCircleOutline, sparklesOutline,
-  downloadOutline, documentTextOutline, trashOutline,
+  downloadOutline, documentTextOutline, trashOutline, refreshOutline, timeOutline,
+  createOutline, chevronForwardOutline,
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useTopicsStore } from '../../store/topicsStore';
-import { exams as examsApi, classes as classesApi } from '../../services/api';
-import { Lecture } from '../../types';
+import { exams as examsApi, classes as classesApi, subjects as subjectsApi } from '../../services/api';
+import { Lecture, ExamIterationHistoryItem, SubjectWithTopics } from '../../types';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import './ExamEditor.css';
 
 const ExamEditor: React.FC = () => {
-  const { examId } = useParams<{ examId: string }>();
+  const { examId, classId: urlClassId, subjectId: urlSubjectId } = useParams<{ examId: string; classId?: string; subjectId?: string }>();
   const history = useHistory();
-  const isNew = examId === 'new';
+  // isNew if examId is 'new' OR undefined (when coming from /tabs/classes/:classId/exams/new route)
+  const isNew = examId === 'new' || examId === undefined;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allClasses = useClassesStore((s) => s.classes);
@@ -29,6 +31,8 @@ const ExamEditor: React.FC = () => {
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
 
   const allExams = useExamsStore((s) => s.exams);
+  const examsLoading = useExamsStore((s) => s.loading);
+  const fetchExams = useExamsStore((s) => s.fetchExams);
   const exam = useMemo(() => (isNew ? null : allExams.find((e) => e.id === examId)), [allExams, examId, isNew]);
   const addExam = useExamsStore((s) => s.addExam);
   const generateExam = useExamsStore((s) => s.generateExam);
@@ -36,9 +40,8 @@ const ExamEditor: React.FC = () => {
   const assignExam = useExamsStore((s) => s.assignExam);
   const deleteExam = useExamsStore((s) => s.deleteExam);
 
-  const topicsList = useTopicsStore((s) => s.topics);
   const topicsLoading = useTopicsStore((s) => s.loading);
-  const fetchTopics = useTopicsStore((s) => s.fetchTopics);
+  const [topicsBySubject, setTopicsBySubject] = useState<SubjectWithTopics[]>([]);
 
   // Shared fields
   const [name, setName] = useState('');
@@ -46,7 +49,10 @@ const ExamEditor: React.FC = () => {
   const [lectureId, setLectureId] = useState('');
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [lecturesLoading, setLecturesLoading] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [maxScore, setMaxScore] = useState(10);
   const [saving, setSaving] = useState(false);
 
@@ -63,6 +69,7 @@ const ExamEditor: React.FC = () => {
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   // Generate mode
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficulty, setDifficulty] = useState('medium');
@@ -70,6 +77,14 @@ const ExamEditor: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+
+  // Phase 4: Deadline and iteration
+  const [correctionDeadline, setCorrectionDeadline] = useState('');
+  const [blankPagesCount, setBlankPagesCount] = useState(0);
+  const [iterationInstruction, setIterationInstruction] = useState('');
+  const [iterating, setIterating] = useState(false);
+  const [iterationError, setIterationError] = useState('');
+  const iterateExam = useExamsStore((s) => s.iterateExam);
 
   // Fetch lectures when class changes
   const fetchLectures = useCallback(async (cId: string) => {
@@ -89,17 +104,35 @@ const ExamEditor: React.FC = () => {
     }
   }, []);
 
-  const classTopics = useMemo(
-    () => topicsList.filter((t) => t.classId === classId),
-    [topicsList, classId]
-  );
+  const [topicsFetching, setTopicsFetching] = useState(false);
+
+  const filteredTopics = useMemo(() => {
+    if (!selectedSubjectId) return [];
+    const subj = topicsBySubject.find((s) => s.subjectId === selectedSubjectId);
+    return subj?.topics || [];
+  }, [topicsBySubject, selectedSubjectId]);
 
   const selectedClass = useMemo(
     () => classes.find((c) => c.id === classId),
     [classes, classId]
   );
 
-  useEffect(() => { fetchClasses(); }, [fetchClasses]);
+  useEffect(() => { fetchClasses(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  useEffect(() => {
+    if (!isNew && examId) {
+      fetchExams();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew, examId]);
+
+  // Redirect if exam not found after loading (only for edit mode with specific examId)
+  useEffect(() => {
+    if (!isNew && examId && examId !== 'new' && !examsLoading && allExams.length > 0 && !exam) {
+      console.error('Exam not found, redirecting to create new exam');
+      history.replace('/tabs/exams/new');
+    }
+  }, [isNew, examId, examsLoading, allExams, exam, history]);
 
   useEffect(() => {
     if (exam) {
@@ -109,17 +142,63 @@ const ExamEditor: React.FC = () => {
       setDate(exam.date);
       setMaxScore(exam.maxScore);
       setIsPersonalized(exam.isPersonalized || false);
+      setCorrectionDeadline(exam.correctionDeadline || '');
+      setBlankPagesCount(exam.blankPagesCount || 0);
+    } else if (isNew && urlClassId) {
+      setClassId(urlClassId);
+      // Auto-switch to generate mode when coming from subject-scoped route
+      if (urlSubjectId) {
+        setMode('generate');
+      }
     }
-  }, [exam]);
+  }, [exam, isNew, urlClassId, urlSubjectId]);
+
+  // Auto-set correction deadline to 7 days after exam date if not set
+  useEffect(() => {
+    if (isNew && date && !correctionDeadline) {
+      const examDate = new Date(date);
+      examDate.setDate(examDate.getDate() + 7);
+      const deadlineStr = `${examDate.getFullYear()}-${String(examDate.getMonth() + 1).padStart(2, '0')}-${String(examDate.getDate()).padStart(2, '0')}`;
+      setCorrectionDeadline(deadlineStr);
+    }
+  }, [date, isNew, correctionDeadline]);
 
   useEffect(() => {
     if (classId) {
-      fetchTopics(classId);
+      setTopicsFetching(true);
+      subjectsApi.topicsForClass(classId)
+        .then((res) => {
+          const grouped: SubjectWithTopics[] = res.data.map((s: any) => ({
+            subjectId: s.subject_id,
+            subjectName: s.subject_name,
+            topics: (s.topics || []).map((t: any) => ({
+              id: t.id,
+              subjectId: s.subject_id,
+              subjectName: s.subject_name,
+              name: t.name,
+              order: t.order,
+              materialCount: t.material_count || 0,
+            })),
+          }));
+          setTopicsBySubject(grouped);
+          // Pre-select subject if coming from a subject-scoped route
+          if (urlSubjectId && grouped.some(s => s.subjectId === urlSubjectId)) {
+            setSelectedSubjectId(urlSubjectId);
+          }
+        })
+        .catch(() => setTopicsBySubject([]))
+        .finally(() => setTopicsFetching(false));
       fetchLectures(classId);
     } else {
       setLectures([]);
+      setTopicsBySubject([]);
     }
-  }, [classId, fetchTopics, fetchLectures]);
+    if (!urlSubjectId) {
+      setSelectedSubjectId('');
+    }
+    setSelectedTopicIds([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -136,6 +215,8 @@ const ExamEditor: React.FC = () => {
 
   const handleSave = async () => {
     if (!name.trim()) return;
+    if (!isNew && !exam) return; // Should not happen due to redirect effect
+    
     setSaving(true);
     try {
       if (isNew) {
@@ -145,7 +226,8 @@ const ExamEditor: React.FC = () => {
           lectureId: lectureId || undefined,
           date, 
           maxScore, 
-          isPersonalized 
+          isPersonalized,
+          blankPagesCount: isPersonalized ? blankPagesCount : 0,
         }, file || undefined);
         history.replace(`/tabs/exams/${id}`);
       } else if (exam) {
@@ -184,7 +266,11 @@ const ExamEditor: React.FC = () => {
     if (!exam) return;
     try {
       await deleteExam(exam.id);
-      history.replace('/tabs/exams');
+      if (urlClassId) {
+        history.replace(`/tabs/classes/${urlClassId}`);
+      } else {
+        history.replace('/tabs/classes');
+      }
     } catch (err) {
       console.error('Failed to delete exam:', err);
     }
@@ -198,6 +284,7 @@ const ExamEditor: React.FC = () => {
       const id = await generateExam({
         class_id: classId || undefined,
         lecture_id: lectureId || undefined,
+        subject_id: selectedSubjectId || undefined,
         topic_ids: selectedTopicIds,
         name: name.trim(),
         exam_date: date,
@@ -206,6 +293,8 @@ const ExamEditor: React.FC = () => {
         difficulty,
         refinement_prompt: refinement || undefined,
         is_personalized: isPersonalized,
+        correction_deadline: correctionDeadline || undefined,
+        blank_pages_count: blankPagesCount,
       });
       history.replace(`/tabs/exams/${id}`);
     } catch (err: any) {
@@ -222,12 +311,52 @@ const ExamEditor: React.FC = () => {
     }
   };
 
+  const handleIterate = async () => {
+    if (!exam || !iterationInstruction.trim()) return;
+    setIterating(true);
+    setIterationError('');
+    try {
+      await iterateExam(exam.id, { instruction: iterationInstruction.trim() });
+      setIterationInstruction('');
+    } catch (err: any) {
+      setIterationError(err.response?.data?.detail || 'Error al ajustar el examen');
+    } finally {
+      setIterating(false);
+    }
+  };
+
+  const applyQuickIteration = (instruction: string) => {
+    setIterationInstruction(instruction);
+  };
+
+  const getDeadlineStatusColor = (status?: string) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'ok': return 'success';
+      case 'soon': return 'warning';
+      case 'urgent': return 'danger';
+      case 'overdue': return 'danger';
+      default: return 'medium';
+    }
+  };
+
+  const getDeadlineStatusText = (status?: string) => {
+    switch (status) {
+      case 'completed': return 'Corregido';
+      case 'ok': return 'A tiempo';
+      case 'soon': return 'Próximo';
+      case 'urgent': return 'Urgente';
+      case 'overdue': return 'Atrasado';
+      default: return '';
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/tabs/exams" text="" />
+            <IonBackButton defaultHref={urlClassId ? `/tabs/classes/${urlClassId}` : '/tabs/classes'} text="" />
           </IonButtons>
           <IonTitle>{isNew ? 'Nuevo examen' : name || 'Editar'}</IonTitle>
           {!isNew && (
@@ -281,48 +410,49 @@ const ExamEditor: React.FC = () => {
             <div className="gen-section">
               {/* Class selector */}
               <IonItem lines="none" className="form-item">
-                <IonLabel position="stacked">Clase (opcional)</IonLabel>
+                <IonLabel position="stacked">Clase</IonLabel>
                 <IonSelect
                   value={classId}
                   onIonChange={(e) => { 
                     setClassId(e.detail.value || ''); 
                     setLectureId('');
-                    setSelectedTopicIds([]); 
                   }}
                   interface="popover"
-                  placeholder="Global / Transversal"
+                  placeholder="Seleccionar clase"
                 >
-                  <IonSelectOption value="">Global / Transversal</IonSelectOption>
                   {classes.map((c) => (
-                    <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
+                    <IonSelectOption key={c.id} value={c.id}>{c.name}</IonSelectOption>
                   ))}
                 </IonSelect>
               </IonItem>
 
-              {/* Lecture selector - only if class is selected */}
+              {/* Subject selector - after class */}
               {classId && (
                 <IonItem lines="none" className="form-item">
-                  <IonLabel position="stacked">Asignatura (opcional)</IonLabel>
-                  {lecturesLoading ? (
+                  <IonLabel position="stacked">Asignatura</IonLabel>
+                  {topicsFetching ? (
                     <IonSpinner name="dots" />
+                  ) : topicsBySubject.length === 0 ? (
+                    <p className="form-hint">No hay asignaturas en esta clase</p>
                   ) : (
                     <IonSelect
-                      value={lectureId}
-                      onIonChange={(e) => setLectureId(e.detail.value || '')}
+                      value={selectedSubjectId}
+                      onIonChange={(e) => { setSelectedSubjectId(e.detail.value || ''); setSelectedTopicIds([]); }}
                       interface="popover"
-                      placeholder="Todas las asignaturas"
+                      placeholder="Seleccionar asignatura"
                     >
-                      <IonSelectOption value="">Todas las asignaturas</IonSelectOption>
-                      {lectures.map((l) => (
-                        <IonSelectOption key={l.id} value={l.id}>{l.name}</IonSelectOption>
+                      {topicsBySubject.map((s) => (
+                        <IonSelectOption key={s.subjectId} value={s.subjectId}>
+                          {s.subjectName} ({s.topics.length} temas)
+                        </IonSelectOption>
                       ))}
                     </IonSelect>
                   )}
                 </IonItem>
               )}
 
-              {/* Topics selection */}
-              {classId && (
+              {/* Topics selection - only for selected subject */}
+              {selectedSubjectId && (
                 <div className="gen-topics">
                   <span className="gen-topics__label">
                     Temas del examen
@@ -330,11 +460,9 @@ const ExamEditor: React.FC = () => {
                       <IonBadge color="primary" className="gen-topics__count">{selectedTopicIds.length}</IonBadge>
                     )}
                   </span>
-                  {topicsLoading ? (
-                    <div className="gen-topics__loading"><IonSpinner name="dots" /></div>
-                  ) : classTopics.length === 0 ? (
+                  {filteredTopics.length === 0 ? (
                     <div className="gen-topics__empty">
-                      <p>No hay temas para esta clase.</p>
+                      <p>No hay temas en esta asignatura.</p>
                       <IonButton
                         size="small"
                         fill="outline"
@@ -345,7 +473,7 @@ const ExamEditor: React.FC = () => {
                     </div>
                   ) : (
                     <div className="gen-topics__list">
-                      {classTopics.map((topic) => (
+                      {filteredTopics.map((topic) => (
                         <div
                           key={topic.id}
                           className={`gen-topic-chip ${selectedTopicIds.includes(topic.id) ? 'gen-topic-chip--active' : ''}`}
@@ -397,6 +525,17 @@ const ExamEditor: React.FC = () => {
                     />
                   </IonItem>
 
+                  {/* Correction deadline */}
+                  <IonItem lines="none" className="form-item">
+                    <IonInput
+                      type="date"
+                      value={correctionDeadline}
+                      onIonInput={(e) => setCorrectionDeadline(e.detail.value ?? '')}
+                      label="Plazo corrección"
+                      labelPlacement="stacked"
+                    />
+                  </IonItem>
+
                 </div>
               )}
             </div>
@@ -426,35 +565,14 @@ const ExamEditor: React.FC = () => {
                         setLectureId('');
                       }}
                       interface="popover"
-                      placeholder="Global / Transversal"
+                      placeholder="Sin clase"
                     >
-                      <IonSelectOption value="">Global / Transversal</IonSelectOption>
+                      <IonSelectOption value="">Sin clase</IonSelectOption>
                       {classes.map((c) => (
-                        <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
+                        <IonSelectOption key={c.id} value={c.id}>{c.name}</IonSelectOption>
                       ))}
                     </IonSelect>
                   </IonItem>
-
-                  {classId && (
-                    <IonItem lines="none" className="form-item">
-                      <IonLabel position="stacked">Asignatura (opcional)</IonLabel>
-                      {lecturesLoading ? (
-                        <IonSpinner name="dots" />
-                      ) : (
-                        <IonSelect
-                          value={lectureId}
-                          onIonChange={(e) => setLectureId(e.detail.value || '')}
-                          interface="popover"
-                          placeholder="Todas las asignaturas"
-                        >
-                          <IonSelectOption value="">Todas las asignaturas</IonSelectOption>
-                          {lectures.map((l) => (
-                            <IonSelectOption key={l.id} value={l.id}>{l.name}</IonSelectOption>
-                          ))}
-                        </IonSelect>
-                      )}
-                    </IonItem>
-                  )}
                 </>
               )}
 
@@ -538,21 +656,47 @@ const ExamEditor: React.FC = () => {
                 />
               </IonItem>
               {isPersonalized && selectedClass && (
-                <div className="gen-personalize__info">
-                  <IonIcon icon={sparklesOutline} />
-                  <span>
-                    Se generará 1 copia por alumno ({selectedClass.studentCount} alumnos) con su código impreso.
-                    Al corregir con subida masiva, la IA detectará los códigos automáticamente.
-                  </span>
-                </div>
+                <>
+                  <div className="gen-personalize__info">
+                    <IonIcon icon={sparklesOutline} />
+                    <span>
+                      Se generará 1 copia por alumno ({selectedClass.studentCount} alumnos) con su código impreso.
+                      Al corregir con subida masiva, la IA detectará los códigos automáticamente.
+                    </span>
+                  </div>
+                  <IonItem lines="none" className="form-item">
+                    <IonLabel position="stacked">Hojas en blanco por alumno</IonLabel>
+                    <IonSelect value={blankPagesCount} onIonChange={(e) => setBlankPagesCount(e.detail.value)} interface="popover">
+                      <IonSelectOption value={0}>Ninguna</IonSelectOption>
+                      <IonSelectOption value={1}>1 hoja</IonSelectOption>
+                      <IonSelectOption value={2}>2 hojas</IonSelectOption>
+                      <IonSelectOption value={3}>3 hojas</IonSelectOption>
+                    </IonSelect>
+                  </IonItem>
+                </>
               )}
+            </div>
+          )}
+
+          {/* ─── DEADLINE STATUS (existing exams) ─── */}
+          {exam && !isNew && exam.correctionDeadline && (
+            <div className="exam-deadline-section">
+              <div className="exam-deadline-header">
+                <IonIcon icon={timeOutline} />
+                <span>Plazo de corrección: {new Date(exam.correctionDeadline).toLocaleDateString('es-ES')}</span>
+                {exam.deadlineStatus && (
+                  <IonBadge color={getDeadlineStatusColor(exam.deadlineStatus)}>
+                    {getDeadlineStatusText(exam.deadlineStatus)}
+                  </IonBadge>
+                )}
+              </div>
             </div>
           )}
 
           {/* ─── DOWNLOAD SECTION (existing exams with documents) ─── */}
           {exam && !isNew && (exam.documentUrl || exam.hasGeneratedQuestions) && (
             <div className="exam-downloads">
-              <span className="exam-downloads__label">Descargas</span>
+              <span className="exam-downloads__label">Descargas disponibles</span>
               <div className="exam-downloads__buttons">
                 <IonButton
                   fill="outline"
@@ -560,7 +704,11 @@ const ExamEditor: React.FC = () => {
                   onClick={() => handleDownload(examsApi.downloadExamUrl)}
                 >
                   <IonIcon icon={downloadOutline} slot="start" />
-                  {exam.isPersonalized ? 'Examen personalizado' : 'Examen'}
+                  {exam.isPersonalized 
+                    ? 'PDF Personalizado (todos los alumnos)' 
+                    : exam.hasGeneratedQuestions 
+                      ? 'Examen (IA)' 
+                      : 'Documento PDF'}
                 </IonButton>
 
                 {exam.hasGeneratedQuestions && (
@@ -576,8 +724,95 @@ const ExamEditor: React.FC = () => {
               </div>
               {exam.isPersonalized && (
                 <p className="exam-downloads__hint">
-                  Cada copia tiene el código del alumno impreso. Al corregir con subida masiva, la IA los detectará automáticamente.
+                  El PDF personalizado contiene una copia por alumno con su código impreso para detección automática al corregir.
                 </p>
+              )}
+              {exam.hasGeneratedQuestions && !exam.isPersonalized && (
+                <p className="exam-downloads__hint">
+                  Examen generado por IA con solucionario incluido.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ─── ITERATION SECTION (AI-generated exams) ─── */}
+          {exam && !isNew && exam.hasGeneratedQuestions && exam.status !== 'corrected' && (
+            <div className="exam-iteration-section">
+              <div className="exam-iteration-header">
+                <IonIcon icon={createOutline} />
+                <span>Ajustar examen</span>
+              </div>
+              <p className="exam-iteration-description">
+                Describe los cambios que quieres hacer y la IA ajustará el examen manteniendo la estructura.
+              </p>
+              
+              <div className="exam-iteration-quick">
+                <IonChip outline onClick={() => applyQuickIteration('Simplifica las preguntas')}>
+                  Simplificar
+                </IonChip>
+                <IonChip outline onClick={() => applyQuickIteration('Añade una pregunta más del mismo estilo')}>
+                  +1 pregunta
+                </IonChip>
+                <IonChip outline onClick={() => applyQuickIteration('Convierte algunas preguntas a tipo test')}>
+                  Tipo test
+                </IonChip>
+              </div>
+
+              <IonItem lines="none" className="form-item">
+                <IonTextarea
+                  value={iterationInstruction}
+                  onIonInput={(e) => setIterationInstruction(e.detail.value ?? '')}
+                  placeholder="Ej: Haz la pregunta 3 más fácil, añade más problemas de geometría..."
+                  rows={3}
+                />
+              </IonItem>
+
+              {iterationError && <p className="gen-error">{iterationError}</p>}
+
+              <IonButton
+                expand="block"
+                fill="outline"
+                onClick={handleIterate}
+                disabled={iterating || !iterationInstruction.trim()}
+              >
+                {iterating ? (
+                  <><IonSpinner name="crescent" /> Aplicando cambios...</>
+                ) : (
+                  <><IonIcon icon={refreshOutline} slot="start" /> Aplicar cambios</>
+                )}
+              </IonButton>
+
+              {/* Version history */}
+              {exam.iterationHistory && exam.iterationHistory.length > 0 && (
+                <IonAccordionGroup className="exam-iteration-history">
+                  <IonAccordion value="history">
+                    <IonItem slot="header" lines="none">
+                      <IonLabel>
+                        Historial de versiones ({exam.iterationHistory.length + 1} versiones)
+                      </IonLabel>
+                    </IonItem>
+                    <div slot="content" className="iteration-history-content">
+                      {exam.iterationHistory.map((item: ExamIterationHistoryItem, idx: number) => (
+                        <div key={idx} className="iteration-history-item">
+                          <div className="iteration-history-version">
+                            <IonBadge color="medium">v{item.version}</IonBadge>
+                            <span className="iteration-history-time">
+                              {new Date(item.timestamp).toLocaleString('es-ES')}
+                            </span>
+                          </div>
+                          <p className="iteration-history-instruction">{item.instruction}</p>
+                          {item.changes_made && item.changes_made.length > 0 && (
+                            <ul className="iteration-history-changes">
+                              {item.changes_made.map((change: string, cidx: number) => (
+                                <li key={cidx}>{change}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </IonAccordion>
+                </IonAccordionGroup>
               )}
             </div>
           )}

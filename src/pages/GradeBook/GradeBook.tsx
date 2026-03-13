@@ -2,45 +2,32 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   IonPage, IonContent, IonButtons, IonBackButton,
   IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonList, IonItem,
-  IonInput, IonModal, IonSearchbar, IonItemSliding, IonItemOptions, IonItemOption,
-  IonSpinner, IonAlert, IonProgressBar, useIonViewWillEnter,
+  IonSearchbar, IonItemSliding, IonItemOptions, IonItemOption,
+  IonSpinner, IonAlert, useIonViewWillEnter,
 } from '@ionic/react';
 import { 
-  addOutline, downloadOutline, cloudUploadOutline, bookOutline, calendarOutline, 
-  sparkles, closeCircleOutline, settingsOutline, peopleOutline, schoolOutline,
-  documentTextOutline, chevronForwardOutline, createOutline
+  addOutline, downloadOutline, cloudUploadOutline, bookOutline,
+  sparkles, settingsOutline, documentTextOutline, chevronForwardOutline
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useClassesStore } from '../../store/classesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
+import { useExercisesStore } from '../../store/exercisesStore';
 import { classes as classesApi } from '../../services/api';
-import { ClassGroup } from '../../types';
+import { ClassGroup, ClassSubjectSummary } from '../../types';
 import GradeTable from '../../components/GradeTable';
 import EmptyState from '../../components/EmptyState';
-import ScheduleSetupSheet from '../../components/ScheduleSetupSheet';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
+import AddStudentsModal from '../../components/AddStudentsModal';
+import ClassInsightsPanel from '../../components/ClassInsightsPanel';
 import './GradeBook.css';
 
 const AVATAR_COLORS = [
   '#6C3AED', '#8B5CF6', '#059669', '#0891B2', '#D97706',
   '#DC2626', '#2563EB', '#7C3AED', '#DB2777', '#4F46E5',
 ];
-
-const WEEK_DAYS = [
-  { key: 'monday', label: 'Lunes', short: 'L' },
-  { key: 'tuesday', label: 'Martes', short: 'M' },
-  { key: 'wednesday', label: 'Miércoles', short: 'X' },
-  { key: 'thursday', label: 'Jueves', short: 'J' },
-  { key: 'friday', label: 'Viernes', short: 'V' },
-];
-
-const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
-  uploaded: { color: '#64748B', label: 'Subido', bg: 'rgba(100, 116, 139, 0.1)' },
-  assigned: { color: '#D97706', label: 'Por corregir', bg: 'rgba(217, 119, 6, 0.1)' },
-  corrected: { color: '#059669', label: 'Corregido', bg: 'rgba(5, 150, 105, 0.1)' },
-};
 
 function avatarColor(name: string): string {
   let hash = 0;
@@ -56,9 +43,10 @@ const GradeBook: React.FC = () => {
   const allClasses = useClassesStore((s) => s.classes);
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
   const importStudentsToClass = useClassesStore((s) => s.importStudents);
+  const classSubjects = useClassesStore((s) => s.classSubjects);
+  const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
 
   const allStudents = useStudentsStore((s) => s.students);
-  const addStudent = useStudentsStore((s) => s.addStudent);
   const removeStudent = useStudentsStore((s) => s.removeStudent);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
   const studentsLoading = useStudentsStore((s) => s.loading);
@@ -67,21 +55,23 @@ const GradeBook: React.FC = () => {
   const fetchExams = useExamsStore((s) => s.fetchExams);
   const allCorrections = useCorrectionStore((s) => s.corrections);
   const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
+  
+  const allExercises = useExercisesStore((s) => s.exercises);
+  const fetchExercises = useExercisesStore((s) => s.fetchExercises);
 
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
+  const studentIds = useMemo(() => new Set(students.map(s => s.id)), [students]);
   const exams = useMemo(() => allExams.filter((e) => e.classId === classId), [allExams, classId]);
+  const exercises = useMemo(() => allExercises.filter((e) => studentIds.has(e.studentId)), [allExercises, studentIds]);
 
-  const [tab, setTab] = useState<'overview' | 'subjects' | 'grades' | 'roster'>('overview');
+  const [tab, setTab] = useState<'overview' | 'grades' | 'roster'>('overview');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [studentInputs, setStudentInputs] = useState<string[]>(['']);
   const [rosterSearch, setRosterSearch] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saveProgress, setSaveProgress] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [showScheduleSheet, setShowScheduleSheet] = useState(false);
   const [showBulkExerciseModal, setShowBulkExerciseModal] = useState(false);
   const [detailedClassData, setDetailedClassData] = useState<ClassGroup | null>(null);
+  const [preselectedWeakAreas, setPreselectedWeakAreas] = useState<string[]>([]);
 
   const classGroup = detailedClassData || basicClassGroup;
 
@@ -101,58 +91,13 @@ const GradeBook: React.FC = () => {
     fetchExams(classId);
     fetchAllCorrections();
     fetchClassDetails();
-  }, [classId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails]);
+    fetchExercises();
+    fetchClassSubjects(classId);
+  }, [classId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails, fetchExercises, fetchClassSubjects]);
 
   useIonViewWillEnter(() => {
     fetchClassDetails();
   });
-
-  const validStudentNames = studentInputs.filter((n) => n.trim().length > 0);
-
-  const handleInputChange = (index: number, value: string) => {
-    setStudentInputs((prev) => {
-      const updated = [...prev];
-      updated[index] = value;
-      return updated;
-    });
-  };
-
-  const handleAddRow = () => {
-    setStudentInputs((prev) => [...prev, '']);
-  };
-
-  const handleRemoveRow = (index: number) => {
-    if (studentInputs.length <= 1) return;
-    setStudentInputs((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAddStudents = async () => {
-    const names = validStudentNames.map((n) => n.trim());
-    if (names.length === 0) return;
-    
-    setSaving(true);
-    setSaveProgress('');
-    try {
-      for (let i = 0; i < names.length; i++) {
-        setSaveProgress(`Añadiendo ${i + 1}/${names.length}...`);
-        await addStudent({ class_id: classId, name: names[i] });
-      }
-      setStudentInputs(['']);
-      setSaveProgress('');
-      setShowAddModal(false);
-    } catch (err) {
-      console.error('Failed to add students:', err);
-    } finally {
-      setSaving(false);
-      setSaveProgress('');
-    }
-  };
-
-  const handleModalDismiss = () => {
-    setShowAddModal(false);
-    setStudentInputs(['']);
-    setSaveProgress('');
-  };
 
   const handleRemoveConfirm = async () => {
     if (!deleteTarget) return;
@@ -210,15 +155,13 @@ const GradeBook: React.FC = () => {
     s.name.toLowerCase().includes(rosterSearch.toLowerCase())
   );
 
-  const recentExams = useMemo(() => {
-    return [...exams]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
-  }, [exams]);
-
   const pendingExamsCount = useMemo(() => {
     return exams.filter(e => e.status === 'assigned').length;
   }, [exams]);
+
+  const pendingExercisesCount = useMemo(() => {
+    return exercises.filter(e => e.correctionStatus !== 'corrected').length;
+  }, [exercises]);
 
   if (!classGroup) {
     return (
@@ -230,44 +173,44 @@ const GradeBook: React.FC = () => {
     );
   }
 
+  const hasPending = pendingExamsCount > 0 || pendingExercisesCount > 0;
+
   return (
     <IonPage>
       <IonContent className="gb-content" scrollY>
-        {/* Class Hero Header */}
-        <div className="gb-hero">
+        {/* Header */}
+        <div className="gb-hero gb-hero--compact">
           <div className="gb-hero__nav">
             <IonButtons>
               <IonBackButton defaultHref="/tabs/classes" text="" color="light" />
             </IonButtons>
+            <div className="gb-hero__center">
+              <h1 className="gb-hero__title">{classGroup.name}</h1>
+              {classGroup.lectures && classGroup.lectures.length > 0 && (
+                <p className="gb-hero__subtitle">
+                  {classGroup.lectures.map(l => l.name).join(' · ')}
+                </p>
+              )}
+            </div>
             <IonButton 
-              fill="solid" 
+              fill="clear" 
               size="small" 
-              onClick={() => history.push('/tabs/exams/new')}
-              className="gb-hero__new-btn"
+              onClick={() => history.push(`/tabs/classes/${classId}/settings`)}
+              className="gb-hero__settings-btn"
             >
-              <IonIcon icon={createOutline} slot="start" />
-              Nuevo examen
+              <IonIcon icon={settingsOutline} slot="icon-only" />
             </IonButton>
-          </div>
-          <div className="gb-hero__content">
-            <h1 className="gb-hero__title">{classGroup.name}</h1>
-            {classGroup.lectures && classGroup.lectures.length > 0 && (
-              <p className="gb-hero__subtitle">
-                {classGroup.lectures.map(l => l.name).join(' · ')}
-              </p>
-            )}
           </div>
         </div>
 
-        {/* Segment Tabs */}
+        {/* Tabs */}
         <div className="gb-tabs-wrapper">
           <IonSegment 
             value={tab} 
-            onIonChange={(e) => setTab(e.detail.value as 'overview' | 'subjects' | 'grades' | 'roster')}
+            onIonChange={(e) => setTab(e.detail.value as 'overview' | 'grades' | 'roster')}
             className="gb-tabs"
           >
             <IonSegmentButton value="overview"><IonLabel>Resumen</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="subjects"><IonLabel>Asignaturas</IonLabel></IonSegmentButton>
             <IonSegmentButton value="grades"><IonLabel>Notas</IonLabel></IonSegmentButton>
             <IonSegmentButton value="roster"><IonLabel>Alumnos</IonLabel></IonSegmentButton>
           </IonSegment>
@@ -281,148 +224,124 @@ const GradeBook: React.FC = () => {
           onChange={handleImportFile}
         />
 
-        {/* Overview Tab */}
+        {/* ── Overview Tab ── */}
         {tab === 'overview' && (
           <div className="gb-overview">
-            {/* Stats Grid */}
-            <div className="gb-stats">
-              <div className="gb-stat-card gb-stat-card--students">
-                <div className="gb-stat-card__icon">
-                  <IonIcon icon={peopleOutline} />
-                </div>
-                <div className="gb-stat-card__content">
-                  <span className="gb-stat-card__value">{students.length}</span>
-                  <span className="gb-stat-card__label">Alumnos</span>
-                </div>
-              </div>
-              <div className="gb-stat-card gb-stat-card--subjects">
-                <div className="gb-stat-card__icon">
-                  <IonIcon icon={schoolOutline} />
-                </div>
-                <div className="gb-stat-card__content">
-                  <span className="gb-stat-card__value">{classGroup?.lectures?.length || 0}</span>
-                  <span className="gb-stat-card__label">Asignaturas</span>
-                </div>
-              </div>
-              <div className="gb-stat-card gb-stat-card--exams">
-                <div className="gb-stat-card__icon">
-                  <IonIcon icon={documentTextOutline} />
-                </div>
-                <div className="gb-stat-card__content">
-                  <span className="gb-stat-card__value">{exams.length}</span>
-                  <span className="gb-stat-card__label">Exámenes</span>
-                </div>
-              </div>
+            {/* Primary Actions */}
+            <div className="gb-actions">
+              <button 
+                className="gb-action-btn"
+                onClick={() => history.push(`/tabs/classes/${classId}/exams/new`)}
+              >
+                <IonIcon icon={addOutline} />
+                <span>Nuevo examen</span>
+              </button>
+              <button 
+                className="gb-action-btn gb-action-btn--alt"
+                onClick={() => setShowBulkExerciseModal(true)}
+              >
+                <IonIcon icon={sparkles} />
+                <span>Generar ejercicios</span>
+              </button>
             </div>
 
-            {/* Pending Exams Alert */}
-            {pendingExamsCount > 0 && (
-              <div className="gb-pending-alert" onClick={() => {
-                const pending = exams.find(e => e.status === 'assigned');
-                if (pending) history.push(`/correction/${pending.id}`);
-              }}>
-                <div className="gb-pending-alert__left">
-                  <span className="gb-pending-alert__count">{pendingExamsCount}</span>
-                  <span className="gb-pending-alert__text">
-                    {pendingExamsCount === 1 ? 'examen pendiente de corregir' : 'exámenes pendientes de corregir'}
-                  </span>
-                </div>
-                <IonIcon icon={chevronForwardOutline} className="gb-pending-alert__arrow" />
+            {/* Pending Alerts */}
+            {hasPending && (
+              <div className="gb-alerts">
+                {pendingExamsCount > 0 && (
+                  <button 
+                    className="gb-alert-row gb-alert-row--warning"
+                    onClick={() => history.push(`/tabs/classes/${classId}/exams`)}
+                  >
+                    <span className="gb-alert-row__badge">{pendingExamsCount}</span>
+                    <span className="gb-alert-row__text">
+                      {pendingExamsCount === 1 ? 'examen pendiente de corregir' : 'exámenes pendientes de corregir'}
+                    </span>
+                    <IonIcon icon={chevronForwardOutline} className="gb-alert-row__arrow" />
+                  </button>
+                )}
+                {pendingExercisesCount > 0 && (
+                  <button 
+                    className="gb-alert-row gb-alert-row--info"
+                    onClick={() => history.push(`/tabs/classes/${classId}/exercises`)}
+                  >
+                    <span className="gb-alert-row__badge">{pendingExercisesCount}</span>
+                    <span className="gb-alert-row__text">
+                      {pendingExercisesCount === 1 ? 'ejercicio pendiente' : 'ejercicios pendientes'}
+                    </span>
+                    <IonIcon icon={chevronForwardOutline} className="gb-alert-row__arrow" />
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Quick Actions */}
-            <div className="gb-section">
-              <h3 className="gb-section__title">Acciones rápidas</h3>
-              <div className="gb-actions">
-                <button 
-                  className="gb-action-card"
-                  onClick={() => history.push(`/tabs/classes/${classId}/settings`)}
+            {/* Subject-based navigation */}
+            {(classSubjects[classId]?.length || 0) > 0 ? (
+              <div className="gb-nav-card">
+                <div className="gb-nav-section-title">Asignaturas</div>
+                {classSubjects[classId].map((subject) => (
+                  <button
+                    key={subject.subjectId}
+                    className="gb-nav-row"
+                    onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subject.subjectId}`)}
+                  >
+                    <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
+                    <span className="gb-nav-row__label">{subject.subjectName}</span>
+                    <div className="gb-nav-row__meta">
+                      {subject.examCount > 0 && <span className="gb-nav-row__count">{subject.examCount} ex.</span>}
+                      {subject.pendingCorrections > 0 && <span className="gb-nav-row__pending">{subject.pendingCorrections}</span>}
+                    </div>
+                    <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="gb-nav-card">
+                <button
+                  className="gb-nav-row"
+                  onClick={() => history.push(`/tabs/classes/${classId}/exams`)}
                 >
-                  <div className="gb-action-card__icon gb-action-card__icon--teal">
-                    <IonIcon icon={settingsOutline} />
-                  </div>
-                  <span className="gb-action-card__label">Configurar asignaturas</span>
+                  <IonIcon icon={documentTextOutline} className="gb-nav-row__icon" />
+                  <span className="gb-nav-row__label">Exámenes</span>
+                  {exams.length > 0 && (
+                    <span className="gb-nav-row__count">{exams.length}</span>
+                  )}
+                  <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
                 </button>
-                <button 
-                  className="gb-action-card"
+
+                <button
+                  className="gb-nav-row"
+                  onClick={() => history.push(`/tabs/classes/${classId}/exercises`)}
+                >
+                  <IonIcon icon={sparkles} className="gb-nav-row__icon" />
+                  <span className="gb-nav-row__label">Ejercicios</span>
+                  {exercises.length > 0 && (
+                    <span className="gb-nav-row__count">{exercises.length}</span>
+                  )}
+                  <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                </button>
+
+                <button
+                  className="gb-nav-row gb-nav-row--last"
                   onClick={() => history.push(`/tabs/classes/${classId}/topics`)}
                 >
-                  <div className="gb-action-card__icon gb-action-card__icon--blue">
-                    <IonIcon icon={bookOutline} />
-                  </div>
-                  <span className="gb-action-card__label">Gestionar temario</span>
-                </button>
-                <button 
-                  className="gb-action-card"
-                  onClick={() => setShowScheduleSheet(true)}
-                >
-                  <div className="gb-action-card__icon gb-action-card__icon--purple">
-                    <IonIcon icon={calendarOutline} />
-                  </div>
-                  <span className="gb-action-card__label">Configurar horario</span>
-                </button>
-                <button 
-                  className="gb-action-card"
-                  onClick={() => setShowBulkExerciseModal(true)}
-                >
-                  <div className="gb-action-card__icon gb-action-card__icon--orange">
-                    <IonIcon icon={sparkles} />
-                  </div>
-                  <span className="gb-action-card__label">Generar ejercicios</span>
+                  <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
+                  <span className="gb-nav-row__label">Temario</span>
+                  <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
                 </button>
               </div>
-            </div>
+            )}
 
-            {/* Recent Exams */}
-            {recentExams.length > 0 && (
-              <div className="gb-section">
-                <div className="gb-section__header">
-                  <h3 className="gb-section__title">Exámenes recientes</h3>
-                  <button 
-                    className="gb-section__link"
-                    onClick={() => setTab('grades')}
-                  >
-                    Ver todos
-                  </button>
-                </div>
-                <div className="gb-exams-list">
-                  {recentExams.map((exam) => {
-                    const status = statusConfig[exam.status] || statusConfig.uploaded;
-                    return (
-                      <div 
-                        key={exam.id} 
-                        className="gb-exam-card" 
-                        onClick={() => history.push(`/correction/${exam.id}`)}
-                      >
-                        <div className="gb-exam-card__left">
-                          <div className="gb-exam-card__info">
-                            <span className="gb-exam-card__name">{exam.name}</span>
-                            <span className="gb-exam-card__date">
-                              {new Date(exam.date).toLocaleDateString('es-ES', { 
-                                day: 'numeric', 
-                                month: 'short' 
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="gb-exam-card__right">
-                          <span 
-                            className="gb-exam-card__status"
-                            style={{ 
-                              color: status.color,
-                              background: status.bg
-                            }}
-                          >
-                            {status.label}
-                          </span>
-                          <IonIcon icon={chevronForwardOutline} className="gb-exam-card__arrow" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* Class Insights */}
+            {students.length > 0 && (
+              <ClassInsightsPanel
+                classId={classId}
+                onStudentClick={(studentId) => history.push(`/tabs/classes/${classId}/students/${studentId}`)}
+                onGenerateExercises={(areas) => {
+                  setPreselectedWeakAreas(areas);
+                  setShowBulkExerciseModal(true);
+                }}
+              />
             )}
 
             {exams.length === 0 && students.length === 0 && (
@@ -439,73 +358,7 @@ const GradeBook: React.FC = () => {
           </div>
         )}
 
-        {/* Subjects Tab */}
-        {tab === 'subjects' && (
-          <div className="gb-subjects">
-            {!classGroup?.lectures || classGroup.lectures.length === 0 ? (
-              <EmptyState
-                icon="📚"
-                title="Sin asignaturas configuradas"
-                subtitle="Configura las asignaturas para organizar mejor el contenido"
-                actionLabel="Configurar asignaturas"
-                onAction={() => history.push(`/tabs/classes/${classId}/settings`)}
-              />
-            ) : (
-              <div className="gb-subjects-list">
-                {classGroup.lectures.map((lecture) => (
-                  <div key={lecture.id} className="gb-subject-card">
-                    <div className="gb-subject-card__header">
-                      <h3 className="gb-subject-card__name">{lecture.name}</h3>
-                      <div className="gb-subject-card__schedule">
-                        {lecture.schedule.length > 0 ? (
-                          lecture.schedule.map((slot, idx) => (
-                            <span key={idx} className="gb-schedule-badge">
-                              {WEEK_DAYS.find(d => d.key === slot.day)?.short} {slot.start_time}-{slot.end_time}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="gb-no-schedule">Sin horario</span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="gb-subject-card__content">
-                      <div className="gb-subject-card__section">
-                        <h4>Exámenes</h4>
-                        {exams.filter(e => e.name.toLowerCase().includes(lecture.name.toLowerCase())).length > 0 ? (
-                          <div className="gb-subject-card__items">
-                            {exams.filter(e => e.name.toLowerCase().includes(lecture.name.toLowerCase())).map(exam => {
-                              const status = statusConfig[exam.status] || statusConfig.uploaded;
-                              return (
-                                <div 
-                                  key={exam.id} 
-                                  className="gb-subject-item" 
-                                  onClick={() => history.push(`/correction/${exam.id}`)}
-                                >
-                                  <span className="gb-subject-item__name">{exam.name}</span>
-                                  <span 
-                                    className="gb-subject-item__status"
-                                    style={{ color: status.color, background: status.bg }}
-                                  >
-                                    {status.label}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="gb-empty-content">Sin exámenes</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Grades Tab */}
+        {/* ── Grades Tab ── */}
         {tab === 'grades' && (
           <div className="gb-grades">
             {studentsLoading ? (
@@ -516,12 +369,12 @@ const GradeBook: React.FC = () => {
                 title={students.length === 0 ? 'Aún no hay alumnos' : 'Aún no hay exámenes'}
                 subtitle={students.length === 0 ? 'Añade alumnos para empezar' : 'Crea un examen para esta clase'}
                 actionLabel={students.length === 0 ? 'Añadir alumno' : 'Nuevo examen'}
-                onAction={() => (students.length === 0 ? setShowAddModal(true) : history.push('/tabs/exams/new'))}
+                onAction={() => (students.length === 0 ? setShowAddModal(true) : history.push(`/tabs/classes/${classId}/exams/new`))}
               />
             ) : (
               <>
                 <div className="gb-grades-toolbar">
-                  <IonButton size="small" onClick={() => history.push('/tabs/exams/new')}>
+                  <IonButton size="small" onClick={() => history.push(`/tabs/classes/${classId}/exams/new`)}>
                     <IonIcon icon={addOutline} slot="start" /> Nuevo examen
                   </IonButton>
                   <IonButton size="small" fill="outline" onClick={handleExportGrades}>
@@ -532,14 +385,14 @@ const GradeBook: React.FC = () => {
                   students={students}
                   exams={exams}
                   onStudentClick={(id) => history.push(`/tabs/classes/${classId}/students/${id}`)}
-                  onExamClick={(id) => history.push(`/correction/${id}`)}
+                  onExamClick={(id) => history.push(`/tabs/classes/${classId}/exams/${id}`)}
                 />
               </>
             )}
           </div>
         )}
 
-        {/* Roster Tab */}
+        {/* ── Roster Tab ── */}
         {tab === 'roster' && (
           <div className="gb-roster">
             <div className="gb-roster-toolbar">
@@ -586,70 +439,14 @@ const GradeBook: React.FC = () => {
           </div>
         )}
 
-        {/* Add student modal */}
-        <IonModal isOpen={showAddModal} onDidDismiss={handleModalDismiss} initialBreakpoint={0.6} breakpoints={[0, 0.6, 0.9]}>
-          <div className="modal-sheet">
-            <h2 className="modal-sheet__title">Añadir alumnos</h2>
-            
-            <div className="student-inputs-list">
-              {studentInputs.map((value, index) => (
-                <div key={index} className="student-input-row">
-                  <span className="student-input-number">{index + 1}</span>
-                  <IonInput
-                    value={value}
-                    onIonInput={(e) => handleInputChange(index, e.detail.value ?? '')}
-                    placeholder="Nombre completo"
-                    disabled={saving}
-                    className="student-input-field"
-                  />
-                  {studentInputs.length > 1 && (
-                    <button
-                      className="student-input-remove"
-                      onClick={() => handleRemoveRow(index)}
-                      disabled={saving}
-                      type="button"
-                    >
-                      <IonIcon icon={closeCircleOutline} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <IonButton
-              fill="outline"
-              size="small"
-              onClick={handleAddRow}
-              disabled={saving}
-              className="add-row-btn"
-            >
-              <IonIcon icon={addOutline} slot="start" />
-              Añadir otro
-            </IonButton>
-
-            <p className="auto-code-hint">Se asignará un código de alumno automáticamente</p>
-            
-            {saveProgress && (
-              <div className="add-students-progress">
-                <IonProgressBar type="indeterminate" />
-                <span>{saveProgress}</span>
-              </div>
-            )}
-            
-            <IonButton
-              expand="block"
-              onClick={handleAddStudents}
-              className="ion-margin-top"
-              disabled={saving || validStudentNames.length === 0}
-            >
-              {saving ? (
-                <IonSpinner name="crescent" />
-              ) : (
-                `Añadir ${validStudentNames.length} alumno${validStudentNames.length !== 1 ? 's' : ''}`
-              )}
-            </IonButton>
-          </div>
-        </IonModal>
+        {/* Modals */}
+        <AddStudentsModal
+          isOpen={showAddModal}
+          classId={classId}
+          className={classGroup?.name || ''}
+          onDismiss={() => setShowAddModal(false)}
+          onStudentsAdded={() => fetchStudents(classId)}
+        />
 
         <IonAlert
           isOpen={!!deleteTarget}
@@ -660,11 +457,6 @@ const GradeBook: React.FC = () => {
             { text: 'Quitar', role: 'destructive', handler: handleRemoveConfirm }
           ]}
           onDidDismiss={() => setDeleteTarget(null)}
-        />
-        <ScheduleSetupSheet
-          isOpen={showScheduleSheet}
-          onDismiss={() => setShowScheduleSheet(false)}
-          preselectedClassId={classId}
         />
         <ExerciseGeneratorModal
           isOpen={showBulkExerciseModal}

@@ -48,9 +48,242 @@
   font-size: var(--font-size-sm);
 }
 
+/* Quick Actions for Class Sessions */
+.ev-editor__quick-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.ev-editor__quick-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--ion-color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ev-editor__quick-btn:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+.ev-editor__quick-btn ion-icon {
+  font-size: 18px;
+}
+
+.ev-editor__quick-btn--note {
+  background: rgba(124, 58, 237, 0.1);
+  color: #7C3AED;
+}
+
+.ev-editor__quick-btn--note:active {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+.ev-editor__note-saved {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: var(--radius-md);
+  color: #22C55E;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.ev-editor__note-saved ion-icon {
+  font-size: 18px;
+}
+
+/* Session Note Input */
+.ev-editor__session-note {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  background: rgba(124, 58, 237, 0.05);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: var(--radius-md);
+}
+
+.ev-editor__session-note-input {
+  --background: #ffffff;
+  --border-radius: var(--radius-sm);
+  margin-bottom: var(--space-sm);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.ev-editor__session-note ion-button {
+  width: 100%;
+  --border-radius: var(--radius-sm);
+}
+
+/* Student Picker for Tutoring */
+.ev-editor__student-picker {
+  margin-bottom: var(--space-md);
+}
+
+.ev-editor__label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: #64748B;
+  margin-bottom: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ev-editor__student-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.ev-editor__student-search {
+  --border-radius: var(--radius-md);
+  --background: rgba(15, 23, 42, 0.03);
+  --box-shadow: none;
+  padding: 0;
+}
+
+.ev-editor__class-filter {
+  --background: rgba(15, 23, 42, 0.03);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.ev-editor__student-list {
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ev-editor__student-list-inner {
+  padding: 0;
+  background: transparent;
+}
+
+.ev-editor__student-item {
+  --background: transparent;
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --inner-padding-end: 0;
+  --min-height: 44px;
+}
+
+.ev-editor__student-item ion-radio {
+  width: 100%;
+}
+
+.ev-editor__student-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ev-editor__student-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.ev-editor__student-class {
+  font-size: var(--font-size-xs);
+  color: #64748B;
+}
+
+.ev-editor__no-students {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+}
+
+.ev-editor__selected-student {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.ev-editor__selected-student-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ev-editor__selected-student-info ion-icon {
+  font-size: 20px;
+}
+
+.ev-editor__selected-student-name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.ev-editor__change-student-btn {
+  background: none;
+  border: none;
+  color: var(--ion-color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+}
+
 /* Dark theme */
 @media (prefers-color-scheme: dark) {
   .ev-editor__field {
     --background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ev-editor__session-note {
+    background: rgba(124, 58, 237, 0.1);
+    border-color: rgba(124, 58, 237, 0.25);
+  }
+
+  .ev-editor__session-note-input {
+    --background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .ev-editor__student-search {
+    --background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ev-editor__class-filter {
+    --background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ev-editor__student-list {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .ev-editor__selected-student {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.25);
   }
 }

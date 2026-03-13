@@ -124,7 +124,7 @@ const TopicDetail: React.FC = () => {
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
+              <IonBackButton defaultHref={`/tabs/classes/${classId}/topics`} text="" />
             </IonButtons>
             <IonTitle>Tema no encontrado</IonTitle>
           </IonToolbar>
@@ -141,7 +141,7 @@ const TopicDetail: React.FC = () => {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
+            <IonBackButton defaultHref={`/tabs/classes/${classId}/topics`} text="" />
           </IonButtons>
           <IonTitle>{currentTopic.name}</IonTitle>
           <IonButtons slot="end">

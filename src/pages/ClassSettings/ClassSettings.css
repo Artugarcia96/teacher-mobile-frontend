@@ -30,6 +30,21 @@
   margin: 0;
 }
 
+.settings-section__count {
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-primary);
+  font-weight: 600;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.settings-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
 /* Info Card */
 .settings-info-card {
   background: var(--ion-card-background);
@@ -82,6 +97,25 @@
   transform: scale(0.98);
 }
 
+.lecture-card--selectable {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.lecture-card--selected {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  border-color: var(--ion-color-primary);
+}
+
+.lecture-card__checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
 .lecture-card__main {
   display: flex;
   flex-direction: column;
@@ -94,6 +128,12 @@
   color: var(--ion-text-color);
 }
 
+.lecture-card__subject {
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-primary);
+  font-weight: 500;
+}
+
 .lecture-card__schedule {
   font-size: var(--font-size-sm);
   color: #64748B;
@@ -104,6 +144,174 @@
 
 .lecture-card__schedule ion-icon {
   font-size: 14px;
+}
+
+/* Students section */
+.settings-students-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.settings-students-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.settings-student-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ion-card-background);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.settings-student-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-student-name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.settings-student-code {
+  font-size: var(--font-size-xs);
+  color: #64748B;
+  font-family: monospace;
+}
+
+.settings-students-empty {
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md);
+}
+
+.settings-add-students-block {
+  margin-top: var(--space-sm);
+}
+
+.settings-add-students-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.15);
+  border-radius: var(--radius-md);
+  color: var(--ion-color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.settings-add-students-toggle:hover {
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+}
+
+.settings-add-students-toggle ion-icon:first-of-type {
+  font-size: 18px;
+}
+
+.settings-add-students-toggle ion-icon:last-of-type {
+  margin-left: auto;
+  font-size: 18px;
+}
+
+.settings-add-students-form {
+  margin-top: var(--space-md);
+  padding: var(--space-lg);
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.settings-add-students-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.settings-add-students-progress span {
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-primary);
+}
+
+.settings-add-new,
+.settings-add-existing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.settings-add-hint {
+  font-size: var(--font-size-sm);
+  color: #64748B;
+  margin: 0;
+}
+
+.settings-add-input-list {
+  --background: transparent;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+}
+
+.settings-add-input-list ion-item {
+  --background: var(--ion-card-background);
+  --border-radius: var(--radius-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xs);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.settings-add-empty {
+  text-align: center;
+  padding: var(--space-xl);
+  color: #94A3B8;
+}
+
+.settings-add-empty ion-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-sm);
+  display: block;
+}
+
+.settings-add-search {
+  --background: var(--ion-card-background);
+  padding: 0;
+}
+
+.settings-add-class-filter {
+  max-width: 100%;
+}
+
+.settings-add-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.settings-add-select-all {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--ion-text-color);
+}
+
+.settings-add-existing-list ion-item {
+  --padding-start: var(--space-md);
 }
 
 /* Empty State */
@@ -119,13 +327,6 @@
   color: #94A3B8;
   margin: 0 0 var(--space-md);
   font-size: var(--font-size-sm);
-}
-
-/* Actions */
-.settings-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
 }
 
 /* Schedule Section in Modal */
@@ -207,10 +408,52 @@
   padding: 0 var(--space-lg);
 }
 
+/* Subject name suggestions */
+.subject-name-suggestions {
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.subject-name-suggestions__label {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+  margin-bottom: var(--space-xs);
+  display: block;
+}
+
+.subject-name-suggestions__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subject-name-suggestion {
+  padding: 4px 12px;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--ion-text-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.subject-name-suggestion:active {
+  transform: scale(0.95);
+}
+
+.subject-name-suggestion--active {
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-color: rgba(var(--ion-color-primary-rgb), 0.3);
+  color: var(--ion-color-primary);
+  font-weight: 600;
+}
+
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .settings-info-card,
-  .lecture-card {
+  .lecture-card,
+  .settings-student-row {
     background: #16161A;
     border-color: rgba(255, 255, 255, 0.12);
   }
@@ -224,8 +467,39 @@
     border-color: rgba(255, 255, 255, 0.1);
   }
 
+  .settings-add-students-toggle {
+    background: rgba(44, 158, 146, 0.12);
+    border-color: rgba(44, 158, 146, 0.2);
+    color: #2C9E92;
+  }
+
+  .settings-add-students-form {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .settings-add-input-list ion-item {
+    --background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
   .schedule-slot,
   .schedule-empty {
     background: rgba(255, 255, 255, 0.04);
+  }
+
+  .lecture-card--selected {
+    background: rgba(var(--ion-color-primary-rgb), 0.15);
+  }
+
+  .subject-name-suggestion {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .subject-name-suggestion--active {
+    background: rgba(44, 158, 146, 0.15);
+    border-color: rgba(44, 158, 146, 0.3);
+    color: #5EEAD4;
   }
 }

@@ -1,0 +1,488 @@
+.exd-content {
+  --background: #f8fafc;
+}
+
+.exd-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+/* Hero Header */
+.exd-hero {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  padding: 16px 16px 24px;
+  color: white;
+}
+
+.exd-hero__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exd-hero__center {
+  flex: 1;
+  text-align: center;
+}
+
+.exd-hero__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+.exd-hero__subtitle {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin: 2px 0 0;
+}
+
+.exd-hero__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.exd-hero__action-btn {
+  --color: white;
+}
+
+.exd-hero__action-btn--danger {
+  --color: #fca5a5;
+}
+
+/* Info Card */
+.exd-info-card {
+  background: white;
+  margin: -12px 16px 16px;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.exd-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.exd-info-row:last-child {
+  border-bottom: none;
+}
+
+.exd-info-label {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.exd-info-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.exd-info-value--student {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4f46e5;
+}
+
+.exd-info-value--student ion-icon {
+  font-size: 1rem;
+}
+
+.exd-info-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.exd-info-deadline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exd-deadline-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 100px;
+}
+
+.exd-deadline-badge ion-icon {
+  font-size: 0.75rem;
+}
+
+/* Areas Section */
+.exd-areas-section {
+  padding: 0 16px 16px;
+}
+
+.exd-areas-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exd-areas-list ion-chip {
+  font-size: 0.8rem;
+}
+
+/* Stats Dashboard */
+.exd-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.exd-stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.exd-stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.exd-stat-icon ion-icon {
+  font-size: 1.1rem;
+}
+
+.exd-stat-icon--success {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+}
+
+.exd-stat-icon--primary {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.exd-stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.exd-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.exd-stat-label {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+/* Action Buttons */
+.exd-actions {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exd-action-btn {
+  --border-radius: 12px;
+  font-weight: 600;
+}
+
+.exd-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.exd-actions-row ion-button {
+  --border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+/* Questions Section */
+.exd-questions-section {
+  padding: 0 16px 16px;
+}
+
+.exd-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 12px;
+}
+
+.exd-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exd-question-card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.exd-question-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.exd-question-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.exd-question-text {
+  font-size: 0.9rem;
+  color: #1e293b;
+  margin: 0 0 6px;
+  line-height: 1.4;
+}
+
+.exd-question-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exd-question-hint ion-icon {
+  color: #6366f1;
+  font-size: 0.85rem;
+}
+
+.exd-question-points {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 6px;
+}
+
+/* Corrections Section */
+.exd-corrections-section {
+  padding: 0 16px 16px;
+}
+
+.exd-corrections-list {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.exd-correction-item {
+  --padding-start: 16px;
+  --padding-end: 12px;
+  --inner-padding-end: 0;
+}
+
+.exd-correction-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.exd-correction-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+  margin: 0;
+}
+
+.exd-correction-summary {
+  font-size: 0.8rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.exd-correction-grade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exd-grade-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.exd-grade-pending {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.exd-correction-arrow {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+/* History Section */
+.exd-history-section {
+  padding: 0 16px 24px;
+}
+
+.exd-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exd-history-item {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.exd-history-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.exd-history-icon ion-icon {
+  font-size: 1rem;
+}
+
+.exd-history-content {
+  flex: 1;
+}
+
+.exd-history-instruction {
+  font-size: 0.9rem;
+  color: #1e293b;
+  margin: 0 0 4px;
+}
+
+.exd-history-date {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Iterate Modal */
+.exd-iterate-modal {
+  --max-width: 400px;
+  --max-height: 500px;
+  --border-radius: 16px;
+}
+
+.exd-iterate-content {
+  --padding-start: 20px;
+  --padding-end: 20px;
+  --padding-top: 16px;
+}
+
+.exd-iterate-description {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.exd-quick-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.exd-quick-options ion-chip {
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.exd-iterate-textarea {
+  --background: #f8fafc;
+  --border-radius: 12px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.exd-iterate-btn {
+  --border-radius: 12px;
+  margin-top: 16px;
+  font-weight: 600;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  .exd-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .exd-hero__title {
+    font-size: 1rem;
+    max-width: 160px;
+  }
+}

@@ -1,16 +1,25 @@
 import { create } from 'zustand';
-import { topics as topicsApi } from '../services/api';
-import { Topic, TopicListItem, TopicMaterial } from '../types';
+import { topics as topicsApi, subjects as subjectsApi } from '../services/api';
+import { Topic, TopicListItem, TopicMaterial, SubjectWithTopics, SubjectListItem } from '../types';
 
 interface TopicsState {
   topics: TopicListItem[];
+  topicsBySubject: SubjectWithTopics[];
+  classSubjects: SubjectListItem[];
+  allSubjects: SubjectListItem[];
   currentTopic: Topic | null;
   loading: boolean;
   error: string | null;
-  
-  fetchTopics: (classId: string) => Promise<void>;
+
+  fetchTopicsForClass: (classId: string) => Promise<void>;
+  fetchTopicsBySubject: (subjectId: string) => Promise<void>;
+  fetchClassSubjects: (classId: string) => Promise<void>;
+  fetchAllSubjects: () => Promise<void>;
+  linkSubjectToClass: (subjectId: string, classId: string) => Promise<void>;
+  unlinkSubjectFromClass: (subjectId: string, classId: string) => Promise<void>;
+  createAndLinkSubject: (name: string, classId: string) => Promise<void>;
   fetchTopic: (topicId: string) => Promise<Topic | null>;
-  createTopic: (classId: string, data: { name: string; description?: string }) => Promise<Topic>;
+  createTopic: (subjectId: string, data: { name: string; description?: string }) => Promise<Topic>;
   updateTopic: (topicId: string, data: { name?: string; description?: string; order?: number }) => Promise<void>;
   deleteTopic: (topicId: string) => Promise<void>;
   uploadMaterial: (topicId: string, file: File) => Promise<TopicMaterial>;
@@ -20,7 +29,8 @@ interface TopicsState {
 
 const mapTopicResponse = (data: any): Topic => ({
   id: data.id,
-  classId: data.class_id,
+  subjectId: data.subject_id,
+  subjectName: data.subject_name,
   name: data.name,
   description: data.description,
   order: data.order,
@@ -37,7 +47,8 @@ const mapTopicResponse = (data: any): Topic => ({
 
 const mapTopicListResponse = (data: any): TopicListItem => ({
   id: data.id,
-  classId: data.class_id,
+  subjectId: data.subject_id,
+  subjectName: data.subject_name,
   name: data.name,
   description: data.description,
   order: data.order,
@@ -46,18 +57,108 @@ const mapTopicListResponse = (data: any): TopicListItem => ({
 
 export const useTopicsStore = create<TopicsState>((set, get) => ({
   topics: [],
+  topicsBySubject: [],
+  classSubjects: [],
+  allSubjects: [],
   currentTopic: null,
   loading: false,
   error: null,
 
-  fetchTopics: async (classId: string) => {
+  fetchTopicsForClass: async (classId: string) => {
     set({ loading: true, error: null });
     try {
-      const res = await topicsApi.list(classId);
+      const [topicsRes, subjectsRes] = await Promise.all([
+        subjectsApi.topicsForClass(classId),
+        subjectsApi.forClass(classId),
+      ]);
+
+      const grouped: SubjectWithTopics[] = topicsRes.data.map((s: any) => ({
+        subjectId: s.subject_id,
+        subjectName: s.subject_name,
+        topics: (s.topics || []).map((t: any) => ({
+          id: t.id,
+          subjectId: s.subject_id,
+          subjectName: s.subject_name,
+          name: t.name,
+          description: t.description,
+          order: t.order,
+          materialCount: t.material_count || 0,
+        })),
+      }));
+
+      const flat = grouped.flatMap((s) => s.topics);
+
+      const subjects: SubjectListItem[] = subjectsRes.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        topicCount: s.topic_count || 0,
+        classCount: s.class_count || 0,
+      }));
+
+      set({ topics: flat, topicsBySubject: grouped, classSubjects: subjects, loading: false });
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+    }
+  },
+
+  fetchTopicsBySubject: async (subjectId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await topicsApi.listBySubject(subjectId);
       set({ topics: res.data.map(mapTopicListResponse), loading: false });
     } catch (err: any) {
       set({ error: err.message, loading: false });
     }
+  },
+
+  fetchClassSubjects: async (classId: string) => {
+    try {
+      const res = await subjectsApi.forClass(classId);
+      const subjects: SubjectListItem[] = res.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        topicCount: s.topic_count || 0,
+        classCount: s.class_count || 0,
+      }));
+      set({ classSubjects: subjects });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  fetchAllSubjects: async () => {
+    try {
+      const res = await subjectsApi.list();
+      const subjects: SubjectListItem[] = res.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        topicCount: s.topic_count || 0,
+        classCount: s.class_count || 0,
+      }));
+      set({ allSubjects: subjects });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  linkSubjectToClass: async (subjectId: string, classId: string) => {
+    await subjectsApi.linkToClass(subjectId, classId);
+    await get().fetchTopicsForClass(classId);
+  },
+
+  unlinkSubjectFromClass: async (subjectId: string, classId: string) => {
+    await subjectsApi.unlinkFromClass(subjectId, classId);
+    await get().fetchTopicsForClass(classId);
+  },
+
+  createAndLinkSubject: async (name: string, classId: string) => {
+    const res = await subjectsApi.create({ name });
+    const newSubjectId = res.data.id;
+    await subjectsApi.linkToClass(newSubjectId, classId);
+    await get().fetchTopicsForClass(classId);
   },
 
   fetchTopic: async (topicId: string) => {
@@ -73,27 +174,36 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
     }
   },
 
-  createTopic: async (classId: string, data: { name: string; description?: string }) => {
-    const res = await topicsApi.create(classId, data);
+  createTopic: async (subjectId: string, data: { name: string; description?: string }) => {
+    const res = await topicsApi.create(subjectId, data);
     const topic = mapTopicResponse(res.data);
+    const newItem = mapTopicListResponse(res.data);
     set((state) => ({
-      topics: [...state.topics, mapTopicListResponse(res.data)]
+      topics: [...state.topics, newItem],
+      topicsBySubject: state.topicsBySubject.map((s) =>
+        s.subjectId === subjectId
+          ? { ...s, topics: [...s.topics, newItem] }
+          : s
+      ),
     }));
     return topic;
   },
 
   updateTopic: async (topicId: string, data: { name?: string; description?: string; order?: number }) => {
     await topicsApi.update(topicId, data);
-    const { currentTopic, topics } = get();
-    
+    const { currentTopic, topics, topicsBySubject } = get();
+
     if (currentTopic && currentTopic.id === topicId) {
       set({ currentTopic: { ...currentTopic, ...data } });
     }
-    
+
+    const updateItem = (t: TopicListItem) => t.id === topicId ? { ...t, ...data } : t;
     set({
-      topics: topics.map((t) =>
-        t.id === topicId ? { ...t, ...data } : t
-      )
+      topics: topics.map(updateItem),
+      topicsBySubject: topicsBySubject.map((s) => ({
+        ...s,
+        topics: s.topics.map(updateItem),
+      })),
     });
   },
 
@@ -101,6 +211,10 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
     await topicsApi.delete(topicId);
     set((state) => ({
       topics: state.topics.filter((t) => t.id !== topicId),
+      topicsBySubject: state.topicsBySubject.map((s) => ({
+        ...s,
+        topics: s.topics.filter((t) => t.id !== topicId),
+      })),
       currentTopic: state.currentTopic?.id === topicId ? null : state.currentTopic
     }));
   },
@@ -115,25 +229,30 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
       documentType: res.data.document_type,
       uploadedAt: res.data.uploaded_at
     };
-    
-    const { currentTopic, topics } = get();
+
+    const { currentTopic, topics, topicsBySubject } = get();
     if (currentTopic && currentTopic.id === topicId) {
       set({ currentTopic: { ...currentTopic, materials: [...currentTopic.materials, material] } });
     }
-    
+
+    const incCount = (t: TopicListItem) =>
+      t.id === topicId ? { ...t, materialCount: t.materialCount + 1 } : t;
+
     set({
-      topics: topics.map((t) =>
-        t.id === topicId ? { ...t, materialCount: t.materialCount + 1 } : t
-      )
+      topics: topics.map(incCount),
+      topicsBySubject: topicsBySubject.map((s) => ({
+        ...s,
+        topics: s.topics.map(incCount),
+      })),
     });
-    
+
     return material;
   },
 
   deleteMaterial: async (topicId: string, materialId: string) => {
     await topicsApi.deleteMaterial(topicId, materialId);
-    
-    const { currentTopic, topics } = get();
+
+    const { currentTopic, topics, topicsBySubject } = get();
     if (currentTopic && currentTopic.id === topicId) {
       set({
         currentTopic: {
@@ -142,11 +261,16 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
         }
       });
     }
-    
+
+    const decCount = (t: TopicListItem) =>
+      t.id === topicId ? { ...t, materialCount: Math.max(0, t.materialCount - 1) } : t;
+
     set({
-      topics: topics.map((t) =>
-        t.id === topicId ? { ...t, materialCount: Math.max(0, t.materialCount - 1) } : t
-      )
+      topics: topics.map(decCount),
+      topicsBySubject: topicsBySubject.map((s) => ({
+        ...s,
+        topics: s.topics.map(decCount),
+      })),
     });
   },
 

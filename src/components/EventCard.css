@@ -1,10 +1,10 @@
 .ev-card {
   display: flex;
   align-items: stretch;
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
-  border: 1px solid rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--color-border);
   overflow: hidden;
   cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
@@ -64,7 +64,7 @@
 
 .ev-card__arrow {
   font-size: 16px;
-  color: #CBD5E1;
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
@@ -77,13 +77,13 @@
 
 .ev-card__time {
   font-size: var(--font-size-xs);
-  color: #94A3B8;
+  color: var(--color-text-tertiary);
   font-weight: 500;
 }
 
 .ev-card__notes {
   font-size: var(--font-size-xs);
-  color: #94A3B8;
+  color: var(--color-text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -98,18 +98,18 @@
 }
 
 .ev-card__status--uploaded {
-  background: rgba(100, 116, 139, 0.1);
-  color: #64748B;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
 }
 
 .ev-card__status--assigned {
-  background: rgba(217, 119, 6, 0.1);
-  color: #D97706;
+  background: var(--color-status-pending-bg);
+  color: var(--color-status-pending);
 }
 
 .ev-card__status--corrected {
-  background: rgba(5, 150, 105, 0.1);
-  color: #059669;
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success);
 }
 
 .ev-card__right {
@@ -122,8 +122,8 @@
 .ev-card__count {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #64748B;
-  background: rgba(100, 116, 139, 0.1);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
   padding: 2px 8px;
   border-radius: var(--radius-full);
 }

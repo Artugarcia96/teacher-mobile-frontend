@@ -6,8 +6,11 @@
 }
 
 .scan-card-saved {
-  opacity: 0.85;
   border-left: 3px solid var(--ion-color-success) !important;
+}
+
+.scan-card-modified {
+  border-left: 3px solid var(--ion-color-warning) !important;
 }
 
 .scan-card-content {
@@ -19,6 +22,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+}
+
+.scan-card-index-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .scan-card-index {
@@ -36,6 +45,19 @@
   color: var(--ion-color-primary);
 }
 
+.scan-card-download-btn {
+  --padding-start: 4px;
+  --padding-end: 4px;
+  margin: 0;
+  height: 28px;
+  width: 28px;
+}
+
+.scan-card-download-btn ion-icon {
+  font-size: 16px;
+  color: var(--ion-color-primary);
+}
+
 .scan-card-student-select {
   flex: 1;
   --padding-start: var(--space-sm);
@@ -49,6 +71,16 @@
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+.scan-card-grade-modified {
+  border-radius: var(--radius-sm);
+  background: rgba(var(--ion-color-warning-rgb), 0.1);
+  padding: 2px 4px;
+}
+
+.scan-card-grade-modified .scan-card-grade-input {
+  --background: rgba(var(--ion-color-warning-rgb), 0.15);
 }
 
 .scan-card-grade-input {
@@ -267,6 +299,42 @@
 .scan-card-ai-btn {
   margin-top: var(--space-sm);
   font-size: var(--font-size-xs);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  height: 36px;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.scan-card-ai-btn:not(:disabled):hover {
+  --color: var(--ion-color-primary);
+  --border-color: var(--ion-color-primary);
+}
+
+.scan-card-ai-btn ion-icon {
+  font-size: 16px;
+}
+
+.scan-card-ai-btn ion-spinner {
+  width: 16px;
+  height: 16px;
+}
+
+.scan-card-ai-btn:disabled {
+  --background: linear-gradient(135deg, rgba(21, 102, 94, 0.08) 0%, rgba(30, 138, 127, 0.04) 100%);
+  --border-color: var(--ion-color-primary);
+  --color: var(--ion-color-primary);
+  opacity: 1;
+}
+
+.scan-card-ai-btn:disabled ion-spinner {
+  animation: sc-ai-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sc-ai-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .scan-card-ai-error {

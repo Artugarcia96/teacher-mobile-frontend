@@ -8,7 +8,14 @@ export interface Lecture {
   id: string;
   classId: string;
   name: string;
+  subjectId?: string;
+  subjectName?: string;
   schedule: ScheduleSlot[];
+}
+
+export interface LectureBasic {
+  id: string;
+  name: string;
 }
 
 export interface ClassGroup {
@@ -21,6 +28,7 @@ export interface ClassGroup {
   lastActivity: string;
   archived: boolean;
   lectures?: Lecture[];
+  lecturesBasic?: LectureBasic[];
 }
 
 export interface Student {
@@ -38,11 +46,19 @@ export interface Note {
   createdAt: string;
 }
 
+export interface ExamIterationHistoryItem {
+  version: number;
+  instruction: string;
+  timestamp: string;
+  changes_made?: string[];
+}
+
 export interface Exam {
   id: string;
   name: string;
   classId?: string;
   lectureId?: string;
+  subjectId?: string;
   date: string;
   maxScore: number;
   status: ExamStatus;
@@ -52,6 +68,11 @@ export interface Exam {
   hasGeneratedQuestions?: boolean;
   className?: string;
   lectureName?: string;
+  subjectName?: string;
+  correctionDeadline?: string;
+  blankPagesCount?: number;
+  iterationHistory?: ExamIterationHistoryItem[];
+  deadlineStatus?: 'ok' | 'soon' | 'urgent' | 'overdue' | 'completed';
 }
 
 export interface AIQuestionFeedback {
@@ -74,10 +95,18 @@ export interface CorrectionResult {
   studentId: string;
   paperUrl?: string;
   aiAnalysis?: AIAnalysis;
+  aiProcessed?: boolean;
   grade: number | null;
   teacherNotes?: string;
   weakAreas?: string[];
   savedAt?: string;
+}
+
+export interface ExerciseIterationHistoryItem {
+  version: number;
+  instruction: string;
+  timestamp: string;
+  changes_made?: string[];
 }
 
 export interface Exercise {
@@ -93,6 +122,13 @@ export interface Exercise {
   pdfExercisesUrl?: string;
   pdfSolutionsUrl?: string;
   correctionStatus?: 'in_progress' | 'corrected' | null;
+  deliveryDate?: string;
+  correctionDate?: string;
+  iterationHistory?: ExerciseIterationHistoryItem[];
+  deliveryStatus?: 'pending' | 'today' | 'tomorrow' | 'delivered';
+  correctionDeadlineStatus?: 'ok' | 'soon' | 'urgent' | 'overdue' | 'completed';
+  subjectId?: string;
+  subjectName?: string;
 }
 
 export interface ExerciseCorrectionResult {
@@ -137,7 +173,8 @@ export interface TopicMaterial {
 
 export interface Topic {
   id: string;
-  classId: string;
+  subjectId: string;
+  subjectName?: string;
   name: string;
   description?: string;
   order: number;
@@ -147,11 +184,18 @@ export interface Topic {
 
 export interface TopicListItem {
   id: string;
-  classId: string;
+  subjectId: string;
+  subjectName?: string;
   name: string;
   description?: string;
   order: number;
   materialCount: number;
+}
+
+export interface SubjectWithTopics {
+  subjectId: string;
+  subjectName: string;
+  topics: TopicListItem[];
 }
 
 export interface BulkUploadMatch {
@@ -205,15 +249,20 @@ export interface ClassBulkUploadResult {
 export interface CalendarEvent {
   id: string;
   classId?: string;
+  studentId?: string;
+  examId?: string;
   title: string;
   date: string;
   startTime?: string;
   endTime?: string;
-  eventType: 'class_session' | 'custom';
+  eventType: 'class_session' | 'custom' | 'tutoring' | 'exam';
   notes?: string;
   isCancelled: boolean;
   className?: string;
   classSubject?: string;
+  studentName?: string;
+  examName?: string;
+  examStatus?: string;
 }
 
 export interface MaterialWithContext {
@@ -224,9 +273,8 @@ export interface MaterialWithContext {
   uploadedAt: string;
   topicId: string;
   topicName: string;
-  classId: string;
-  className: string;
-  classSubject: string;
+  subjectId: string;
+  subjectName: string;
 }
 
 export interface TopicForUpload {
@@ -235,10 +283,9 @@ export interface TopicForUpload {
   order: number;
 }
 
-export interface ClassWithTopics {
-  classId: string;
-  className: string;
-  classSubject: string;
+export interface SubjectWithTopicsForUpload {
+  subjectId: string;
+  subjectName: string;
   topics: TopicForUpload[];
 }
 
@@ -257,9 +304,27 @@ export interface TopicInStructure {
   materials: MaterialInStructure[];
 }
 
-export interface ClassStructure {
-  classId: string;
-  className: string;
-  classSubject: string;
+export interface SubjectStructure {
+  subjectId: string;
+  subjectName: string;
+  classCount: number;
   topics: TopicInStructure[];
+}
+
+export interface SubjectListItem {
+  id: string;
+  name: string;
+  description?: string;
+  topicCount: number;
+  classCount: number;
+}
+
+export interface ClassSubjectSummary {
+  subjectId: string;
+  subjectName: string;
+  lectureId?: string;
+  examCount: number;
+  pendingCorrections: number;
+  exerciseCount: number;
+  topicCount: number;
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CorrectionResult, WeakArea, AIAnalysis } from '../types';
 import { corrections as correctionsApi } from '../services/api';
+import { useExamsStore } from './examsStore';
 
 function mapAIResult(aiResult: any): AIAnalysis | undefined {
   if (!aiResult) return undefined;
@@ -34,7 +35,7 @@ interface CorrectionState {
   loading: boolean;
   fetchAllCorrections: () => Promise<void>;
   fetchCorrections: (examId: string) => Promise<void>;
-  uploadPapers: (examId: string, files: File[]) => Promise<void>;
+  uploadPapers: (examId: string, files: File[], studentId?: string) => Promise<CorrectionResult[]>;
   updateCorrection: (id: string, data: { student_id?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) => Promise<void>;
   processAI: (correctionId: string) => Promise<any>;
   finishCorrection: (examId: string) => Promise<void>;
@@ -90,19 +91,21 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
     }
   },
 
-  uploadPapers: async (examId, files) => {
-    const res = await correctionsApi.upload(examId, files);
-    const newCorrections = res.data.map((c: any) => ({
+  uploadPapers: async (examId, files, studentId?) => {
+    const res = await correctionsApi.upload(examId, files, studentId);
+    const newCorrections: CorrectionResult[] = res.data.map((c: any) => ({
       id: c.id,
       examId: c.exam_id,
       studentId: c.student_id,
       paperUrl: c.paper_url,
+      aiAnalysis: mapAIResult(c.ai_result),
       grade: c.grade,
       teacherNotes: c.teacher_notes,
       weakAreas: c.weak_areas,
       savedAt: c.saved_at,
     }));
     set((s) => ({ corrections: [...s.corrections, ...newCorrections] }));
+    return newCorrections;
   },
 
   updateCorrection: async (id, data) => {
@@ -121,6 +124,11 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
           : c
       ),
     }));
+    
+    // Refresh exams to update status if grade changed
+    if (data.grade !== undefined) {
+      useExamsStore.getState().fetchExams();
+    }
   },
 
   processAI: async (correctionId) => {
@@ -129,15 +137,29 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
     set((s) => ({
       corrections: s.corrections.map((c) =>
         c.id === correctionId
-          ? { ...c, aiAnalysis }
+          ? {
+              ...c,
+              aiAnalysis,
+              grade: res.data.grade ?? c.grade,
+              weakAreas: res.data.weak_areas ?? c.weakAreas,
+              aiProcessed: true,
+            }
           : c
       ),
     }));
+    
+    // Refresh exams to update status if grade was set by AI
+    if (res.data.grade !== null && res.data.grade !== undefined) {
+      useExamsStore.getState().fetchExams();
+    }
+    
     return aiAnalysis;
   },
 
   finishCorrection: async (examId) => {
     await correctionsApi.finish(examId);
+    // Refresh exams to update status
+    useExamsStore.getState().fetchExams();
   },
 
   getWeakAreasForStudent: (studentId) => {

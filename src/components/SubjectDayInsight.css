@@ -1,0 +1,272 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SUBJECT DAY INSIGHT — Reusable prep-of-the-day banner
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sdi {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
+  border: 1px solid rgba(79, 70, 229, 0.18);
+  border-radius: var(--radius-md, 12px);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.sdi__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.sdi__header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sdi__icon {
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sdi__icon ion-icon {
+  font-size: 18px;
+  color: #fff;
+}
+
+.sdi__header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sdi__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4F46E5;
+  letter-spacing: -0.01em;
+}
+
+.sdi__subtitle {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.sdi__chevron {
+  font-size: 18px;
+  color: var(--color-text-tertiary, #94a3b8);
+  flex-shrink: 0;
+}
+
+/* ── Body ── */
+.sdi__body {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Sections ── */
+.sdi__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sdi__section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ion-text-color, #1e293b);
+}
+
+.sdi__section-header ion-icon {
+  font-size: 15px;
+  color: #4F46E5;
+}
+
+.sdi__section--alert .sdi__section-header ion-icon {
+  color: #f59e0b;
+}
+
+.sdi__section--positive .sdi__section-header ion-icon {
+  color: #22c55e;
+}
+
+/* ── Lists ── */
+.sdi__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #475569);
+  line-height: 1.5;
+}
+
+.sdi__list li {
+  margin-bottom: 2px;
+}
+
+.sdi__list--suggestions li::marker {
+  color: #7c3aed;
+}
+
+/* ── Student alerts ── */
+.sdi__alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sdi__alert-item {
+  background: rgba(245, 158, 11, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sdi__alert-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ion-text-color, #1e293b);
+}
+
+.sdi__alert-issue {
+  font-size: 11px;
+  color: #b45309;
+}
+
+.sdi__alert-action {
+  font-size: 11px;
+  color: #4F46E5;
+  font-style: italic;
+}
+
+/* ── Positive highlights ── */
+.sdi__highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sdi__highlight-item {
+  background: rgba(34, 197, 94, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sdi__highlight-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ion-text-color, #1e293b);
+}
+
+.sdi__highlight-text {
+  font-size: 11px;
+  color: #15803d;
+}
+
+/* ── Tags ── */
+.sdi__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sdi__tag {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4F46E5;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ── Compact variant ── */
+.sdi--compact .sdi__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.sdi--compact .sdi__icon ion-icon {
+  font-size: 15px;
+}
+
+.sdi--compact .sdi__title {
+  font-size: 12px;
+}
+
+.sdi--compact .sdi__body {
+  gap: 8px;
+  padding-bottom: 10px;
+}
+
+.sdi--compact .sdi__section-header {
+  font-size: 11px;
+}
+
+.sdi--compact .sdi__list {
+  font-size: 11px;
+}
+
+.sdi--compact .sdi__alert-item,
+.sdi--compact .sdi__highlight-item {
+  padding: 6px 8px;
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+  .sdi {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(124, 58, 237, 0.10) 100%);
+    border-color: rgba(79, 70, 229, 0.25);
+  }
+
+  .sdi__title {
+    color: #818cf8;
+  }
+
+  .sdi__tag {
+    background: rgba(79, 70, 229, 0.2);
+    color: #a5b4fc;
+  }
+
+  .sdi__alert-item {
+    background: rgba(245, 158, 11, 0.12);
+  }
+
+  .sdi__alert-issue {
+    color: #fbbf24;
+  }
+
+  .sdi__alert-action {
+    color: #a5b4fc;
+  }
+
+  .sdi__highlight-item {
+    background: rgba(34, 197, 94, 0.12);
+  }
+
+  .sdi__highlight-text {
+    color: #4ade80;
+  }
+}

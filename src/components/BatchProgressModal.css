@@ -1,0 +1,1060 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AI Loading Modal - Enhanced Design with Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.batch-progress-modal {
+  --width: 360px;
+  --max-width: 92%;
+  --height: auto;
+  --max-height: 85%;
+  --border-radius: 24px;
+  --backdrop-opacity: 0.5;
+}
+
+.batch-progress-modal::part(backdrop) {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.batch-progress-modal::part(content) {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.batch-progress-modal ion-header ion-toolbar {
+  --background: transparent;
+  --border-width: 0;
+}
+
+.batch-progress-modal ion-content {
+  --background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+/* ─── Loading Container (Initial State) - Professional Design ─── */
+.batch-progress-modal .bpm-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px 48px;
+  text-align: center;
+  min-height: 320px;
+}
+
+.batch-progress-modal .bpm-loading-animation {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.batch-progress-modal .bpm-loading-brain {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batch-progress-modal .bpm-brain-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--ion-color-primary);
+  opacity: 0;
+  animation: bpm-brain-pulse-anim 2.5s ease-out infinite;
+}
+
+.batch-progress-modal .bpm-brain-pulse.delay-1 {
+  animation-delay: 0.8s;
+}
+
+.batch-progress-modal .bpm-brain-pulse.delay-2 {
+  animation-delay: 1.6s;
+}
+
+.batch-progress-modal .bpm-loading-sparkle {
+  font-size: 42px;
+  color: var(--ion-color-primary);
+  animation: bpm-loading-sparkle-anim 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(21, 102, 94, 0.4));
+}
+
+.batch-progress-modal .bpm-loading-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.batch-progress-modal .bpm-loading-dots span {
+  width: 8px;
+  height: 8px;
+  background: var(--ion-color-primary);
+  border-radius: 50%;
+  animation: bpm-dots-bounce 1.4s ease-in-out infinite;
+}
+
+.batch-progress-modal .bpm-loading-dots span:nth-child(1) { animation-delay: 0s; }
+.batch-progress-modal .bpm-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.batch-progress-modal .bpm-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+.batch-progress-modal .bpm-loading-text {
+  max-width: 260px;
+}
+
+.batch-progress-modal .bpm-loading-text h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
+.batch-progress-modal .bpm-loading-text p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ion-color-medium);
+  line-height: 1.5;
+}
+
+@keyframes bpm-brain-pulse-anim {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes bpm-loading-sparkle-anim {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  50% {
+    transform: scale(1) rotate(0deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+}
+
+@keyframes bpm-dots-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ─── Connection Lost State ─── */
+.batch-progress-modal .bpm-connection-lost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  min-height: 320px;
+}
+
+.batch-progress-modal .bpm-connection-icon {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
+  border-radius: 50%;
+  margin-bottom: 20px;
+}
+
+.batch-progress-modal .bpm-connection-icon ion-icon {
+  font-size: 36px;
+  color: var(--ion-color-warning);
+}
+
+.batch-progress-modal .bpm-connection-x {
+  position: absolute;
+  width: 24px;
+  height: 3px;
+  background: var(--ion-color-danger);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.batch-progress-modal .bpm-connection-x::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 3px;
+  background: var(--ion-color-danger);
+  border-radius: 2px;
+  transform: rotate(90deg);
+}
+
+.batch-progress-modal .bpm-connection-lost h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
+.batch-progress-modal .bpm-connection-lost p {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--ion-color-medium);
+  max-width: 280px;
+}
+
+.batch-progress-modal .bpm-connection-note {
+  font-size: 13px !important;
+  color: var(--ion-color-warning-shade) !important;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-top: 12px !important;
+}
+
+.batch-progress-modal .bpm-connection-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+  margin-top: 24px;
+}
+
+.batch-progress-modal .bpm-connection-actions ion-button {
+  --border-radius: 12px;
+  height: 48px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* ─── Error Container ─── */
+.batch-progress-modal .bpm-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.batch-progress-modal .bpm-error ion-icon {
+  font-size: 56px;
+  color: var(--ion-color-danger);
+  margin-bottom: 16px;
+}
+
+.batch-progress-modal .bpm-error p {
+  margin: 0 0 20px;
+  color: var(--ion-color-medium);
+  font-size: 15px;
+}
+
+/* ─── Main Progress Content ─── */
+.batch-progress-modal .bpm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 0 16px;
+}
+
+/* ─── AI Visual Header ─── */
+.batch-progress-modal .bpm-ai-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0 8px;
+  position: relative;
+}
+
+.batch-progress-modal .bpm-ai-icon-wrapper {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batch-progress-modal .bpm-ai-icon-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--ion-color-primary) 0%, var(--ion-color-tertiary) 100%);
+  transform: rotate(-8deg);
+  animation: bpm-icon-float 3s ease-in-out infinite;
+}
+
+.batch-progress-modal .bpm-ai-icon-bg::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(21, 102, 94, 0.3) 0%, rgba(30, 138, 127, 0.1) 100%);
+  animation: bpm-pulse 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+.batch-progress-modal .bpm-ai-icon {
+  font-size: 32px;
+  color: white;
+  z-index: 1;
+  animation: bpm-sparkle 1.5s ease-in-out infinite;
+}
+
+/* Sparkle particles */
+.batch-progress-modal .bpm-sparkles {
+  position: absolute;
+  inset: -20px;
+  pointer-events: none;
+}
+
+.batch-progress-modal .bpm-sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--ion-color-secondary);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.batch-progress-modal .bpm-sparkle:nth-child(1) {
+  top: 0;
+  left: 50%;
+  animation: bpm-sparkle-float 2s ease-in-out infinite 0s;
+}
+
+.batch-progress-modal .bpm-sparkle:nth-child(2) {
+  top: 20%;
+  right: 5%;
+  animation: bpm-sparkle-float 2s ease-in-out infinite 0.4s;
+}
+
+.batch-progress-modal .bpm-sparkle:nth-child(3) {
+  bottom: 20%;
+  right: 10%;
+  animation: bpm-sparkle-float 2s ease-in-out infinite 0.8s;
+}
+
+.batch-progress-modal .bpm-sparkle:nth-child(4) {
+  bottom: 10%;
+  left: 15%;
+  animation: bpm-sparkle-float 2s ease-in-out infinite 1.2s;
+}
+
+.batch-progress-modal .bpm-sparkle:nth-child(5) {
+  top: 25%;
+  left: 5%;
+  animation: bpm-sparkle-float 2s ease-in-out infinite 1.6s;
+}
+
+/* ─── Status Badge ─── */
+.batch-progress-modal .bpm-status {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.batch-progress-modal .bpm-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.batch-progress-modal .bpm-status-chip.processing {
+  background: rgba(21, 102, 94, 0.1);
+  color: var(--ion-color-primary);
+}
+
+.batch-progress-modal .bpm-status-chip.completed {
+  background: rgba(5, 150, 105, 0.1);
+  color: var(--ion-color-success);
+}
+
+.batch-progress-modal .bpm-status-chip.failed {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--ion-color-danger);
+}
+
+.batch-progress-modal .bpm-status-chip.paused {
+  background: rgba(217, 119, 6, 0.1);
+  color: var(--ion-color-warning);
+}
+
+.batch-progress-modal .bpm-status-chip.cancelled {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--ion-color-medium);
+}
+
+.batch-progress-modal .bpm-status-chip ion-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.batch-progress-modal .bpm-status-chip ion-icon {
+  font-size: 16px;
+}
+
+/* ─── Progress Section ─── */
+.batch-progress-modal .bpm-progress-section {
+  background: linear-gradient(135deg, rgba(21, 102, 94, 0.06) 0%, rgba(30, 138, 127, 0.03) 100%);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.batch-progress-modal .bpm-progress-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-tertiary));
+  opacity: 0.3;
+}
+
+.batch-progress-modal .bpm-progress-track {
+  height: 10px;
+  background: rgba(21, 102, 94, 0.12);
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.batch-progress-modal .bpm-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ion-color-primary) 0%, var(--ion-color-tertiary) 100%);
+  border-radius: 5px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.batch-progress-modal .bpm-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: bpm-shimmer 2s infinite;
+}
+
+.batch-progress-modal .bpm-progress-fill.warning {
+  background: linear-gradient(90deg, var(--ion-color-warning) 0%, #f59e0b 100%);
+}
+
+.batch-progress-modal .bpm-progress-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.batch-progress-modal .bpm-progress-count {
+  font-size: 14px;
+  color: var(--ion-color-medium);
+}
+
+.batch-progress-modal .bpm-progress-count strong {
+  color: var(--ion-color-primary);
+}
+
+.batch-progress-modal .bpm-progress-percent {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+/* ─── Current Item ─── */
+.batch-progress-modal .bpm-current-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(21, 102, 94, 0.08);
+  border-radius: 12px;
+  border-left: 3px solid var(--ion-color-primary);
+}
+
+.batch-progress-modal .bpm-current-item ion-icon {
+  font-size: 20px;
+  color: var(--ion-color-primary);
+  flex-shrink: 0;
+  animation: bpm-bounce 1s ease-in-out infinite;
+}
+
+.batch-progress-modal .bpm-current-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.batch-progress-modal .bpm-current-item-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ion-color-medium);
+  margin-bottom: 2px;
+}
+
+.batch-progress-modal .bpm-current-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ion-color-primary-shade);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Time Estimate ─── */
+.batch-progress-modal .bpm-time-estimate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--ion-color-light);
+  border-radius: 10px;
+}
+
+.batch-progress-modal .bpm-time-estimate ion-icon {
+  font-size: 18px;
+  color: var(--ion-color-medium);
+}
+
+.batch-progress-modal .bpm-time-estimate span {
+  font-size: 14px;
+  color: var(--ion-color-medium-shade);
+}
+
+.batch-progress-modal .bpm-time-estimate strong {
+  color: var(--ion-color-primary);
+}
+
+/* ─── Connection Warning (during retry) ─── */
+.batch-progress-modal .bpm-connection-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.batch-progress-modal .bpm-connection-warning ion-icon {
+  font-size: 18px;
+  color: var(--ion-color-warning);
+  animation: bpm-wifi-pulse 1.5s ease-in-out infinite;
+}
+
+.batch-progress-modal .bpm-connection-warning span {
+  font-size: 13px;
+  color: var(--ion-color-warning-shade);
+  font-weight: 500;
+}
+
+@keyframes bpm-wifi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ─── Partial Failures Warning ─── */
+.batch-progress-modal .bpm-partial-failures {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(248, 113, 113, 0.04) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.15);
+}
+
+.batch-progress-modal .bpm-partial-failures ion-icon {
+  font-size: 18px;
+  color: var(--ion-color-danger);
+  flex-shrink: 0;
+}
+
+.batch-progress-modal .bpm-partial-failures span {
+  font-size: 13px;
+  color: var(--ion-color-danger-shade);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* ─── Results Summary ─── */
+.batch-progress-modal .bpm-results {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.batch-progress-modal .bpm-result-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.batch-progress-modal .bpm-result-card.success {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+}
+
+.batch-progress-modal .bpm-result-card.failed {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(248, 113, 113, 0.05) 100%);
+}
+
+.batch-progress-modal .bpm-result-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.batch-progress-modal .bpm-result-card.success .bpm-result-icon {
+  background: rgba(5, 150, 105, 0.15);
+}
+
+.batch-progress-modal .bpm-result-card.failed .bpm-result-icon {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.batch-progress-modal .bpm-result-icon ion-icon {
+  font-size: 20px;
+}
+
+.batch-progress-modal .bpm-result-card.success .bpm-result-icon ion-icon {
+  color: var(--ion-color-success);
+}
+
+.batch-progress-modal .bpm-result-card.failed .bpm-result-icon ion-icon {
+  color: var(--ion-color-danger);
+}
+
+.batch-progress-modal .bpm-result-count {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.batch-progress-modal .bpm-result-card.success .bpm-result-count {
+  color: var(--ion-color-success);
+}
+
+.batch-progress-modal .bpm-result-card.failed .bpm-result-count {
+  color: var(--ion-color-danger);
+}
+
+.batch-progress-modal .bpm-result-label {
+  font-size: 12px;
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Errors Section ─── */
+.batch-progress-modal .bpm-errors-section {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.06) 0%, rgba(248, 113, 113, 0.03) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.15);
+  overflow: hidden;
+}
+
+.batch-progress-modal .bpm-errors-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.batch-progress-modal .bpm-errors-header:hover {
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.batch-progress-modal .bpm-errors-header span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ion-color-danger);
+}
+
+.batch-progress-modal .bpm-errors-header span ion-icon {
+  font-size: 18px;
+}
+
+.batch-progress-modal .bpm-errors-header > ion-icon {
+  font-size: 18px;
+  color: var(--ion-color-medium);
+  transition: transform 0.2s;
+}
+
+.batch-progress-modal .bpm-errors-header > ion-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.batch-progress-modal .bpm-errors-list {
+  border-top: 1px solid rgba(220, 38, 38, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.batch-progress-modal .bpm-error-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(220, 38, 38, 0.08);
+}
+
+.batch-progress-modal .bpm-error-item:last-child {
+  border-bottom: none;
+}
+
+.batch-progress-modal .bpm-error-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+  margin-bottom: 4px;
+}
+
+.batch-progress-modal .bpm-error-item-message {
+  font-size: 12px;
+  color: var(--ion-color-danger-shade);
+  line-height: 1.4;
+}
+
+/* ─── Action Buttons ─── */
+.batch-progress-modal .bpm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.batch-progress-modal .bpm-actions ion-button {
+  --border-radius: 12px;
+  height: 50px;
+  font-weight: 600;
+  font-size: 15px;
+  margin: 0;
+}
+
+.batch-progress-modal .bpm-actions ion-button.bpm-primary-action {
+  --background: linear-gradient(135deg, var(--ion-color-primary) 0%, var(--ion-color-tertiary) 100%);
+  --box-shadow: 0 4px 14px rgba(21, 102, 94, 0.25);
+}
+
+/* ─── Background Note ─── */
+.batch-progress-modal .bpm-bg-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.08) 0%, rgba(245, 158, 11, 0.04) 100%);
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.batch-progress-modal .bpm-bg-note ion-icon {
+  font-size: 18px;
+  color: var(--ion-color-warning);
+  flex-shrink: 0;
+}
+
+.batch-progress-modal .bpm-bg-note p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ion-color-warning-shade);
+  line-height: 1.4;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes bpm-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+@keyframes bpm-icon-float {
+  0%, 100% {
+    transform: rotate(-8deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-8deg) translateY(-4px);
+  }
+}
+
+@keyframes bpm-sparkle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes bpm-sparkle-float {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-8px) scale(0.8);
+  }
+}
+
+@keyframes bpm-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes bpm-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Completed state celebration */
+@keyframes bpm-success-pop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.batch-progress-modal .bpm-ai-header.completed .bpm-ai-icon-bg {
+  background: linear-gradient(135deg, var(--ion-color-success) 0%, #10B981 100%);
+  animation: bpm-success-pop 0.5s ease-out forwards;
+}
+
+.batch-progress-modal .bpm-ai-header.failed .bpm-ai-icon-bg {
+  background: linear-gradient(135deg, var(--ion-color-danger) 0%, #F87171 100%);
+}
+
+.batch-progress-modal .bpm-ai-header.paused .bpm-ai-icon-bg {
+  background: linear-gradient(135deg, var(--ion-color-warning) 0%, #F59E0B 100%);
+  animation: none;
+}
+
+.batch-progress-modal .bpm-ai-header.completed .bpm-sparkles,
+.batch-progress-modal .bpm-ai-header.failed .bpm-sparkles,
+.batch-progress-modal .bpm-ai-header.paused .bpm-sparkles {
+  display: none;
+}
+
+/* ─── Responsive adjustments ─── */
+@media (max-width: 380px) {
+  .batch-progress-modal {
+    --width: 95%;
+  }
+  
+  .batch-progress-modal .bpm-ai-icon-wrapper {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .batch-progress-modal .bpm-ai-icon-bg {
+    border-radius: 16px;
+  }
+  
+  .batch-progress-modal .bpm-ai-icon {
+    font-size: 28px;
+  }
+  
+  .batch-progress-modal .bpm-progress-percent {
+    font-size: 20px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Minimized Floating Bar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.bpm-minimized-bar {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  width: calc(100% - 32px);
+  max-width: 400px;
+  background: linear-gradient(135deg, var(--ion-color-primary) 0%, var(--ion-color-tertiary) 100%);
+  border-radius: 16px;
+  padding: 14px 18px;
+  box-shadow: 0 8px 32px rgba(21, 102, 94, 0.35), 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  animation: bpm-minimized-slide-in 0.3s ease-out;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bpm-minimized-bar:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 12px 40px rgba(21, 102, 94, 0.4), 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.bpm-minimized-bar:active {
+  transform: translateX(-50%) scale(0.98);
+}
+
+.bpm-minimized-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bpm-minimized-icon {
+  font-size: 24px;
+  color: white;
+  flex-shrink: 0;
+  animation: bpm-sparkle 1.5s ease-in-out infinite;
+}
+
+.bpm-minimized-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bpm-minimized-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bpm-minimized-progress {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+.bpm-minimized-bar-track {
+  width: 60px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.bpm-minimized-bar-fill {
+  height: 100%;
+  background: white;
+  border-radius: 3px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.bpm-minimized-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  animation: bpm-shimmer 2s infinite;
+}
+
+@keyframes bpm-minimized-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Mobile adjustments for minimized bar */
+@media (max-width: 380px) {
+  .bpm-minimized-bar {
+    width: calc(100% - 24px);
+    bottom: 70px;
+    padding: 12px 14px;
+  }
+  
+  .bpm-minimized-icon {
+    font-size: 20px;
+  }
+  
+  .bpm-minimized-title {
+    font-size: 13px;
+  }
+  
+  .bpm-minimized-bar-track {
+    width: 50px;
+  }
+}

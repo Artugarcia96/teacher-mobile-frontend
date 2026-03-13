@@ -1,0 +1,175 @@
+.post-class-prompt {
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  left: var(--space-md);
+  right: var(--space-md);
+  background: var(--ion-card-background);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.post-class-prompt__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  padding-bottom: var(--space-xs);
+}
+
+.post-class-prompt__icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.post-class-prompt__icon ion-icon {
+  font-size: 20px;
+  color: var(--ion-color-primary);
+}
+
+.post-class-prompt__title-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-class-prompt__title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  margin: 0;
+}
+
+.post-class-prompt__class {
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-primary);
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+
+.post-class-prompt__close {
+  background: none;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94A3B8;
+  margin-top: -4px;
+  margin-right: -8px;
+}
+
+.post-class-prompt__close:active {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.post-class-prompt__close ion-icon {
+  font-size: 22px;
+}
+
+.post-class-prompt__body {
+  padding: 0 var(--space-md);
+}
+
+.post-class-prompt__input {
+  --background: rgba(0, 0, 0, 0.03);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --padding-top: var(--space-sm);
+  --padding-bottom: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+
+.post-class-prompt__footer {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  padding-top: var(--space-sm);
+}
+
+.post-class-prompt__skip {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  color: #64748B;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.post-class-prompt__skip:disabled {
+  opacity: 0.5;
+}
+
+.post-class-prompt__save {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--ion-color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.post-class-prompt__save:disabled {
+  opacity: 0.5;
+}
+
+.post-class-prompt__save ion-icon {
+  font-size: 18px;
+}
+
+.post-class-prompt__save ion-spinner {
+  width: 18px;
+  height: 18px;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .post-class-prompt {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .post-class-prompt__input {
+    --background: rgba(255, 255, 255, 0.05);
+  }
+
+  .post-class-prompt__skip {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .post-class-prompt__close:active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}

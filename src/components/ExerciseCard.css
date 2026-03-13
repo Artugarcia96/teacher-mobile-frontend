@@ -5,7 +5,7 @@
   isolation: isolate;
   position: relative;
   box-shadow: var(--shadow-sm) !important;
-  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+  border: 1px solid var(--color-border) !important;
 }
 
 .exercise-card-header {
@@ -32,7 +32,7 @@
   display: flex;
   justify-content: space-between;
   font-size: var(--font-size-xs);
-  color: #94A3B8;
+  color: var(--color-text-tertiary);
   margin-bottom: var(--space-md);
 }
 
@@ -60,7 +60,7 @@
   gap: var(--space-sm);
   font-size: var(--font-size-sm);
   padding: var(--space-sm) var(--space-md);
-  background: rgba(15, 23, 42, 0.03);
+  background: var(--color-surface-subtle);
   border-radius: var(--radius-sm);
 }
 
@@ -84,7 +84,7 @@
 
 .exercise-card-more {
   font-size: var(--font-size-xs);
-  color: #94A3B8;
+  color: var(--color-text-tertiary);
   padding: var(--space-xs) var(--space-md);
 }
 
@@ -93,7 +93,7 @@
   gap: var(--space-sm);
   margin-top: var(--space-md);
   padding-top: var(--space-md);
-  border-top: 1px solid rgba(15, 23, 42, 0.04);
+  border-top: 1px solid var(--color-border);
 }
 
 .exercise-card-downloads ion-button {
@@ -124,6 +124,121 @@
   min-width: 32px;
 }
 
+/* ─── Date indicators ─── */
+.exercise-card-dates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--ion-color-primary-rgb), 0.04);
+  border-radius: var(--radius-sm);
+}
+
+.exercise-card-date {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.exercise-card-date ion-icon {
+  font-size: 14px;
+  color: var(--ion-color-primary);
+}
+
+.exercise-card-date ion-badge {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+/* ─── Iteration UI ─── */
+.exercise-card-iteration {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.exercise-card-iteration-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm);
+  background: rgba(var(--ion-color-tertiary-rgb), 0.06);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-tertiary);
+  cursor: pointer;
+}
+
+.exercise-card-iteration-toggle ion-icon:first-child {
+  font-size: 18px;
+}
+
+.exercise-card-iteration-toggle span {
+  flex: 1;
+  text-align: left;
+  font-weight: 500;
+}
+
+.exercise-card-iteration-content {
+  margin-top: var(--space-md);
+}
+
+.exercise-card-iteration-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-sm);
+}
+
+.exercise-card-iteration-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.exercise-card-iteration-quick ion-chip {
+  --background: transparent;
+  --color: var(--ion-color-tertiary);
+  font-size: 11px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.exercise-card-iteration-input {
+  --background: var(--color-surface-subtle);
+  --border-radius: var(--radius-sm);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.exercise-card-iteration-input ion-textarea {
+  font-size: var(--font-size-sm);
+}
+
+.exercise-card-iteration-error {
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-danger);
+  margin: 0 0 var(--space-sm);
+  text-align: center;
+}
+
+.exercise-card-iteration-history {
+  margin-top: var(--space-sm);
+  text-align: center;
+}
+
+.exercise-card-iteration-history-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
 /* ─── Dark theme ─── */
 @media (prefers-color-scheme: dark) {
   .exercise-card {
@@ -137,5 +252,21 @@
 
   .exercise-card-downloads {
     border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exercise-card-dates {
+    background: rgba(var(--ion-color-primary-rgb), 0.08);
+  }
+
+  .exercise-card-iteration {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exercise-card-iteration-toggle {
+    background: rgba(var(--ion-color-tertiary-rgb), 0.1);
+  }
+
+  .exercise-card-iteration-input {
+    --background: rgba(255, 255, 255, 0.04);
   }
 }

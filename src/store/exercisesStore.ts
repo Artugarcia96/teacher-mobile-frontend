@@ -25,6 +25,11 @@ function mapExercise(e: any): Exercise {
     pdfExercisesUrl: e.pdf_exercises_url,
     pdfSolutionsUrl: e.pdf_solutions_url,
     correctionStatus: e.correction_status || null,
+    deliveryDate: e.delivery_date,
+    correctionDate: e.correction_date,
+    iterationHistory: e.iteration_history,
+    deliveryStatus: e.delivery_status,
+    correctionDeadlineStatus: e.correction_deadline_status,
   };
 }
 
@@ -36,7 +41,10 @@ interface GenerateParams {
   refinementPrompt?: string;
   difficulty?: 'easier' | 'same' | 'harder';
   numQuestions?: number;
+  numBlankPages?: number;
   focusTopics?: string[];
+  deliveryDate?: string;
+  correctionDate?: string;
 }
 
 interface ExercisesState {
@@ -44,6 +52,7 @@ interface ExercisesState {
   loading: boolean;
   fetchExercises: (studentId?: string) => Promise<void>;
   generateExercises: (params: GenerateParams) => Promise<Exercise[]>;
+  iterateExercise: (id: string, instruction: string) => Promise<Exercise>;
   renameExercise: (id: string, name: string) => Promise<void>;
   deleteExercise: (id: string) => Promise<void>;
 }
@@ -68,6 +77,15 @@ export const useExercisesStore = create<ExercisesState>((set) => ({
     const newExercises = res.data.map(mapExercise);
     set((s) => ({ exercises: [...newExercises, ...s.exercises] }));
     return newExercises;
+  },
+
+  iterateExercise: async (id, instruction) => {
+    const res = await exercisesApi.iterate(id, { instruction });
+    const updatedExercise = mapExercise(res.data);
+    set((s) => ({
+      exercises: s.exercises.map((e) => (e.id === id ? updatedExercise : e)),
+    }));
+    return updatedExercise;
   },
 
   renameExercise: async (id, name) => {

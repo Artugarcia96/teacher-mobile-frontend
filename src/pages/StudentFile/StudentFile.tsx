@@ -4,7 +4,7 @@ import {
   IonButton, IonList, IonItem, IonBadge, IonLabel,
   IonTextarea, IonIcon, IonSpinner,
 } from '@ionic/react';
-import { addOutline, sparklesOutline, chevronDownOutline, chevronUpOutline, chevronForwardOutline } from 'ionicons/icons';
+import { addOutline, sparklesOutline, chevronDownOutline, chevronUpOutline, chevronForwardOutline, trendingUpOutline, trendingDownOutline, removeOutline } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExamsStore } from '../../store/examsStore';
@@ -128,6 +128,45 @@ const StudentFile: React.FC = () => {
     ? corrections.reduce((sum, c) => sum + (c.grade || 0), 0) / corrections.length
     : null;
 
+  // Calculate performance trend
+  const performanceTrend = useMemo(() => {
+    if (corrections.length < 2) return 'stable';
+    const sorted = [...corrections].sort((a, b) => 
+      new Date(a.savedAt || '').getTime() - new Date(b.savedAt || '').getTime()
+    );
+    const midpoint = Math.floor(sorted.length / 2);
+    const firstHalf = sorted.slice(0, midpoint);
+    const secondHalf = sorted.slice(midpoint);
+    
+    const firstAvg = firstHalf.reduce((sum, c) => sum + (c.grade || 0), 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((sum, c) => sum + (c.grade || 0), 0) / secondHalf.length;
+    
+    const diff = secondAvg - firstAvg;
+    if (diff > 0.5) return 'improving';
+    if (diff < -0.5) return 'declining';
+    return 'stable';
+  }, [corrections]);
+
+  const trendIcon = performanceTrend === 'improving' ? trendingUpOutline : 
+                    performanceTrend === 'declining' ? trendingDownOutline : removeOutline;
+  const trendColor = performanceTrend === 'improving' ? 'success' : 
+                     performanceTrend === 'declining' ? 'danger' : 'medium';
+  const trendLabel = performanceTrend === 'improving' ? 'Mejorando' :
+                     performanceTrend === 'declining' ? 'En descenso' : 'Estable';
+
+  // Aggregate weak areas with frequency counts
+  const aggregatedWeakAreas = useMemo(() => {
+    const counts = new Map<string, number>();
+    corrections.forEach((c) => {
+      (c.weakAreas || []).forEach((area) => {
+        counts.set(area, (counts.get(area) || 0) + 1);
+      });
+    });
+    return Array.from(counts.entries())
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [corrections]);
+
   const displayedGrades = showAllGrades ? corrections : corrections.slice(0, 3);
   const displayedNotes = showAllNotes ? student.notes : student.notes.slice(0, 2);
 
@@ -163,22 +202,52 @@ const StudentFile: React.FC = () => {
             <div className="metric-card__label">Promedio</div>
           </div>
           <div className="metric-card">
-            <div className="metric-card__value">{weakAreas.length}</div>
+            <div className="metric-card__value">{aggregatedWeakAreas.length}</div>
             <div className="metric-card__label">Áreas débiles</div>
           </div>
         </div>
 
+        {/* Performance trend indicator */}
+        {corrections.length >= 2 && (
+          <div className={`sf-trend sf-trend--${performanceTrend}`}>
+            <IonIcon icon={trendIcon} />
+            <span>{trendLabel}</span>
+            <span className="sf-trend__detail">
+              {performanceTrend === 'improving' 
+                ? 'Las últimas notas muestran mejora' 
+                : performanceTrend === 'declining'
+                ? 'Las últimas notas han bajado'
+                : 'Rendimiento constante'}
+            </span>
+          </div>
+        )}
+
         {/* Weak Areas + Generate CTA */}
-        {weakAreas.length > 0 && (
+        {aggregatedWeakAreas.length > 0 && (
           <div className="sf-section">
             <div className="sf-section__header">
               <span className="sf-section__title">Áreas a mejorar</span>
+              <span className="sf-section__subtitle">
+                Basado en {corrections.length} exámenes
+              </span>
             </div>
             <div className="sf-weak-areas">
-              {weakAreas.map((area, idx) => (
-                <IonBadge key={idx} color="warning" className="sf-weak-badge">{area.topic}</IonBadge>
+              {aggregatedWeakAreas.slice(0, 6).map((area, idx) => (
+                <div key={idx} className="sf-weak-area-item">
+                  <IonBadge color="warning" className="sf-weak-badge">{area.topic}</IonBadge>
+                  {area.count > 1 && (
+                    <span className="sf-weak-area-count">
+                      {area.count}/{corrections.length}
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
+            {aggregatedWeakAreas.length > 6 && (
+              <p className="sf-weak-areas-more">
+                +{aggregatedWeakAreas.length - 6} áreas más
+              </p>
+            )}
           </div>
         )}
 
@@ -315,7 +384,7 @@ const StudentFile: React.FC = () => {
                     {expandedExerciseGroups.has(group.name) && (
                       <div className="sf-exercise-group__content">
                         {group.exercises.map((ex) => (
-                          <ExerciseCard key={ex.id} exercise={ex} onDelete={handleDeleteExercise} />
+                          <ExerciseCard key={ex.id} exercise={ex} onDelete={handleDeleteExercise} showIteration />
                         ))}
                       </div>
                     )}
@@ -326,7 +395,7 @@ const StudentFile: React.FC = () => {
               // Simple list for few exercises
               <div className="sf-exercises-list">
                 {exercises.map((ex) => (
-                  <ExerciseCard key={ex.id} exercise={ex} onDelete={handleDeleteExercise} />
+                  <ExerciseCard key={ex.id} exercise={ex} onDelete={handleDeleteExercise} showIteration />
                 ))}
               </div>
             )}

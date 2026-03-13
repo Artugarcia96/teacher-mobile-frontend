@@ -1,24 +1,69 @@
 import { create } from 'zustand';
-import { ClassGroup } from '../types';
+import { ClassGroup, ClassSubjectSummary } from '../types';
 import { classes as classesApi } from '../services/api';
+
+export interface DeletePreview {
+  class_id: string;
+  class_name: string;
+  counts: {
+    students: number;
+    lectures: number;
+    exams: number;
+    corrections: number;
+    calendar_events: number;
+    notes: number;
+    exercises: number;
+  };
+}
 
 interface ClassesState {
   classes: ClassGroup[];
+  classSubjects: Record<string, ClassSubjectSummary[]>;
   loading: boolean;
   error: string | null;
   fetchClasses: () => Promise<void>;
+  fetchClassSubjects: (classId: string) => Promise<ClassSubjectSummary[]>;
   addClass: (c: { name: string; subject?: string; year: string }) => Promise<string>;
   archiveClass: (id: string) => Promise<void>;
+  deleteClassPermanently: (id: string) => Promise<void>;
+  bulkDeleteClasses: (ids: string[]) => Promise<{ deleted: number; errors: string[] }>;
+  getDeletePreview: (id: string) => Promise<DeletePreview>;
   importStudents: (classId: string, file: File) => Promise<number>;
 }
 
 export const useClassesStore = create<ClassesState>((set, get) => ({
   classes: [],
+  classSubjects: {},
   loading: false,
   error: null,
 
+  fetchClassSubjects: async (classId: string) => {
+    try {
+      const res = await classesApi.getSubjectsSummary(classId);
+      const subjects: ClassSubjectSummary[] = res.data.map((s: any) => ({
+        subjectId: s.subject_id,
+        subjectName: s.subject_name,
+        lectureId: s.lecture_id,
+        examCount: s.exam_count,
+        pendingCorrections: s.pending_corrections,
+        exerciseCount: s.exercise_count,
+        topicCount: s.topic_count,
+      }));
+      set((state) => ({
+        classSubjects: { ...state.classSubjects, [classId]: subjects },
+      }));
+      return subjects;
+    } catch {
+      return [];
+    }
+  },
+
   fetchClasses: async () => {
-    set({ loading: true, error: null });
+    const hasCachedClasses = get().classes.length > 0;
+    // Only show loading spinner on initial load; when we have cached data, refresh in background
+    if (!hasCachedClasses) {
+      set({ loading: true, error: null });
+    }
     try {
       const res = await classesApi.list();
       const data = res.data.map((c: any) => ({
@@ -28,8 +73,9 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
         year: c.year,
         studentCount: c.student_count,
         lectureCount: c.lecture_count || 0,
-        lastActivity: new Date().toISOString().slice(0, 10),
+        lastActivity: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
         archived: c.archived,
+        lecturesBasic: c.lectures || [],
       }));
       set({ classes: data, loading: false });
     } catch (err: any) {
@@ -39,6 +85,8 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
 
   addClass: async (c) => {
     const res = await classesApi.create(c);
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const newClass: ClassGroup = {
       id: res.data.id,
       name: res.data.name,
@@ -46,7 +94,7 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       year: res.data.year,
       studentCount: res.data.student_count,
       lectureCount: res.data.lecture_count || 0,
-      lastActivity: new Date().toISOString().slice(0, 10),
+      lastActivity: todayStr,
       archived: res.data.archived,
     };
     set((s) => ({ classes: [...s.classes, newClass] }));
@@ -56,6 +104,25 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
   archiveClass: async (id) => {
     await classesApi.delete(id);
     set((s) => ({ classes: s.classes.filter((c) => c.id !== id) }));
+  },
+
+  deleteClassPermanently: async (id) => {
+    await classesApi.deletePermanently(id);
+    set((s) => ({ classes: s.classes.filter((c) => c.id !== id) }));
+  },
+
+  bulkDeleteClasses: async (ids) => {
+    const res = await classesApi.bulkDelete(ids);
+    // Remove successfully deleted classes from state
+    if (res.data.deleted > 0) {
+      set((s) => ({ classes: s.classes.filter((c) => !ids.includes(c.id)) }));
+    }
+    return { deleted: res.data.deleted, errors: res.data.errors || [] };
+  },
+
+  getDeletePreview: async (id) => {
+    const res = await classesApi.getDeletePreview(id);
+    return res.data;
   },
 
   importStudents: async (classId, file) => {

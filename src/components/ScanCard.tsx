@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { IonCard, IonCardContent, IonSelect, IonSelectOption, IonInput, IonButton, IonBadge, IonItem, IonTextarea, IonSpinner, IonIcon } from '@ionic/react';
-import { checkmarkCircle, closeCircle, alertCircle, helpCircle, sparkles, chevronDownOutline, chevronUpOutline, imageOutline } from 'ionicons/icons';
+import { checkmarkCircle, closeCircle, alertCircle, helpCircle, sparkles, chevronDownOutline, chevronUpOutline, imageOutline, downloadOutline } from 'ionicons/icons';
 import { Student, AIAnalysis } from '../types';
 import './ScanCard.css';
 
@@ -11,6 +11,7 @@ interface Props {
   students: Student[];
   maxScore: number;
   grade: number | null;
+  originalGrade?: number | null;
   teacherNotes: string;
   saved: boolean;
   saving?: boolean;
@@ -23,6 +24,7 @@ interface Props {
   onSave: () => void;
   onProcessAI?: () => void;
   onPreviewPaper?: () => void;
+  onDownloadPaper?: () => void;
 }
 
 function getCorrectPercent(questions: AIAnalysis['questions']): number | null {
@@ -41,12 +43,14 @@ const statusConfig = {
 
 const ScanCard: React.FC<Props> = ({
   index, aiAnalysis, selectedStudentId, students,
-  maxScore, grade, teacherNotes, saved, saving, aiProcessing, aiError,
-  paperUrl, onStudentChange, onGradeChange, onNotesChange, onSave, onProcessAI, onPreviewPaper,
+  maxScore, grade, originalGrade, teacherNotes, saved, saving, aiProcessing, aiError,
+  paperUrl, onStudentChange, onGradeChange, onNotesChange, onSave, onProcessAI, onPreviewPaper, onDownloadPaper,
 }) => {
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   const hasAI = !!aiAnalysis;
   const confidence = aiAnalysis?.confidence || 0;
+  
+  const hasGradeChanged = saved && grade !== originalGrade;
 
   const questionStats = aiAnalysis?.questions?.reduce(
     (acc, q) => {
@@ -69,13 +73,26 @@ const ScanCard: React.FC<Props> = ({
   );
 
   return (
-    <IonCard className={`scan-card ${saved ? 'scan-card-saved' : ''}`}>
+    <IonCard className={`scan-card ${saved ? 'scan-card-saved' : ''} ${hasGradeChanged ? 'scan-card-modified' : ''}`}>
       <IonCardContent className="scan-card-content">
         <div className="scan-card-top-row">
-          <span className="scan-card-index" onClick={onPreviewPaper} style={onPreviewPaper ? { cursor: 'pointer' } : undefined}>
-            #{index + 1}
-            {onPreviewPaper && <IonIcon icon={imageOutline} className="scan-card-preview-icon" />}
-          </span>
+          <div className="scan-card-index-group">
+            <span className="scan-card-index" onClick={onPreviewPaper} style={onPreviewPaper ? { cursor: 'pointer' } : undefined}>
+              #{index + 1}
+              {onPreviewPaper && <IonIcon icon={imageOutline} className="scan-card-preview-icon" />}
+            </span>
+            {onDownloadPaper && paperUrl && (
+              <IonButton 
+                fill="clear" 
+                size="small" 
+                onClick={onDownloadPaper}
+                className="scan-card-download-btn"
+                title="Descargar examen"
+              >
+                <IonIcon icon={downloadOutline} slot="icon-only" />
+              </IonButton>
+            )}
+          </div>
           
           <IonSelect
             value={selectedStudentId}
@@ -90,7 +107,7 @@ const ScanCard: React.FC<Props> = ({
             ))}
           </IonSelect>
 
-          <div className="scan-card-grade-inline">
+          <div className={`scan-card-grade-inline ${hasGradeChanged ? 'scan-card-grade-modified' : ''}`}>
             <IonInput
               type="number"
               min={0}
@@ -101,13 +118,12 @@ const ScanCard: React.FC<Props> = ({
                 const val = parseFloat(e.detail.value ?? '');
                 if (!isNaN(val)) onGradeChange(val);
               }}
-              disabled={saved}
               className="scan-card-grade-input"
             />
             <span className="scan-card-max">/{maxScore}</span>
           </div>
 
-          {saved ? (
+          {saved && !hasGradeChanged ? (
             <IonBadge color="success" className="scan-card-status">✓</IonBadge>
           ) : (
             <IonButton 
@@ -115,8 +131,9 @@ const ScanCard: React.FC<Props> = ({
               onClick={onSave} 
               disabled={grade === null || !selectedStudentId || saving}
               className="scan-card-save-btn"
+              color={hasGradeChanged ? 'warning' : 'primary'}
             >
-              {saving ? <IonSpinner name="crescent" /> : 'Guardar'}
+              {saving ? <IonSpinner name="crescent" /> : hasGradeChanged ? 'Actualizar' : 'Guardar'}
             </IonButton>
           )}
         </div>

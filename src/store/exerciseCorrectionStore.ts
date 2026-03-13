@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ExerciseCorrectionResult, AIAnalysis, BulkUploadResult } from '../types';
 import { exerciseCorrections as api } from '../services/api';
+import { useExercisesStore } from './exercisesStore';
 
 function mapAIResult(aiResult: any): AIAnalysis | undefined {
   if (!aiResult) return undefined;
@@ -113,6 +114,11 @@ export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, 
           : c
       ),
     }));
+    
+    // Refresh exercises to update status if grade changed
+    if (data.grade !== undefined) {
+      useExercisesStore.getState().fetchExercises();
+    }
   },
 
   processAI: async (correctionId) => {
@@ -130,11 +136,19 @@ export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, 
           : c
       ),
     }));
+    
+    // Refresh exercises to update status if grade was set by AI
+    if (res.data.grade !== null && res.data.grade !== undefined) {
+      useExercisesStore.getState().fetchExercises();
+    }
+    
     return aiAnalysis;
   },
 
   finishCorrection: async (exerciseId) => {
     await api.finish(exerciseId);
+    // Refresh exercises to update status
+    useExercisesStore.getState().fetchExercises();
   },
 
   clearCorrections: () => {

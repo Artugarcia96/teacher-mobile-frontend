@@ -5,23 +5,23 @@ import {
   IonSpinner, IonSegment, IonSegmentButton, IonLabel, IonSelect, IonSelectOption,
   IonChip, IonModal,
 } from '@ionic/react';
-import { closeOutline, cameraOutline, checkmarkCircleOutline, pencilOutline, eyeOutline, cloudUploadOutline, checkmarkOutline, warningOutline, helpOutline, sparkles, expandOutline, funnelOutline, swapVerticalOutline, trendingDownOutline, downloadOutline, ellipsisVertical } from 'ionicons/icons';
+import { closeOutline, checkmarkCircleOutline, pencilOutline, eyeOutline, cloudUploadOutline, checkmarkOutline, warningOutline, helpOutline, sparkles, expandOutline, downloadOutline, documentTextOutline, timeOutline, peopleOutline, chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
-import { corrections as correctionsApi, exams as examsApi } from '../../services/api';
-import { BulkUploadResult, BulkUploadNeedsReview } from '../../types';
+import { corrections as correctionsApi, exams as examsApi, batch, BatchJobProgress } from '../../services/api';
+import { BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
 import EmptyState from '../../components/EmptyState';
+import BatchProgressModal from '../../components/BatchProgressModal';
 import './Correction.css';
 
 const Correction: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const history = useHistory();
   const location = useLocation();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
@@ -48,7 +48,6 @@ const Correction: React.FC = () => {
   const isReviewMode = exam?.status === 'corrected';
   const [viewMode, setViewMode] = useState<'review' | 'edit'>(isReviewMode ? 'review' : 'edit');
 
-  // Guard: if exam was deleted while this page is still mounted, redirect back
   useEffect(() => {
     if (!loading && allExams.length > 0 && !exam) {
       history.replace('/tabs/exams');
@@ -60,15 +59,18 @@ const Correction: React.FC = () => {
 
   const [localGrades, setLocalGrades] = useState<Record<string, { grade: number | null; notes: string; studentId: string }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [uploading, setUploading] = useState(false);
   
-  const [uploadMode, setUploadMode] = useState<'normal' | 'bulk'>('normal');
   const [bulkResult, setBulkResult] = useState<BulkUploadResult | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [reviewAssignments, setReviewAssignments] = useState<Record<string, string>>({});
   const [confirmingReview, setConfirmingReview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
+
+  // Per-student upload state
+  const [uploadingForStudent, setUploadingForStudent] = useState<string | null>(null);
+  const studentFileInputRef = useRef<HTMLInputElement>(null);
+  const [showStudentList, setShowStudentList] = useState(false);
 
   useEffect(() => {
     fetchExams();
@@ -87,10 +89,8 @@ const Correction: React.FC = () => {
       examCorrections.forEach((c) => {
         if (!next[c.id]) {
           next[c.id] = { grade: c.grade, notes: c.teacherNotes || '', studentId: c.studentId || '' };
-        } else {
-          if (!next[c.id].studentId && c.studentId) {
-            next[c.id] = { ...next[c.id], studentId: c.studentId };
-          }
+        } else if (!next[c.id].studentId && c.studentId) {
+          next[c.id] = { ...next[c.id], studentId: c.studentId };
         }
       });
       return next;
@@ -107,30 +107,40 @@ const Correction: React.FC = () => {
     return (
       <IonPage>
         <IonContent className="ion-padding">
-          <IonSpinner />
+          <div className="exams-loading"><IonSpinner color="primary" /></div>
         </IonContent>
       </IonPage>
     );
   }
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
+  // ── Per-student upload ──
+
+  const handleStudentUploadClick = (studentId: string) => {
+    setUploadingForStudent(studentId);
+    setTimeout(() => studentFileInputRef.current?.click(), 100);
   };
 
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStudentFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setUploading(true);
+    if (!files || files.length === 0 || !uploadingForStudent) {
+      setUploadingForStudent(null);
+      return;
+    }
     try {
-      await uploadPapers(examId, Array.from(files));
+      const newCorrections = await uploadPapers(examId, Array.from(files), uploadingForStudent);
       await fetchCorrections(examId);
+      for (const c of newCorrections) {
+        handleProcessAI(c.id);
+      }
     } catch (err) {
-      console.error('Failed to upload papers:', err);
+      console.error('Failed to upload paper for student:', err);
     } finally {
-      setUploading(false);
+      setUploadingForStudent(null);
       e.target.value = '';
     }
   };
+
+  // ── Bulk upload (QR detection) ──
 
   const handleBulkUploadClick = () => {
     bulkInputRef.current?.click();
@@ -167,7 +177,6 @@ const Correction: React.FC = () => {
           code: s.code
         }))
       });
-      setUploadMode('bulk');
       await fetchCorrections(examId);
     } catch (err) {
       console.error('Failed to bulk upload papers:', err);
@@ -195,32 +204,107 @@ const Correction: React.FC = () => {
         }
       }
     }
-    setBulkResult(null);
-    setReviewAssignments({});
-    setUploadMode('normal');
+    
     await fetchCorrections(examId);
 
-    // Auto-trigger AI analysis for all newly assigned + auto-matched corrections
     const allCorrectionIds = [
       ...assignedCorrectionIds,
       ...(bulkResult?.autoMatched.map((m) => m.correctionId) || []),
-    ];
-    for (const cId of allCorrectionIds) {
+    ].filter(cId => {
       const correction = examCorrections.find((c) => c.id === cId);
-      if (correction && !correction.aiAnalysis) {
-        handleProcessAI(cId);
-      }
-    }
+      return correction && !correction.aiAnalysis;
+    });
+    
+    setBulkResult(null);
+    setReviewAssignments({});
     setConfirmingReview(false);
+
+    if (allCorrectionIds.length > 1) {
+      try {
+        const response = await batch.startBatchCorrection(examId, allCorrectionIds);
+        setBatchJobId(response.data.id);
+        setShowBatchProgress(true);
+      } catch (err) {
+        console.error('Failed to start batch correction:', err);
+        for (const cId of allCorrectionIds) {
+          handleProcessAI(cId);
+        }
+      }
+    } else if (allCorrectionIds.length === 1) {
+      handleProcessAI(allCorrectionIds[0]);
+    }
   };
+  
+  const handleBatchProcessAll = async () => {
+    const unprocessedIds = examCorrections
+      .filter(c => !c.aiProcessed && c.paperUrl)
+      .map(c => c.id);
+    
+    if (unprocessedIds.length === 0) return;
+    
+    try {
+      const response = await batch.startBatchCorrection(examId, unprocessedIds);
+      setBatchJobId(response.data.id);
+      setShowBatchProgress(true);
+    } catch (err) {
+      console.error('Failed to start batch correction:', err);
+    }
+  };
+  
+  const handleBatchComplete = async (job: BatchJobProgress) => {
+    await fetchCorrections(examId);
+    if (job.status === 'completed' && job.failed_items === 0) {
+      setShowBatchProgress(false);
+      setBatchJobId(null);
+    }
+  };
+  
+  useEffect(() => {
+    const fetchEstimate = async () => {
+      const unprocessedCount = examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length;
+      if (unprocessedCount > 1) {
+        try {
+          const res = await batch.estimateCorrectionTime(examId);
+          setBatchEstimate(res.data);
+        } catch (err) {
+          console.error('Failed to fetch estimate:', err);
+        }
+      } else {
+        setBatchEstimate(null);
+      }
+    };
+    fetchEstimate();
+  }, [examCorrections, examId]);
 
   const getFullPaperUrl = (paperUrl?: string) => {
     if (!paperUrl) return null;
     if (paperUrl.startsWith('http')) return paperUrl;
     let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     baseUrl = baseUrl.replace(/\/+$/, '');
+    
+    // Handle various path formats from backend
+    let cleanPath = paperUrl;
+    
+    // If path already starts with /files/, just append to baseUrl
+    if (paperUrl.startsWith('/files/')) {
+      return `${baseUrl}${paperUrl}`;
+    }
+    
+    // If path starts with /uploads/, convert to /files/
     if (paperUrl.startsWith('/uploads/')) {
-      return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
+      cleanPath = '/files' + paperUrl.replace('/uploads', '');
+      return `${baseUrl}${cleanPath}`;
+    }
+    
+    // If path starts with uploads/ (no leading slash), convert to /files/
+    if (paperUrl.startsWith('uploads/')) {
+      cleanPath = '/files/' + paperUrl.replace('uploads/', '');
+      return `${baseUrl}${cleanPath}`;
+    }
+    
+    // Default: prepend baseUrl with proper slash handling
+    if (!paperUrl.startsWith('/')) {
+      return `${baseUrl}/${paperUrl}`;
     }
     return `${baseUrl}${paperUrl}`;
   };
@@ -287,6 +371,10 @@ const Correction: React.FC = () => {
   const [aiProcessing, setAiProcessing] = useState<Record<string, boolean>>({});
   const [aiErrors, setAiErrors] = useState<Record<string, string>>({});
   
+  const [batchJobId, setBatchJobId] = useState<string | null>(null);
+  const [showBatchProgress, setShowBatchProgress] = useState(false);
+  const [batchEstimate, setBatchEstimate] = useState<{ paper_count: number; time_string: string } | null>(null);
+  
   const handleProcessAI = async (correctionId: string) => {
     setAiErrors((prev) => ({ ...prev, [correctionId]: '' }));
     setAiProcessing((prev) => ({ ...prev, [correctionId]: true }));
@@ -308,7 +396,6 @@ const Correction: React.FC = () => {
         }
       }
       
-      // Refresh corrections to ensure UI is in sync
       await fetchCorrections(examId);
     } catch (err: any) {
       console.error('AI processing failed:', err);
@@ -333,9 +420,6 @@ const Correction: React.FC = () => {
   const totalPapers = examCorrections.length || students.length;
   const progress = totalPapers > 0 ? savedCount / totalPapers : 0;
   const allSaved = savedCount === examCorrections.length && examCorrections.length > 0;
-
-  const correctedStudentIds = new Set(examCorrections.filter((c) => c.savedAt).map((c) => c.studentId));
-  const missingStudents = students.filter((s) => !correctedStudentIds.has(s.id));
 
   const gradeDistribution = useMemo(() => {
     const dist = { excellent: 0, good: 0, borderline: 0, fail: 0, missing: 0 };
@@ -405,15 +489,6 @@ const Correction: React.FC = () => {
     return sorted;
   }, [filteredCorrections, highlightStudentId, sortBy, students]);
 
-  const handleReopen = async () => {
-    try {
-      await updateExamStatus(examId, { status: 'assigned' });
-      setViewMode('edit');
-    } catch (err) {
-      console.error('Failed to reopen exam:', err);
-    }
-  };
-
   const handleDownloadExam = () => {
     if (!exam) return;
     const token = localStorage.getItem('access_token');
@@ -456,15 +531,50 @@ const Correction: React.FC = () => {
       .catch((err) => console.error('Download error:', err));
   };
 
-  if (!exam) {
-    return (
-      <IonPage>
-        <IonContent className="ion-padding">
-          <div className="exams-loading"><IonSpinner color="primary" /></div>
-        </IonContent>
-      </IonPage>
-    );
-  }
+  const handleDownloadStudentPaper = (paperUrl: string, studentName?: string) => {
+    if (!paperUrl || !exam) return;
+    const fullUrl = getFullPaperUrl(paperUrl);
+    if (!fullUrl) return;
+    
+    const token = localStorage.getItem('access_token');
+    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Download failed');
+        return res.blob();
+      })
+      .then((blob) => {
+        const ext = paperUrl.toLowerCase().includes('.pdf') ? 'pdf' : 'jpg';
+        const fileName = studentName 
+          ? `${exam.name}_${studentName}.${ext}`
+          : `${exam.name}_examen.${ext}`;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch((err) => console.error('Download error:', err));
+  };
+
+  // Student list: per-student status
+  const studentCorrectionMap = useMemo(() => {
+    const map: Record<string, { correction: typeof examCorrections[0] | null; status: 'none' | 'uploaded' | 'processing' | 'corrected' }> = {};
+    students.forEach(s => {
+      const corr = examCorrections.find(c => c.studentId === s.id);
+      let status: 'none' | 'uploaded' | 'processing' | 'corrected' = 'none';
+      if (corr) {
+        if (corr.savedAt) status = 'corrected';
+        else if (corr.aiAnalysis || corr.aiProcessed) status = 'processing';
+        else status = 'uploaded';
+      }
+      map[s.id] = { correction: corr || null, status };
+    });
+    return map;
+  }, [students, examCorrections]);
+
+  const missingCount = students.filter(s => studentCorrectionMap[s.id]?.status === 'none').length;
 
   return (
     <IonPage>
@@ -478,9 +588,16 @@ const Correction: React.FC = () => {
           <IonTitle>{exam.name}</IonTitle>
           <IonButtons slot="end">
             {(exam.documentUrl || exam.hasGeneratedQuestions) && (
-              <IonButton onClick={handleDownloadExam} title="Descargar examen">
-                <IonIcon icon={downloadOutline} />
-              </IonButton>
+              <>
+                <IonButton onClick={handleDownloadExam} title="Descargar examen">
+                  <IonIcon icon={downloadOutline} />
+                </IonButton>
+                {exam.hasGeneratedQuestions && (
+                  <IonButton onClick={handleDownloadSolutions} title="Descargar solucionario">
+                    <IonIcon icon={documentTextOutline} />
+                  </IonButton>
+                )}
+              </>
             )}
             {isReviewMode ? (
               <IonBadge color="success" className="progress-badge">Corregido</IonBadge>
@@ -509,14 +626,7 @@ const Correction: React.FC = () => {
       </IonHeader>
 
       <IonContent className="correction-content">
-        <input
-          type="file"
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-          accept=".jpg,.jpeg,.png,.pdf"
-          multiple
-          onChange={handleFilesSelected}
-        />
+        {/* Hidden file inputs */}
         <input
           type="file"
           ref={bulkInputRef}
@@ -524,6 +634,14 @@ const Correction: React.FC = () => {
           accept=".jpg,.jpeg,.png,.pdf"
           multiple
           onChange={handleBulkFilesSelected}
+        />
+        <input
+          type="file"
+          ref={studentFileInputRef}
+          style={{ display: 'none' }}
+          accept=".jpg,.jpeg,.png,.pdf"
+          multiple
+          onChange={handleStudentFileSelected}
         />
 
         {viewMode === 'review' ? (
@@ -536,9 +654,9 @@ const Correction: React.FC = () => {
               />
             ) : (
               <>
-                {/* Enhanced Summary Dashboard */}
+                {/* Compact Summary */}
                 <div className="correction-dashboard">
-                  <div className="dashboard-main-stats">
+                  <div className="dashboard-row">
                     <div className="dashboard-stat dashboard-stat-primary">
                       <span className="dashboard-stat-value">
                         {examCorrections.filter(c => c.grade !== null).length > 0 
@@ -546,72 +664,36 @@ const Correction: React.FC = () => {
                           : '—'}
                       </span>
                       <span className="dashboard-stat-label">Promedio</span>
-                      <span className="dashboard-stat-sublabel">de {exam.maxScore} pts</span>
                     </div>
-                    <div className="dashboard-stats-grid">
-                      <div className="dashboard-stat">
-                        <span className="dashboard-stat-value">{examCorrections.length}</span>
-                        <span className="dashboard-stat-label">Exámenes</span>
-                      </div>
-                      <div className="dashboard-stat dashboard-stat-success">
-                        <span className="dashboard-stat-value">{gradeDistribution.excellent + gradeDistribution.good + gradeDistribution.borderline}</span>
-                        <span className="dashboard-stat-label">Aprobados</span>
-                      </div>
-                      <div className="dashboard-stat dashboard-stat-danger">
-                        <span className="dashboard-stat-value">{gradeDistribution.fail}</span>
-                        <span className="dashboard-stat-label">Reprobados</span>
-                      </div>
+                    <div className="dashboard-stat dashboard-stat-success">
+                      <span className="dashboard-stat-value">{gradeDistribution.excellent + gradeDistribution.good + gradeDistribution.borderline}</span>
+                      <span className="dashboard-stat-label">Aprobados</span>
+                    </div>
+                    <div className="dashboard-stat dashboard-stat-danger">
+                      <span className="dashboard-stat-value">{gradeDistribution.fail}</span>
+                      <span className="dashboard-stat-label">Suspensos</span>
                     </div>
                   </div>
 
-                  {/* Grade Distribution Bar */}
                   <div className="grade-distribution">
-                    <div className="grade-distribution-label">Distribución de notas</div>
                     <div className="grade-distribution-bar">
                       {gradeDistribution.excellent > 0 && (
-                        <div 
-                          className="grade-bar-segment grade-bar-excellent" 
-                          style={{ flex: gradeDistribution.excellent }}
-                          title={`Excelente (≥80%): ${gradeDistribution.excellent}`}
-                        />
+                        <div className="grade-bar-segment grade-bar-excellent" style={{ flex: gradeDistribution.excellent }} />
                       )}
                       {gradeDistribution.good > 0 && (
-                        <div 
-                          className="grade-bar-segment grade-bar-good" 
-                          style={{ flex: gradeDistribution.good }}
-                          title={`Bueno (60-79%): ${gradeDistribution.good}`}
-                        />
+                        <div className="grade-bar-segment grade-bar-good" style={{ flex: gradeDistribution.good }} />
                       )}
                       {gradeDistribution.borderline > 0 && (
-                        <div 
-                          className="grade-bar-segment grade-bar-borderline" 
-                          style={{ flex: gradeDistribution.borderline }}
-                          title={`Justo (50-59%): ${gradeDistribution.borderline}`}
-                        />
+                        <div className="grade-bar-segment grade-bar-borderline" style={{ flex: gradeDistribution.borderline }} />
                       )}
                       {gradeDistribution.fail > 0 && (
-                        <div 
-                          className="grade-bar-segment grade-bar-fail" 
-                          style={{ flex: gradeDistribution.fail }}
-                          title={`Reprobado (<50%): ${gradeDistribution.fail}`}
-                        />
+                        <div className="grade-bar-segment grade-bar-fail" style={{ flex: gradeDistribution.fail }} />
                       )}
-                    </div>
-                    <div className="grade-distribution-legend">
-                      <span className="legend-item"><span className="legend-dot legend-excellent"></span> ≥80%</span>
-                      <span className="legend-item"><span className="legend-dot legend-good"></span> 60-79%</span>
-                      <span className="legend-item"><span className="legend-dot legend-borderline"></span> 50-59%</span>
-                      <span className="legend-item"><span className="legend-dot legend-fail"></span> &lt;50%</span>
                     </div>
                   </div>
 
-                  {/* Class-wide Weak Areas */}
                   {classWeakAreas.length > 0 && (
                     <div className="class-weak-areas">
-                      <div className="class-weak-areas-header">
-                        <IonIcon icon={trendingDownOutline} />
-                        <span>Áreas a reforzar en clase</span>
-                      </div>
                       <div className="class-weak-areas-tags">
                         {classWeakAreas.map(({ area, count }) => (
                           <span key={area} className="class-weak-tag">
@@ -623,39 +705,22 @@ const Correction: React.FC = () => {
                   )}
                 </div>
 
-                {/* Filter & Sort Controls */}
+                {/* Filter & Sort - compact single row */}
                 <div className="correction-controls">
-                  <div className="control-group">
-                    <IonIcon icon={funnelOutline} className="control-icon" />
-                    <IonSegment value={filterBy} onIonChange={(e) => setFilterBy(e.detail.value as typeof filterBy)} className="filter-segment">
-                      <IonSegmentButton value="all">
-                        <IonLabel>Todos</IonLabel>
-                      </IonSegmentButton>
-                      <IonSegmentButton value="passed">
-                        <IonLabel>Aprobados</IonLabel>
-                      </IonSegmentButton>
-                      <IonSegmentButton value="failed">
-                        <IonLabel>Reprobados</IonLabel>
-                      </IonSegmentButton>
-                    </IonSegment>
-                  </div>
-                  <div className="control-group">
-                    <IonIcon icon={swapVerticalOutline} className="control-icon" />
-                    <IonSelect 
-                      value={sortBy} 
-                      onIonChange={(e) => setSortBy(e.detail.value)}
-                      interface="popover"
-                      className="sort-select"
-                    >
-                      <IonSelectOption value="name">Nombre</IonSelectOption>
-                      <IonSelectOption value="grade-desc">Nota ↓</IonSelectOption>
-                      <IonSelectOption value="grade-asc">Nota ↑</IonSelectOption>
-                    </IonSelect>
-                  </div>
-                  <span className="results-count">{sortedCorrections.length} de {examCorrections.length}</span>
+                  <IonSegment value={filterBy} onIonChange={(e) => setFilterBy(e.detail.value as typeof filterBy)} className="filter-segment">
+                    <IonSegmentButton value="all"><IonLabel>Todos ({examCorrections.length})</IonLabel></IonSegmentButton>
+                    <IonSegmentButton value="passed"><IonLabel>Aprobados</IonLabel></IonSegmentButton>
+                    <IonSegmentButton value="failed"><IonLabel>Suspensos</IonLabel></IonSegmentButton>
+                  </IonSegment>
+                  <IonSelect value={sortBy} onIonChange={(e) => setSortBy(e.detail.value)} interface="popover" className="sort-select">
+                    <IonSelectOption value="name">Nombre</IonSelectOption>
+                    <IonSelectOption value="grade-desc">Nota ↓</IonSelectOption>
+                    <IonSelectOption value="grade-asc">Nota ↑</IonSelectOption>
+                  </IonSelect>
                 </div>
 
-                <div className="correction-scans">
+                {/* Collapsible student list */}
+                <div className="correction-review-list">
                   {sortedCorrections.map((correction, i) => {
                     const student = students.find(s => s.id === correction.studentId);
                     const isHighlighted = correction.studentId === highlightStudentId;
@@ -669,9 +734,23 @@ const Correction: React.FC = () => {
                         teacherNotes={correction.teacherNotes}
                         weakAreas={correction.weakAreas}
                         aiAnalysis={correction.aiAnalysis}
+                        aiProcessed={correction.aiProcessed}
                         highlighted={isHighlighted}
                         paperUrl={getFullPaperUrl(correction.paperUrl) || undefined}
                         onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
+                        onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, student?.name) : undefined}
+                        onGradeChange={async (newGrade) => {
+                          setSaving((prev) => ({ ...prev, [correction.id]: true }));
+                          try {
+                            await updateCorrection(correction.id, { grade: newGrade });
+                            await fetchCorrections(examId);
+                          } catch (err) {
+                            console.error('Failed to update grade:', err);
+                          } finally {
+                            setSaving((prev) => ({ ...prev, [correction.id]: false }));
+                          }
+                        }}
+                        savingGrade={saving[correction.id]}
                       />
                     );
                   })}
@@ -681,6 +760,7 @@ const Correction: React.FC = () => {
           </>
         ) : (
           <>
+            {/* Bulk review results */}
             {bulkResult && (
               <div className="bulk-review-section">
                 <div className="bulk-review-stats">
@@ -713,10 +793,7 @@ const Correction: React.FC = () => {
                           <IonCardContent className="bulk-review-card-content">
                             <div className="bulk-review-card-top">
                               {paperFullUrl && (
-                                <div
-                                  className="bulk-review-thumb"
-                                  onClick={() => setPreviewUrl(paperFullUrl)}
-                                >
+                                <div className="bulk-review-thumb" onClick={() => setPreviewUrl(paperFullUrl)}>
                                   <img src={paperFullUrl} alt={`Examen ${idx + 1}`} />
                                   <div className="bulk-review-thumb-overlay">
                                     <IonIcon icon={expandOutline} />
@@ -771,7 +848,7 @@ const Correction: React.FC = () => {
                     expand="block"
                     fill="clear"
                     color="medium"
-                    onClick={() => { setBulkResult(null); setReviewAssignments({}); setUploadMode('normal'); }}
+                    onClick={() => { setBulkResult(null); setReviewAssignments({}); }}
                     disabled={confirmingReview}
                   >
                     Omitir
@@ -780,13 +857,28 @@ const Correction: React.FC = () => {
               </div>
             )}
 
+            {/* Toolbar */}
             <div className="correction-toolbar">
-              <IonButton size="small" fill="outline" onClick={handleUploadClick} disabled={uploading || bulkUploading}>
-                {uploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={cameraOutline} slot="start" /> Subir</>}
-              </IonButton>
-              <IonButton size="small" fill="outline" color="secondary" onClick={handleBulkUploadClick} disabled={uploading || bulkUploading}>
+              <IonButton size="small" fill="outline" color="secondary" onClick={handleBulkUploadClick} disabled={bulkUploading}>
                 {bulkUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={cloudUploadOutline} slot="start" /> Carga masiva</>}
               </IonButton>
+              
+              {!bulkResult && examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length > 1 && (
+                <IonButton 
+                  size="small" 
+                  color="tertiary" 
+                  onClick={handleBatchProcessAll}
+                  className="batch-ai-btn"
+                >
+                  <IonIcon icon={sparkles} slot="start" />
+                  Analizar todo ({examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length})
+                  {batchEstimate && (
+                    <IonBadge color="light" className="time-badge">
+                      <IonIcon icon={timeOutline} /> {batchEstimate.time_string}
+                    </IonBadge>
+                  )}
+                </IonButton>
+              )}
               
               {allSaved && !isReviewMode && (
                 <IonButton size="small" color="success" onClick={handleFinish}>
@@ -794,16 +886,86 @@ const Correction: React.FC = () => {
                 </IonButton>
               )}
 
-              {missingStudents.length > 0 && examCorrections.length > 0 && (
-                <IonBadge color="warning" className="missing-badge">
-                  {missingStudents.length} sin examen
-                </IonBadge>
-              )}
-
               <IonButton size="small" fill="clear" color="medium" onClick={() => history.push(`/tabs/exams/${examId}`)}>
                 <IonIcon icon={pencilOutline} slot="start" /> Editar examen
               </IonButton>
             </div>
+
+            {/* Student List - per-student upload */}
+            {students.length > 0 && (
+              <div className="student-list-section">
+                <div className="student-list-header" onClick={() => setShowStudentList(!showStudentList)}>
+                  <div className="student-list-header-left">
+                    <IonIcon icon={peopleOutline} />
+                    <span>Alumnos ({students.length})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {missingCount > 0 && (
+                      <IonBadge color="warning">{missingCount} sin examen</IonBadge>
+                    )}
+                    <IonIcon icon={showStudentList ? chevronUpOutline : chevronDownOutline} />
+                  </div>
+                </div>
+
+                {showStudentList && (
+                  <div className="student-list-items">
+                    {students.map(student => {
+                      const info = studentCorrectionMap[student.id];
+                      const isUploading = uploadingForStudent === student.id;
+                      
+                      return (
+                        <div
+                          key={student.id}
+                          className={`student-list-item student-list-item--${info?.status || 'none'}`}
+                        >
+                          <div className="student-list-item-info">
+                            <div className="student-list-item-name">{student.name}</div>
+                            <div className="student-list-item-status">
+                              {info?.status === 'corrected' && (
+                                <><IonIcon icon={checkmarkCircleOutline} color="success" /> Corregido — {info.correction?.grade ?? '—'}/{exam.maxScore}</>
+                              )}
+                              {info?.status === 'processing' && (
+                                <><IonIcon icon={sparkles} color="warning" /> Analizado por IA</>
+                              )}
+                              {info?.status === 'uploaded' && (
+                                <><IonIcon icon={cloudUploadOutline} color="medium" /> Subido, pendiente de IA</>
+                              )}
+                              {info?.status === 'none' && 'Sin examen'}
+                            </div>
+                          </div>
+                          <div className="student-list-item-actions">
+                            {info?.status === 'none' && (
+                              <IonButton
+                                size="small"
+                                fill="outline"
+                                onClick={() => handleStudentUploadClick(student.id)}
+                                disabled={isUploading}
+                              >
+                                {isUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={cloudUploadOutline} slot="start" /> Subir</>}
+                              </IonButton>
+                            )}
+                            {info?.correction && (
+                              <IonButton
+                                size="small"
+                                fill="clear"
+                                color="primary"
+                                onClick={() => {
+                                  setShowStudentList(false);
+                                  const el = document.getElementById(`correction-${info.correction!.id}`);
+                                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }}
+                              >
+                                Ver
+                              </IonButton>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {loading && examCorrections.length === 0 && (
               <div className="correction-loading"><IonSpinner /></div>
@@ -813,9 +975,9 @@ const Correction: React.FC = () => {
               <EmptyState
                 icon="📷"
                 title="Sin exámenes"
-                subtitle="Sube los exámenes de los alumnos"
-                actionLabel="Subir"
-                onAction={handleUploadClick}
+                subtitle="Sube los exámenes de los alumnos con carga masiva o uno por uno"
+                actionLabel="Carga masiva"
+                onAction={handleBulkUploadClick}
               />
             )}
 
@@ -823,28 +985,32 @@ const Correction: React.FC = () => {
               {examCorrections.map((correction, i) => {
                 const local = localGrades[correction.id] || { grade: correction.grade, notes: '', studentId: correction.studentId || '' };
                 const isSaved = !!correction.savedAt;
+                const student = students.find(s => s.id === local.studentId);
                 return (
-                  <ScanCard
-                    key={correction.id}
-                    index={i}
-                    aiAnalysis={correction.aiAnalysis}
-                    selectedStudentId={local.studentId}
-                    students={students}
-                    maxScore={exam.maxScore}
-                    grade={local.grade}
-                    teacherNotes={local.notes}
-                    saved={isSaved}
-                    paperUrl={getFullPaperUrl(correction.paperUrl) || undefined}
-                    onStudentChange={(sid) => handleStudentChange(correction.id, sid)}
-                    onGradeChange={(g) => handleGradeChange(correction.id, g)}
-                    onNotesChange={(n) => handleNotesChange(correction.id, n)}
-                    onSave={() => handleSavePaper(correction.id)}
-                    onProcessAI={() => handleProcessAI(correction.id)}
-                    onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
-                    saving={saving[correction.id]}
-                    aiProcessing={aiProcessing[correction.id]}
-                    aiError={aiErrors[correction.id]}
-                  />
+                  <div key={correction.id} id={`correction-${correction.id}`}>
+                    <ScanCard
+                      index={i}
+                      aiAnalysis={correction.aiAnalysis}
+                      selectedStudentId={local.studentId}
+                      students={students}
+                      maxScore={exam.maxScore}
+                      grade={local.grade}
+                      originalGrade={correction.grade}
+                      teacherNotes={local.notes}
+                      saved={isSaved}
+                      paperUrl={getFullPaperUrl(correction.paperUrl) || undefined}
+                      onStudentChange={(sid) => handleStudentChange(correction.id, sid)}
+                      onGradeChange={(g) => handleGradeChange(correction.id, g)}
+                      onNotesChange={(n) => handleNotesChange(correction.id, n)}
+                      onSave={() => handleSavePaper(correction.id)}
+                      onProcessAI={() => handleProcessAI(correction.id)}
+                      onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
+                      onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, student?.name) : undefined}
+                      saving={saving[correction.id]}
+                      aiProcessing={aiProcessing[correction.id]}
+                      aiError={aiErrors[correction.id]}
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -858,6 +1024,7 @@ const Correction: React.FC = () => {
             )}
           </>
         )}
+
         {/* Paper preview modal */}
         <IonModal isOpen={!!previewUrl} onDidDismiss={() => setPreviewUrl(null)} className="paper-preview-modal">
           <IonHeader>
@@ -873,11 +1040,27 @@ const Correction: React.FC = () => {
           <IonContent className="paper-preview-content">
             {previewUrl && (
               <div className="paper-preview-container">
-                <img src={previewUrl} alt="Examen" className="paper-preview-img" />
+                {previewUrl.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={previewUrl} title="Examen" className="paper-preview-pdf" />
+                ) : (
+                  <img src={previewUrl} alt="Examen" className="paper-preview-img" />
+                )}
               </div>
             )}
           </IonContent>
         </IonModal>
+        
+        {/* Batch Processing Progress Modal */}
+        <BatchProgressModal
+          isOpen={showBatchProgress}
+          jobId={batchJobId}
+          title="Corrigiendo exámenes"
+          onClose={() => {
+            setShowBatchProgress(false);
+            fetchCorrections(examId);
+          }}
+          onComplete={handleBatchComplete}
+        />
       </IonContent>
     </IonPage>
   );

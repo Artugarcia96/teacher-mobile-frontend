@@ -1,0 +1,443 @@
+.ebc-content {
+  --padding-top: 0;
+  --padding-bottom: var(--space-2xl);
+}
+
+.ebc-progress-badge {
+  margin-right: var(--space-sm);
+  padding: 3px 10px;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-full);
+}
+
+/* Step 1: Select exercise group */
+.ebc-select-step {
+  padding: var(--space-md);
+}
+
+.ebc-select-header {
+  margin-bottom: var(--space-md);
+}
+
+.ebc-select-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-xs);
+  color: var(--ion-text-color);
+}
+
+.ebc-select-subtitle {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  margin: 0;
+}
+
+.ebc-search {
+  --border-radius: var(--radius-md);
+  --background: rgba(15, 23, 42, 0.04);
+  padding: 0 0 var(--space-sm) 0;
+}
+
+.ebc-group-list {
+  background: transparent;
+  padding: 0;
+}
+
+.ebc-group-item {
+  --background: var(--ion-card-background, #fff);
+  --border-radius: var(--radius-lg);
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --inner-padding-end: 0;
+  margin-bottom: var(--space-sm);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.ebc-group-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-radius: var(--radius-md);
+  color: var(--ion-color-primary);
+  font-size: 20px;
+}
+
+.ebc-group-name {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  margin: 0 0 2px;
+}
+
+.ebc-group-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+}
+
+.ebc-group-meta ion-icon {
+  font-size: 12px;
+}
+
+.ebc-group-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ebc-group-arrow {
+  color: #CBD5E1;
+  font-size: 16px;
+}
+
+/* Step 2: Upload */
+.ebc-upload-step {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.ebc-upload-info {
+  text-align: center;
+}
+
+.ebc-upload-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-xs);
+}
+
+.ebc-upload-subtitle {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  margin: 0;
+}
+
+.ebc-upload-area {
+  border: 2px dashed rgba(var(--ion-color-primary-rgb), 0.3);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(var(--ion-color-primary-rgb), 0.02);
+}
+
+.ebc-upload-area:hover,
+.ebc-upload-area:active {
+  border-color: var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
+}
+
+.ebc-upload-icon {
+  font-size: 48px;
+  color: var(--ion-color-primary);
+  margin-bottom: var(--space-md);
+}
+
+.ebc-upload-area h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0 0 var(--space-xs);
+  color: var(--ion-text-color);
+}
+
+.ebc-upload-area p {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  margin: 0;
+}
+
+.ebc-upload-hint {
+  margin-top: var(--space-sm) !important;
+  font-size: var(--font-size-xs) !important;
+  color: #CBD5E1 !important;
+}
+
+.ebc-upload-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.ebc-upload-loading span {
+  font-size: var(--font-size-sm);
+  color: #64748B;
+}
+
+.ebc-existing-corrections {
+  text-align: center;
+  padding: var(--space-md);
+  background: rgba(var(--ion-color-success-rgb), 0.05);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(var(--ion-color-success-rgb), 0.15);
+}
+
+.ebc-existing-label {
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-success);
+  font-weight: 500;
+  margin: 0 0 var(--space-sm);
+}
+
+/* Step 4: Correct */
+.ebc-correct-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: rgba(15, 23, 42, 0.02);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
+}
+
+.ebc-correct-toolbar ion-button {
+  --border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.ebc-scans {
+  padding: var(--space-sm);
+}
+
+/* Reuse bulk review styles from ExerciseCorrection.css */
+.ebc-content .bulk-review-section {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ebc-content .bulk-review-stats {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.ebc-content .bulk-review-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  margin: 0 0 var(--space-xs);
+}
+
+.ebc-content .bulk-review-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ebc-content .bulk-review-card {
+  margin: 0;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+}
+
+.ebc-content .bulk-review-card-auto {
+  border-left: 3px solid var(--ion-color-success);
+}
+
+.ebc-content .auto-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.ebc-content .bulk-review-card-content {
+  padding: var(--space-md) !important;
+}
+
+.ebc-content .bulk-review-card-top {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+}
+
+.ebc-content .bulk-review-thumb {
+  width: 64px;
+  height: 80px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.ebc-content .bulk-review-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ebc-content .bulk-review-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.ebc-content .bulk-review-thumb:hover .bulk-review-thumb-overlay,
+.ebc-content .bulk-review-thumb:active .bulk-review-thumb-overlay {
+  opacity: 1;
+}
+
+.ebc-content .bulk-review-thumb-overlay ion-icon {
+  color: white;
+  font-size: 20px;
+}
+
+.ebc-content .bulk-review-thumb-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ion-color-light);
+}
+
+.ebc-content .bulk-review-thumb-loading ion-spinner {
+  width: 20px;
+  height: 20px;
+  --color: var(--ion-color-medium);
+}
+
+.ebc-content .bulk-review-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ebc-content .bulk-review-card-index {
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  color: var(--ion-text-color);
+}
+
+.ebc-content .bulk-review-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.ebc-content .bulk-review-select {
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  font-size: var(--font-size-sm);
+  min-height: 36px;
+  margin-top: var(--space-xs);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: var(--radius-sm);
+}
+
+.ebc-content .bulk-review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+}
+
+.ebc-content .bulk-review-confirm-btn {
+  --border-radius: var(--radius-md);
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  font-weight: 600;
+}
+
+.ebc-content .detected-code {
+  display: inline-block;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-family: monospace;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.ebc-content .reason-text {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+}
+
+/* Paper preview */
+.ebc-content .paper-preview-content {
+  --background: #000;
+}
+
+.ebc-content .paper-preview-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--space-md);
+}
+
+.ebc-content .paper-preview-img {
+  max-width: 100%;
+  max-height: calc(100vh - 80px);
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  .ebc-search {
+    --background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ebc-group-item {
+    --background: #16161A;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .ebc-upload-area {
+    border-color: rgba(var(--ion-color-primary-rgb), 0.2);
+    background: rgba(var(--ion-color-primary-rgb), 0.03);
+  }
+
+  .ebc-upload-area:hover,
+  .ebc-upload-area:active {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.08);
+  }
+
+  .ebc-existing-corrections {
+    background: rgba(var(--ion-color-success-rgb), 0.08);
+    border-color: rgba(var(--ion-color-success-rgb), 0.2);
+  }
+
+  .ebc-correct-toolbar {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .ebc-content .bulk-review-card {
+    background: #16161A !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .ebc-content .bulk-review-select {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ebc-content .bulk-review-thumb {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}

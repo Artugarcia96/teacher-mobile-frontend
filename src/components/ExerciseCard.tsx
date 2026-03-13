@@ -1,9 +1,10 @@
-import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonBadge, IonButton, IonIcon, IonAlert } from '@ionic/react';
-import { downloadOutline, documentTextOutline, checkmarkCircleOutline, trashOutline, createOutline, checkboxOutline } from 'ionicons/icons';
+import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonBadge, IonButton, IonIcon, IonAlert, IonTextarea, IonSpinner, IonChip, IonItem } from '@ionic/react';
+import { downloadOutline, documentTextOutline, checkmarkCircleOutline, trashOutline, createOutline, checkboxOutline, calendarOutline, refreshOutline, chevronDownOutline, chevronUpOutline, timeOutline } from 'ionicons/icons';
 import { useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Exercise } from '../types';
 import { exercises as exercisesApi } from '../services/api';
+import { useExercisesStore } from '../store/exercisesStore';
 import './ExerciseCard.css';
 
 interface Props {
@@ -11,15 +12,49 @@ interface Props {
   studentName?: string;
   onDelete?: (id: string) => void;
   onRename?: (id: string, name: string) => void;
+  showIteration?: boolean;
 }
 
-const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRename }) => {
+const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRename, showIteration = false }) => {
   const history = useHistory();
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showRenameAlert, setShowRenameAlert] = useState(false);
+  const [showIterationUI, setShowIterationUI] = useState(false);
+  const [iterationInstruction, setIterationInstruction] = useState('');
+  const [iterating, setIterating] = useState(false);
+  const [iterationError, setIterationError] = useState('');
+  const iterateExercise = useExercisesStore((s) => s.iterateExercise);
 
   const handleCorrection = () => {
     history.push(`/exercise-correction/${exercise.id}`);
+  };
+
+  const handleIterate = async () => {
+    if (!iterationInstruction.trim()) return;
+    setIterating(true);
+    setIterationError('');
+    try {
+      await iterateExercise(exercise.id, iterationInstruction.trim());
+      setIterationInstruction('');
+      setShowIterationUI(false);
+    } catch (err: any) {
+      setIterationError(err.response?.data?.detail || 'Error al ajustar ejercicios');
+    } finally {
+      setIterating(false);
+    }
+  };
+
+  const getDateStatusColor = (status?: string) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'ok': return 'success';
+      case 'today': return 'warning';
+      case 'tomorrow': return 'warning';
+      case 'soon': return 'warning';
+      case 'urgent': return 'danger';
+      case 'overdue': return 'danger';
+      default: return 'medium';
+    }
   };
 
   const handleDownload = (type: 'exercises' | 'solutions') => {
@@ -97,6 +132,39 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
           <span>{formatDate(exercise.assignedAt)}</span>
         </div>
 
+        {/* Date indicators */}
+        {(exercise.deliveryDate || exercise.correctionDate) && (
+          <div className="exercise-card-dates">
+            {exercise.deliveryDate && (
+              <div className="exercise-card-date">
+                <IonIcon icon={calendarOutline} />
+                <span>Entrega: {formatDate(exercise.deliveryDate)}</span>
+                {exercise.deliveryStatus && (
+                  <IonBadge color={getDateStatusColor(exercise.deliveryStatus)}>
+                    {exercise.deliveryStatus === 'today' ? 'Hoy' : 
+                     exercise.deliveryStatus === 'tomorrow' ? 'Mañana' : 
+                     exercise.deliveryStatus === 'delivered' ? 'Entregado' : 'Pendiente'}
+                  </IonBadge>
+                )}
+              </div>
+            )}
+            {exercise.correctionDate && (
+              <div className="exercise-card-date">
+                <IonIcon icon={timeOutline} />
+                <span>Recogida: {formatDate(exercise.correctionDate)}</span>
+                {exercise.correctionDeadlineStatus && (
+                  <IonBadge color={getDateStatusColor(exercise.correctionDeadlineStatus)}>
+                    {exercise.correctionDeadlineStatus === 'urgent' ? 'Urgente' :
+                     exercise.correctionDeadlineStatus === 'overdue' ? 'Atrasado' :
+                     exercise.correctionDeadlineStatus === 'completed' ? 'Recogido' :
+                     exercise.correctionDeadlineStatus === 'soon' ? 'Próximo' : 'OK'}
+                  </IonBadge>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {(exercise.weakAreas || []).length > 0 && (
           <div className="exercise-card-areas">
             {(exercise.weakAreas || []).map((area) => (
@@ -148,6 +216,73 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
             Corregir
           </IonButton>
         </div>
+
+        {/* Iteration UI */}
+        {showIteration && exercise.correctionStatus !== 'corrected' && (
+          <div className="exercise-card-iteration">
+            <button 
+              className="exercise-card-iteration-toggle"
+              onClick={() => setShowIterationUI(!showIterationUI)}
+            >
+              <IonIcon icon={createOutline} />
+              <span>Ajustar ejercicios</span>
+              <IonIcon icon={showIterationUI ? chevronUpOutline : chevronDownOutline} />
+            </button>
+
+            {showIterationUI && (
+              <div className="exercise-card-iteration-content">
+                <p className="exercise-card-iteration-desc">
+                  Describe los cambios que quieres y la IA ajustará los ejercicios.
+                </p>
+                
+                <div className="exercise-card-iteration-quick">
+                  <IonChip outline onClick={() => setIterationInstruction('Simplifica los ejercicios')}>
+                    Simplificar
+                  </IonChip>
+                  <IonChip outline onClick={() => setIterationInstruction('Añade un ejercicio más')}>
+                    +1 ejercicio
+                  </IonChip>
+                  <IonChip outline onClick={() => setIterationInstruction('Añade más variedad')}>
+                    Más variedad
+                  </IonChip>
+                </div>
+
+                <IonItem lines="none" className="exercise-card-iteration-input">
+                  <IonTextarea
+                    value={iterationInstruction}
+                    onIonInput={(e) => setIterationInstruction(e.detail.value ?? '')}
+                    placeholder="Ej: Hazlos más difíciles, añade ejercicios de fracciones..."
+                    rows={2}
+                  />
+                </IonItem>
+
+                {iterationError && <p className="exercise-card-iteration-error">{iterationError}</p>}
+
+                <IonButton
+                  expand="block"
+                  fill="outline"
+                  size="small"
+                  onClick={handleIterate}
+                  disabled={iterating || !iterationInstruction.trim()}
+                >
+                  {iterating ? (
+                    <><IonSpinner name="crescent" /> Aplicando...</>
+                  ) : (
+                    <><IonIcon icon={refreshOutline} slot="start" /> Aplicar cambios</>
+                  )}
+                </IonButton>
+
+                {exercise.iterationHistory && exercise.iterationHistory.length > 0 && (
+                  <div className="exercise-card-iteration-history">
+                    <span className="exercise-card-iteration-history-label">
+                      Versión {exercise.iterationHistory.length + 1}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </IonCardContent>
     </IonCard>
 
