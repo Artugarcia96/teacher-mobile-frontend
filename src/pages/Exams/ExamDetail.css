@@ -189,6 +189,127 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   INFO RIBBON - Compact horizontal strip
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ed-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  margin: var(--space-md) var(--space-lg) 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
+  flex-wrap: wrap;
+}
+
+.ed-ribbon__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.ed-ribbon__value {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--ion-text-color);
+  text-transform: capitalize;
+}
+
+.ed-ribbon__label {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ed-ribbon__status {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.ed-ribbon__deadline {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.ed-ribbon__deadline ion-icon {
+  font-size: 10px;
+}
+
+.ed-ribbon__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERFORMANCE CHARTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ed-performance {
+  margin: var(--space-md) var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
+}
+
+.ed-performance__charts {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.ed-performance__weak-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  justify-content: center;
+}
+
+.ed-weak-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: rgba(var(--ion-color-warning-rgb), 0.10);
+  color: var(--ion-color-warning-shade);
+}
+
+.ed-weak-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  border-radius: var(--radius-full);
+  padding: 0 5px;
+}
+
+/* Compact QuestionStatusBar in correction list */
+.ed-correction-bar {
+  max-width: 160px;
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    STATS DASHBOARD
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -443,13 +564,18 @@
     background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
   }
 
-  .ed-info-card {
+  .ed-ribbon {
     background: #16161A;
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .ed-info-row {
-    border-bottom-color: rgba(255, 255, 255, 0.06);
+  .ed-ribbon__divider {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .ed-performance {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .ed-stat-card {

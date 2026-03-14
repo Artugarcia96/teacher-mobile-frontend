@@ -58,14 +58,12 @@
 
 .cal-section__title {
   font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--ion-text-color);
+  font-weight: 600;
+  color: var(--color-text-secondary);
   margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .cal-section__title ion-icon {
@@ -112,12 +110,7 @@
   background: var(--ion-card-background);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.cal-stat:active {
-  transform: scale(0.98);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .cal-stat__icon {
@@ -174,15 +167,10 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%);
-  border: 1px solid rgba(217, 119, 6, 0.2);
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.15);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform var(--transition-fast);
-}
-
-.cal-pending:active {
-  transform: scale(0.98);
 }
 
 .cal-pending__badge {
@@ -223,72 +211,42 @@
 }
 
 /* ─── Prepare Your Day Button ─── */
-@keyframes prepare-glow {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(79, 70, 229, 0.3), 0 0 20px rgba(124, 58, 237, 0.15);
-    border-color: rgba(79, 70, 229, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 16px rgba(79, 70, 229, 0.5), 0 0 36px rgba(124, 58, 237, 0.25);
-    border-color: rgba(124, 58, 237, 0.6);
-  }
-}
-
-@keyframes icon-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-
 .cal-prepare-btn {
   display: flex;
   align-items: center;
   gap: var(--space-md);
   width: 100%;
-  padding: var(--space-lg) var(--space-md);
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
-  border: 1.5px solid rgba(79, 70, 229, 0.4);
+  padding: var(--space-md);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.15);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  animation: prepare-glow 2.5s ease-in-out infinite;
-  position: relative;
-}
-
-.cal-prepare-btn:active {
-  transform: scale(0.98);
-  animation: none;
 }
 
 .cal-prepare-btn--done {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%);
-  border-color: rgba(34, 197, 94, 0.2);
-  animation: none;
-  box-shadow: none;
+  background: rgba(5, 150, 105, 0.06);
+  border-color: rgba(5, 150, 105, 0.15);
 }
 
 .cal-prepare-btn__icon {
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-  border-radius: var(--radius-md);
+  width: 40px;
+  height: 40px;
+  background: var(--ion-color-primary);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
-  animation: icon-pulse 2.5s ease-in-out infinite;
 }
 
 .cal-prepare-btn--done .cal-prepare-btn__icon {
-  background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
-  box-shadow: none;
-  animation: none;
+  background: #059669;
 }
 
 .cal-prepare-btn__icon ion-icon {
-  font-size: 24px;
+  font-size: 20px;
   color: #ffffff;
 }
 
@@ -301,13 +259,12 @@
 }
 
 .cal-prepare-btn__title {
-  font-size: var(--font-size-base);
-  font-weight: 700;
-  color: #4F46E5;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-color-primary);
 }
 
 .cal-prepare-btn--done .cal-prepare-btn__title {
-  font-weight: 600;
   color: var(--ion-text-color);
 }
 
@@ -317,13 +274,9 @@
 }
 
 .cal-prepare-btn__arrow {
-  font-size: 20px;
-  color: rgba(79, 70, 229, 0.6);
-  flex-shrink: 0;
-}
-
-.cal-prepare-btn--done .cal-prepare-btn__arrow {
+  font-size: 18px;
   color: var(--color-text-tertiary);
+  flex-shrink: 0;
 }
 
 /* ─── View Toggle ─── */
@@ -414,14 +367,9 @@
   background: var(--ion-card-background);
   border-radius: var(--radius-md);
   position: relative;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   cursor: pointer;
   font-family: inherit;
-  transition: transform var(--transition-fast), background var(--transition-fast);
-}
-
-.cal-mini-cal__day:active {
-  transform: scale(0.95);
 }
 
 .cal-mini-cal__day--selected {
@@ -450,10 +398,8 @@
 
 .cal-mini-cal__name {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .cal-mini-cal__num {
@@ -516,10 +462,8 @@
   padding: var(--space-xs);
   text-align: center;
   font-size: 10px;
-  font-weight: 600;
-  color: #94A3B8;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
 }
 
 .cal-month__week {
@@ -636,12 +580,7 @@
   background: var(--ion-card-background);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform var(--transition-fast);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.cal-agenda-item:active {
-  transform: scale(0.98);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .cal-agenda-item__time {
@@ -740,16 +679,10 @@
   gap: var(--space-xs);
   padding: var(--space-lg) var(--space-sm);
   background: var(--ion-card-background);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform var(--transition-fast), background var(--transition-fast);
   font-family: inherit;
-}
-
-.cal-action:active {
-  transform: scale(0.95);
-  background: rgba(var(--ion-color-primary-rgb), 0.05);
 }
 
 .cal-action ion-icon {
@@ -909,8 +842,8 @@
   }
 
   .cal-pending {
-    background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
-    border-color: rgba(217, 119, 6, 0.3);
+    background: rgba(217, 119, 6, 0.12);
+    border-color: rgba(217, 119, 6, 0.2);
   }
 
   .cal-empty {
@@ -928,13 +861,13 @@
   }
 
   .cal-prepare-btn {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
-    border-color: rgba(79, 70, 229, 0.3);
+    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    border-color: rgba(var(--ion-color-primary-rgb), 0.2);
   }
 
   .cal-prepare-btn--done {
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
-    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(5, 150, 105, 0.1);
+    border-color: rgba(5, 150, 105, 0.2);
   }
 
   .cal-view-toggle {

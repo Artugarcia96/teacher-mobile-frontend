@@ -1,17 +1,27 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
-  IonButton, IonList, IonItem, IonBadge, IonLabel,
-  IonTextarea, IonIcon, IonSpinner,
+  IonButton, IonBadge, IonIcon, IonSpinner, IonTextarea,
+  IonLabel, IonModal, IonInput, IonSelect, IonSelectOption,
 } from '@ionic/react';
-import { addOutline, sparklesOutline, chevronDownOutline, chevronUpOutline, chevronForwardOutline, trendingUpOutline, trendingDownOutline, removeOutline } from 'ionicons/icons';
+import {
+  addOutline, sparklesOutline, chevronDownOutline, chevronUpOutline,
+  chevronForwardOutline, trendingUpOutline, trendingDownOutline, removeOutline,
+  calendarOutline, filterOutline,
+} from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
 import { useExercisesStore } from '../../store/exercisesStore';
+import { useCalendarStore } from '../../store/calendarStore';
+import { useClassesStore } from '../../store/classesStore';
+import { CalendarEvent, ClassSubjectSummary } from '../../types';
 import ExerciseCard from '../../components/ExerciseCard';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
+import GradeDonut from '../../components/charts/GradeDonut';
+import WeakAreasRadar from '../../components/charts/WeakAreasRadar';
+import GradeTrendLine from '../../components/charts/GradeTrendLine';
 import './StudentFile.css';
 
 const AVATAR_COLORS = [
@@ -23,6 +33,18 @@ function avatarColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function formatDate(d: string) {
+  if (!d) return '';
+  const parts = d.split('-');
+  if (parts.length < 3) return d;
+  return `${parts[2]}/${parts[1]}`;
+}
+
+function formatTime(t?: string) {
+  if (!t) return '';
+  return t.slice(0, 5);
 }
 
 const StudentFile: React.FC = () => {
@@ -44,45 +66,173 @@ const StudentFile: React.FC = () => {
   const fetchExercises = useExercisesStore((s) => s.fetchExercises);
   const deleteExercise = useExercisesStore((s) => s.deleteExercise);
 
+  const calendarEvents = useCalendarStore((s) => s.events);
+  const fetchEvents = useCalendarStore((s) => s.fetchEvents);
+  const createEvent = useCalendarStore((s) => s.createEvent);
+
+  const classSubjects = useClassesStore((s) => s.classSubjects);
+  const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
+
   const student = useMemo(() => allStudents.find((st) => st.id === id), [allStudents, id]);
   const corrections = useMemo(() => allCorrections.filter((c) => c.studentId === id), [allCorrections, id]);
   const exercises = useMemo(() => allExercises.filter((e) => e.studentId === id), [allExercises, id]);
   const weakAreas = useMemo(() => getWeakAreasForStudent(id), [id, getWeakAreasForStudent]);
 
+  // Subjects for this class
+  const subjects: ClassSubjectSummary[] = classSubjects[classId] || [];
+
+  // State
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [noteText, setNoteText] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [showAllGrades, setShowAllGrades] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [expandedExerciseGroups, setExpandedExerciseGroups] = useState<Set<string>>(new Set());
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [eventForm, setEventForm] = useState({ title: '', date: '', startTime: '', endTime: '', type: 'tutoring' as string });
+  const [creatingEvent, setCreatingEvent] = useState(false);
+  const [showAllGrades, setShowAllGrades] = useState(false);
 
-  // Group exercises by name for better organization
-  const groupedExercises = useMemo(() => {
-    const groups = new Map<string, typeof exercises>();
-    exercises.forEach((ex) => {
-      const key = ex.name || 'Sin nombre';
-      if (!groups.has(key)) {
-        groups.set(key, []);
+  // Student events (tutoring, custom events assigned to this student)
+  const studentEvents = useMemo(() =>
+    calendarEvents.filter((e) => e.studentId === id && !e.isCancelled)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    [calendarEvents, id]
+  );
+
+  // Upcoming events (from today)
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingEvents = useMemo(() =>
+    studentEvents.filter((e) => e.date >= today).slice(0, 5),
+    [studentEvents, today]
+  );
+
+  // Filter data by subject
+  const filteredCorrections = useMemo(() => {
+    if (selectedSubject === 'all') return corrections;
+    return corrections.filter((c) => {
+      const exam = exams.find((e) => e.id === c.examId);
+      return exam?.subjectId === selectedSubject;
+    });
+  }, [corrections, selectedSubject, exams]);
+
+  const filteredExercises = useMemo(() => {
+    if (selectedSubject === 'all') return exercises;
+    return exercises.filter((e) => {
+      // Match by sourceExamId -> exam.subjectId or exercise.subjectId
+      if (e.subjectId === selectedSubject) return true;
+      if (e.sourceExamId) {
+        const exam = exams.find((ex) => ex.id === e.sourceExamId);
+        if (exam?.subjectId === selectedSubject) return true;
       }
+      if (e.sourceExamIds?.length) {
+        return e.sourceExamIds.some((eid) => {
+          const exam = exams.find((ex) => ex.id === eid);
+          return exam?.subjectId === selectedSubject;
+        });
+      }
+      return false;
+    });
+  }, [exercises, selectedSubject, exams]);
+
+  // Grade stats
+  const avgGrade = filteredCorrections.length > 0
+    ? filteredCorrections.reduce((sum, c) => sum + (c.grade || 0), 0) / filteredCorrections.length
+    : null;
+
+  // Performance trend
+  const performanceTrend = useMemo(() => {
+    if (filteredCorrections.length < 2) return 'stable';
+    const sorted = [...filteredCorrections].sort((a, b) =>
+      new Date(a.savedAt || '').getTime() - new Date(b.savedAt || '').getTime()
+    );
+    const midpoint = Math.floor(sorted.length / 2);
+    const firstHalf = sorted.slice(0, midpoint);
+    const secondHalf = sorted.slice(midpoint);
+    const firstAvg = firstHalf.reduce((sum, c) => sum + (c.grade || 0), 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((sum, c) => sum + (c.grade || 0), 0) / secondHalf.length;
+    const diff = secondAvg - firstAvg;
+    if (diff > 0.5) return 'improving';
+    if (diff < -0.5) return 'declining';
+    return 'stable';
+  }, [filteredCorrections]);
+
+  const trendIcon = performanceTrend === 'improving' ? trendingUpOutline :
+    performanceTrend === 'declining' ? trendingDownOutline : removeOutline;
+  const trendColor = performanceTrend === 'improving' ? 'success' :
+    performanceTrend === 'declining' ? 'danger' : 'medium';
+  const trendLabel = performanceTrend === 'improving' ? 'Mejorando' :
+    performanceTrend === 'declining' ? 'En descenso' : 'Estable';
+
+  // Aggregated weak areas for radar chart
+  const aggregatedWeakAreas = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredCorrections.forEach((c) => {
+      (c.weakAreas || []).forEach((area) => {
+        counts.set(area, (counts.get(area) || 0) + 1);
+      });
+    });
+    return Array.from(counts.entries())
+      .map(([topic, count]) => ({ topic, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredCorrections]);
+
+  // Grade distribution for donut
+  const gradeDistribution = useMemo(() => {
+    let excellent = 0, good = 0, borderline = 0, fail = 0;
+    filteredCorrections.forEach((c) => {
+      const exam = exams.find((e) => e.id === c.examId);
+      if (!exam || c.grade === null) return;
+      const pct = c.grade / exam.maxScore;
+      if (pct >= 0.8) excellent++;
+      else if (pct >= 0.6) good++;
+      else if (pct >= 0.5) borderline++;
+      else fail++;
+    });
+    return [
+      { label: 'Excelente', count: excellent, color: 'var(--chart-excellent, #10B981)' },
+      { label: 'Bien', count: good, color: 'var(--chart-good, #3B82F6)' },
+      { label: 'Justo', count: borderline, color: 'var(--chart-borderline, #F59E0B)' },
+      { label: 'Suspenso', count: fail, color: 'var(--chart-fail, #EF4444)' },
+    ];
+  }, [filteredCorrections, exams]);
+
+  // Trend line data
+  const trendData = useMemo(() => {
+    const sorted = [...filteredCorrections]
+      .filter((c) => c.grade !== null)
+      .sort((a, b) => new Date(a.savedAt || '').getTime() - new Date(b.savedAt || '').getTime());
+    return sorted.map((c) => {
+      const exam = exams.find((e) => e.id === c.examId);
+      return {
+        label: exam?.name?.slice(0, 8) || formatDate(c.savedAt?.slice(0, 10) || ''),
+        value: c.grade || 0,
+        maxValue: exam?.maxScore || 10,
+      };
+    });
+  }, [filteredCorrections, exams]);
+
+  // Grouped exercises
+  const groupedExercises = useMemo(() => {
+    const groups = new Map<string, typeof filteredExercises>();
+    filteredExercises.forEach((ex) => {
+      const key = ex.name || 'Sin nombre';
+      if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(ex);
     });
     return Array.from(groups.entries()).map(([name, exs]) => ({
       name,
       exercises: exs,
       count: exs.length,
-      latestDate: exs[0]?.assignedAt || '',
     }));
-  }, [exercises]);
+  }, [filteredExercises]);
 
   const toggleExerciseGroup = (name: string) => {
     setExpandedExerciseGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
   };
@@ -92,7 +242,12 @@ const StudentFile: React.FC = () => {
     fetchExams(classId);
     fetchExercises(id);
     fetchAllCorrections();
-  }, [classId, id, fetchStudents, fetchExams, fetchExercises, fetchAllCorrections]);
+    fetchClassSubjects(classId);
+    // Fetch events for the next 90 days for this student
+    const start = new Date().toISOString().slice(0, 10);
+    const end = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+    fetchEvents(start, end, undefined, id);
+  }, [classId, id, fetchStudents, fetchExams, fetchExercises, fetchAllCorrections, fetchClassSubjects, fetchEvents]);
 
   const handleSaveNote = async () => {
     if (!noteText.trim() || !student) return;
@@ -101,16 +256,36 @@ const StudentFile: React.FC = () => {
       await addNote(student.id, noteText.trim());
       setNoteText('');
       setShowNoteInput(false);
-    } catch (err) {
-      console.error('Failed to save note:', err);
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setSaving(false); }
   };
 
   const handleDeleteExercise = async (exerciseId: string) => {
     try { await deleteExercise(exerciseId); } catch (err) { console.error(err); }
   };
+
+  const handleCreateEvent = useCallback(async () => {
+    if (!eventForm.title.trim() || !eventForm.date) return;
+    setCreatingEvent(true);
+    try {
+      await createEvent({
+        student_id: id,
+        class_id: classId,
+        title: eventForm.title.trim(),
+        event_date: eventForm.date,
+        start_time: eventForm.startTime || undefined,
+        end_time: eventForm.endTime || undefined,
+        event_type: eventForm.type,
+      });
+      setShowEventModal(false);
+      setEventForm({ title: '', date: '', startTime: '', endTime: '', type: 'tutoring' });
+      // Re-fetch events
+      const start = new Date().toISOString().slice(0, 10);
+      const end = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+      fetchEvents(start, end, undefined, id);
+    } catch (err) { console.error(err); }
+    finally { setCreatingEvent(false); }
+  }, [eventForm, id, classId, createEvent, fetchEvents]);
 
   if (!student) {
     return (
@@ -124,50 +299,7 @@ const StudentFile: React.FC = () => {
     );
   }
 
-  const avgGrade = corrections.length > 0
-    ? corrections.reduce((sum, c) => sum + (c.grade || 0), 0) / corrections.length
-    : null;
-
-  // Calculate performance trend
-  const performanceTrend = useMemo(() => {
-    if (corrections.length < 2) return 'stable';
-    const sorted = [...corrections].sort((a, b) => 
-      new Date(a.savedAt || '').getTime() - new Date(b.savedAt || '').getTime()
-    );
-    const midpoint = Math.floor(sorted.length / 2);
-    const firstHalf = sorted.slice(0, midpoint);
-    const secondHalf = sorted.slice(midpoint);
-    
-    const firstAvg = firstHalf.reduce((sum, c) => sum + (c.grade || 0), 0) / firstHalf.length;
-    const secondAvg = secondHalf.reduce((sum, c) => sum + (c.grade || 0), 0) / secondHalf.length;
-    
-    const diff = secondAvg - firstAvg;
-    if (diff > 0.5) return 'improving';
-    if (diff < -0.5) return 'declining';
-    return 'stable';
-  }, [corrections]);
-
-  const trendIcon = performanceTrend === 'improving' ? trendingUpOutline : 
-                    performanceTrend === 'declining' ? trendingDownOutline : removeOutline;
-  const trendColor = performanceTrend === 'improving' ? 'success' : 
-                     performanceTrend === 'declining' ? 'danger' : 'medium';
-  const trendLabel = performanceTrend === 'improving' ? 'Mejorando' :
-                     performanceTrend === 'declining' ? 'En descenso' : 'Estable';
-
-  // Aggregate weak areas with frequency counts
-  const aggregatedWeakAreas = useMemo(() => {
-    const counts = new Map<string, number>();
-    corrections.forEach((c) => {
-      (c.weakAreas || []).forEach((area) => {
-        counts.set(area, (counts.get(area) || 0) + 1);
-      });
-    });
-    return Array.from(counts.entries())
-      .map(([topic, count]) => ({ topic, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [corrections]);
-
-  const displayedGrades = showAllGrades ? corrections : corrections.slice(0, 3);
+  const displayedGrades = showAllGrades ? filteredCorrections : filteredCorrections.slice(0, 5);
   const displayedNotes = showAllNotes ? student.notes : student.notes.slice(0, 2);
 
   return (
@@ -191,10 +323,31 @@ const StudentFile: React.FC = () => {
           {student.studentId && <p className="sf-profile__code">{student.studentId}</p>}
         </div>
 
-        {/* Stats */}
+        {/* Subject filter */}
+        {subjects.length > 1 && (
+          <div className="sf-subject-filter">
+            <IonIcon icon={filterOutline} className="sf-subject-filter__icon" />
+            <IonSelect
+              value={selectedSubject}
+              onIonChange={(e) => setSelectedSubject(e.detail.value as string)}
+              interface="popover"
+              className="sf-subject-filter__select"
+              placeholder="Asignatura"
+            >
+              <IonSelectOption value="all">Todas las asignaturas</IonSelectOption>
+              {subjects.map((s) => (
+                <IonSelectOption key={s.subjectId} value={s.subjectId}>
+                  {s.subjectName}
+                </IonSelectOption>
+              ))}
+            </IonSelect>
+          </div>
+        )}
+
+        {/* Stats row */}
         <div className="sf-stats">
           <div className="metric-card">
-            <div className="metric-card__value">{corrections.length}</div>
+            <div className="metric-card__value">{filteredCorrections.length}</div>
             <div className="metric-card__label">Exámenes</div>
           </div>
           <div className="metric-card">
@@ -202,19 +355,19 @@ const StudentFile: React.FC = () => {
             <div className="metric-card__label">Promedio</div>
           </div>
           <div className="metric-card">
-            <div className="metric-card__value">{aggregatedWeakAreas.length}</div>
-            <div className="metric-card__label">Áreas débiles</div>
+            <div className="metric-card__value">{filteredExercises.length}</div>
+            <div className="metric-card__label">Ejercicios</div>
           </div>
         </div>
 
-        {/* Performance trend indicator */}
-        {corrections.length >= 2 && (
+        {/* Performance trend */}
+        {filteredCorrections.length >= 2 && (
           <div className={`sf-trend sf-trend--${performanceTrend}`}>
             <IonIcon icon={trendIcon} />
             <span>{trendLabel}</span>
             <span className="sf-trend__detail">
-              {performanceTrend === 'improving' 
-                ? 'Las últimas notas muestran mejora' 
+              {performanceTrend === 'improving'
+                ? 'Las últimas notas muestran mejora'
                 : performanceTrend === 'declining'
                 ? 'Las últimas notas han bajado'
                 : 'Rendimiento constante'}
@@ -222,36 +375,87 @@ const StudentFile: React.FC = () => {
           </div>
         )}
 
-        {/* Weak Areas + Generate CTA */}
-        {aggregatedWeakAreas.length > 0 && (
+        {/* Charts section */}
+        {filteredCorrections.length > 0 && (
           <div className="sf-section">
             <div className="sf-section__header">
-              <span className="sf-section__title">Áreas a mejorar</span>
+              <span className="sf-section__title">Rendimiento</span>
               <span className="sf-section__subtitle">
-                Basado en {corrections.length} exámenes
+                {filteredCorrections.length} exámenes
               </span>
             </div>
-            <div className="sf-weak-areas">
-              {aggregatedWeakAreas.slice(0, 6).map((area, idx) => (
-                <div key={idx} className="sf-weak-area-item">
-                  <IonBadge color="warning" className="sf-weak-badge">{area.topic}</IonBadge>
-                  {area.count > 1 && (
-                    <span className="sf-weak-area-count">
-                      {area.count}/{corrections.length}
-                    </span>
-                  )}
+
+            <div className="sf-charts-row">
+              {/* Grade donut */}
+              <div className="sf-chart-card">
+                <GradeDonut
+                  distribution={gradeDistribution}
+                  centerLabel={avgGrade !== null ? avgGrade.toFixed(1) : '—'}
+                  centerSubLabel="promedio"
+                  size={120}
+                />
+              </div>
+
+              {/* Grade trend line */}
+              {trendData.length >= 2 && (
+                <div className="sf-chart-card sf-chart-card--wide">
+                  <span className="sf-chart-card__title">Evolución</span>
+                  <GradeTrendLine data={trendData} height={90} />
                 </div>
-              ))}
+              )}
             </div>
-            {aggregatedWeakAreas.length > 6 && (
-              <p className="sf-weak-areas-more">
-                +{aggregatedWeakAreas.length - 6} áreas más
-              </p>
+
+            {/* Weak areas radar */}
+            {aggregatedWeakAreas.length > 0 && (
+              <div className="sf-chart-card sf-chart-card--full">
+                <span className="sf-chart-card__title">Áreas a mejorar</span>
+                <WeakAreasRadar
+                  areas={aggregatedWeakAreas.slice(0, 8).map((a) => ({ area: a.topic, count: a.count }))}
+                  size={200}
+                />
+              </div>
             )}
           </div>
         )}
 
-        {/* Generate exercises button */}
+        {/* Upcoming events */}
+        <div className="sf-section">
+          <div className="sf-section__header">
+            <span className="sf-section__title">Próximos eventos</span>
+            <button className="sf-section__link" onClick={() => setShowEventModal(true)}>
+              <IonIcon icon={addOutline} style={{ marginRight: 4, fontSize: 14 }} />
+              Asignar
+            </button>
+          </div>
+          {upcomingEvents.length === 0 ? (
+            <div className="sf-empty-events" onClick={() => setShowEventModal(true)}>
+              <IonIcon icon={calendarOutline} className="sf-empty-events__icon" />
+              <span>Sin eventos programados</span>
+              <span className="sf-empty-events__hint">Toca para asignar tutoría u otro evento</span>
+            </div>
+          ) : (
+            <div className="sf-events-list">
+              {upcomingEvents.map((ev) => (
+                <div key={ev.id} className="sf-event-item">
+                  <div className={`sf-event-item__dot sf-event-item__dot--${ev.eventType}`} />
+                  <div className="sf-event-item__info">
+                    <span className="sf-event-item__title">{ev.title}</span>
+                    <span className="sf-event-item__meta">
+                      {formatDate(ev.date)}
+                      {ev.startTime && ` · ${formatTime(ev.startTime)}`}
+                      {ev.endTime && `–${formatTime(ev.endTime)}`}
+                    </span>
+                  </div>
+                  <IonBadge color={ev.eventType === 'tutoring' ? 'tertiary' : ev.eventType === 'exam' ? 'danger' : 'medium'} className="sf-event-item__badge">
+                    {ev.eventType === 'tutoring' ? 'Tutoría' : ev.eventType === 'exam' ? 'Examen' : ev.eventType === 'class_session' ? 'Clase' : 'Evento'}
+                  </IonBadge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Generate exercises CTA */}
         <div className="sf-generate-cta" onClick={() => setShowExerciseModal(true)}>
           <IonIcon icon={sparklesOutline} className="sf-generate-cta__icon" />
           <div className="sf-generate-cta__text">
@@ -264,36 +468,42 @@ const StudentFile: React.FC = () => {
           </div>
         </div>
 
-        {/* Grades Section */}
+        {/* Grades Section - Compact */}
         <div className="sf-section">
           <div className="sf-section__header">
             <span className="sf-section__title">Calificaciones</span>
-            {corrections.length > 3 && (
+            {filteredCorrections.length > 5 && (
               <button className="sf-section__link" onClick={() => setShowAllGrades(!showAllGrades)}>
-                {showAllGrades ? 'Ver menos' : `Ver todas (${corrections.length})`}
+                {showAllGrades ? 'Ver menos' : `Ver todas (${filteredCorrections.length})`}
               </button>
             )}
           </div>
-          {corrections.length === 0 ? (
+          {filteredCorrections.length === 0 ? (
             <p className="sf-empty">Sin calificaciones aún</p>
           ) : (
-            <div className="sf-grades-list">
+            <div className="sf-grades-compact">
               {displayedGrades.map((c) => {
                 const exam = exams.find((e) => e.id === c.examId);
-                const passed = c.grade !== null && exam && c.grade / exam.maxScore >= 0.5;
+                const pct = c.grade !== null && exam ? c.grade / exam.maxScore : 0;
+                const gradeClass = pct >= 0.8 ? 'grade-pass' : pct >= 0.5 ? 'grade-borderline' : 'grade-fail';
                 return (
                   <div
                     key={c.id}
-                    className="sf-grade-item"
+                    className="sf-grade-row"
                     onClick={() => history.push(`/correction/${c.examId}?studentId=${id}`)}
                   >
-                    <div className="sf-grade-item__info">
-                      <span className="sf-grade-item__name">{exam?.name ?? 'Examen'}</span>
-                      <span className="sf-grade-item__date">{c.savedAt?.slice(0, 10)}</span>
+                    <div className="sf-grade-row__bar" style={{ width: `${Math.max(pct * 100, 4)}%`, background: pct >= 0.8 ? 'var(--chart-excellent)' : pct >= 0.6 ? 'var(--chart-good)' : pct >= 0.5 ? 'var(--chart-borderline)' : 'var(--chart-fail)' }} />
+                    <div className="sf-grade-row__content">
+                      <span className="sf-grade-row__name">{exam?.name ?? 'Examen'}</span>
+                      <div className="sf-grade-row__right">
+                        {exam?.subjectName && selectedSubject === 'all' && (
+                          <span className="sf-grade-row__subject">{exam.subjectName}</span>
+                        )}
+                        <span className={`sf-grade-pill ${gradeClass}`}>
+                          {c.grade ?? '—'}/{exam?.maxScore ?? '?'}
+                        </span>
+                      </div>
                     </div>
-                    <span className={`sf-grade-pill ${passed ? 'grade-pass' : 'grade-fail'}`}>
-                      {c.grade ?? '—'}/{exam?.maxScore ?? '?'}
-                    </span>
                   </div>
                 );
               })}
@@ -356,13 +566,12 @@ const StudentFile: React.FC = () => {
         </div>
 
         {/* Exercises Section */}
-        {exercises.length > 0 && (
+        {filteredExercises.length > 0 && (
           <div className="sf-section">
             <div className="sf-section__header">
-              <span className="sf-section__title">Ejercicios asignados ({exercises.length})</span>
+              <span className="sf-section__title">Ejercicios ({filteredExercises.length})</span>
             </div>
-            {groupedExercises.length > 3 || exercises.length !== groupedExercises.length ? (
-              // Grouped view when there are many or duplicates
+            {groupedExercises.length > 3 || filteredExercises.length !== groupedExercises.length ? (
               <div className="sf-exercises-grouped">
                 {groupedExercises.map((group) => (
                   <div key={group.name} className="sf-exercise-group">
@@ -392,9 +601,8 @@ const StudentFile: React.FC = () => {
                 ))}
               </div>
             ) : (
-              // Simple list for few exercises
               <div className="sf-exercises-list">
-                {exercises.map((ex) => (
+                {filteredExercises.map((ex) => (
                   <ExerciseCard key={ex.id} exercise={ex} onDelete={handleDeleteExercise} showIteration />
                 ))}
               </div>
@@ -403,6 +611,7 @@ const StudentFile: React.FC = () => {
         )}
       </IonContent>
 
+      {/* Exercise generator modal */}
       <ExerciseGeneratorModal
         isOpen={showExerciseModal}
         onDismiss={() => setShowExerciseModal(false)}
@@ -410,6 +619,86 @@ const StudentFile: React.FC = () => {
         studentName={student.name}
         weakAreas={weakAreas}
       />
+
+      {/* Calendar event assignment modal */}
+      <IonModal
+        isOpen={showEventModal}
+        onDidDismiss={() => setShowEventModal(false)}
+        initialBreakpoint={0.55}
+        breakpoints={[0, 0.55, 0.85]}
+        className="sf-event-modal"
+      >
+        <div className="modal-sheet">
+          <h3 className="modal-sheet__title">Asignar evento</h3>
+          <p className="modal-sheet__subtitle">Crear evento para {student.name}</p>
+
+          <div className="sf-event-form">
+            <div className="sf-event-form__field">
+              <label className="sf-event-form__label">Tipo</label>
+              <IonSelect
+                value={eventForm.type}
+                onIonChange={(e) => setEventForm((f) => ({ ...f, type: e.detail.value }))}
+                interface="popover"
+                className="sf-event-form__select"
+              >
+                <IonSelectOption value="tutoring">Tutoría</IonSelectOption>
+                <IonSelectOption value="exam">Examen</IonSelectOption>
+                <IonSelectOption value="custom">Otro</IonSelectOption>
+              </IonSelect>
+            </div>
+
+            <div className="sf-event-form__field">
+              <label className="sf-event-form__label">Título</label>
+              <IonInput
+                value={eventForm.title}
+                onIonInput={(e) => setEventForm((f) => ({ ...f, title: e.detail.value ?? '' }))}
+                placeholder={eventForm.type === 'tutoring' ? `Tutoría con ${student.name}` : 'Nombre del evento'}
+                className="sf-event-form__input"
+              />
+            </div>
+
+            <div className="sf-event-form__field">
+              <label className="sf-event-form__label">Fecha</label>
+              <IonInput
+                type="date"
+                value={eventForm.date}
+                onIonInput={(e) => setEventForm((f) => ({ ...f, date: e.detail.value ?? '' }))}
+                className="sf-event-form__input"
+              />
+            </div>
+
+            <div className="sf-event-form__row">
+              <div className="sf-event-form__field sf-event-form__field--half">
+                <label className="sf-event-form__label">Hora inicio</label>
+                <IonInput
+                  type="time"
+                  value={eventForm.startTime}
+                  onIonInput={(e) => setEventForm((f) => ({ ...f, startTime: e.detail.value ?? '' }))}
+                  className="sf-event-form__input"
+                />
+              </div>
+              <div className="sf-event-form__field sf-event-form__field--half">
+                <label className="sf-event-form__label">Hora fin</label>
+                <IonInput
+                  type="time"
+                  value={eventForm.endTime}
+                  onIonInput={(e) => setEventForm((f) => ({ ...f, endTime: e.detail.value ?? '' }))}
+                  className="sf-event-form__input"
+                />
+              </div>
+            </div>
+
+            <IonButton
+              expand="block"
+              onClick={handleCreateEvent}
+              disabled={creatingEvent || !eventForm.title.trim() || !eventForm.date}
+              className="sf-event-form__submit"
+            >
+              {creatingEvent ? <IonSpinner name="crescent" /> : 'Crear evento'}
+            </IonButton>
+          </div>
+        </div>
+      </IonModal>
     </IonPage>
   );
 };

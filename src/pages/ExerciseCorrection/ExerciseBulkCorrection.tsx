@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
-  IonIcon, IonProgressBar, IonBadge, IonCard, IonCardContent,
+  IonIcon, IonProgressBar, IonBadge,
   IonSpinner, IonSelect, IonSelectOption, IonChip, IonModal,
   IonSearchbar, IonList, IonItem, IonLabel,
 } from '@ionic/react';
 import {
   closeOutline, cloudUploadOutline, checkmarkCircleOutline, checkmarkOutline,
-  warningOutline, helpOutline, sparkles, expandOutline, arrowBackOutline,
+  warningOutline, helpOutline, sparkles, arrowBackOutline,
   peopleOutline, chevronForwardOutline, documentTextOutline,
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
@@ -18,6 +18,7 @@ import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore'
 import { exerciseCorrections as ecApi, batch } from '../../services/api';
 import { Exercise, BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
+import QRReviewTable from '../../components/QRReviewTable';
 import BatchProgressModal from '../../components/BatchProgressModal';
 import EmptyState from '../../components/EmptyState';
 import './ExerciseBulkCorrection.css';
@@ -310,21 +311,6 @@ const ExerciseBulkCorrection: React.FC = () => {
     };
   }, []);
 
-  const getReasonText = (reason: string) => {
-    const reasons: Record<string, string> = {
-      'no_code': 'Sin código detectado',
-      'partial_code': 'Código parcialmente legible',
-      'no_match': 'Código no coincide con ningún alumno',
-      'wrong_exercise': 'Código de otro ejercicio',
-      'wrong_class_exercise': 'Código de otro ejercicio/clase',
-      'no_exercise_detected': 'Sin ejercicio detectado',
-      'no_qr_found': 'Sin QR detectado',
-      'duplicate_code': 'Código duplicado',
-      'already_assigned': 'Alumno ya tiene corrección',
-      'qr_error': 'Error al leer QR',
-    };
-    return reasons[reason] || reason;
-  };
 
   const handleStudentChange = (correctionId: string, studentId: string) => {
     setLocalGrades((prev) => ({ ...prev, [correctionId]: { ...prev[correctionId], studentId } }));
@@ -625,64 +611,26 @@ const ExerciseBulkCorrection: React.FC = () => {
                 )}
               </div>
 
-              <div className="bulk-review-cards">
-                <p className="bulk-review-label">Revisa las asignaciones propuestas:</p>
-                {reviewItems.map((item, idx) => {
-                  const correction = groupCorrections.find((c) => c.id === item.correctionId);
-                  const paperFullUrl = getFullPaperUrl(correction?.paperUrl);
-                  const thumbUrl = thumbBlobUrls[item.correctionId];
-                  return (
-                    <IonCard key={item.correctionId} className={`bulk-review-card ${item.isAutoMatched ? 'bulk-review-card-auto' : ''}`}>
-                      <IonCardContent className="bulk-review-card-content">
-                        <div className="bulk-review-card-top">
-                          <div
-                            className="bulk-review-thumb"
-                            onClick={() => paperFullUrl && setPreviewUrl(thumbUrl || paperFullUrl)}
-                          >
-                            {thumbUrl ? (
-                              <img src={thumbUrl} alt={`Ejercicio ${idx + 1}`} />
-                            ) : (
-                              <div className="bulk-review-thumb-loading">
-                                <IonSpinner name="crescent" />
-                              </div>
-                            )}
-                            <div className="bulk-review-thumb-overlay">
-                              <IonIcon icon={expandOutline} />
-                            </div>
-                          </div>
-                          <div className="bulk-review-card-info">
-                            <span className="bulk-review-card-index">Ejercicio {idx + 1}</span>
-                            <div className="bulk-review-card-meta">
-                              {item.detectedCode && <span className="detected-code">{item.detectedCode}</span>}
-                              {item.isAutoMatched ? (
-                                <IonBadge color="success" className="auto-badge">Auto</IonBadge>
-                              ) : (
-                                <span className="reason-text">{getReasonText(item.reason)}</span>
-                              )}
-                            </div>
-                            <IonSelect
-                              interface="popover"
-                              placeholder="Seleccionar alumno"
-                              value={reviewAssignments[item.correctionId] || ''}
-                              onIonChange={(e) => handleReviewAssignment(item.correctionId, e.detail.value)}
-                              className="bulk-review-select"
-                            >
-                              {students
-                                .filter((s) => !assignedStudentIds.has(s.id) || reviewAssignments[item.correctionId] === s.id)
-                                .map((s) => (
-                                  <IonSelectOption key={`${item.correctionId}-${s.id}`} value={s.id}>
-                                    {s.name} {s.studentId ? `(${s.studentId})` : ''}
-                                  </IonSelectOption>
-                                ))}
-                              <IonSelectOption key={`${item.correctionId}-none`} value="">— Sin asignar —</IonSelectOption>
-                            </IonSelect>
-                          </div>
-                        </div>
-                      </IonCardContent>
-                    </IonCard>
-                  );
-                })}
-              </div>
+              <QRReviewTable
+                items={reviewItems}
+                itemLabel="Ejercicio"
+                assignments={reviewAssignments}
+                students={students}
+                assignedStudentIds={assignedStudentIds}
+                thumbnails={thumbBlobUrls}
+                paperUrls={Object.fromEntries(
+                  reviewItems
+                    .map((item) => {
+                      const c = groupCorrections.find((c) => c.id === item.correctionId);
+                      const url = getFullPaperUrl(c?.paperUrl);
+                      return url ? [item.correctionId, url] : null;
+                    })
+                    .filter(Boolean) as [string, string][]
+                )}
+                thumbsLoading={Object.keys(thumbBlobUrls).length < reviewItems.length}
+                onAssign={handleReviewAssignment}
+                onPreview={(url) => setPreviewUrl(url)}
+              />
 
               <div className="bulk-review-actions">
                 <IonButton

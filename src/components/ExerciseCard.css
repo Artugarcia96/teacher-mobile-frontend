@@ -4,7 +4,7 @@
   overflow: hidden;
   isolation: isolate;
   position: relative;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: none !important;
   border: 1px solid var(--color-border) !important;
 }
 

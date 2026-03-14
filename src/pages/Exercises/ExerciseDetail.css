@@ -129,6 +129,78 @@
   font-size: 0.75rem;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   INFO RIBBON - Compact horizontal strip
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.exd-ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-sm, 8px) var(--space-lg, 16px);
+  margin: -12px 16px 16px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+}
+
+.exd-ribbon__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.exd-ribbon__value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exd-ribbon__icon {
+  font-size: 14px;
+  color: #6366f1;
+}
+
+.exd-ribbon__label {
+  font-size: 9px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.exd-ribbon__status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 100px;
+}
+
+.exd-ribbon__deadline {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.exd-ribbon__deadline ion-icon {
+  font-size: 10px;
+}
+
+.exd-ribbon__divider {
+  width: 1px;
+  height: 24px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
 /* Areas Section */
 .exd-areas-section {
   padding: 0 16px 16px;
@@ -473,6 +545,89 @@
   --border-radius: 12px;
   margin-top: 16px;
   font-weight: 600;
+}
+
+/* Radar in areas section */
+.exd-areas-radar {
+  display: flex;
+  justify-content: center;
+}
+
+/* Toggle buttons */
+.exd-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 8px 0;
+  margin-top: 4px;
+  transition: opacity 0.15s;
+}
+
+.exd-toggle-btn:hover {
+  opacity: 0.8;
+}
+
+.exd-toggle-btn ion-icon {
+  font-size: 14px;
+}
+
+.exd-history-toggle {
+  margin-top: 0;
+  justify-content: flex-start;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+/* Compact QuestionStatusBar in correction list */
+.exd-correction-bar {
+  max-width: 160px;
+  margin-top: 4px;
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  .exd-content {
+    --background: #09090B;
+  }
+
+  .exd-ribbon {
+    background: #16161A;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .exd-ribbon__value {
+    color: #f1f5f9;
+  }
+
+  .exd-ribbon__divider {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .exd-question-card,
+  .exd-stat-card,
+  .exd-corrections-list,
+  .exd-history-item {
+    background: #16161A;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .exd-question-text,
+  .exd-stat-value,
+  .exd-correction-name,
+  .exd-history-instruction {
+    color: #f1f5f9;
+  }
 }
 
 /* Mobile adjustments */

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { IonCard, IonCardContent, IonSelect, IonSelectOption, IonInput, IonButton, IonBadge, IonItem, IonTextarea, IonSpinner, IonIcon } from '@ionic/react';
-import { checkmarkCircle, closeCircle, alertCircle, helpCircle, sparkles, chevronDownOutline, chevronUpOutline, imageOutline, downloadOutline } from 'ionicons/icons';
+import { closeCircle, sparkles, chevronDownOutline, chevronUpOutline, imageOutline, downloadOutline, helpCircle } from 'ionicons/icons';
 import { Student, AIAnalysis } from '../types';
+import { questionStatusConfig } from '../utils/statusConfig';
+import { QuestionStatusBar } from './charts';
 import './ScanCard.css';
 
 interface Props {
@@ -34,41 +36,24 @@ function getCorrectPercent(questions: AIAnalysis['questions']): number | null {
   return Math.round(((correct + partial * 0.5) / questions.length) * 100);
 }
 
-const statusConfig = {
-  correct: { icon: checkmarkCircle, color: 'success', label: 'Correcto', symbol: '✓' },
-  partial: { icon: alertCircle, color: 'warning', label: 'Parcial', symbol: '~' },
-  incorrect: { icon: closeCircle, color: 'danger', label: 'Incorrecto', symbol: '✗' },
-  blank: { icon: helpCircle, color: 'medium', label: 'Sin respuesta', symbol: '—' },
-};
-
 const ScanCard: React.FC<Props> = ({
   index, aiAnalysis, selectedStudentId, students,
   maxScore, grade, originalGrade, teacherNotes, saved, saving, aiProcessing, aiError,
   paperUrl, onStudentChange, onGradeChange, onNotesChange, onSave, onProcessAI, onPreviewPaper, onDownloadPaper,
 }) => {
-  const [showAllQuestions, setShowAllQuestions] = useState(false);
+  const [showQuestionDetails, setShowQuestionDetails] = useState(false);
   const hasAI = !!aiAnalysis;
   const confidence = aiAnalysis?.confidence || 0;
-  
+
   const hasGradeChanged = saved && grade !== originalGrade;
 
-  const questionStats = aiAnalysis?.questions?.reduce(
-    (acc, q) => {
-      acc[q.status] = (acc[q.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  ) || {};
-
   const totalQuestions = aiAnalysis?.questions?.length || 0;
-  const blankCount = questionStats.blank || 0;
+  const blankCount = aiAnalysis?.questions?.filter(q => q.status === 'blank').length || 0;
   const correctPercent = hasAI && totalQuestions > 0 ? getCorrectPercent(aiAnalysis.questions) : null;
-  const visibleQuestions = showAllQuestions ? aiAnalysis?.questions : aiAnalysis?.questions?.slice(0, 4);
-  const hasMoreQuestions = totalQuestions > 4;
-  
+
   const hasAnyAIContent = hasAI && (
-    totalQuestions > 0 || 
-    (aiAnalysis.weakAreas && aiAnalysis.weakAreas.length > 0) || 
+    totalQuestions > 0 ||
+    (aiAnalysis.weakAreas && aiAnalysis.weakAreas.length > 0) ||
     aiAnalysis.summary
   );
 
@@ -82,9 +67,9 @@ const ScanCard: React.FC<Props> = ({
               {onPreviewPaper && <IonIcon icon={imageOutline} className="scan-card-preview-icon" />}
             </span>
             {onDownloadPaper && paperUrl && (
-              <IonButton 
-                fill="clear" 
-                size="small" 
+              <IonButton
+                fill="clear"
+                size="small"
                 onClick={onDownloadPaper}
                 className="scan-card-download-btn"
                 title="Descargar examen"
@@ -93,7 +78,7 @@ const ScanCard: React.FC<Props> = ({
               </IonButton>
             )}
           </div>
-          
+
           <IonSelect
             value={selectedStudentId}
             onIonChange={(e) => onStudentChange(e.detail.value)}
@@ -126,9 +111,9 @@ const ScanCard: React.FC<Props> = ({
           {saved && !hasGradeChanged ? (
             <IonBadge color="success" className="scan-card-status">✓</IonBadge>
           ) : (
-            <IonButton 
-              size="small" 
-              onClick={onSave} 
+            <IonButton
+              size="small"
+              onClick={onSave}
               disabled={grade === null || !selectedStudentId || saving}
               className="scan-card-save-btn"
               color={hasGradeChanged ? 'warning' : 'primary'}
@@ -147,15 +132,13 @@ const ScanCard: React.FC<Props> = ({
 
         {hasAnyAIContent && (
           <div className="scan-card-ai-section">
+            {/* QuestionStatusBar replaces verbose question list */}
             {totalQuestions > 0 && (
               <>
                 <div className="scan-card-ai-header">
                   <div className="scan-card-ai-stats">
                     <IonIcon icon={sparkles} color="tertiary" />
-                    {questionStats.correct && <IonBadge color="success">{questionStats.correct} ✓</IonBadge>}
-                    {questionStats.partial && <IonBadge color="warning">{questionStats.partial} ~</IonBadge>}
-                    {questionStats.incorrect && <IonBadge color="danger">{questionStats.incorrect} ✗</IonBadge>}
-                    {questionStats.blank && <IonBadge color="medium">{questionStats.blank} —</IonBadge>}
+                    <span className="scan-card-ai-label">Análisis IA</span>
                   </div>
                   {correctPercent !== null && (
                     <span className={`scan-card-pct ${correctPercent >= 50 ? 'scan-card-pct-pass' : 'scan-card-pct-fail'}`}>
@@ -164,6 +147,8 @@ const ScanCard: React.FC<Props> = ({
                   )}
                 </div>
 
+                <QuestionStatusBar questions={aiAnalysis.questions} />
+
                 {blankCount > 0 && (
                   <div className="scan-card-blank-warning">
                     <IonIcon icon={helpCircle} />
@@ -171,25 +156,31 @@ const ScanCard: React.FC<Props> = ({
                   </div>
                 )}
 
-                <div className="scan-card-questions">
-                  {visibleQuestions?.map((q) => {
-                    const cfg = statusConfig[q.status] || statusConfig.blank;
-                    return (
-                      <div key={q.id} className={`scan-card-question scan-card-question-${q.status}`}>
-                        <IonIcon icon={cfg.icon} color={cfg.color} />
-                        <span className="scan-q-id">P{q.id}</span>
-                        <span className={`scan-q-status-label scan-q-status-${q.status}`}>{cfg.label}</span>
-                        {q.feedback && <span className="scan-q-feedback">{q.feedback}</span>}
-                      </div>
-                    );
-                  })}
-                  {hasMoreQuestions && (
-                    <button className="scan-card-show-more" onClick={() => setShowAllQuestions(!showAllQuestions)}>
-                      {showAllQuestions ? 'Ver menos' : `Ver ${totalQuestions - 4} más`}
-                      <IonIcon icon={showAllQuestions ? chevronUpOutline : chevronDownOutline} />
-                    </button>
-                  )}
-                </div>
+                {/* Collapsible question details */}
+                <button
+                  className="scan-card-show-more"
+                  onClick={() => setShowQuestionDetails(!showQuestionDetails)}
+                  type="button"
+                >
+                  {showQuestionDetails ? 'Ocultar preguntas' : 'Ver preguntas'}
+                  <IonIcon icon={showQuestionDetails ? chevronUpOutline : chevronDownOutline} />
+                </button>
+
+                {showQuestionDetails && (
+                  <div className="scan-card-questions">
+                    {aiAnalysis.questions.map((q) => {
+                      const cfg = questionStatusConfig[q.status] || questionStatusConfig.blank;
+                      return (
+                        <div key={q.id} className={`scan-card-question scan-card-question-${q.status}`}>
+                          <IonIcon icon={cfg.icon} color={cfg.color} />
+                          <span className="scan-q-id">P{q.id}</span>
+                          <span className={`scan-q-status-label scan-q-status-${q.status}`}>{cfg.label}</span>
+                          {q.feedback && <span className="scan-q-feedback">{q.feedback}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
 
@@ -217,10 +208,10 @@ const ScanCard: React.FC<Props> = ({
         )}
 
         {!hasAnyAIContent && onProcessAI && (
-          <IonButton 
-            size="small" 
+          <IonButton
+            size="small"
             fill="outline"
-            onClick={onProcessAI} 
+            onClick={onProcessAI}
             className="scan-card-ai-btn"
             disabled={aiProcessing}
           >

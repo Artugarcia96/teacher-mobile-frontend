@@ -92,7 +92,7 @@ interface CalendarState {
   lastScheduleUpdate: number; // Timestamp to trigger re-fetches
   
   setView: (view: CalendarView) => void;
-  fetchEvents: (startDate: string, endDate: string, classId?: string) => Promise<void>;
+  fetchEvents: (startDate: string, endDate: string, classId?: string, studentId?: string) => Promise<void>;
   createEvent: (data: {
     class_id?: string; student_id?: string; title: string; event_date: string;
     start_time?: string; end_time?: string; event_type?: string; notes?: string;
@@ -129,10 +129,10 @@ export const useCalendarStore = create<CalendarState>()(
 
       setView: (view) => set({ view }),
 
-      fetchEvents: async (startDate, endDate, classId) => {
+      fetchEvents: async (startDate, endDate, classId, studentId) => {
         set({ loading: true });
         try {
-          const res = await calendarApi.list(startDate, endDate, classId);
+          const res = await calendarApi.list(startDate, endDate, classId, studentId);
           set({ events: res.data.map(mapEvent), loading: false });
         } catch {
           set({ loading: false });

@@ -24,26 +24,13 @@
 
 .gb-hero {
   background: var(--gradient-primary);
-  padding: var(--space-lg) var(--space-xl) var(--space-2xl);
-  padding-top: max(var(--space-lg), env(safe-area-inset-top));
-  position: relative;
-  overflow: hidden;
+  padding: var(--space-md) var(--space-lg);
+  padding-top: max(var(--space-md), env(safe-area-inset-top));
 }
 
 .gb-hero--compact {
   padding: var(--space-md) var(--space-lg);
   padding-top: max(var(--space-md), env(safe-area-inset-top));
-}
-
-.gb-hero::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 60%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
-  pointer-events: none;
 }
 
 .gb-hero__nav {
@@ -147,6 +134,22 @@
   margin-bottom: -4px;
 }
 
+/* ─── Performance Card (subject bars) ─── */
+.gb-perf-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+}
+
+.gb-perf-card__title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  margin-bottom: var(--space-md);
+}
+
 /* ─── Action Buttons ─── */
 .gb-actions {
   display: flex;
@@ -177,8 +180,7 @@
 }
 
 .gb-action-btn:active {
-  transform: scale(0.97);
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .gb-action-btn--alt {
@@ -221,7 +223,7 @@
 }
 
 .gb-alert-row:active {
-  transform: scale(0.98);
+  opacity: 0.8;
 }
 
 .gb-alert-row__badge {
@@ -323,8 +325,6 @@
   padding: 8px 16px 4px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   color: var(--ion-color-medium);
 }
 
@@ -545,11 +545,7 @@
 
 @media (prefers-color-scheme: dark) {
   .gb-hero {
-    background: linear-gradient(135deg, #0D4A44 0%, #1E8A7F 100%);
-  }
-
-  .gb-hero::before {
-    background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+    background: #0D4A44;
   }
 
   .gb-tabs-wrapper {
@@ -573,6 +569,11 @@
 
   .gb-alert-row--info {
     background: rgba(99, 102, 241, 0.1);
+  }
+
+  .gb-perf-card {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .gb-nav-card {

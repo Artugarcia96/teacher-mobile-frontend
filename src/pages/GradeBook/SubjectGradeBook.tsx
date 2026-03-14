@@ -23,6 +23,7 @@ import EmptyState from '../../components/EmptyState';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import AddStudentsModal from '../../components/AddStudentsModal';
 import SubjectDayInsight from '../../components/SubjectDayInsight';
+import ClassInsightsPanel from '../../components/ClassInsightsPanel';
 import './GradeBook.css';
 
 const AVATAR_COLORS = [
@@ -278,6 +279,14 @@ const SubjectGradeBook: React.FC = () => {
                 <span>Generar ejercicios</span>
               </button>
             </div>
+
+            {/* Subject Stats */}
+            <ClassInsightsPanel
+              classId={classId}
+              subjectId={subjectId}
+              onStudentClick={(id) => history.push(`/tabs/classes/${classId}/students/${id}`)}
+              onGenerateExercises={() => setShowBulkExerciseModal(true)}
+            />
 
             {/* Pending Alerts */}
             {hasPending && (

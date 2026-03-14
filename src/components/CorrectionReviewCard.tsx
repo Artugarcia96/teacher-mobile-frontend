@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { IonBadge, IonIcon, IonButton, IonInput, IonSpinner } from '@ionic/react';
-import { checkmarkCircle, closeCircle, alertCircle, helpCircle, chevronDownOutline, chevronUpOutline, expandOutline, documentTextOutline, warningOutline, downloadOutline, pencilOutline, checkmarkOutline, closeOutline } from 'ionicons/icons';
+import { IonIcon, IonButton, IonInput, IonSpinner } from '@ionic/react';
+import { chevronDownOutline, chevronUpOutline, expandOutline, documentTextOutline, warningOutline, downloadOutline, pencilOutline, checkmarkOutline, closeOutline } from 'ionicons/icons';
 import { AIAnalysis } from '../types';
+import { questionStatusConfig } from '../utils/statusConfig';
+import { QuestionStatusBar } from './charts';
 import './CorrectionReviewCard.css';
 
 interface Props {
@@ -21,13 +23,6 @@ interface Props {
   savingGrade?: boolean;
 }
 
-const statusConfig = {
-  correct: { icon: checkmarkCircle, color: 'success', label: 'Correcto' },
-  partial: { icon: alertCircle, color: 'warning', label: 'Parcial' },
-  incorrect: { icon: closeCircle, color: 'danger', label: 'Incorrecto' },
-  blank: { icon: helpCircle, color: 'medium', label: 'Sin respuesta' },
-};
-
 function isImageUrl(url: string): boolean {
   const lower = url.toLowerCase();
   return /\.(jpe?g|png|gif|webp)(\?.*)?$/.test(lower);
@@ -39,45 +34,48 @@ const CorrectionReviewCard: React.FC<Props> = ({
   const hasContent = !!(aiAnalysis?.questions.length) || !!teacherNotes || !!aiAnalysis?.summary
     || (weakAreas && weakAreas.length > 0) || !!paperUrl;
   const [expanded, setExpanded] = useState(highlighted || false);
+  const [showDetails, setShowDetails] = useState(false);
   const [isEditingGrade, setIsEditingGrade] = useState(false);
   const [editedGrade, setEditedGrade] = useState<number | null>(grade);
-  
+
   const passed = grade !== null && grade / maxScore >= 0.5;
   const gradePercent = grade !== null ? Math.round((grade / maxScore) * 100) : null;
   const noGrade = grade === null;
-  
+
   const handleGradeSave = () => {
     if (editedGrade !== null && onGradeChange) {
       onGradeChange(editedGrade);
     }
     setIsEditingGrade(false);
   };
-  
+
   const handleGradeCancel = () => {
     setEditedGrade(grade);
     setIsEditingGrade(false);
   };
 
-  const questionStats = aiAnalysis?.questions.reduce(
-    (acc, q) => { acc[q.status] = (acc[q.status] || 0) + 1; return acc; },
-    {} as Record<string, number>
-  ) || {};
-
   const totalQuestions = aiAnalysis?.questions.length || 0;
   const showThumb = paperUrl && isImageUrl(paperUrl);
   const showPdfLink = paperUrl && !isImageUrl(paperUrl);
+  const hasDetailContent = (totalQuestions > 0) || !!teacherNotes || !!aiAnalysis?.summary;
 
   return (
     <div className={`rv-row ${expanded ? 'rv-row--open' : ''} ${highlighted ? 'rv-row--highlighted' : ''} ${noGrade ? 'rv-row--no-grade' : ''}`}>
       <button className="rv-row__header" onClick={() => hasContent && setExpanded(!expanded)}>
         <div className="rv-row__left">
           <span className="rv-row__name">{studentName}</span>
-          {!expanded && noGrade && !aiProcessed && (
+          {/* Compact QuestionStatusBar in collapsed state */}
+          {!expanded && aiAnalysis && totalQuestions > 0 && (
+            <div className="rv-row__inline-bar">
+              <QuestionStatusBar questions={aiAnalysis.questions} compact showLegend={false} />
+            </div>
+          )}
+          {!expanded && noGrade && !aiProcessed && !(aiAnalysis && totalQuestions > 0) && (
             <span className="rv-row__pending-hint">
               <IonIcon icon={warningOutline} /> Pendiente de corrección
             </span>
           )}
-          {!expanded && !noGrade && weakAreas && weakAreas.length > 0 && (
+          {!expanded && !noGrade && (!aiAnalysis || totalQuestions === 0) && weakAreas && weakAreas.length > 0 && (
             <span className="rv-row__weak-hint">{weakAreas.slice(0, 2).join(', ')}</span>
           )}
         </div>
@@ -127,8 +125,8 @@ const CorrectionReviewCard: React.FC<Props> = ({
 
       {expanded && hasContent && (
         <div className="rv-row__body">
-          {/* Paper preview + question stats */}
-          <div className="rv-row__top-section">
+          {/* Level 1: Summary strip */}
+          <div className="rv-row__summary-strip">
             {showThumb && (
               <div className="rv-row__thumb" onClick={onPreviewPaper}>
                 <img src={paperUrl} alt="Examen" />
@@ -141,12 +139,11 @@ const CorrectionReviewCard: React.FC<Props> = ({
               <div className="rv-row__pdf-actions">
                 <button className="rv-row__pdf-link" onClick={onPreviewPaper} type="button">
                   <IonIcon icon={documentTextOutline} />
-                  <span>Ver examen</span>
+                  <span>Ver</span>
                 </button>
                 {onDownloadPaper && (
                   <button className="rv-row__pdf-link rv-row__pdf-link--download" onClick={onDownloadPaper} type="button">
                     <IonIcon icon={downloadOutline} />
-                    <span>Descargar</span>
                   </button>
                 )}
               </div>
@@ -154,18 +151,14 @@ const CorrectionReviewCard: React.FC<Props> = ({
             {showThumb && onDownloadPaper && (
               <button className="rv-row__download-btn" onClick={onDownloadPaper} type="button">
                 <IonIcon icon={downloadOutline} />
-                <span>Descargar</span>
               </button>
             )}
-            <div className="rv-row__stats">
-              {totalQuestions > 0 && (
-                <div className="rv-row__stat-badges">
-                  {questionStats.correct > 0 && <IonBadge color="success">{questionStats.correct} ✓</IonBadge>}
-                  {questionStats.partial > 0 && <IonBadge color="warning">{questionStats.partial} ~</IonBadge>}
-                  {questionStats.incorrect > 0 && <IonBadge color="danger">{questionStats.incorrect} ✗</IonBadge>}
-                  {questionStats.blank > 0 && <IonBadge color="medium">{questionStats.blank} —</IonBadge>}
-                </div>
+
+            <div className="rv-row__summary-content">
+              {aiAnalysis && totalQuestions > 0 && (
+                <QuestionStatusBar questions={aiAnalysis.questions} />
               )}
+
               {weakAreas && weakAreas.length > 0 && (
                 <div className="rv-row__weak-tags">
                   {weakAreas.map((area, idx) => (
@@ -173,7 +166,8 @@ const CorrectionReviewCard: React.FC<Props> = ({
                   ))}
                 </div>
               )}
-              {noGrade && !aiProcessed && (
+
+              {noGrade && !aiProcessed && totalQuestions === 0 && (
                 <div className="rv-row__no-ai-msg">
                   <IonIcon icon={warningOutline} color="warning" />
                   <span>Sin analizar — cambia a modo "Editar" para procesar con IA</span>
@@ -182,36 +176,53 @@ const CorrectionReviewCard: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Question-by-question breakdown */}
-          {aiAnalysis && totalQuestions > 0 && (
-            <div className="rv-row__questions">
-              {aiAnalysis.questions.map((q) => {
-                const cfg = statusConfig[q.status] || statusConfig.blank;
-                return (
-                  <div key={q.id} className={`rv-row__q rv-row__q--${q.status}`}>
-                    <div className="rv-row__q-head">
-                      <IonIcon icon={cfg.icon} color={cfg.color} />
-                      <span className="rv-row__q-id">P{q.id}</span>
+          {/* Level 2: Details toggle */}
+          {hasDetailContent && (
+            <>
+              <button
+                className="rv-row__details-toggle"
+                onClick={() => setShowDetails(!showDetails)}
+                type="button"
+              >
+                {showDetails ? 'Ocultar detalles' : 'Ver detalles'}
+                <IonIcon icon={showDetails ? chevronUpOutline : chevronDownOutline} />
+              </button>
+
+              {showDetails && (
+                <div className="rv-row__details">
+                  {aiAnalysis && totalQuestions > 0 && (
+                    <div className="rv-row__questions">
+                      {aiAnalysis.questions.map((q) => {
+                        const cfg = questionStatusConfig[q.status] || questionStatusConfig.blank;
+                        return (
+                          <div key={q.id} className={`rv-row__q rv-row__q--${q.status}`}>
+                            <div className="rv-row__q-head">
+                              <IonIcon icon={cfg.icon} color={cfg.color} />
+                              <span className="rv-row__q-id">P{q.id}</span>
+                            </div>
+                            {q.feedback && <span className="rv-row__q-feedback">{q.feedback}</span>}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {q.feedback && <span className="rv-row__q-feedback">{q.feedback}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  )}
 
-          {teacherNotes && (
-            <div className="rv-row__section">
-              <span className="rv-row__section-label">Notas del profesor</span>
-              <p className="rv-row__section-text">{teacherNotes}</p>
-            </div>
-          )}
+                  {teacherNotes && (
+                    <div className="rv-row__section">
+                      <span className="rv-row__section-label">Notas del profesor</span>
+                      <p className="rv-row__section-text">{teacherNotes}</p>
+                    </div>
+                  )}
 
-          {aiAnalysis?.summary && (
-            <div className="rv-row__section">
-              <span className="rv-row__section-label">Resumen IA</span>
-              <p className="rv-row__section-text">{aiAnalysis.summary}</p>
-            </div>
+                  {aiAnalysis?.summary && (
+                    <div className="rv-row__section">
+                      <span className="rv-row__section-label">Resumen IA</span>
+                      <p className="rv-row__section-text">{aiAnalysis.summary}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

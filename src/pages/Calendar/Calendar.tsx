@@ -4,8 +4,6 @@ import {
   arrowForwardOutline,
   calendarOutline,
   documentTextOutline,
-  peopleOutline,
-  schoolOutline,
   timeOutline,
   chevronForwardOutline,
   chevronBackOutline,
@@ -125,7 +123,6 @@ const Calendar: React.FC = () => {
   const exams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
 
-  const allStudents = useStudentsStore((s) => s.students);
   const fetchAllStudents = useStudentsStore((s) => s.fetchAllStudents);
 
   const calEvents = useCalendarStore((s) => s.events);
@@ -231,22 +228,6 @@ const Calendar: React.FC = () => {
   }, [exams, selectedDate]);
   
   const isToday = selectedDate === todayStr;
-
-  const weekStats = useMemo(() => {
-    const mondayStr = toDateStr(currentWeekMonday);
-    const sundayStr = toDateStr(currentWeekSunday);
-
-    const weekExams = exams.filter(e => e.date >= mondayStr && e.date <= sundayStr);
-    const weekEvents = calEvents.filter(e => e.date >= mondayStr && e.date <= sundayStr && !e.isCancelled);
-    
-    const classSessionsCount = weekEvents.filter(e => e.eventType === 'class_session').length;
-
-    return {
-      examsCount: weekExams.length,
-      classSessionsCount,
-      pendingCount: pendingExams.length,
-    };
-  }, [exams, calEvents, pendingExams, currentWeekMonday, currentWeekSunday]);
 
   const weekDays = useMemo(() => {
     const days = [];
@@ -370,10 +351,6 @@ const Calendar: React.FC = () => {
     history.push(`/tabs/classes/${classId}/exams/new`);
   };
 
-  const totalStudents = useMemo(() => {
-    return allStudents.length;
-  }, [allStudents]);
-
   return (
     <IonPage>
       <IonContent className="cal-content" scrollY>
@@ -406,50 +383,6 @@ const Calendar: React.FC = () => {
             </div>
             <IonIcon icon={chevronForwardOutline} className="cal-prepare-btn__arrow" />
           </button>
-        </div>
-
-        <div className="cal-section">
-          <div className="cal-section__header">
-            <h2 className="cal-section__title">Resumen semanal</h2>
-          </div>
-          <div className="cal-stats">
-            <div className="cal-stat cal-stat--exams" onClick={() => history.push('/tabs/classes')}>
-              <div className="cal-stat__icon">
-                <IonIcon icon={documentTextOutline} />
-              </div>
-              <div className="cal-stat__content">
-                <span className="cal-stat__value">{weekStats.examsCount}</span>
-                <span className="cal-stat__label">Exámenes</span>
-              </div>
-            </div>
-            <div className="cal-stat cal-stat--classes" onClick={() => history.push('/tabs/classes')}>
-              <div className="cal-stat__icon">
-                <IonIcon icon={schoolOutline} />
-              </div>
-              <div className="cal-stat__content">
-                <span className="cal-stat__value">{classes.length}</span>
-                <span className="cal-stat__label">Clases</span>
-              </div>
-            </div>
-            <div className="cal-stat cal-stat--students" onClick={() => history.push('/tabs/classes')}>
-              <div className="cal-stat__icon">
-                <IonIcon icon={peopleOutline} />
-              </div>
-              <div className="cal-stat__content">
-                <span className="cal-stat__value">{totalStudents}</span>
-                <span className="cal-stat__label">Alumnos</span>
-              </div>
-            </div>
-            <div className="cal-stat cal-stat--sessions">
-              <div className="cal-stat__icon">
-                <IonIcon icon={calendarOutline} />
-              </div>
-              <div className="cal-stat__content">
-                <span className="cal-stat__value">{weekStats.classSessionsCount}</span>
-                <span className="cal-stat__label">Sesiones</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {pendingExams.length > 0 && (

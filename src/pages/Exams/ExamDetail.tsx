@@ -16,6 +16,7 @@ import { useClassesStore } from '../../store/classesStore';
 import { exams as examsApi } from '../../services/api';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import EmptyState from '../../components/EmptyState';
+import { GradeDonut, WeakAreasRadar, QuestionStatusBar } from '../../components/charts';
 import './ExamDetail.css';
 
 const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
@@ -101,6 +102,34 @@ const ExamDetail: React.FC = () => {
       })
       .sort((a, b) => a.studentName.localeCompare(b.studentName));
   }, [examCorrections, students]);
+
+  const gradeDistribution = useMemo(() => {
+    const dist = { excellent: 0, good: 0, borderline: 0, fail: 0 };
+    const maxScore = exam?.maxScore || 10;
+    examCorrections.forEach((c) => {
+      if (c.grade === null || c.grade === undefined) return;
+      const pct = c.grade / maxScore;
+      if (pct >= 0.8) dist.excellent++;
+      else if (pct >= 0.6) dist.good++;
+      else if (pct >= 0.5) dist.borderline++;
+      else dist.fail++;
+    });
+    return dist;
+  }, [examCorrections, exam?.maxScore]);
+
+  const classWeakAreas = useMemo(() => {
+    const areaCount: Record<string, number> = {};
+    examCorrections.forEach((c) => {
+      const areas = c.weakAreas || c.aiAnalysis?.weakAreas || [];
+      areas.forEach((area: string) => {
+        areaCount[area] = (areaCount[area] || 0) + 1;
+      });
+    });
+    return Object.entries(areaCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([area, count]) => ({ area, count }));
+  }, [examCorrections]);
 
   useEffect(() => {
     if (isNewExam) return;
@@ -215,75 +244,60 @@ const ExamDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Info Card */}
-        <div className="ed-info-card">
-          <div className="ed-info-row">
-            <span className="ed-info-label">Fecha</span>
-            <span className="ed-info-value">
-              {new Date(exam.date).toLocaleDateString('es-ES', { 
-                weekday: 'long',
-                day: 'numeric', 
-                month: 'long',
-                year: 'numeric'
-              })}
+        {/* Info Ribbon */}
+        <div className="ed-ribbon">
+          <div className="ed-ribbon__item">
+            <span className="ed-ribbon__value">
+              {new Date(exam.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
             </span>
+            <span className="ed-ribbon__label">Fecha</span>
           </div>
-          <div className="ed-info-row">
-            <span className="ed-info-label">Puntuación máxima</span>
-            <span className="ed-info-value">{exam.maxScore} puntos</span>
+          <div className="ed-ribbon__divider" />
+          <div className="ed-ribbon__item">
+            <span className="ed-ribbon__value">{exam.maxScore}</span>
+            <span className="ed-ribbon__label">Máx.</span>
           </div>
-          <div className="ed-info-row">
-            <span className="ed-info-label">Estado</span>
-            <span 
-              className="ed-info-status"
+          <div className="ed-ribbon__divider" />
+          <div className="ed-ribbon__item">
+            <span
+              className="ed-ribbon__status"
               style={{ color: status.color, background: status.bg }}
             >
               {status.label}
             </span>
           </div>
           {exam.correctionDeadline && (
-            <div className="ed-info-row">
-              <span className="ed-info-label">Límite corrección</span>
-              <div className="ed-info-deadline">
-                <span className="ed-info-value">
-                  {new Date(exam.correctionDeadline).toLocaleDateString('es-ES', { 
-                    day: 'numeric', 
-                    month: 'short'
-                  })}
+            <>
+              <div className="ed-ribbon__divider" />
+              <div className="ed-ribbon__item">
+                <span className="ed-ribbon__value">
+                  {new Date(exam.correctionDeadline).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                 </span>
                 {deadline && exam.status !== 'corrected' && (
-                  <span 
-                    className="ed-deadline-badge"
-                    style={{ color: deadline.color, background: deadline.bg }}
+                  <span
+                    className="ed-ribbon__deadline"
+                    style={{ color: deadline.color }}
                   >
                     <IonIcon icon={deadline.label === 'Vencido' ? alertCircleOutline : timeOutline} />
                     {deadline.label}
                   </span>
                 )}
               </div>
-            </div>
+            </>
           )}
-          <div className="ed-info-row">
-            <span className="ed-info-label">Tipo</span>
-            <div className="ed-info-chips">
-              {exam.hasGeneratedQuestions ? (
-                <IonChip color="secondary" className="ed-type-chip">
-                  <IonIcon icon={sparkles} />
-                  Generado con IA
-                </IonChip>
-              ) : (
-                <IonChip color="medium" className="ed-type-chip">
-                  <IonIcon icon={documentTextOutline} />
-                  Documento subido
-                </IonChip>
-              )}
-              {exam.isPersonalized && (
-                <IonChip color="primary" className="ed-personalized-chip">
-                  <IonIcon icon={sparkles} />
-                  Personalizado
-                </IonChip>
-              )}
-            </div>
+          <div className="ed-ribbon__divider" />
+          <div className="ed-ribbon__item">
+            {exam.hasGeneratedQuestions ? (
+              <IonChip color="secondary" className="ed-type-chip">
+                <IonIcon icon={sparkles} />
+                IA
+              </IonChip>
+            ) : (
+              <IonChip color="medium" className="ed-type-chip">
+                <IonIcon icon={documentTextOutline} />
+                PDF
+              </IonChip>
+            )}
           </div>
         </div>
 
@@ -344,6 +358,37 @@ const ExamDetail: React.FC = () => {
               value={stats.totalGraded / stats.studentsCount} 
               color={exam.status === 'corrected' ? 'success' : 'primary'}
             />
+          </div>
+        )}
+
+        {/* Performance Charts */}
+        {stats.totalGraded > 0 && (
+          <div className="ed-performance">
+            <div className="ed-performance__charts">
+              <GradeDonut
+                distribution={[
+                  { label: 'Excelente', count: gradeDistribution.excellent, color: 'var(--chart-excellent, #10B981)' },
+                  { label: 'Bien', count: gradeDistribution.good, color: 'var(--chart-good, #3B82F6)' },
+                  { label: 'Justo', count: gradeDistribution.borderline, color: 'var(--chart-borderline, #F59E0B)' },
+                  { label: 'Suspenso', count: gradeDistribution.fail, color: 'var(--chart-fail, #EF4444)' },
+                ]}
+                centerLabel={stats.average !== null ? stats.average.toFixed(1) : '—'}
+                centerSubLabel="Promedio"
+                size={140}
+              />
+              {classWeakAreas.length >= 3 && (
+                <WeakAreasRadar areas={classWeakAreas} size={160} />
+              )}
+            </div>
+            {classWeakAreas.length > 0 && classWeakAreas.length < 3 && (
+              <div className="ed-performance__weak-tags">
+                {classWeakAreas.map(({ area, count }) => (
+                  <span key={area} className="ed-weak-tag">
+                    {area} <span className="ed-weak-count">{count}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -439,7 +484,12 @@ const ExamDetail: React.FC = () => {
                   </div>
                   <IonLabel>
                     <h3 className="ed-correction-name">{correction.studentName}</h3>
-                    {correction.aiAnalysis?.summary && (
+                    {correction.aiAnalysis?.questions && correction.aiAnalysis.questions.length > 0 && (
+                      <div className="ed-correction-bar">
+                        <QuestionStatusBar questions={correction.aiAnalysis.questions} compact />
+                      </div>
+                    )}
+                    {!correction.aiAnalysis?.questions?.length && correction.aiAnalysis?.summary && (
                       <p className="ed-correction-summary">{correction.aiAnalysis.summary}</p>
                     )}
                   </IonLabel>

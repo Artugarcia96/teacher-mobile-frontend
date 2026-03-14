@@ -1,0 +1,215 @@
+/* Trigger button */
+.csp__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+  border-radius: 12px;
+  background: var(--color-surface, var(--ion-background-color));
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 48px;
+  text-align: left;
+}
+
+.csp__trigger:active {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.15);
+}
+
+.csp__trigger--loading,
+.csp__trigger--empty {
+  pointer-events: none;
+  justify-content: center;
+  color: var(--ion-color-medium);
+  font-size: 13px;
+}
+
+.csp__trigger-value {
+  font-weight: 600;
+  color: var(--ion-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.csp__trigger-placeholder {
+  color: var(--ion-color-medium);
+}
+
+.csp__trigger-icon {
+  font-size: 16px;
+  color: var(--ion-color-medium);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* Overlay */
+.csp__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: csp-fade-in 0.15s ease;
+}
+
+@keyframes csp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Bottom sheet */
+.csp__sheet {
+  width: 100%;
+  max-width: 500px;
+  max-height: 70vh;
+  background: var(--ion-background-color);
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: csp-slide-up 0.2s ease;
+}
+
+@keyframes csp-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.csp__sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ion-color-light-shade);
+  margin: 8px auto 0;
+}
+
+.csp__sheet-header {
+  padding: 12px 20px 8px;
+}
+
+.csp__sheet-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ion-text-color);
+}
+
+/* Search */
+.csp__search {
+  --background: var(--ion-color-light);
+  --border-radius: 10px;
+  --box-shadow: none;
+  --height: 36px;
+  padding: 0 16px 8px;
+  font-size: 14px;
+}
+
+/* List */
+.csp__list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.csp__empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+}
+
+/* Group */
+.csp__group {
+  padding-bottom: 4px;
+}
+
+.csp__group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ion-color-medium);
+}
+
+.csp__group-header ion-icon {
+  font-size: 14px;
+}
+
+/* Option row */
+.csp__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.csp__option:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.csp__option--selected {
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+}
+
+.csp__option-icon {
+  font-size: 18px;
+  color: var(--ion-color-primary);
+  flex-shrink: 0;
+}
+
+.csp__option-label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.csp__option--selected .csp__option-label {
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.csp__option-check {
+  font-size: 20px;
+  color: var(--ion-color-primary);
+  flex-shrink: 0;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .csp__trigger {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .csp__sheet {
+    background: #1c1c1e;
+  }
+
+  .csp__option:active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .csp__option--selected {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}

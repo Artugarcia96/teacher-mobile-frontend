@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
-  IonIcon, IonProgressBar, IonBadge, IonCard, IonCardContent,
+  IonIcon, IonProgressBar, IonBadge,
   IonSpinner, IonSegment, IonSegmentButton, IonLabel, IonSelect, IonSelectOption,
   IonChip, IonModal,
 } from '@ionic/react';
-import { closeOutline, checkmarkCircleOutline, pencilOutline, eyeOutline, cloudUploadOutline, checkmarkOutline, warningOutline, helpOutline, sparkles, expandOutline, downloadOutline, documentTextOutline, timeOutline, peopleOutline, chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
+import { closeOutline, checkmarkCircleOutline, pencilOutline, eyeOutline, cloudUploadOutline, checkmarkOutline, warningOutline, helpOutline, sparkles, downloadOutline, documentTextOutline, timeOutline, peopleOutline, chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
 import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
@@ -14,8 +14,10 @@ import { corrections as correctionsApi, exams as examsApi, batch, BatchJobProgre
 import { BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
+import QRReviewTable from '../../components/QRReviewTable';
 import EmptyState from '../../components/EmptyState';
 import BatchProgressModal from '../../components/BatchProgressModal';
+import { GradeDonut, WeakAreasRadar } from '../../components/charts';
 import './Correction.css';
 
 const Correction: React.FC = () => {
@@ -319,17 +321,6 @@ const Correction: React.FC = () => {
     return ids;
   }, [examCorrections, bulkResult, reviewAssignments]);
 
-  const getReasonText = (reason: string) => {
-    const reasons: Record<string, string> = {
-      'no_code': 'Sin código detectado',
-      'partial_code': 'Código parcialmente legible',
-      'no_match': 'Código no coincide con ningún alumno',
-      'duplicate_code': 'Código duplicado',
-      'already_assigned': 'Alumno ya tiene examen',
-      'ai_error': 'Error al procesar con IA'
-    };
-    return reasons[reason] || reason;
-  };
 
   const handleStudentChange = (correctionId: string, studentId: string) => {
     setLocalGrades((prev) => ({ ...prev, [correctionId]: { ...prev[correctionId], studentId } }));
@@ -675,34 +666,37 @@ const Correction: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grade-distribution">
-                    <div className="grade-distribution-bar">
-                      {gradeDistribution.excellent > 0 && (
-                        <div className="grade-bar-segment grade-bar-excellent" style={{ flex: gradeDistribution.excellent }} />
-                      )}
-                      {gradeDistribution.good > 0 && (
-                        <div className="grade-bar-segment grade-bar-good" style={{ flex: gradeDistribution.good }} />
-                      )}
-                      {gradeDistribution.borderline > 0 && (
-                        <div className="grade-bar-segment grade-bar-borderline" style={{ flex: gradeDistribution.borderline }} />
-                      )}
-                      {gradeDistribution.fail > 0 && (
-                        <div className="grade-bar-segment grade-bar-fail" style={{ flex: gradeDistribution.fail }} />
-                      )}
-                    </div>
-                  </div>
+                  <div className="dashboard-charts">
+                    <GradeDonut
+                      distribution={[
+                        { label: 'Excelente', count: gradeDistribution.excellent, color: 'var(--chart-excellent, #10B981)' },
+                        { label: 'Bien', count: gradeDistribution.good, color: 'var(--chart-good, #3B82F6)' },
+                        { label: 'Justo', count: gradeDistribution.borderline, color: 'var(--chart-borderline, #F59E0B)' },
+                        { label: 'Suspenso', count: gradeDistribution.fail, color: 'var(--chart-fail, #EF4444)' },
+                      ]}
+                      centerLabel={
+                        examCorrections.filter(c => c.grade !== null).length > 0
+                          ? (examCorrections.reduce((sum, c) => sum + (c.grade || 0), 0) / examCorrections.filter(c => c.grade !== null).length).toFixed(1)
+                          : '—'
+                      }
+                      centerSubLabel="Promedio"
+                      size={140}
+                    />
 
-                  {classWeakAreas.length > 0 && (
-                    <div className="class-weak-areas">
-                      <div className="class-weak-areas-tags">
-                        {classWeakAreas.map(({ area, count }) => (
-                          <span key={area} className="class-weak-tag">
-                            {area} <span className="weak-count">{count}</span>
-                          </span>
-                        ))}
+                    {classWeakAreas.length >= 3 ? (
+                      <WeakAreasRadar areas={classWeakAreas} size={160} />
+                    ) : classWeakAreas.length > 0 ? (
+                      <div className="class-weak-areas">
+                        <div className="class-weak-areas-tags">
+                          {classWeakAreas.map(({ area, count }) => (
+                            <span key={area} className="class-weak-tag">
+                              {area} <span className="weak-count">{count}</span>
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </div>
 
                 {/* Filter & Sort - compact single row */}
@@ -783,52 +777,37 @@ const Correction: React.FC = () => {
                 </div>
 
                 {bulkResult.needsReview.length > 0 && (
-                  <div className="bulk-review-cards">
-                    <p className="bulk-review-label">Asignación manual necesaria:</p>
-                    {bulkResult.needsReview.map((item, idx) => {
-                      const correction = examCorrections.find((c) => c.id === item.correctionId);
-                      const paperFullUrl = getFullPaperUrl(correction?.paperUrl);
-                      return (
-                        <IonCard key={item.correctionId} className="bulk-review-card">
-                          <IonCardContent className="bulk-review-card-content">
-                            <div className="bulk-review-card-top">
-                              {paperFullUrl && (
-                                <div className="bulk-review-thumb" onClick={() => setPreviewUrl(paperFullUrl)}>
-                                  <img src={paperFullUrl} alt={`Examen ${idx + 1}`} />
-                                  <div className="bulk-review-thumb-overlay">
-                                    <IonIcon icon={expandOutline} />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="bulk-review-card-info">
-                                <span className="bulk-review-card-index">Examen {idx + 1}</span>
-                                <div className="bulk-review-card-meta">
-                                  {item.detectedCode && <span className="detected-code">{item.detectedCode}</span>}
-                                  <span className="reason-text">{getReasonText(item.reason)}</span>
-                                </div>
-                                <IonSelect
-                                  interface="popover"
-                                  placeholder="Seleccionar alumno"
-                                  value={reviewAssignments[item.correctionId] || ''}
-                                  onIonChange={(e) => handleReviewAssignment(item.correctionId, e.detail.value)}
-                                  className="bulk-review-select"
-                                >
-                                  {students
-                                    .filter((s) => !assignedStudentIds.has(s.id) || reviewAssignments[item.correctionId] === s.id)
-                                    .map((s) => (
-                                      <IonSelectOption key={s.id} value={s.id}>
-                                        {s.name} {s.studentId ? `(${s.studentId})` : ''}
-                                      </IonSelectOption>
-                                    ))}
-                                  <IonSelectOption value="">— Sin asignar —</IonSelectOption>
-                                </IonSelect>
-                              </div>
-                            </div>
-                          </IonCardContent>
-                        </IonCard>
-                      );
-                    })}
-                  </div>
+                  <QRReviewTable
+                    items={bulkResult.needsReview.map((item) => ({
+                      correctionId: item.correctionId,
+                      detectedCode: item.detectedCode,
+                      reason: item.reason,
+                    }))}
+                    itemLabel="Examen"
+                    assignments={reviewAssignments}
+                    students={students}
+                    assignedStudentIds={assignedStudentIds}
+                    thumbnails={Object.fromEntries(
+                      bulkResult.needsReview
+                        .map((item) => {
+                          const c = examCorrections.find((c) => c.id === item.correctionId);
+                          const url = getFullPaperUrl(c?.paperUrl);
+                          return url ? [item.correctionId, url] : null;
+                        })
+                        .filter(Boolean) as [string, string][]
+                    )}
+                    paperUrls={Object.fromEntries(
+                      bulkResult.needsReview
+                        .map((item) => {
+                          const c = examCorrections.find((c) => c.id === item.correctionId);
+                          const url = getFullPaperUrl(c?.paperUrl);
+                          return url ? [item.correctionId, url] : null;
+                        })
+                        .filter(Boolean) as [string, string][]
+                    )}
+                    onAssign={handleReviewAssignment}
+                    onPreview={(url) => setPreviewUrl(url)}
+                  />
                 )}
 
                 <div className="bulk-review-actions">

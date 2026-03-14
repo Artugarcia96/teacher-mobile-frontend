@@ -4,10 +4,11 @@ import {
   IonSpinner, IonAlert, IonChip, IonList, IonItem, IonLabel,
   IonTextarea, IonModal, IonHeader, IonToolbar, IonTitle,
 } from '@ionic/react';
-import { 
+import {
   trashOutline, downloadOutline, chevronForwardOutline, pencilOutline,
   checkmarkCircleOutline, timeOutline, sparkles, cloudUploadOutline,
-  documentTextOutline, personOutline, refreshOutline, closeOutline, copyOutline
+  documentTextOutline, personOutline, refreshOutline, closeOutline, copyOutline,
+  chevronDownOutline, chevronUpOutline
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
@@ -16,6 +17,7 @@ import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { exercises as exercisesApi } from '../../services/api';
 import EmptyState from '../../components/EmptyState';
+import { WeakAreasRadar, QuestionStatusBar } from '../../components/charts';
 import './ExerciseDetail.css';
 
 const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
@@ -65,6 +67,8 @@ const ExerciseDetail: React.FC = () => {
   const [iterateInstruction, setIterateInstruction] = useState('');
   const [iterating, setIterating] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [showAllQuestions, setShowAllQuestions] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const exercise = useMemo(() => allExercises.find((e) => e.id === exerciseId), [allExercises, exerciseId]);
   const classGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
@@ -204,71 +208,43 @@ const ExerciseDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Info Card */}
-        <div className="exd-info-card">
-          <div className="exd-info-row">
-            <span className="exd-info-label">Alumno</span>
-            <span className="exd-info-value exd-info-value--student">
-              <IonIcon icon={personOutline} />
-              {student?.name || 'Sin asignar'}
+        {/* Info Ribbon */}
+        <div className="exd-ribbon">
+          <div className="exd-ribbon__item">
+            <span className="exd-ribbon__value">
+              <IonIcon icon={personOutline} className="exd-ribbon__icon" />
+              {student?.name || '—'}
             </span>
           </div>
-          <div className="exd-info-row">
-            <span className="exd-info-label">Fecha asignación</span>
-            <span className="exd-info-value">
-              {new Date(exercise.assignedAt).toLocaleDateString('es-ES', { 
-                weekday: 'long',
-                day: 'numeric', 
-                month: 'long',
-                year: 'numeric'
-              })}
-            </span>
+          <div className="exd-ribbon__divider" />
+          <div className="exd-ribbon__item">
+            <span className="exd-ribbon__value">{exercise.questions?.length || 0}</span>
+            <span className="exd-ribbon__label">Preg.</span>
           </div>
-          <div className="exd-info-row">
-            <span className="exd-info-label">Preguntas</span>
-            <span className="exd-info-value">{exercise.questions?.length || 0} preguntas</span>
-          </div>
-          <div className="exd-info-row">
-            <span className="exd-info-label">Estado</span>
-            <span 
-              className="exd-info-status"
+          <div className="exd-ribbon__divider" />
+          <div className="exd-ribbon__item">
+            <span
+              className="exd-ribbon__status"
               style={{ color: status.color, background: status.bg }}
             >
               {status.label}
             </span>
           </div>
           {exercise.deliveryDate && (
-            <div className="exd-info-row">
-              <span className="exd-info-label">Fecha entrega</span>
-              <div className="exd-info-deadline">
-                <span className="exd-info-value">
-                  {new Date(exercise.deliveryDate).toLocaleDateString('es-ES', { 
-                    day: 'numeric', 
-                    month: 'short'
-                  })}
+            <>
+              <div className="exd-ribbon__divider" />
+              <div className="exd-ribbon__item">
+                <span className="exd-ribbon__value">
+                  {new Date(exercise.deliveryDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                 </span>
                 {deliveryStatus && (
-                  <span 
-                    className="exd-deadline-badge"
-                    style={{ color: deliveryStatus.color, background: deliveryStatus.bg }}
-                  >
+                  <span className="exd-ribbon__deadline" style={{ color: deliveryStatus.color }}>
                     <IonIcon icon={timeOutline} />
                     {deliveryStatus.label}
                   </span>
                 )}
               </div>
-            </div>
-          )}
-          {exercise.correctionDate && (
-            <div className="exd-info-row">
-              <span className="exd-info-label">Fecha corrección</span>
-              <span className="exd-info-value">
-                {new Date(exercise.correctionDate).toLocaleDateString('es-ES', { 
-                  day: 'numeric', 
-                  month: 'short'
-                })}
-              </span>
-            </div>
+            </>
           )}
         </div>
 
@@ -276,13 +252,22 @@ const ExerciseDetail: React.FC = () => {
         {exercise.weakAreas && exercise.weakAreas.length > 0 && (
           <div className="exd-areas-section">
             <h3 className="exd-section-title">Áreas de refuerzo</h3>
-            <div className="exd-areas-list">
-              {exercise.weakAreas.map((area, i) => (
-                <IonChip key={i} color="primary" outline>
-                  {area}
-                </IonChip>
-              ))}
-            </div>
+            {exercise.weakAreas.length >= 3 ? (
+              <div className="exd-areas-radar">
+                <WeakAreasRadar
+                  areas={exercise.weakAreas.map(area => ({ area, count: 1 }))}
+                  size={160}
+                />
+              </div>
+            ) : (
+              <div className="exd-areas-list">
+                {exercise.weakAreas.map((area, i) => (
+                  <IonChip key={i} color="primary" outline>
+                    {area}
+                  </IonChip>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -369,7 +354,7 @@ const ExerciseDetail: React.FC = () => {
           <div className="exd-questions-section">
             <h2 className="exd-section-title">Preguntas ({exercise.questions.length})</h2>
             <div className="exd-questions-list">
-              {exercise.questions.map((q, i) => (
+              {(showAllQuestions ? exercise.questions : exercise.questions.slice(0, 3)).map((q, i) => (
                 <div key={q.id || i} className="exd-question-card">
                   <div className="exd-question-number">{i + 1}</div>
                   <div className="exd-question-content">
@@ -386,6 +371,16 @@ const ExerciseDetail: React.FC = () => {
                 </div>
               ))}
             </div>
+            {exercise.questions.length > 3 && (
+              <button
+                className="exd-toggle-btn"
+                onClick={() => setShowAllQuestions(!showAllQuestions)}
+                type="button"
+              >
+                {showAllQuestions ? 'Ocultar' : `Ver todas (${exercise.questions.length})`}
+                <IonIcon icon={showAllQuestions ? chevronUpOutline : chevronDownOutline} />
+              </button>
+            )}
           </div>
         )}
 
@@ -419,7 +414,12 @@ const ExerciseDetail: React.FC = () => {
                   </div>
                   <IonLabel>
                     <h3 className="exd-correction-name">{correction.studentName}</h3>
-                    {correction.aiAnalysis?.summary && (
+                    {correction.aiAnalysis?.questions && correction.aiAnalysis.questions.length > 0 && (
+                      <div className="exd-correction-bar">
+                        <QuestionStatusBar questions={correction.aiAnalysis.questions} compact />
+                      </div>
+                    )}
+                    {!correction.aiAnalysis?.questions?.length && correction.aiAnalysis?.summary && (
                       <p className="exd-correction-summary">{correction.aiAnalysis.summary}</p>
                     )}
                   </IonLabel>
@@ -442,27 +442,36 @@ const ExerciseDetail: React.FC = () => {
         {/* Iteration History */}
         {exercise.iterationHistory && exercise.iterationHistory.length > 0 && (
           <div className="exd-history-section">
-            <h2 className="exd-section-title">Historial de ajustes</h2>
-            <div className="exd-history-list">
-              {exercise.iterationHistory.map((item, i) => (
-                <div key={i} className="exd-history-item">
-                  <div className="exd-history-icon">
-                    <IonIcon icon={refreshOutline} />
+            <button
+              className="exd-toggle-btn exd-history-toggle"
+              onClick={() => setShowHistory(!showHistory)}
+              type="button"
+            >
+              Historial de ajustes ({exercise.iterationHistory.length})
+              <IonIcon icon={showHistory ? chevronUpOutline : chevronDownOutline} />
+            </button>
+            {showHistory && (
+              <div className="exd-history-list">
+                {exercise.iterationHistory.map((item, i) => (
+                  <div key={i} className="exd-history-item">
+                    <div className="exd-history-icon">
+                      <IonIcon icon={refreshOutline} />
+                    </div>
+                    <div className="exd-history-content">
+                      <p className="exd-history-instruction">{item.instruction}</p>
+                      <span className="exd-history-date">
+                        {new Date(item.timestamp).toLocaleDateString('es-ES', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="exd-history-content">
-                    <p className="exd-history-instruction">{item.instruction}</p>
-                    <span className="exd-history-date">
-                      {new Date(item.timestamp).toLocaleDateString('es-ES', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -23,7 +23,7 @@ interface ClassesState {
   error: string | null;
   fetchClasses: () => Promise<void>;
   fetchClassSubjects: (classId: string) => Promise<ClassSubjectSummary[]>;
-  addClass: (c: { name: string; subject?: string; year: string }) => Promise<string>;
+  addClass: (c: { name: string; subject?: string; year: string; education_level?: string }) => Promise<string>;
   archiveClass: (id: string) => Promise<void>;
   deleteClassPermanently: (id: string) => Promise<void>;
   bulkDeleteClasses: (ids: string[]) => Promise<{ deleted: number; errors: string[] }>;
@@ -48,6 +48,9 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
         pendingCorrections: s.pending_corrections,
         exerciseCount: s.exercise_count,
         topicCount: s.topic_count,
+        averageGrade: s.average_grade ?? null,
+        correctedCount: s.corrected_count ?? 0,
+        passRate: s.pass_rate ?? null,
       }));
       set((state) => ({
         classSubjects: { ...state.classSubjects, [classId]: subjects },
@@ -71,6 +74,7 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
         name: c.name,
         subject: c.subject || '',
         year: c.year,
+        educationLevel: c.education_level || 'secundaria',
         studentCount: c.student_count,
         lectureCount: c.lecture_count || 0,
         lastActivity: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
@@ -92,6 +96,7 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       name: res.data.name,
       subject: res.data.subject || '',
       year: res.data.year,
+      educationLevel: res.data.education_level || 'secundaria',
       studentCount: res.data.student_count,
       lectureCount: res.data.lecture_count || 0,
       lastActivity: todayStr,

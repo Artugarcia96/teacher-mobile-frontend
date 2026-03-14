@@ -3,7 +3,6 @@ import {
   IonModal, IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton,
   IonSegment, IonSegmentButton, IonLabel, IonList, IonItem, IonInput,
   IonCheckbox, IonSearchbar, IonSpinner, IonIcon, IonProgressBar,
-  IonSelect, IonSelectOption
 } from '@ionic/react';
 import { closeOutline, addOutline, trashOutline, personAddOutline } from 'ionicons/icons';
 import { useStudentsStore, StudentPoolEntry } from '../store/studentsStore';
@@ -31,6 +30,7 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState<string>('');
+  const [classFilterOpen, setClassFilterOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState('');
 
@@ -234,20 +234,33 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
                     className="add-students__searchbar"
                   />
                   {uniqueClasses.length > 0 && (
-                    <IonSelect
-                      value={classFilter}
-                      onIonChange={(e) => setClassFilter(e.detail.value)}
-                      interface="popover"
-                      placeholder="Todas las clases"
-                      className="add-students__class-filter"
-                    >
-                      <IonSelectOption value="">Todas las clases</IonSelectOption>
-                      {uniqueClasses.map((c) => (
-                        <IonSelectOption key={c.class_id} value={c.class_id}>
-                          {c.class_name}
-                        </IonSelectOption>
-                      ))}
-                    </IonSelect>
+                    <div className="add-students__class-filter-wrap">
+                      <button
+                        className="add-students__class-filter-btn"
+                        onClick={() => setClassFilterOpen((o) => !o)}
+                      >
+                        <span>{classFilter ? (uniqueClasses.find((c) => c.class_id === classFilter)?.class_name ?? 'Todas las clases') : 'Todas las clases'}</span>
+                        <svg className={`add-students__class-filter-caret${classFilterOpen ? ' add-students__class-filter-caret--open' : ''}`} width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                      {classFilterOpen && (
+                        <>
+                          <div className="add-students__class-filter-backdrop" onClick={() => setClassFilterOpen(false)} />
+                          <div className="add-students__class-filter-dropdown">
+                            {[{ class_id: '', class_name: 'Todas las clases' }, ...uniqueClasses].map((c) => (
+                              <button
+                                key={c.class_id}
+                                className={`add-students__class-filter-option${classFilter === c.class_id ? ' add-students__class-filter-option--active' : ''}`}
+                                onClick={() => { setClassFilter(c.class_id); setClassFilterOpen(false); }}
+                              >
+                                {c.class_name}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
 

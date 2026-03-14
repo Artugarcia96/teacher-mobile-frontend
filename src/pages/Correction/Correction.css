@@ -145,6 +145,15 @@
 .grade-bar-borderline { background: #F59E0B; }
 .grade-bar-fail { background: #EF4444; }
 
+/* Dashboard charts row */
+.dashboard-charts {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
 /* Class Weak Areas - compact tags */
 .class-weak-areas {
   display: flex;
@@ -199,6 +208,7 @@
   --background: rgba(15, 23, 42, 0.04);
   min-height: 32px;
   flex: 1;
+  min-width: 0;
 }
 
 .filter-segment ion-segment-button {
@@ -214,9 +224,10 @@
   --padding-end: var(--space-sm);
   font-size: var(--font-size-sm);
   min-height: 32px;
+  width: 88px;
+  flex-shrink: 0;
   background: rgba(15, 23, 42, 0.04);
   border-radius: var(--radius-sm);
-  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════════════════

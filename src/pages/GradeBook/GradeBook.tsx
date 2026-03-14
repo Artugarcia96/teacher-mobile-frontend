@@ -22,6 +22,7 @@ import EmptyState from '../../components/EmptyState';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import AddStudentsModal from '../../components/AddStudentsModal';
 import ClassInsightsPanel from '../../components/ClassInsightsPanel';
+import { SubjectBars } from '../../components/charts';
 import './GradeBook.css';
 
 const AVATAR_COLORS = [
@@ -275,73 +276,105 @@ const GradeBook: React.FC = () => {
               </div>
             )}
 
-            {/* Subject-based navigation */}
-            {(classSubjects[classId]?.length || 0) > 0 ? (
-              <div className="gb-nav-card">
-                <div className="gb-nav-section-title">Asignaturas</div>
-                {classSubjects[classId].map((subject) => (
-                  <button
-                    key={subject.subjectId}
-                    className="gb-nav-row"
-                    onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subject.subjectId}`)}
-                  >
-                    <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
-                    <span className="gb-nav-row__label">{subject.subjectName}</span>
-                    <div className="gb-nav-row__meta">
-                      {subject.examCount > 0 && <span className="gb-nav-row__count">{subject.examCount} ex.</span>}
-                      {subject.pendingCorrections > 0 && <span className="gb-nav-row__pending">{subject.pendingCorrections}</span>}
-                    </div>
-                    <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="gb-nav-card">
-                <button
-                  className="gb-nav-row"
-                  onClick={() => history.push(`/tabs/classes/${classId}/exams`)}
-                >
-                  <IonIcon icon={documentTextOutline} className="gb-nav-row__icon" />
-                  <span className="gb-nav-row__label">Exámenes</span>
-                  {exams.length > 0 && (
-                    <span className="gb-nav-row__count">{exams.length}</span>
-                  )}
-                  <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
-                </button>
+            {/* Class Performance Overview */}
+            {(classSubjects[classId]?.length || 0) > 0 && (
+              <>
+                {/* Subject grade bars chart */}
+                {classSubjects[classId].some(s => s.averageGrade !== null) && (
+                  <div className="gb-perf-card">
+                    <div className="gb-perf-card__title">Nota media por asignatura</div>
+                    <SubjectBars
+                      subjects={classSubjects[classId].map(s => ({
+                        name: s.subjectName,
+                        averageGrade: s.averageGrade,
+                        passRate: s.passRate,
+                      }))}
+                      onSubjectClick={(i) => {
+                        const subj = classSubjects[classId][i];
+                        if (subj) history.push(`/tabs/classes/${classId}/subjects/${subj.subjectId}`);
+                      }}
+                    />
+                  </div>
+                )}
 
-                <button
-                  className="gb-nav-row"
-                  onClick={() => history.push(`/tabs/classes/${classId}/exercises`)}
-                >
-                  <IonIcon icon={sparkles} className="gb-nav-row__icon" />
-                  <span className="gb-nav-row__label">Ejercicios</span>
-                  {exercises.length > 0 && (
-                    <span className="gb-nav-row__count">{exercises.length}</span>
-                  )}
-                  <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
-                </button>
+                {/* Class Insights (compact) */}
+                {students.length > 0 && (
+                  <ClassInsightsPanel
+                    classId={classId}
+                    onStudentClick={(studentId) => history.push(`/tabs/classes/${classId}/students/${studentId}`)}
+                    onGenerateExercises={(areas) => {
+                      setPreselectedWeakAreas(areas);
+                      setShowBulkExerciseModal(true);
+                    }}
+                  />
+                )}
 
-                <button
-                  className="gb-nav-row gb-nav-row--last"
-                  onClick={() => history.push(`/tabs/classes/${classId}/topics`)}
-                >
-                  <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
-                  <span className="gb-nav-row__label">Temario</span>
-                  <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
-                </button>
-              </div>
+                {/* Subject navigation */}
+                <div className="gb-nav-card">
+                  <div className="gb-nav-section-title">Asignaturas</div>
+                  {classSubjects[classId].map((subject) => (
+                    <button
+                      key={subject.subjectId}
+                      className="gb-nav-row"
+                      onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subject.subjectId}`)}
+                    >
+                      <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
+                      <span className="gb-nav-row__label">{subject.subjectName}</span>
+                      <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
 
-            {/* Class Insights */}
-            {students.length > 0 && (
-              <ClassInsightsPanel
-                classId={classId}
-                onStudentClick={(studentId) => history.push(`/tabs/classes/${classId}/students/${studentId}`)}
-                onGenerateExercises={(areas) => {
-                  setPreselectedWeakAreas(areas);
-                  setShowBulkExerciseModal(true);
-                }}
-              />
+            {/* Fallback when no subjects — simple nav */}
+            {(classSubjects[classId]?.length || 0) === 0 && (
+              <>
+                {students.length > 0 && (
+                  <ClassInsightsPanel
+                    classId={classId}
+                    onStudentClick={(studentId) => history.push(`/tabs/classes/${classId}/students/${studentId}`)}
+                    onGenerateExercises={(areas) => {
+                      setPreselectedWeakAreas(areas);
+                      setShowBulkExerciseModal(true);
+                    }}
+                  />
+                )}
+                <div className="gb-nav-card">
+                  <button
+                    className="gb-nav-row"
+                    onClick={() => history.push(`/tabs/classes/${classId}/exams`)}
+                  >
+                    <IonIcon icon={documentTextOutline} className="gb-nav-row__icon" />
+                    <span className="gb-nav-row__label">Exámenes</span>
+                    {exams.length > 0 && (
+                      <span className="gb-nav-row__count">{exams.length}</span>
+                    )}
+                    <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                  </button>
+
+                  <button
+                    className="gb-nav-row"
+                    onClick={() => history.push(`/tabs/classes/${classId}/exercises`)}
+                  >
+                    <IonIcon icon={sparkles} className="gb-nav-row__icon" />
+                    <span className="gb-nav-row__label">Ejercicios</span>
+                    {exercises.length > 0 && (
+                      <span className="gb-nav-row__count">{exercises.length}</span>
+                    )}
+                    <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                  </button>
+
+                  <button
+                    className="gb-nav-row gb-nav-row--last"
+                    onClick={() => history.push(`/tabs/classes/${classId}/topics`)}
+                  >
+                    <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
+                    <span className="gb-nav-row__label">Temario</span>
+                    <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                  </button>
+                </div>
+              </>
             )}
 
             {exams.length === 0 && students.length === 0 && (

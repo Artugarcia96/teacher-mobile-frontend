@@ -18,11 +18,14 @@ export interface LectureBasic {
   name: string;
 }
 
+export type EducationLevel = 'infantil' | 'primaria_lower' | 'primaria_upper' | 'secundaria' | 'bachillerato' | 'universidad';
+
 export interface ClassGroup {
   id: string;
   name: string;
   subject: string;
   year: string;
+  educationLevel: EducationLevel;
   studentCount: number;
   lectureCount: number;
   lastActivity: string;
@@ -327,4 +330,7 @@ export interface ClassSubjectSummary {
   pendingCorrections: number;
   exerciseCount: number;
   topicCount: number;
+  averageGrade: number | null;
+  correctedCount: number;
+  passRate: number | null;
 }

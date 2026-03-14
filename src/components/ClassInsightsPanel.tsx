@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonButton, IonIcon, IonSpinner, IonChip, IonBadge,
+  IonButton, IonIcon, IonSpinner, IonBadge,
   useIonViewWillEnter
 } from '@ionic/react';
-import { 
-  refreshOutline, trendingUpOutline, trendingDownOutline, 
-  removeOutline, alertCircleOutline, sparkles, 
-  schoolOutline, checkmarkCircleOutline, analyticsOutline
+import {
+  refreshOutline, trendingUpOutline, trendingDownOutline,
+  removeOutline, alertCircleOutline, sparkles,
+  schoolOutline, checkmarkCircleOutline, chevronDownOutline, chevronUpOutline,
 } from 'ionicons/icons';
 import { classes as classesApi } from '../services/api';
 import ReactMarkdown from 'react-markdown';
@@ -39,300 +38,202 @@ interface ClassInsights {
 
 interface ClassInsightsPanelProps {
   classId: string;
+  subjectId?: string;
   onStudentClick?: (studentId: string) => void;
   onGenerateExercises?: (weakAreas: string[]) => void;
 }
 
 const INVALID_WEAK_AREA_PATTERNS = [
-  /^examen/i,
-  /^revisar/i,
-  /^todas las/i,
-  /^sin responder/i,
-  /^no respondido/i,
-  /^respuesta/i,
-  /^pregunta/i,
-  /^ejercicio/i,
-  /^nota/i,
-  /^puntuación/i,
-  /^error/i,
-  /^falta/i,
-  /^incompleto/i,
-  /^blanco/i,
-  /^vacío/i,
+  /^examen/i, /^revisar/i, /^todas las/i, /^sin responder/i,
+  /^no respondido/i, /^respuesta/i, /^pregunta/i, /^ejercicio/i,
+  /^nota/i, /^puntuación/i, /^error/i, /^falta/i,
+  /^incompleto/i, /^blanco/i, /^vacío/i,
 ];
 
 const isValidWeakArea = (topic: string): boolean => {
-  if (!topic || topic.trim().length < 3) return false;
-  if (topic.trim().length > 100) return false;
-  return !INVALID_WEAK_AREA_PATTERNS.some(pattern => pattern.test(topic.trim()));
+  if (!topic || topic.trim().length < 3 || topic.trim().length > 100) return false;
+  return !INVALID_WEAK_AREA_PATTERNS.some(p => p.test(topic.trim()));
 };
 
 const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
-  classId, onStudentClick, onGenerateExercises
+  classId, subjectId, onStudentClick, onGenerateExercises
 }) => {
   const [insights, setInsights] = useState<ClassInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const loadInsights = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const res = await classesApi.getInsights(classId);
+      const res = subjectId
+        ? await classesApi.getSubjectInsights(classId, subjectId)
+        : await classesApi.getInsights(classId);
       setInsights(res.data);
-    } catch (err) {
-      console.error('Failed to load insights:', err);
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [classId]);
+    } catch (err) { console.error(err); }
+    finally { if (showLoading) setLoading(false); }
+  }, [classId, subjectId]);
 
-  useEffect(() => {
-    loadInsights();
-  }, [loadInsights]);
-
-  useIonViewWillEnter(() => {
-    loadInsights(false);
-  });
+  useEffect(() => { loadInsights(); }, [loadInsights]);
+  useIonViewWillEnter(() => { loadInsights(false); });
 
   const handleRefresh = async () => {
+    if (subjectId) {
+      await loadInsights(false);
+      return;
+    }
     setRefreshing(true);
     try {
       const res = await classesApi.refreshInsights(classId, true);
       setInsights(res.data);
-    } catch (err) {
-      console.error('Failed to refresh insights:', err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const getTrendIcon = () => {
-    if (!insights?.trend) return removeOutline;
-    if (insights.trend === 'improving') return trendingUpOutline;
-    if (insights.trend === 'declining') return trendingDownOutline;
-    return removeOutline;
-  };
-
-  const getTrendColor = () => {
-    if (!insights?.trend) return 'medium';
-    if (insights.trend === 'improving') return 'success';
-    if (insights.trend === 'declining') return 'danger';
-    return 'medium';
-  };
-
-  const getTrendText = () => {
-    if (!insights?.trend) return 'Sin datos';
-    if (insights.trend === 'improving') return 'Mejorando';
-    if (insights.trend === 'declining') return 'Empeorando';
-    return 'Estable';
-  };
-
-  const getSeverityColor = (severity: string) => {
-    if (severity === 'high') return 'danger';
-    if (severity === 'medium') return 'warning';
-    return 'medium';
-  };
-
-  const getGradeColor = (grade: number | null) => {
-    if (grade === null) return 'medium';
-    if (grade >= 7) return 'success';
-    if (grade >= 5) return 'warning';
-    return 'danger';
+    } catch (err) { console.error(err); }
+    finally { setRefreshing(false); }
   };
 
   if (loading) {
     return (
-      <IonCard className="insights-panel insights-panel--loading">
-        <IonCardContent>
-          <IonSpinner name="crescent" />
-          <span>Analizando datos de la clase...</span>
-        </IonCardContent>
-      </IonCard>
+      <div className="cip cip--loading">
+        <IonSpinner name="crescent" />
+        <span>Analizando...</span>
+      </div>
     );
   }
 
   const hasData = insights && (insights.average_grade !== null || insights.weak_areas.length > 0);
-
   if (!hasData) {
     return (
-      <IonCard className="insights-panel insights-panel--empty">
-        <IonCardHeader>
-          <IonCardTitle className="insights-panel__title">
-            <div className="insights-panel__title-content">
-              <IonIcon icon={analyticsOutline} />
-              <span>Análisis de la clase</span>
-            </div>
-            <IonButton 
-              fill="clear" 
-              size="small" 
-              onClick={handleRefresh} 
-              disabled={refreshing}
-              className="insights-panel__refresh-btn"
-            >
-              <IonIcon 
-                icon={refreshOutline} 
-                slot="icon-only" 
-                className={refreshing ? 'spinning' : ''} 
-              />
-            </IonButton>
-          </IonCardTitle>
-        </IonCardHeader>
-        <IonCardContent>
-          <IonIcon icon={analyticsOutline} className="insights-panel__empty-icon" />
-          <p className="insights-panel__empty-title">Sin datos suficientes</p>
-          <p className="insights-panel__empty-text">
-            Corrige algunos exámenes para ver el análisis de la clase.
-          </p>
-        </IonCardContent>
-      </IonCard>
+      <div className="cip cip--empty">
+        <span className="cip__empty-text">Sin datos de análisis</span>
+        <IonButton fill="clear" size="small" onClick={handleRefresh} disabled={refreshing}>
+          <IonIcon icon={refreshOutline} slot="start" className={refreshing ? 'spinning' : ''} />
+          Actualizar
+        </IonButton>
+      </div>
     );
   }
 
-  const validWeakAreas = insights.weak_areas.filter(area => isValidWeakArea(area.topic));
+  const validWeakAreas = insights.weak_areas.filter(a => isValidWeakArea(a.topic));
+  const trendIcon = insights.trend === 'improving' ? trendingUpOutline :
+    insights.trend === 'declining' ? trendingDownOutline : removeOutline;
+  const trendColor = insights.trend === 'improving' ? 'success' :
+    insights.trend === 'declining' ? 'danger' : 'medium';
+  const trendText = insights.trend === 'improving' ? 'Mejorando' :
+    insights.trend === 'declining' ? 'Empeorando' : 'Estable';
 
   return (
-    <IonCard className="insights-panel">
-      <IonCardHeader>
-        <IonCardTitle className="insights-panel__title">
-          <div className="insights-panel__title-content">
-            <IonIcon icon={analyticsOutline} />
-            <span>Análisis de la clase</span>
-          </div>
-          <IonButton 
-            fill="clear" 
-            size="small" 
-            onClick={handleRefresh} 
-            disabled={refreshing}
-            className="insights-panel__refresh-btn"
-          >
-            <IonIcon 
-              icon={refreshOutline} 
-              slot="icon-only" 
-              className={refreshing ? 'spinning' : ''} 
-            />
-          </IonButton>
-        </IonCardTitle>
-      </IonCardHeader>
-
-      <IonCardContent>
-        <div className="insights-panel__stats">
-          <div className={`insights-panel__stat insights-panel__stat--${getGradeColor(insights.average_grade)}`}>
-            <div className="insights-panel__stat-icon">
-              <IonIcon icon={schoolOutline} />
-            </div>
-            <span className="insights-panel__stat-value">
-              {insights.average_grade !== null ? insights.average_grade.toFixed(1) : '-'}
+    <div className="cip">
+      {/* Compact stats row */}
+      <div className="cip__header" onClick={() => setExpanded(!expanded)}>
+        <div className="cip__stats-inline">
+          <div className="cip__stat">
+            <IonIcon icon={schoolOutline} className="cip__stat-icon" />
+            <span className="cip__stat-value">
+              {insights.average_grade !== null ? insights.average_grade.toFixed(1) : '—'}
             </span>
-            <span className="insights-panel__stat-label">Nota media</span>
+            <span className="cip__stat-label">media</span>
           </div>
-          
-          <div className={`insights-panel__stat insights-panel__stat--${insights.pass_rate !== null && insights.pass_rate >= 60 ? 'success' : insights.pass_rate !== null ? 'warning' : 'medium'}`}>
-            <div className="insights-panel__stat-icon">
-              <IonIcon icon={checkmarkCircleOutline} />
-            </div>
-            <span className="insights-panel__stat-value">
-              {insights.pass_rate !== null ? `${Math.round(insights.pass_rate)}%` : '-'}
+          <span className="cip__stat-sep">·</span>
+          <div className="cip__stat">
+            <IonIcon icon={checkmarkCircleOutline} className="cip__stat-icon" />
+            <span className="cip__stat-value">
+              {insights.pass_rate !== null ? `${Math.round(insights.pass_rate)}%` : '—'}
             </span>
-            <span className="insights-panel__stat-label">Aprobados</span>
+            <span className="cip__stat-label">aprob.</span>
           </div>
-          
-          <div className={`insights-panel__stat insights-panel__stat--${getTrendColor()}`}>
-            <div className="insights-panel__stat-icon">
-              <IonIcon icon={getTrendIcon()} />
-            </div>
-            <span className="insights-panel__stat-value insights-panel__stat-value--trend">
-              {getTrendText()}
-            </span>
-            <span className="insights-panel__stat-label">Tendencia</span>
+          <span className="cip__stat-sep">·</span>
+          <div className={`cip__stat cip__stat--${trendColor}`}>
+            <IonIcon icon={trendIcon} className="cip__stat-icon" />
+            <span className="cip__stat-value">{trendText}</span>
           </div>
         </div>
+        <div className="cip__header-actions">
+          <IonButton
+            fill="clear"
+            size="small"
+            onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
+            disabled={refreshing}
+            className="cip__refresh-btn"
+          >
+            <IonIcon icon={refreshOutline} slot="icon-only" className={refreshing ? 'spinning' : ''} />
+          </IonButton>
+          <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="cip__expand-icon" />
+        </div>
+      </div>
 
-        {validWeakAreas.length > 0 && (
-          <div className="insights-panel__section insights-panel__weak-areas-section">
-            <h4 className="insights-panel__section-title">
-              <span className="insights-panel__section-icon insights-panel__section-icon--warning">!</span>
-              Áreas a reforzar
-            </h4>
-            <div className="insights-panel__weak-areas">
-              {validWeakAreas.slice(0, 5).map((area, i) => (
-                <div 
-                  key={i} 
-                  className={`insights-panel__weak-area insights-panel__weak-area--${area.severity}`}
-                >
-                  <span className="insights-panel__weak-area-topic">{area.topic}</span>
-                  <span className="insights-panel__weak-area-count">
-                    {area.student_count} {area.student_count === 1 ? 'alumno' : 'alumnos'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {onGenerateExercises && validWeakAreas.length > 0 && (
-              <IonButton
-                fill="outline"
-                size="small"
-                className="insights-panel__generate-btn"
-                onClick={() => onGenerateExercises(validWeakAreas.map((a) => a.topic))}
-              >
-                <IonIcon icon={sparkles} slot="start" />
-                Generar ejercicios de refuerzo
-              </IonButton>
-            )}
-          </div>
-        )}
+      {/* Weak areas — always visible as compact tags */}
+      {validWeakAreas.length > 0 && (
+        <div className="cip__weak-tags">
+          {validWeakAreas.slice(0, expanded ? 10 : 3).map((area, i) => (
+            <span key={i} className={`cip__weak-tag cip__weak-tag--${area.severity}`}>
+              {area.topic}
+              <span className="cip__weak-tag-count">{area.student_count}</span>
+            </span>
+          ))}
+          {!expanded && validWeakAreas.length > 3 && (
+            <span className="cip__weak-more" onClick={() => setExpanded(true)}>
+              +{validWeakAreas.length - 3} más
+            </span>
+          )}
+        </div>
+      )}
 
-        {insights.student_alerts.length > 0 && (
-          <div className="insights-panel__section insights-panel__alerts-section">
-            <h4 className="insights-panel__section-title">
-              <IonIcon icon={alertCircleOutline} color="warning" />
-              Alumnos que necesitan atención
-            </h4>
-            <div className="insights-panel__alerts">
+      {/* Expanded content */}
+      {expanded && (
+        <div className="cip__expanded">
+          {/* Generate button */}
+          {onGenerateExercises && validWeakAreas.length > 0 && (
+            <button
+              className="cip__generate-btn"
+              onClick={() => onGenerateExercises(validWeakAreas.map(a => a.topic))}
+            >
+              <IonIcon icon={sparkles} />
+              Generar ejercicios de refuerzo
+            </button>
+          )}
+
+          {/* Student alerts — compact */}
+          {insights.student_alerts.length > 0 && (
+            <div className="cip__alerts">
+              <span className="cip__section-label">
+                <IonIcon icon={alertCircleOutline} />
+                Alumnos con dificultades
+              </span>
               {insights.student_alerts.slice(0, 3).map((alert, i) => (
                 <div
                   key={i}
-                  className="insights-panel__alert"
+                  className="cip__alert-row"
                   onClick={() => onStudentClick?.(alert.student_id)}
                 >
-                  <div className="insights-panel__alert-avatar">
-                    {alert.student_name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="insights-panel__alert-content">
-                    <span className="insights-panel__alert-name">{alert.student_name}</span>
-                    <span className="insights-panel__alert-issue">{alert.issue}</span>
-                  </div>
-                  <IonIcon icon={alertCircleOutline} className="insights-panel__alert-icon" />
+                  <span className="cip__alert-name">{alert.student_name}</span>
+                  <span className="cip__alert-issue">{alert.issue}</span>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
 
-        {insights.ai_summary && (
-          <div className="insights-panel__section insights-panel__ai-summary">
-            <h4 className="insights-panel__section-title">
-              <IonIcon icon={sparkles} color="primary" />
-              Resumen AI
-            </h4>
-            <div className="insights-panel__ai-content">
-              <ReactMarkdown>{insights.ai_summary}</ReactMarkdown>
+          {/* AI Summary — collapsed with max-height */}
+          {insights.ai_summary && (
+            <div className="cip__ai-summary">
+              <span className="cip__section-label">
+                <IonIcon icon={sparkles} />
+                Resumen IA
+              </span>
+              <div className="cip__ai-content">
+                <ReactMarkdown>{insights.ai_summary}</ReactMarkdown>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {insights.updated_at && (
-          <div className="insights-panel__footer">
-            <span className="insights-panel__updated">
+          {insights.updated_at && (
+            <span className="cip__updated">
               Actualizado {new Date(insights.updated_at).toLocaleString('es-ES', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit'
+                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
               })}
             </span>
-          </div>
-        )}
-      </IonCardContent>
-    </IonCard>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

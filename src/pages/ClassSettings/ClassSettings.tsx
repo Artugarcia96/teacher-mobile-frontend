@@ -8,7 +8,7 @@ import {
 import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
 import { useParams } from 'react-router-dom';
 import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi } from '../../services/api';
-import { Lecture, ScheduleSlot } from '../../types';
+import { Lecture, ScheduleSlot, EducationLevel } from '../../types';
 import { useClassesStore } from '../../store/classesStore';
 import { useStudentsStore, StudentPoolEntry } from '../../store/studentsStore';
 import './ClassSettings.css';
@@ -42,10 +42,20 @@ function formatSchedule(schedule: ScheduleSlot[]): string {
   }).join(', ');
 }
 
+const EDUCATION_LEVELS: [EducationLevel, string, string][] = [
+  ['infantil', 'Infantil', '3-5'],
+  ['primaria_lower', 'Primaria Inf.', '6-8'],
+  ['primaria_upper', 'Primaria Sup.', '9-11'],
+  ['secundaria', 'Secundaria', '12-15'],
+  ['bachillerato', 'Bachillerato', '16-17'],
+  ['universidad', 'Universidad', '18+'],
+];
+
 interface ClassDetail {
   id: string;
   name: string;
   year: string;
+  educationLevel: EducationLevel;
   lectures: Lecture[];
 }
 
@@ -128,6 +138,7 @@ const ClassSettings: React.FC = () => {
         id: res.data.id,
         name: res.data.name,
         year: res.data.year,
+        educationLevel: res.data.education_level || 'secundaria',
         lectures: (res.data.lectures || []).map((l: any) => ({
           id: l.id,
           classId: l.class_id,
@@ -366,6 +377,31 @@ const ClassSettings: React.FC = () => {
             <div className="settings-info-row">
               <span className="settings-info-label">Curso</span>
               <span className="settings-info-value">{classData?.year}</span>
+            </div>
+            <div className="settings-info-row settings-info-row--vertical">
+              <span className="settings-info-label">Nivel educativo</span>
+              <div className="education-level-chips">
+                {EDUCATION_LEVELS.map(([value, label, ages]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`education-level-chip ${classData?.educationLevel === value ? 'education-level-chip--active' : ''}`}
+                    onClick={async () => {
+                      if (value === classData?.educationLevel) return;
+                      try {
+                        await classesApi.update(classId, { education_level: value });
+                        setClassData((prev) => prev ? { ...prev, educationLevel: value } : prev);
+                        fetchClasses();
+                      } catch (err) {
+                        console.error('Failed to update education level:', err);
+                      }
+                    }}
+                  >
+                    <span className="education-level-chip__label">{label}</span>
+                    <span className="education-level-chip__ages">{ages}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

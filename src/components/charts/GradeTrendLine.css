@@ -1,0 +1,47 @@
+.gtl {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.gtl__svg {
+  width: 100%;
+  height: auto;
+}
+
+.gtl__line {
+  transition: d var(--transition-slow);
+}
+
+.gtl__pass-line {
+  stroke: var(--color-border-strong, rgba(15, 23, 42, 0.06));
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.gtl__axis-label {
+  font-size: 9px;
+  font-family: var(--ion-font-family);
+  fill: var(--color-text-tertiary, #94A3B8);
+  font-weight: 500;
+}
+
+.gtl__x-label {
+  font-size: 8px;
+  font-family: var(--ion-font-family);
+  fill: var(--color-text-tertiary, #94A3B8);
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gtl__pass-line {
+    stroke: var(--color-border-strong, rgba(255, 255, 255, 0.08));
+  }
+
+  .gtl__axis-label {
+    fill: var(--color-text-tertiary, #71717A);
+  }
+
+  .gtl__x-label {
+    fill: var(--color-text-tertiary, #71717A);
+  }
+}

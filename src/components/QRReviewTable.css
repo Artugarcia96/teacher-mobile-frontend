@@ -1,0 +1,257 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   QR REVIEW TABLE - Compact list for bulk QR assignment review
+   Replaces bulky per-paper IonCard grid with slim rows
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.qrt {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface, #ffffff);
+  overflow: hidden;
+}
+
+.qrt__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--ion-color-warning-rgb), 0.06);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.qrt__header-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-color-warning-shade);
+}
+
+.qrt__header-count {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  color: var(--ion-color-warning-shade);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+}
+
+/* ─── Row ─── */
+.qrt__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.qrt__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  min-height: 48px;
+  transition: background var(--transition-fast);
+}
+
+.qrt__row:last-child {
+  border-bottom: none;
+}
+
+.qrt__row--auto {
+  background: rgba(var(--ion-color-success-rgb), 0.03);
+}
+
+.qrt__row--assigned {
+  background: rgba(var(--ion-color-primary-rgb), 0.02);
+}
+
+/* ─── Thumbnail ─── */
+.qrt__thumb {
+  width: 32px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qrt__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qrt__thumb-icon {
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+
+.qrt__thumb-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.qrt__thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.qrt__thumb:hover .qrt__thumb-overlay,
+.qrt__thumb:active .qrt__thumb-overlay {
+  opacity: 1;
+}
+
+.qrt__thumb-overlay ion-icon {
+  color: white;
+  font-size: 14px;
+}
+
+/* ─── Info column ─── */
+.qrt__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qrt__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.qrt__index {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--ion-text-color);
+}
+
+.qrt__code {
+  display: inline-block;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: monospace;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.qrt__badge {
+  font-size: 10px !important;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.qrt__badge ion-icon {
+  font-size: 10px;
+}
+
+.qrt__reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--ion-color-warning-shade);
+  font-weight: 500;
+}
+
+.qrt__reason ion-icon {
+  font-size: 11px;
+}
+
+/* ─── Select ─── */
+.qrt__select {
+  --padding-start: var(--space-xs);
+  --padding-end: var(--space-xs);
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+  font-size: var(--font-size-sm);
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--color-border);
+  max-width: 100%;
+}
+
+/* ─── Download ─── */
+.qrt__download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--ion-color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.qrt__download:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.qrt__download ion-icon {
+  font-size: 14px;
+}
+
+/* ─── Dark Theme ─── */
+@media (prefers-color-scheme: dark) {
+  .qrt {
+    background: var(--color-surface, #16161A);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .qrt__header {
+    background: rgba(var(--ion-color-warning-rgb), 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .qrt__row {
+    border-bottom-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .qrt__thumb {
+    background: #1e1e24;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .qrt__select {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .qrt__download {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 380px) {
+  .qrt__row {
+    padding: var(--space-xs) var(--space-sm);
+    gap: var(--space-xs);
+  }
+
+  .qrt__thumb {
+    width: 28px;
+    height: 36px;
+  }
+}

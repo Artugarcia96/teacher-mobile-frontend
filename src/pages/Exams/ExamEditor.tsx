@@ -17,6 +17,7 @@ import { useTopicsStore } from '../../store/topicsStore';
 import { exams as examsApi, classes as classesApi, subjects as subjectsApi } from '../../services/api';
 import { Lecture, ExamIterationHistoryItem, SubjectWithTopics } from '../../types';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
+import ClassSubjectPicker from '../../components/ClassSubjectPicker';
 import './ExamEditor.css';
 
 const ExamEditor: React.FC = () => {
@@ -42,6 +43,11 @@ const ExamEditor: React.FC = () => {
 
   const topicsLoading = useTopicsStore((s) => s.loading);
   const [topicsBySubject, setTopicsBySubject] = useState<SubjectWithTopics[]>([]);
+
+  // Class-subject pairs for combined dropdown
+  interface ClassSubjectPair { classId: string; className: string; subjectId: string; subjectName: string; }
+  const [classPairs, setClassPairs] = useState<ClassSubjectPair[]>([]);
+  const [pairsLoading, setPairsLoading] = useState(false);
 
   // Shared fields
   const [name, setName] = useState('');
@@ -117,7 +123,41 @@ const ExamEditor: React.FC = () => {
     [classes, classId]
   );
 
+  // Combined class|subject value for the single dropdown
+  const comboValue = classId && selectedSubjectId ? `${classId}|${selectedSubjectId}` : '';
+
+  const handleComboChange = (value: string) => {
+    if (!value) {
+      setClassId('');
+      setSelectedSubjectId('');
+      setLectureId('');
+      return;
+    }
+    const [cId, sId] = value.split('|');
+    if (cId !== classId) {
+      setLectureId('');
+    }
+    setClassId(cId);
+    setSelectedSubjectId(sId);
+  };
+
   useEffect(() => { fetchClasses(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch class-subject pairs for combined dropdown
+  useEffect(() => {
+    setPairsLoading(true);
+    subjectsApi.classPairs()
+      .then((res) => {
+        setClassPairs(res.data.map((p: any) => ({
+          classId: p.class_id,
+          className: p.class_name,
+          subjectId: p.subject_id,
+          subjectName: p.subject_name,
+        })));
+      })
+      .catch(() => setClassPairs([]))
+      .finally(() => setPairsLoading(false));
+  }, []);
   
   useEffect(() => {
     if (!isNew && examId) {
@@ -144,12 +184,9 @@ const ExamEditor: React.FC = () => {
       setIsPersonalized(exam.isPersonalized || false);
       setCorrectionDeadline(exam.correctionDeadline || '');
       setBlankPagesCount(exam.blankPagesCount || 0);
-    } else if (isNew && urlClassId) {
-      setClassId(urlClassId);
-      // Auto-switch to generate mode when coming from subject-scoped route
-      if (urlSubjectId) {
-        setMode('generate');
-      }
+    } else if (isNew) {
+      if (urlClassId) setClassId(urlClassId);
+      if (urlSubjectId) setSelectedSubjectId(urlSubjectId);
     }
   }, [exam, isNew, urlClassId, urlSubjectId]);
 
@@ -220,12 +257,13 @@ const ExamEditor: React.FC = () => {
     setSaving(true);
     try {
       if (isNew) {
-        const id = await addExam({ 
-          name: name.trim(), 
-          classId: classId || undefined, 
+        const id = await addExam({
+          name: name.trim(),
+          classId: classId || undefined,
           lectureId: lectureId || undefined,
-          date, 
-          maxScore, 
+          subjectId: selectedSubjectId || undefined,
+          date,
+          maxScore,
           isPersonalized,
           blankPagesCount: isPersonalized ? blankPagesCount : 0,
         }, file || undefined);
@@ -408,48 +446,21 @@ const ExamEditor: React.FC = () => {
           {/* ─── GENERATE MODE ─── */}
           {mode === 'generate' && isNew && (
             <div className="gen-section">
-              {/* Class selector */}
-              <IonItem lines="none" className="form-item">
-                <IonLabel position="stacked">Clase</IonLabel>
-                <IonSelect
-                  value={classId}
-                  onIonChange={(e) => { 
-                    setClassId(e.detail.value || ''); 
-                    setLectureId('');
+              {/* Combined class + subject selector */}
+              <div className="form-item-standalone">
+                <label className="form-item-label">Clase y asignatura</label>
+                <ClassSubjectPicker
+                  pairs={urlClassId ? classPairs.filter(p => p.classId === urlClassId) : classPairs}
+                  loading={pairsLoading}
+                  value={classId && selectedSubjectId ? { classId, subjectId: selectedSubjectId } : null}
+                  onChange={(cId, sId) => {
+                    if (cId !== classId) setLectureId('');
+                    setClassId(cId);
+                    setSelectedSubjectId(sId);
+                    setSelectedTopicIds([]);
                   }}
-                  interface="popover"
-                  placeholder="Seleccionar clase"
-                >
-                  {classes.map((c) => (
-                    <IonSelectOption key={c.id} value={c.id}>{c.name}</IonSelectOption>
-                  ))}
-                </IonSelect>
-              </IonItem>
-
-              {/* Subject selector - after class */}
-              {classId && (
-                <IonItem lines="none" className="form-item">
-                  <IonLabel position="stacked">Asignatura</IonLabel>
-                  {topicsFetching ? (
-                    <IonSpinner name="dots" />
-                  ) : topicsBySubject.length === 0 ? (
-                    <p className="form-hint">No hay asignaturas en esta clase</p>
-                  ) : (
-                    <IonSelect
-                      value={selectedSubjectId}
-                      onIonChange={(e) => { setSelectedSubjectId(e.detail.value || ''); setSelectedTopicIds([]); }}
-                      interface="popover"
-                      placeholder="Seleccionar asignatura"
-                    >
-                      {topicsBySubject.map((s) => (
-                        <IonSelectOption key={s.subjectId} value={s.subjectId}>
-                          {s.subjectName} ({s.topics.length} temas)
-                        </IonSelectOption>
-                      ))}
-                    </IonSelect>
-                  )}
-                </IonItem>
-              )}
+                />
+              </div>
 
               {/* Topics selection - only for selected subject */}
               {selectedSubjectId && (
@@ -555,25 +566,19 @@ const ExamEditor: React.FC = () => {
               </IonItem>
 
               {isNew && (
-                <>
-                  <IonItem lines="none" className="form-item">
-                    <IonLabel position="stacked">Clase (opcional)</IonLabel>
-                    <IonSelect
-                      value={classId}
-                      onIonChange={(e) => { 
-                        setClassId(e.detail.value || ''); 
-                        setLectureId('');
-                      }}
-                      interface="popover"
-                      placeholder="Sin clase"
-                    >
-                      <IonSelectOption value="">Sin clase</IonSelectOption>
-                      {classes.map((c) => (
-                        <IonSelectOption key={c.id} value={c.id}>{c.name}</IonSelectOption>
-                      ))}
-                    </IonSelect>
-                  </IonItem>
-                </>
+                <div className="form-item-standalone">
+                  <label className="form-item-label">Clase y asignatura</label>
+                  <ClassSubjectPicker
+                    pairs={urlClassId ? classPairs.filter(p => p.classId === urlClassId) : classPairs}
+                    loading={pairsLoading}
+                    value={classId && selectedSubjectId ? { classId, subjectId: selectedSubjectId } : null}
+                    onChange={(cId, sId) => {
+                      if (cId !== classId) setLectureId('');
+                      setClassId(cId);
+                      setSelectedSubjectId(sId);
+                    }}
+                  />
+                </div>
               )}
 
               <div className="form-row">
@@ -825,7 +830,7 @@ const ExamEditor: React.FC = () => {
             <IonButton
               expand="block"
               onClick={handleSave}
-              disabled={!name.trim() || saving}
+              disabled={!name.trim() || !selectedSubjectId || saving}
               className="save-btn"
             >
               {saving ? <IonSpinner name="crescent" /> : isNew ? 'Crear examen' : 'Guardar cambios'}

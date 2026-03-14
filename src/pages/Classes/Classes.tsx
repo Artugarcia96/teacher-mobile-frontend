@@ -10,7 +10,7 @@ import { useHistory } from 'react-router-dom';
 import { useClassesStore, DeletePreview } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCalendarStore, getBreakdownsForClass } from '../../store/calendarStore';
-import { ClassSubjectSummary } from '../../types';
+import { ClassSubjectSummary, EducationLevel } from '../../types';
 import EmptyState from '../../components/EmptyState';
 import SubjectDayInsight from '../../components/SubjectDayInsight';
 import './Classes.css';
@@ -81,7 +81,9 @@ const Classes: React.FC = () => {
     const y = now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
     return `${y}-06-30`;
   });
+  const [educationLevel, setEducationLevel] = useState<EducationLevel>('secundaria');
   const [creating, setCreating] = useState(false);
+  const [duplicateClass, setDuplicateClass] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchClasses();
@@ -161,13 +163,21 @@ const Classes: React.FC = () => {
 
   const resetModal = () => {
     setNewName('');
+    setEducationLevel('secundaria');
+    setDuplicateClass(null);
   };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
+    const trimmed = newName.trim();
+    const existing = classes.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      setDuplicateClass({ id: existing.id, name: existing.name });
+      return;
+    }
     setCreating(true);
     try {
-      const id = await addClass({ name: newName.trim(), year: yearLabel });
+      const id = await addClass({ name: trimmed, year: yearLabel, education_level: educationLevel });
       resetModal();
       setShowModal(false);
       history.push(`/tabs/classes/${id}/settings`);
@@ -620,17 +630,43 @@ const Classes: React.FC = () => {
         <IonModal
           isOpen={showModal}
           onDidDismiss={() => { setShowModal(false); resetModal(); }}
-          initialBreakpoint={0.45}
-          breakpoints={[0, 0.45, 0.6]}
+          initialBreakpoint={0.6}
+          breakpoints={[0, 0.6, 0.8]}
         >
           <div className="modal-sheet">
             <h2 className="modal-sheet__title">Nueva clase</h2>
             <IonList>
               <IonItem>
                 <IonLabel position="stacked">Nombre de la clase</IonLabel>
-                <IonInput value={newName} onIonInput={(e) => setNewName(e.detail.value ?? '')} placeholder="ej. 1A, 2B, 3ESO..." />
+                <IonInput
+                  value={newName}
+                  onIonInput={(e) => {
+                    setNewName(e.detail.value ?? '');
+                    setDuplicateClass(null);
+                  }}
+                  placeholder="ej. 1A, 2B, 3ESO..."
+                />
               </IonItem>
             </IonList>
+            {duplicateClass && (
+              <div className="duplicate-class-warning">
+                <IonIcon icon={alertCircleOutline} className="duplicate-class-warning__icon" />
+                <span>
+                  Ya existe una clase llamada <strong>«{duplicateClass.name}»</strong>.{' '}
+                  <button
+                    className="duplicate-class-warning__link"
+                    onClick={() => {
+                      setShowModal(false);
+                      resetModal();
+                      history.push(`/tabs/classes/${duplicateClass.id}/settings`);
+                    }}
+                  >
+                    Ir a esa clase
+                  </button>{' '}
+                  para añadir asignaturas.
+                </span>
+              </div>
+            )}
 
             <div className="curso-dates">
               <span className="curso-dates__label">Curso escolar</span>
@@ -643,6 +679,30 @@ const Classes: React.FC = () => {
                   <IonLabel position="stacked">Hasta</IonLabel>
                   <IonInput type="date" value={yearTo} onIonInput={(e) => setYearTo(e.detail.value ?? '')} />
                 </IonItem>
+              </div>
+            </div>
+
+            <div className="education-level-section">
+              <span className="education-level-section__label">Nivel educativo</span>
+              <div className="education-level-chips">
+                {([
+                  ['infantil', 'Infantil', '3-5'],
+                  ['primaria_lower', 'Primaria Inf.', '6-8'],
+                  ['primaria_upper', 'Primaria Sup.', '9-11'],
+                  ['secundaria', 'Secundaria', '12-15'],
+                  ['bachillerato', 'Bachillerato', '16-17'],
+                  ['universidad', 'Universidad', '18+'],
+                ] as [EducationLevel, string, string][]).map(([value, label, ages]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`education-level-chip ${educationLevel === value ? 'education-level-chip--active' : ''}`}
+                    onClick={() => setEducationLevel(value)}
+                  >
+                    <span className="education-level-chip__label">{label}</span>
+                    <span className="education-level-chip__ages">{ages}</span>
+                  </button>
+                ))}
               </div>
             </div>
 

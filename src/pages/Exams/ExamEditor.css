@@ -50,6 +50,20 @@
   margin: 2px 0 0;
 }
 
+/* ─── Standalone form item (outside IonItem) ─── */
+.form-item-standalone {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-item-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ion-color-medium);
+  padding-left: 2px;
+}
+
 /* ─── Form grid ─── */
 .form-grid {
   display: flex;

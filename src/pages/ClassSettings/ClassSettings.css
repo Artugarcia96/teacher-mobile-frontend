@@ -24,9 +24,7 @@
 .settings-section__title {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #64748B;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -86,15 +84,10 @@
 .lecture-card {
   background: var(--ion-card-background);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: none;
+  border: 1px solid rgba(15, 23, 42, 0.06);
   padding: var(--space-md) var(--space-lg);
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.lecture-card:active {
-  transform: scale(0.98);
 }
 
 .lecture-card--selectable {
@@ -449,6 +442,65 @@
   font-weight: 600;
 }
 
+/* Education Level - vertical row variant */
+.settings-info-row--vertical {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+/* Education Level Chips (shared) */
+.education-level-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.education-level-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1.5px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.education-level-chip:active {
+  transform: scale(0.96);
+}
+
+.education-level-chip__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ion-text-color);
+  white-space: nowrap;
+}
+
+.education-level-chip__ages {
+  font-size: 10px;
+  font-weight: 500;
+  color: #94A3B8;
+}
+
+.education-level-chip--active {
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-color: var(--ion-color-primary);
+}
+
+.education-level-chip--active .education-level-chip__label {
+  color: var(--ion-color-primary);
+}
+
+.education-level-chip--active .education-level-chip__ages {
+  color: rgba(var(--ion-color-primary-rgb), 0.7);
+}
+
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .settings-info-card,
@@ -501,5 +553,23 @@
     background: rgba(44, 158, 146, 0.15);
     border-color: rgba(44, 158, 146, 0.3);
     color: #5EEAD4;
+  }
+
+  .education-level-chip {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .education-level-chip--active {
+    background: rgba(44, 158, 146, 0.15);
+    border-color: rgba(44, 158, 146, 0.4);
+  }
+
+  .education-level-chip--active .education-level-chip__label {
+    color: #5EEAD4;
+  }
+
+  .education-level-chip--active .education-level-chip__ages {
+    color: rgba(94, 234, 212, 0.6);
   }
 }

@@ -60,7 +60,7 @@ export const auth = {
 export const classes = {
   list: () => api.get('/classes/'),
   get: (id: string) => api.get(`/classes/${id}`),
-  create: (data: { name: string; subject?: string; year: string; description?: string }) =>
+  create: (data: { name: string; subject?: string; year: string; description?: string; education_level?: string }) =>
     api.post('/classes/', data),
   update: (id: string, data: any) => api.put(`/classes/${id}`, data),
   delete: (id: string) => api.delete(`/classes/${id}`),
@@ -81,6 +81,8 @@ export const classes = {
   getInsights: (id: string) => api.get(`/classes/${id}/insights`),
   refreshInsights: (id: string, generateAi: boolean = true) =>
     api.post(`/classes/${id}/insights/refresh`, { generate_ai_summary: generateAi }),
+  getSubjectInsights: (classId: string, subjectId: string) =>
+    api.get(`/classes/${classId}/subjects/${subjectId}/insights`),
   getSubjectsSummary: (id: string) => api.get(`/classes/${id}/subjects-summary`),
 };
 
@@ -267,6 +269,7 @@ export const subjects = {
   delete: (id: string) => api.delete(`/subjects/${id}`),
   forClass: (classId: string) => api.get(`/subjects/for-class/${classId}`),
   topicsForClass: (classId: string) => api.get(`/subjects/topics-for-class/${classId}`),
+  classPairs: () => api.get('/subjects/class-pairs'),
   linkToClass: (subjectId: string, classId: string) => api.post(`/subjects/${subjectId}/classes/${classId}`),
   unlinkFromClass: (subjectId: string, classId: string) => api.delete(`/subjects/${subjectId}/classes/${classId}`),
 };
@@ -313,10 +316,10 @@ export const materials = {
 };
 
 export const calendar = {
-  list: (startDate: string, endDate: string, classId?: string) =>
-    api.get('/calendar/', { params: { start_date: startDate, end_date: endDate, ...(classId ? { class_id: classId } : {}) } }),
+  list: (startDate: string, endDate: string, classId?: string, studentId?: string) =>
+    api.get('/calendar/', { params: { start_date: startDate, end_date: endDate, ...(classId ? { class_id: classId } : {}), ...(studentId ? { student_id: studentId } : {}) } }),
   create: (data: {
-    class_id?: string; title: string; event_date: string;
+    class_id?: string; student_id?: string; title: string; event_date: string;
     start_time?: string; end_time?: string; event_type?: string; notes?: string;
   }) => api.post('/calendar/', data),
   update: (id: string, data: {
