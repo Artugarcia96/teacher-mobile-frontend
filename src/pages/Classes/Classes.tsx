@@ -3,31 +3,23 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton,
   IonSearchbar, IonModal, IonItem, IonLabel, IonInput, IonList,
   IonButtons, IonIcon, IonSpinner, IonItemSliding, IonItemOptions, IonItemOption,
-  IonAlert, IonBadge, IonToast, useIonViewWillEnter,
+  IonAlert, IonBadge, IonToast, IonRefresher, IonRefresherContent, useIonViewWillEnter,
 } from '@ionic/react';
-import { addOutline, swapVerticalOutline, alertCircleOutline, chevronForwardOutline, chevronDownOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, settingsOutline } from 'ionicons/icons';
+import { addOutline, swapVerticalOutline, alertCircleOutline, chevronDownOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, settingsOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useClassesStore, DeletePreview } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
-import { useCalendarStore, getBreakdownsForClass } from '../../store/calendarStore';
 import { ClassSubjectSummary, EducationLevel } from '../../types';
 import EmptyState from '../../components/EmptyState';
-import SubjectDayInsight from '../../components/SubjectDayInsight';
+import OnboardingChecklist from '../../components/OnboardingChecklist';
+import { SkeletonClassCard } from '../../components/SkeletonLoaders';
+import { useIsDesktop } from '../../hooks/useIsDesktop';
+import { avatarColor } from '../../utils/avatarColors';
 import './Classes.css';
-
-const AVATAR_COLORS = [
-  '#15665E', '#1E8A7F', '#059669', '#0891B2', '#E87A1C',
-  '#DC2626', '#2563EB', '#7C3AED', '#DB2777', '#4F46E5',
-];
-
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 const Classes: React.FC = () => {
   const history = useHistory();
+  const isDesktop = useIsDesktop();
   const allClasses = useClassesStore((s) => s.classes);
   const addClass = useClassesStore((s) => s.addClass);
   const deleteClassPermanently = useClassesStore((s) => s.deleteClassPermanently);
@@ -41,14 +33,6 @@ const Classes: React.FC = () => {
 
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
-
-  const currentPreparation = useCalendarStore((s) => s.currentPreparation);
-  const getPreparation = useCalendarStore((s) => s.getPreparation);
-
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }, []);
 
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -88,10 +72,6 @@ const Classes: React.FC = () => {
   useEffect(() => {
     fetchClasses();
     fetchExams();
-    // Load today's preparation silently (reuse data from "Prepara tu día")
-    if (!currentPreparation || currentPreparation.prep_date !== todayStr) {
-      getPreparation(todayStr);
-    }
   }, [fetchClasses, fetchExams]);
 
   // Fetch subjects for all visible classes
@@ -121,9 +101,6 @@ const Classes: React.FC = () => {
     return map;
   }, [allExams]);
 
-  const totalPending = useMemo(() => {
-    return allExams.filter(e => e.status === 'assigned').length;
-  }, [allExams]);
 
   const filtered = useMemo(() => {
     let result = classes.filter(
@@ -332,6 +309,10 @@ const Classes: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent>
+        <IonRefresher slot="fixed" onIonRefresh={async (e) => { await Promise.all([fetchClasses(), fetchExams()]); e.detail.complete(); }}>
+          <IonRefresherContent />
+        </IonRefresher>
+
         <div className="classes-controls">
           <IonSearchbar
             value={search}
@@ -367,24 +348,19 @@ const Classes: React.FC = () => {
           )}
         </div>
 
-        {totalPending > 0 && (
-          <div className="classes-pending-banner">
-            <div className="classes-pending-banner__icon">
-              <IonIcon icon={alertCircleOutline} />
-            </div>
-            <div className="classes-pending-banner__content">
-              <span className="classes-pending-banner__title">
-                {totalPending} {totalPending === 1 ? 'examen pendiente' : 'exámenes pendientes'} de corregir
-              </span>
-              <span className="classes-pending-banner__subtitle">
-                En {pendingByClass.size} {pendingByClass.size === 1 ? 'clase' : 'clases'}
-              </span>
-            </div>
-          </div>
-        )}
+        <OnboardingChecklist
+          classCount={classes.length}
+          hasSubjects={Object.values(classSubjects).some(s => s.length > 0)}
+          studentCount={classes.reduce((sum, c) => sum + (c.studentCount || 0), 0)}
+          examCount={allExams.length}
+          hasCorrected={allExams.some(e => e.status === 'corrected')}
+        />
+
 
         {loading && (
-          <div className="classes-loading"><IonSpinner color="primary" /></div>
+          <div className="classes-grid">
+            {[1, 2, 3].map(i => <SkeletonClassCard key={i} />)}
+          </div>
         )}
 
         {!loading && filtered.length === 0 ? (
@@ -441,6 +417,11 @@ const Classes: React.FC = () => {
                             {pending} {pending === 1 ? 'pendiente' : 'pendientes'}
                           </span>
                         )}
+                        {c.lastActivity && (
+                          <span className="class-card__last-activity">
+                            Últ. actividad: {new Date(c.lastActivity).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
                         {!selectionMode && subjects.length > 0 && (
                           <div className="class-card__subjects">
                             {subjects.slice(0, 3).map((subj) => (
@@ -452,7 +433,7 @@ const Classes: React.FC = () => {
                                   history.push(`/tabs/classes/${c.id}/subjects/${subj.subjectId}`);
                                 }}
                               >
-                                {subj.subjectName}
+                                {subj.subjectName}{subj.aula ? ` (${subj.aula})` : ''}
                                 {subj.pendingCorrections > 0 && (
                                   <span className="class-card__subject-chip-badge">{subj.pendingCorrections}</span>
                                 )}
@@ -533,17 +514,6 @@ const Classes: React.FC = () => {
                             </div>
                           ))
                         )}
-                        {/* Today's AI insights for this class */}
-                        {(() => {
-                          const classBreakdowns = getBreakdownsForClass(currentPreparation, c.id);
-                          return classBreakdowns.length > 0 ? (
-                            <div className="class-card__insights">
-                              {classBreakdowns.map((bd, idx) => (
-                                <SubjectDayInsight key={idx} breakdown={bd} compact />
-                              ))}
-                            </div>
-                          ) : null;
-                        })()}
                       </div>
                     )}
                   </div>
@@ -562,8 +532,8 @@ const Classes: React.FC = () => {
         <IonModal
           isOpen={!!deleteTarget}
           onDidDismiss={handleCancelDelete}
-          initialBreakpoint={0.55}
-          breakpoints={[0, 0.55, 0.75]}
+          initialBreakpoint={isDesktop ? 1 : 0.5}
+          breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.75]}
         >
           <div className="modal-sheet">
             <h2 className="modal-sheet__title">Eliminar clase</h2>
@@ -600,8 +570,8 @@ const Classes: React.FC = () => {
                   {deletePreview.counts.calendar_events > 0 && (
                     <li>{deletePreview.counts.calendar_events} evento{deletePreview.counts.calendar_events !== 1 ? 's' : ''} del calendario</li>
                   )}
-                  {deletePreview.counts.notes > 0 && (
-                    <li>{deletePreview.counts.notes} nota{deletePreview.counts.notes !== 1 ? 's' : ''}</li>
+                  {deletePreview.counts.comments > 0 && (
+                    <li>{deletePreview.counts.comments} comentario{deletePreview.counts.comments !== 1 ? 's' : ''}</li>
                   )}
                 </ul>
                 <p className="delete-preview__note">
@@ -630,8 +600,8 @@ const Classes: React.FC = () => {
         <IonModal
           isOpen={showModal}
           onDidDismiss={() => { setShowModal(false); resetModal(); }}
-          initialBreakpoint={0.6}
-          breakpoints={[0, 0.6, 0.8]}
+          initialBreakpoint={isDesktop ? 1 : 0.65}
+          breakpoints={isDesktop ? [0, 1] : [0, 0.65, 0.85]}
         >
           <div className="modal-sheet">
             <h2 className="modal-sheet__title">Nueva clase</h2>

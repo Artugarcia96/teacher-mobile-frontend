@@ -5,12 +5,14 @@ import {
   IonSelectOption, IonSpinner, IonAlert, IonItemSliding, IonItemOptions, IonItemOption,
   IonSegment, IonSegmentButton, IonCheckbox, IonSearchbar, IonProgressBar,
 } from '@ionic/react';
-import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
-import { useParams } from 'react-router-dom';
+import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline, warningOutline } from 'ionicons/icons';
+import { useParams, useHistory } from 'react-router-dom';
 import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi } from '../../services/api';
 import { Lecture, ScheduleSlot, EducationLevel } from '../../types';
-import { useClassesStore } from '../../store/classesStore';
+import { useClassesStore, DeletePreview } from '../../store/classesStore';
 import { useStudentsStore, StudentPoolEntry } from '../../store/studentsStore';
+import { useIsDesktop } from '../../hooks/useIsDesktop';
+import { PALETTE_COLORS } from '../../utils/avatarColors';
 import './ClassSettings.css';
 
 const WEEK_DAYS = [
@@ -33,6 +35,17 @@ function generateTimeSlots(): string[] {
 }
 
 const TIME_SLOTS = generateTimeSlots();
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
 
 function formatSchedule(schedule: ScheduleSlot[]): string {
   if (!schedule || schedule.length === 0) return 'Horario pendiente';
@@ -61,6 +74,8 @@ interface ClassDetail {
 
 const ClassSettings: React.FC = () => {
   const { classId } = useParams<{ classId: string }>();
+  const history = useHistory();
+  const isDesktop = useIsDesktop();
 
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,11 +84,18 @@ const ClassSettings: React.FC = () => {
   const [editingLecture, setEditingLecture] = useState<Lecture | null>(null);
   const [lectureName, setLectureName] = useState('');
   const [lectureSchedule, setLectureSchedule] = useState<ScheduleSlot[]>([]);
+  const [lectureAula, setLectureAula] = useState('');
+  const [lectureColor, setLectureColor] = useState('#15665E');
   const [classSubjectsList, setClassSubjectsList] = useState<{id: string; name: string}[]>([]);
+  const [aulaBySubject, setAulaBySubject] = useState<Record<string, string>>({});
+  const [colorBySubject, setColorBySubject] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [allSchedules, setAllSchedules] = useState<Array<{ id: string; class_id: string; class_name: string; name: string; schedule: ScheduleSlot[] }>>([]);
 
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
+  const deleteClassPermanently = useClassesStore((s) => s.deleteClassPermanently);
+  const getDeletePreview = useClassesStore((s) => s.getDeletePreview);
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -103,6 +125,12 @@ const ClassSettings: React.FC = () => {
   const [studentsSaving, setStudentsSaving] = useState(false);
   const [studentsProgress, setStudentsProgress] = useState('');
   const [removeStudentTarget, setRemoveStudentTarget] = useState<{ id: string; name: string } | null>(null);
+
+  // Delete class
+  const [showDeleteClassModal, setShowDeleteClassModal] = useState(false);
+  const [deleteClassPreview, setDeleteClassPreview] = useState<DeletePreview | null>(null);
+  const [loadingDeletePreview, setLoadingDeletePreview] = useState(false);
+  const [deletingClass, setDeletingClass] = useState(false);
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -170,16 +198,49 @@ const ClassSettings: React.FC = () => {
     }).catch(() => setClassSubjectsList([]));
   }, [classId]);
 
+  // Load aula and color per subject for this class
+  const loadAulas = async () => {
+    if (!classId) return;
+    try {
+      const res = await classesApi.getSubjectsSummary(classId);
+      const aulaMap: Record<string, string> = {};
+      const colorMap: Record<string, string> = {};
+      for (const s of res.data) {
+        if (s.aula) aulaMap[s.subject_id] = s.aula;
+        if (s.subject_color) colorMap[s.subject_id] = s.subject_color;
+      }
+      setAulaBySubject(aulaMap);
+      setColorBySubject(colorMap);
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadAulas();
+  }, [classId]);
+
   useEffect(() => {
     if (showAddStudents && addStudentsTab === 'existing' && classId) {
       fetchPoolNotInClass(classId).then(setAvailableStudents);
     }
   }, [showAddStudents, addStudentsTab, classId, fetchPoolNotInClass]);
 
+  // Fetch all schedules when lecture modal opens
+  const fetchAllSchedules = async () => {
+    try {
+      const res = await lecturesApi.allSchedules();
+      setAllSchedules(res.data);
+    } catch {
+      setAllSchedules([]);
+    }
+  };
+
   const openNewLecture = () => {
     setEditingLecture(null);
     setLectureName('');
     setLectureSchedule([]);
+    setLectureAula('');
+    setLectureColor('#15665E');
+    fetchAllSchedules();
     setShowLectureModal(true);
   };
 
@@ -187,17 +248,41 @@ const ClassSettings: React.FC = () => {
     setEditingLecture(lecture);
     setLectureName(lecture.name);
     setLectureSchedule([...lecture.schedule]);
+    setLectureAula(lecture.subjectId ? (aulaBySubject[lecture.subjectId] || '') : '');
+    setLectureColor(lecture.subjectId ? (colorBySubject[lecture.subjectId] || '#15665E') : '#15665E');
+    fetchAllSchedules();
     setShowLectureModal(true);
   };
 
   const addScheduleSlot = () => {
-    setLectureSchedule(prev => [...prev, { day: 'monday', start_time: '09:00', end_time: '10:00' }]);
+    const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    setLectureSchedule(prev => {
+      const usedDays = new Set(prev.map(s => s.day));
+      const nextDay = allDays.find(d => !usedDays.has(d)) || allDays[(prev.length) % allDays.length];
+      const lastSlot = prev[prev.length - 1];
+      const startTime = lastSlot?.start_time || '09:00';
+      const endTime = lastSlot?.end_time || '10:00';
+      return [...prev, { day: nextDay, start_time: startTime, end_time: endTime }];
+    });
   };
 
   const updateScheduleSlot = (index: number, field: keyof ScheduleSlot, value: string) => {
     setLectureSchedule(prev => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+      const slot = updated[index];
+
+      if (field === 'start_time') {
+        // Auto-adjust end_time: keep the same duration
+        const oldStart = timeToMinutes(slot.start_time);
+        const oldEnd = timeToMinutes(slot.end_time);
+        const duration = oldEnd > oldStart ? oldEnd - oldStart : 60; // default 1h
+        const newStart = timeToMinutes(value);
+        const newEnd = Math.min(newStart + duration, 21 * 60); // cap at 21:00
+        updated[index] = { ...slot, start_time: value, end_time: minutesToTime(newEnd) };
+      } else {
+        updated[index] = { ...slot, [field]: value };
+      }
+
       return updated;
     });
   };
@@ -206,22 +291,80 @@ const ClassSettings: React.FC = () => {
     setLectureSchedule(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Conflict detection: check each slot against other slots in same lecture AND other lectures
+  const scheduleConflicts = useMemo(() => {
+    const conflicts: Map<number, { lectureName: string; className: string }> = new Map();
+    if (lectureSchedule.length === 0) return conflicts;
+
+    // First: check for overlaps within the same lecture being edited
+    for (let i = 0; i < lectureSchedule.length; i++) {
+      const slot = lectureSchedule[i];
+      if (!slot.day || !slot.start_time || !slot.end_time) continue;
+      for (let j = i + 1; j < lectureSchedule.length; j++) {
+        const other = lectureSchedule[j];
+        if (!other.day || !other.start_time || !other.end_time) continue;
+        if (other.day !== slot.day) continue;
+        if (slot.start_time < other.end_time && other.start_time < slot.end_time) {
+          conflicts.set(i, { lectureName: lectureName || 'esta asignatura', className: '' });
+          conflicts.set(j, { lectureName: lectureName || 'esta asignatura', className: '' });
+        }
+      }
+    }
+
+    // Then: check against other lectures across all classes
+    if (allSchedules.length > 0) {
+      const otherLectures = allSchedules.filter(l => !editingLecture || l.id !== editingLecture.id);
+
+      for (let i = 0; i < lectureSchedule.length; i++) {
+        if (conflicts.has(i)) continue;
+        const slot = lectureSchedule[i];
+        if (!slot.day || !slot.start_time || !slot.end_time) continue;
+
+        for (const other of otherLectures) {
+          for (const otherSlot of other.schedule) {
+            if (otherSlot.day !== slot.day) continue;
+            if (slot.start_time < otherSlot.end_time && otherSlot.start_time < slot.end_time) {
+              conflicts.set(i, { lectureName: other.name, className: other.class_name });
+              break;
+            }
+          }
+          if (conflicts.has(i)) break;
+        }
+      }
+    }
+    return conflicts;
+  }, [lectureSchedule, allSchedules, editingLecture, lectureName]);
+
+  const hasConflicts = scheduleConflicts.size > 0;
+
   const handleSaveLecture = async () => {
-    if (!lectureName.trim()) return;
+    if (!lectureName.trim() || hasConflicts) return;
     setSaving(true);
     try {
+      let savedLecture: any;
       if (editingLecture) {
-        await lecturesApi.update(classId, editingLecture.id, {
+        savedLecture = await lecturesApi.update(classId, editingLecture.id, {
           name: lectureName.trim(),
           schedule: lectureSchedule,
         });
       } else {
-        await lecturesApi.create(classId, {
+        savedLecture = await lecturesApi.create(classId, {
           name: lectureName.trim(),
           schedule: lectureSchedule,
         });
       }
+      // Save aula on the class-subject link + color on the subject
+      const subjectId = savedLecture?.data?.subject_id || editingLecture?.subjectId;
+      if (subjectId) {
+        try {
+          await Promise.all([
+            subjectsApi.updateClassLink(subjectId, classId, { aula: lectureAula.trim() || '' }),
+            subjectsApi.update(subjectId, { color: lectureColor }),
+          ]);
+        } catch {}
+      }
       await loadClass();
+      await loadAulas();
       // Refresh global stores so class cards update immediately
       await Promise.all([
         fetchClasses(),
@@ -332,6 +475,39 @@ const ClassSettings: React.FC = () => {
       console.error('Failed to remove student:', err);
     }
     setRemoveStudentTarget(null);
+  };
+
+  const handleStartDeleteClass = async () => {
+    setShowDeleteClassModal(true);
+    setLoadingDeletePreview(true);
+    try {
+      const preview = await getDeletePreview(classId);
+      setDeleteClassPreview(preview);
+    } catch (err) {
+      console.error('Failed to get delete preview:', err);
+    } finally {
+      setLoadingDeletePreview(false);
+    }
+  };
+
+  const handleDeleteClassConfirm = async () => {
+    setDeletingClass(true);
+    try {
+      await deleteClassPermanently(classId);
+      await fetchClasses();
+      history.replace('/tabs/classes');
+    } catch (err) {
+      console.error('Failed to delete class:', err);
+    } finally {
+      setDeletingClass(false);
+      setShowDeleteClassModal(false);
+      setDeleteClassPreview(null);
+    }
+  };
+
+  const handleCancelDeleteClass = () => {
+    setShowDeleteClassModal(false);
+    setDeleteClassPreview(null);
   };
 
   if (loading) {
@@ -467,7 +643,12 @@ const ClassSettings: React.FC = () => {
                         </div>
                       )}
                       <div className="lecture-card__main">
-                        <span className="lecture-card__name">{lecture.name}</span>
+                        <span className="lecture-card__name">
+                          {lecture.name}
+                          {lecture.subjectId && aulaBySubject[lecture.subjectId] && (
+                            <span className="lecture-card__aula"> · {aulaBySubject[lecture.subjectId]}</span>
+                          )}
+                        </span>
                         {lecture.subjectName && (
                           <span className="lecture-card__subject">{lecture.subjectName}</span>
                         )}
@@ -500,7 +681,7 @@ const ClassSettings: React.FC = () => {
           )}
         </div>
 
-        {/* Students — configure inline */}
+        {/* Students - configure inline */}
         <div className="settings-section">
           <div className="settings-section__header">
             <h2 className="settings-section__title">Alumnos</h2>
@@ -673,14 +854,102 @@ const ClassSettings: React.FC = () => {
             </>
           )}
         </div>
+        {/* Class Actions */}
+        <div className="settings-actions">
+          <IonButton
+            expand="block"
+            onClick={() => history.push(`/tabs/classes/${classId}`)}
+            className="settings-actions__save"
+          >
+            Guardar clase
+          </IonButton>
+          <IonButton
+            expand="block"
+            fill="outline"
+            color="danger"
+            onClick={handleStartDeleteClass}
+            className="settings-actions__delete"
+          >
+            <IonIcon icon={trashOutline} slot="start" />
+            Eliminar clase
+          </IonButton>
+        </div>
       </IonContent>
+
+      {/* Delete Class Modal */}
+      <IonModal
+        isOpen={showDeleteClassModal}
+        onDidDismiss={handleCancelDeleteClass}
+        initialBreakpoint={isDesktop ? 1 : 0.5}
+        breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.75]}
+      >
+        <div className="modal-sheet">
+          <h2 className="modal-sheet__title">Eliminar clase</h2>
+          <p className="modal-sheet__subtitle">
+            ¿Seguro que quieres eliminar "{classData?.name}"?
+          </p>
+
+          {loadingDeletePreview ? (
+            <div className="delete-preview-loading">
+              <IonSpinner color="primary" />
+              <span>Calculando elementos...</span>
+            </div>
+          ) : deleteClassPreview && (
+            <div className="delete-preview">
+              <p className="delete-preview__warning">
+                <IonIcon icon={warningOutline} /> Se eliminarán permanentemente:
+              </p>
+              <ul className="delete-preview__list">
+                {deleteClassPreview.counts.students > 0 && (
+                  <li>{deleteClassPreview.counts.students} alumno{deleteClassPreview.counts.students !== 1 ? 's' : ''}</li>
+                )}
+                {deleteClassPreview.counts.lectures > 0 && (
+                  <li>{deleteClassPreview.counts.lectures} asignatura{deleteClassPreview.counts.lectures !== 1 ? 's' : ''}</li>
+                )}
+                {deleteClassPreview.counts.exams > 0 && (
+                  <li>{deleteClassPreview.counts.exams} examen{deleteClassPreview.counts.exams !== 1 ? 'es' : ''}</li>
+                )}
+                {deleteClassPreview.counts.corrections > 0 && (
+                  <li>{deleteClassPreview.counts.corrections} corrección{deleteClassPreview.counts.corrections !== 1 ? 'es' : ''}</li>
+                )}
+                {deleteClassPreview.counts.exercises > 0 && (
+                  <li>{deleteClassPreview.counts.exercises} ejercicio{deleteClassPreview.counts.exercises !== 1 ? 's' : ''}</li>
+                )}
+                {deleteClassPreview.counts.calendar_events > 0 && (
+                  <li>{deleteClassPreview.counts.calendar_events} evento{deleteClassPreview.counts.calendar_events !== 1 ? 's' : ''} del calendario</li>
+                )}
+                {deleteClassPreview.counts.notes > 0 && (
+                  <li>{deleteClassPreview.counts.notes} comentario{deleteClassPreview.counts.notes !== 1 ? 's' : ''}</li>
+                )}
+              </ul>
+              <p className="delete-preview__note">
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+          )}
+
+          <div className="delete-modal-buttons">
+            <IonButton expand="block" fill="outline" onClick={handleCancelDeleteClass}>
+              Cancelar
+            </IonButton>
+            <IonButton
+              expand="block"
+              color="danger"
+              onClick={handleDeleteClassConfirm}
+              disabled={loadingDeletePreview || deletingClass}
+            >
+              {deletingClass ? <IonSpinner name="crescent" /> : 'Eliminar permanentemente'}
+            </IonButton>
+          </div>
+        </div>
+      </IonModal>
 
       {/* Lecture Modal */}
       <IonModal
         isOpen={showLectureModal}
         onDidDismiss={() => setShowLectureModal(false)}
-        initialBreakpoint={0.75}
-        breakpoints={[0, 0.5, 0.75, 1]}
+        initialBreakpoint={isDesktop ? 1 : 0.75}
+        breakpoints={isDesktop ? [0, 1] : [0, 0.75, 0.95]}
       >
         <div className="modal-sheet modal-sheet--scrollable">
           <h2 className="modal-sheet__title">
@@ -716,7 +985,30 @@ const ClassSettings: React.FC = () => {
                 </div>
               </div>
             )}
+            <IonItem>
+              <IonLabel position="stacked">Aula</IonLabel>
+              <IonInput
+                value={lectureAula}
+                onIonInput={(e) => setLectureAula(e.detail.value || '')}
+                placeholder="ej. A51"
+              />
+            </IonItem>
           </IonList>
+
+          <div className="color-picker-section">
+            <span className="color-picker-section__label">Color</span>
+            <div className="color-picker-dots">
+              {PALETTE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  className={`color-picker-dot ${lectureColor === c ? 'color-picker-dot--active' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => setLectureColor(c)}
+                  type="button"
+                />
+              ))}
+            </div>
+          </div>
 
           <div className="schedule-section">
             <div className="schedule-section__header">
@@ -731,57 +1023,73 @@ const ClassSettings: React.FC = () => {
               <p className="schedule-empty">Sin horario configurado</p>
             ) : (
               <div className="schedule-slots">
-                {lectureSchedule.map((slot, index) => (
-                  <div key={index} className="schedule-slot">
-                    <IonSelect
-                      value={slot.day}
-                      onIonChange={(e) => updateScheduleSlot(index, 'day', e.detail.value)}
-                      interface="popover"
-                      className="schedule-slot__day"
-                    >
-                      {WEEK_DAYS.map(d => (
-                        <IonSelectOption key={d.key} value={d.key}>{d.label}</IonSelectOption>
-                      ))}
-                    </IonSelect>
-                    <IonSelect
-                      value={slot.start_time}
-                      onIonChange={(e) => updateScheduleSlot(index, 'start_time', e.detail.value)}
-                      interface="popover"
-                      className="schedule-slot__time"
-                    >
-                      {TIME_SLOTS.map(t => (
-                        <IonSelectOption key={t} value={t}>{t}</IonSelectOption>
-                      ))}
-                    </IonSelect>
-                    <span className="schedule-slot__separator">-</span>
-                    <IonSelect
-                      value={slot.end_time}
-                      onIonChange={(e) => updateScheduleSlot(index, 'end_time', e.detail.value)}
-                      interface="popover"
-                      className="schedule-slot__time"
-                    >
-                      {TIME_SLOTS.map(t => (
-                        <IonSelectOption key={t} value={t}>{t}</IonSelectOption>
-                      ))}
-                    </IonSelect>
-                    <IonButton
-                      fill="clear"
-                      color="danger"
-                      size="small"
-                      onClick={() => removeScheduleSlot(index)}
-                    >
-                      <IonIcon icon={trashOutline} slot="icon-only" />
-                    </IonButton>
-                  </div>
-                ))}
+                {lectureSchedule.map((slot, index) => {
+                  const conflict = scheduleConflicts.get(index);
+                  return (
+                    <div key={index}>
+                      <div className={`schedule-slot ${conflict ? 'schedule-slot--conflict' : ''}`}>
+                        <IonSelect
+                          value={slot.day}
+                          onIonChange={(e) => updateScheduleSlot(index, 'day', e.detail.value)}
+                          interface="popover"
+                          className="schedule-slot__day"
+                        >
+                          {WEEK_DAYS.map(d => (
+                            <IonSelectOption key={d.key} value={d.key}>{d.label}</IonSelectOption>
+                          ))}
+                        </IonSelect>
+                        <IonSelect
+                          value={slot.start_time}
+                          onIonChange={(e) => updateScheduleSlot(index, 'start_time', e.detail.value)}
+                          interface="popover"
+                          className="schedule-slot__time"
+                        >
+                          {TIME_SLOTS.map(t => (
+                            <IonSelectOption key={t} value={t}>{t}</IonSelectOption>
+                          ))}
+                        </IonSelect>
+                        <span className="schedule-slot__separator">-</span>
+                        <IonSelect
+                          value={slot.end_time}
+                          onIonChange={(e) => updateScheduleSlot(index, 'end_time', e.detail.value)}
+                          interface="popover"
+                          className="schedule-slot__time"
+                        >
+                          {TIME_SLOTS.map(t => (
+                            <IonSelectOption key={t} value={t}>{t}</IonSelectOption>
+                          ))}
+                        </IonSelect>
+                        <IonButton
+                          fill="clear"
+                          color="danger"
+                          size="small"
+                          onClick={() => removeScheduleSlot(index)}
+                        >
+                          <IonIcon icon={trashOutline} slot="icon-only" />
+                        </IonButton>
+                      </div>
+                      {conflict && (
+                        <p className="schedule-slot__conflict-msg">
+                          Conflicto con {conflict.lectureName}{conflict.className ? ` (${conflict.className})` : ''}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            )}
+
+            {hasConflicts && (
+              <p className="schedule-conflict-warning">
+                Resuelve los conflictos de horario antes de guardar
+              </p>
             )}
           </div>
 
           <IonButton
             expand="block"
             onClick={handleSaveLecture}
-            disabled={saving || !lectureName.trim()}
+            disabled={saving || !lectureName.trim() || hasConflicts}
             className="ion-margin-top"
           >
             {saving ? <IonSpinner name="crescent" /> : (editingLecture ? 'Guardar cambios' : 'Crear asignatura')}

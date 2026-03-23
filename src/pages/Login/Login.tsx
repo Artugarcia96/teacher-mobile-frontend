@@ -33,7 +33,7 @@ const Login: React.FC = () => {
       
       localStorage.setItem('access_token', res.data.access_token);
       localStorage.setItem('refresh_token', res.data.refresh_token);
-      history.replace('/tabs/dashboard');
+      history.replace('/tabs/calendar');
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       if (Array.isArray(detail)) {

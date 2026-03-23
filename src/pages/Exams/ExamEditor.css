@@ -12,30 +12,79 @@
   overflow-y: auto;
 }
 
+/* ─── Exam name (primary field) ─── */
+.exam-name-field {
+  margin-bottom: var(--space-lg);
+}
+
+.exam-name-field ion-input.exam-name-input {
+  font-size: var(--font-size-xl, 20px);
+  font-weight: 600;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: var(--space-sm);
+  --highlight-color-focused: var(--ion-color-primary);
+  letter-spacing: -0.01em;
+}
+
+.exam-name-field ion-input.exam-name-input::part(native) {
+  border-bottom: 2px solid rgba(15, 23, 42, 0.08);
+  padding-bottom: var(--space-sm);
+}
+
+.exam-name-field ion-input.exam-name-input.has-focus::part(native) {
+  border-bottom-color: var(--ion-color-primary);
+}
+
+.exam-name-warning {
+  color: var(--ion-color-warning, #F59E0B);
+  font-size: 13px;
+  margin: var(--space-xs) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .exam-name-field ion-input.exam-name-input::part(native) {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
 /* ─── Upload item ─── */
 .upload-item {
-  --background: rgba(var(--ion-color-primary-rgb), 0.06);
-  --border-radius: var(--radius-lg);
-  --padding-start: var(--space-lg);
-  --padding-end: var(--space-lg);
-  --min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+  min-height: 64px;
   margin-bottom: var(--space-lg);
   cursor: pointer;
   transition: all var(--transition-base);
 }
 
-.upload-item:hover {
-  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+.upload-item:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.12);
 }
 
 .upload-item-icon {
   font-size: 24px;
   color: var(--ion-color-primary);
+  flex-shrink: 0;
+}
+
+.upload-item-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .upload-success-icon {
   font-size: 20px;
   color: var(--ion-color-success);
+  flex-shrink: 0;
 }
 
 .upload-item h3 {
@@ -50,51 +99,59 @@
   margin: 2px 0 0;
 }
 
-/* ─── Standalone form item (outside IonItem) ─── */
-.form-item-standalone {
+.upload-file-list {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 4px;
+  padding: 0 var(--space-md) var(--space-sm);
 }
 
-.form-item-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ion-color-medium);
-  padding-left: 2px;
-}
-
-/* ─── Form grid ─── */
-.form-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.form-item {
-  --background: rgba(15, 23, 42, 0.03);
-  --border-radius: var(--radius-md);
-  --padding-start: var(--space-lg);
-  --padding-end: var(--space-lg);
-  --min-height: 56px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.form-row {
-  display: flex;
-  gap: var(--space-md);
-}
-
-.form-item-half {
-  flex: 1;
-}
+/* Form grid/item classes are in variables.css (shared) */
 
 /* ─── Generate mode ─── */
 .gen-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+}
+
+/* Trimester pill filters (reused across screens) */
+.trimester-pills {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--space-sm, 8px);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.trimester-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.trimester-pill {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: var(--radius-full, 999px);
+  border: 1.5px solid rgba(15, 23, 42, 0.1);
+  background: transparent;
+  color: var(--ion-color-medium);
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.trimester-pill--active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: #fff;
+}
+
+.trimester-pill:active {
+  transform: scale(0.95);
 }
 
 /* Topics selection */
@@ -105,7 +162,7 @@
 .gen-topics__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #64748B;
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -181,12 +238,24 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  margin-top: var(--space-sm);
+  margin-top: var(--space-md);
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.04));
 }
 
 .gen-config__row {
   display: flex;
   gap: var(--space-md);
+}
+
+@media (prefers-color-scheme: dark) {
+  .gen-config {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
 }
 
 /* Personalization */
@@ -244,7 +313,7 @@
 .exam-downloads__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #64748B;
+  color: var(--color-text-secondary);
   display: block;
   margin-bottom: var(--space-md);
 }
@@ -375,7 +444,7 @@
 
 .exam-iteration-description {
   font-size: var(--font-size-sm);
-  color: #64748B;
+  color: var(--color-text-secondary);
   margin: 0 0 var(--space-md);
   line-height: 1.4;
 }
@@ -417,7 +486,7 @@
   --padding-end: 0;
   --inner-padding-end: 0;
   font-size: var(--font-size-sm);
-  color: #64748B;
+  color: var(--color-text-secondary);
 }
 
 .iteration-history-content {
@@ -442,6 +511,17 @@
   margin-bottom: var(--space-xs);
 }
 
+.iteration-history-item--current {
+  border: 1px solid var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
+}
+
+.iteration-history-label {
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-primary);
+  font-weight: 600;
+}
+
 .iteration-history-time {
   font-size: var(--font-size-xs);
   color: #94A3B8;
@@ -456,7 +536,7 @@
 
 .iteration-history-changes {
   font-size: var(--font-size-xs);
-  color: #64748B;
+  color: var(--color-text-secondary);
   margin: var(--space-xs) 0 0;
   padding-left: var(--space-lg);
 }
@@ -471,8 +551,7 @@
     border-top-color: rgba(255, 255, 255, 0.06);
   }
 
-  .form-item { --background: rgba(255, 255, 255, 0.04); }
-  .upload-item { --background: rgba(var(--ion-color-primary-rgb), 0.1); }
+  .upload-item { background: rgba(var(--ion-color-primary-rgb), 0.1); }
 
   .gen-topic-chip {
     background: #16161A;
@@ -482,6 +561,17 @@
   .gen-topic-chip--active {
     border-color: var(--ion-color-primary);
     background: rgba(var(--ion-color-primary-rgb), 0.1);
+  }
+
+  .trimester-pill {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .trimester-pill--active {
+    background: var(--ion-color-primary);
+    border-color: var(--ion-color-primary);
+    color: #fff;
   }
 
   .gen-personalize__toggle {
@@ -526,4 +616,27 @@
   letter-spacing: 0.04em;
   padding: var(--space-sm, 8px) 0 var(--space-xs, 4px);
   margin-top: var(--space-xs, 4px);
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .exam-editor-content {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+.gen-materials-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--ion-color-medium);
+  margin: 8px 0 0;
+  padding: 0;
+}
+.gen-materials-note ion-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
 }

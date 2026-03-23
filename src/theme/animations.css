@@ -1,0 +1,181 @@
+/* ─── Global Animations ─── */
+
+/* Pressable card/button effect */
+.pressable {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.pressable:active {
+  transform: scale(0.98);
+}
+
+/* Stagger-in animation for list items */
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-item {
+  opacity: 0;
+  animation: staggerIn 0.3s ease forwards;
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Slide up */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Count-up number animation — use with CSS counter or JS */
+.count-up {
+  display: inline-block;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Pulse attention animation */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Spinner rotation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* ─── AI Processing Animations ─── */
+
+/* Shimmer effect for cards during AI processing */
+@keyframes aiShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Gentle glow pulse for AI icons */
+@keyframes aiGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(var(--ion-color-primary-rgb), 0.2));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(var(--ion-color-primary-rgb), 0.5));
+    transform: scale(1.08);
+  }
+}
+
+/* Typing dots bounce */
+@keyframes aiDotBounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}
+
+/* Ripple expand out */
+@keyframes aiRipple {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* Orbit particles around icon */
+@keyframes aiOrbit {
+  0% { transform: rotate(0deg) translateX(28px) rotate(0deg); opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { transform: rotate(360deg) translateX(28px) rotate(-360deg); opacity: 0.8; }
+}
+
+/* Progress bar indeterminate slide */
+@keyframes aiProgressSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* Text fade cycle for loading messages */
+@keyframes aiFadeInUp {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Route / Page Transitions ─── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .pressable:active {
+    transform: none;
+  }
+
+  .stagger-item {
+    animation: none;
+    opacity: 1;
+  }
+
+  .fade-in {
+    animation: none;
+    opacity: 1;
+  }
+
+  .slide-up {
+    animation: none;
+    opacity: 1;
+  }
+
+  .pulse {
+    animation: none;
+  }
+
+  .spinning {
+    animation: none;
+  }
+
+  .page-enter {
+    animation: none;
+    opacity: 1;
+  }
+}

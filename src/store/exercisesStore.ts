@@ -30,6 +30,13 @@ function mapExercise(e: any): Exercise {
     iterationHistory: e.iteration_history,
     deliveryStatus: e.delivery_status,
     correctionDeadlineStatus: e.correction_deadline_status,
+    subjectId: e.subject_id,
+    subjectName: e.subject_name,
+    trimester: e.trimester,
+    categoryId: e.category_id,
+    exerciseType: e.exercise_type || 'practice',
+    maxScore: e.max_score ?? 10,
+    weight: e.weight ?? 1.0,
   };
 }
 
@@ -38,13 +45,16 @@ interface GenerateParams {
   name: string;
   sourceExamIds?: string[];
   sourceTopicIds?: string[];
+  subjectId?: string;
   refinementPrompt?: string;
   difficulty?: 'easier' | 'same' | 'harder';
   numQuestions?: number;
+  maxScore?: number;
   numBlankPages?: number;
   focusTopics?: string[];
   deliveryDate?: string;
   correctionDate?: string;
+  exerciseType?: 'practice' | 'recovery';
 }
 
 interface ExercisesState {

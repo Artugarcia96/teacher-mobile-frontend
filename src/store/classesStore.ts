@@ -43,14 +43,19 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       const subjects: ClassSubjectSummary[] = res.data.map((s: any) => ({
         subjectId: s.subject_id,
         subjectName: s.subject_name,
+        subjectColor: s.subject_color || undefined,
         lectureId: s.lecture_id,
         examCount: s.exam_count,
         pendingCorrections: s.pending_corrections,
         exerciseCount: s.exercise_count,
+        pendingExerciseCount: s.pending_exercise_count ?? 0,
         topicCount: s.topic_count,
         averageGrade: s.average_grade ?? null,
         correctedCount: s.corrected_count ?? 0,
         passRate: s.pass_rate ?? null,
+        aula: s.aula || undefined,
+        schedule: s.schedule || [],
+        examWeightPct: s.exam_weight_pct ?? 70,
       }));
       set((state) => ({
         classSubjects: { ...state.classSubjects, [classId]: subjects },
@@ -77,7 +82,8 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
         educationLevel: c.education_level || 'secundaria',
         studentCount: c.student_count,
         lectureCount: c.lecture_count || 0,
-        lastActivity: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
+        examWeightPct: c.exam_weight_pct ?? 70,
+        lastActivity: c.last_activity || c.updated_at || null,
         archived: c.archived,
         lecturesBasic: c.lectures || [],
       }));
@@ -99,6 +105,7 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       educationLevel: res.data.education_level || 'secundaria',
       studentCount: res.data.student_count,
       lectureCount: res.data.lecture_count || 0,
+      examWeightPct: res.data.exam_weight_pct ?? 70,
       lastActivity: todayStr,
       archived: res.data.archived,
     };

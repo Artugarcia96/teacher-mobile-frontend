@@ -13,9 +13,11 @@ interface Props {
   onDelete?: (id: string) => void;
   onRename?: (id: string, name: string) => void;
   showIteration?: boolean;
+  grade?: number | null;
+  maxScore?: number;
 }
 
-const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRename, showIteration = false }) => {
+const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRename, showIteration = false, grade, maxScore = 10 }) => {
   const history = useHistory();
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showRenameAlert, setShowRenameAlert] = useState(false);
@@ -70,7 +72,10 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
       .then((blob) => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `${type === 'exercises' ? 'ejercicios' : 'soluciones'}_${exercise.id}.pdf`;
+        const dateStr = exercise.assignedAt ? new Date(exercise.assignedAt).toISOString().slice(0, 10) : '';
+        const nameSlug = (studentName || '').replace(/\s+/g, '_');
+        const prefix = type === 'exercises' ? 'ejercicios' : 'soluciones';
+        a.download = `${prefix}_${exercise.name || 'ejercicio'}${nameSlug ? '_' + nameSlug : ''}${dateStr ? '_' + dateStr : ''}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -88,8 +93,9 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
   };
 
   const areas = exercise.weakAreas || [];
-  const displayName = exercise.name
+  const baseName = exercise.name
     || (areas.length > 0 ? areas.slice(0, 2).join(', ') : 'Ejercicios de práctica');
+  const displayName = baseName;
 
   return (
     <>
@@ -111,6 +117,17 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
               )}
             </IonCardTitle>
             <div className="exercise-card-header-actions">
+              {exercise.correctionStatus === 'corrected' && (
+                <span className="exercise-card-status exercise-card-status--corrected">Corregido</span>
+              )}
+              {exercise.correctionStatus === 'in_progress' && (
+                <span className="exercise-card-status exercise-card-status--in-progress">En corrección</span>
+              )}
+              {grade != null && (
+                <span className={`exercise-card-grade ${grade / maxScore >= 0.5 ? 'exercise-card-grade--pass' : 'exercise-card-grade--fail'}`}>
+                  {grade}/{maxScore}
+                </span>
+              )}
               {studentName && <IonBadge color="primary">{studentName}</IonBadge>}
               {onDelete && (
                 <IonButton

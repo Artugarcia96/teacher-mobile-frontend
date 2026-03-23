@@ -5,39 +5,102 @@
   min-height: 60vh;
 }
 
-.topic-title {
-  margin: 0 0 var(--space-sm) 0;
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+/* ─── Topic header (below toolbar) ─── */
+.topic-header {
+  padding: 12px var(--space-lg) 8px;
 }
 
-.topic-description {
+.topic-header p {
   margin: 0;
-  color: #94A3B8;
-  font-size: var(--font-size-base);
+  color: var(--ion-color-medium);
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
-.materials-section {
-  margin-top: var(--space-2xl);
+/* ─── Section titles ─── */
+.td-section {
+  margin-bottom: var(--space-md);
 }
 
-.materials-header {
+.td-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
-  padding: 0 var(--space-lg);
+  padding: var(--space-sm) var(--space-lg);
+  margin-bottom: 2px;
 }
 
-.materials-header h3 {
+.td-section-header h3 {
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
+/* ─── Material card style ─── */
+.td-material-card {
+  margin: 0 var(--space-lg) 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ion-color-light-shade);
+  overflow: hidden;
+}
+
+.td-material-card ion-item {
+  --padding-start: 14px;
+  --inner-padding-end: 8px;
+  --min-height: 52px;
+}
+
+.td-material-card ion-item h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.td-material-card ion-item p {
+  font-size: 12px;
+}
+
+/* ─── Sub-tema ─── */
+.td-subtema {
+  margin: 0 0 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ion-color-light-shade);
+  overflow: hidden;
+}
+
+.td-subtema-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.td-subtema-body {
+  padding: 0 14px 10px;
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
+/* ─── Generation toggle ─── */
+.td-gen-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--ion-color-medium);
+}
+
+.td-gen-toggle ion-toggle {
+  --handle-width: 18px;
+  --handle-height: 18px;
+  height: 22px;
+  width: 38px;
+}
+
+/* ─── Upload progress ─── */
 .materials-upload-progress {
   display: flex;
   flex-direction: column;
@@ -58,16 +121,24 @@
 .materials-search {
   --background: #ffffff;
   --border-radius: var(--radius-md);
-  --box-shadow: var(--shadow-xs);
-  margin: 0 0 var(--space-sm);
+  --box-shadow: none;
+  margin: 0 var(--space-lg) var(--space-sm);
   padding: 0;
   border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-/* Dark theme */
 @media (prefers-color-scheme: dark) {
   .materials-search {
     --background: #16161A;
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
+}
+
+/* ─── PDF Preview ─── */
+.paper-preview-content { --background: #000; }
+.paper-preview-container { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: var(--space-md); }
+.paper-preview-pdf { width: 100%; height: calc(100vh - 80px); border: none; border-radius: var(--radius-sm); background: white; }
+
+@media (min-width: 992px) {
+  .td-section { max-width: 960px; margin-left: auto; margin-right: auto; }
 }

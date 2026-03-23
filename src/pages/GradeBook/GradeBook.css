@@ -86,6 +86,77 @@
   text-overflow: ellipsis;
 }
 
+.gb-hero__info-badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.gb-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  letter-spacing: 0.01em;
+}
+
+.gb-hero__badge ion-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.gb-hero__badge[id="schedule-badge"] {
+  cursor: pointer;
+}
+
+/* Schedule popover */
+.gb-schedule-popover {
+  --width: auto;
+  --min-width: 160px;
+  --max-width: 220px;
+}
+
+.gb-schedule-popover::part(content) {
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.gb-schedule-detail {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gb-schedule-detail__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.gb-schedule-detail__day {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.gb-schedule-detail__time {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    TABS
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -132,6 +203,13 @@
 /* ─── Day Insight Banner ─── */
 .gb-day-insight {
   margin-bottom: -4px;
+}
+
+/* ─── Preparation Section (class-level) ─── */
+.gb-prep-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
 }
 
 /* ─── Performance Card (subject bars) ─── */
@@ -346,8 +424,477 @@
   text-align: center;
 }
 
+/* ─── Comments / Notas Section ─── */
+.gb-comments-section {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.gb-comments-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gb-comments-section__header--toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gb-comments-section__chevron {
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--color-text-secondary, #888);
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg);
+}
+
+.gb-comments-section__chevron--open {
+  transform: rotate(0deg);
+}
+
+.gb-comments-section__icon {
+  font-size: 20px;
+  color: var(--ion-color-primary);
+  flex-shrink: 0;
+}
+
+.gb-comments-section__title {
+  flex: 1;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.gb-comments-section__input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gb-comments-section__input {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  background: var(--ion-background-color);
+  color: var(--ion-text-color);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.gb-comments-section__input:focus {
+  border-color: var(--ion-color-primary);
+}
+
+.gb-comments-section__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.gb-comments-section__send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ion-color-primary);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.gb-comments-section__send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.gb-comments-section__send-btn ion-spinner {
+  width: 18px;
+  height: 18px;
+  color: white;
+}
+
+.gb-comments-section__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.gb-comments-section__empty {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.gb-comments-section__list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.gb-comment-item {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gb-comment-item:last-child {
+  border-bottom: none;
+}
+
+.gb-comment-item__text {
+  font-size: var(--font-size-sm);
+  color: var(--ion-text-color);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.gb-comment-item__meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* ─── Subject Cards ─── */
+.gb-subject-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* ─── Overview Navigation (Trimester / Reports) ─── */
+.gb-overview-nav {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.gb-overview-nav-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface, #fff);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.gb-overview-nav-btn:active { transform: scale(0.98); }
+.gb-overview-nav-btn ion-icon { font-size: 17px; color: var(--ion-color-primary); }
+
+/* ─── Delete class link ─── */
+.gb-delete-link {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-sm) 0;
+}
+
+.gb-delete-link__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-tertiary, #94a3b8);
+  cursor: pointer;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  transition: color var(--transition-fast);
+}
+
+.gb-delete-link__btn:active {
+  color: var(--ion-color-danger);
+}
+
+.gb-delete-link__btn ion-icon {
+  font-size: 15px;
+}
+
 .gb-empty-overview {
   padding: var(--space-2xl) 0;
+}
+
+/* ─── Subject Weekly Calendar ─── */
+.gb-week-cal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-md);
+}
+
+.gb-week-cal__header {
+  margin-bottom: var(--space-sm);
+}
+
+.gb-week-cal__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.gb-week-cal__title ion-icon {
+  font-size: 16px;
+  color: var(--ion-color-primary);
+}
+
+.gb-week-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.gb-week-cal__nav-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+.gb-week-cal__nav-btn:active {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.gb-week-cal__nav-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.gb-week-cal__range {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  text-transform: capitalize;
+}
+
+.gb-week-cal__today-btn {
+  background: none;
+  border: none;
+  color: var(--ion-color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px var(--space-xs);
+}
+
+.gb-week-cal__days {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space-sm);
+}
+
+.gb-week-cal__day {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-xs) 2px;
+  background: var(--ion-background-color);
+  border-radius: var(--radius-sm);
+  position: relative;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gb-week-cal__day--selected {
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-color: var(--ion-color-primary);
+}
+
+.gb-week-cal__day--today {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+}
+
+.gb-week-cal__day--today.gb-week-cal__day--selected {
+  background: var(--ion-color-primary);
+}
+
+.gb-week-cal__day-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.gb-week-cal__day--selected .gb-week-cal__day-name,
+.gb-week-cal__day--selected .gb-week-cal__day-num {
+  color: var(--ion-color-primary);
+}
+
+.gb-week-cal__day--today .gb-week-cal__day-name,
+.gb-week-cal__day--today .gb-week-cal__day-num {
+  color: #ffffff;
+}
+
+.gb-week-cal__day-num {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--ion-text-color);
+  margin-top: 1px;
+}
+
+.gb-week-cal__day-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--ion-color-primary);
+  border-radius: var(--radius-full);
+}
+
+.gb-week-cal__day--today .gb-week-cal__day-dot {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.gb-week-cal__events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gb-week-cal__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.gb-week-cal__empty {
+  text-align: center;
+  padding: var(--space-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.gb-week-cal__event {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--ion-background-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.gb-week-cal__event:active {
+  opacity: 0.8;
+}
+
+.gb-week-cal__event-time {
+  min-width: 38px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gb-week-cal__event-time--class_session {
+  color: var(--ion-color-primary);
+}
+
+.gb-week-cal__event-time--custom {
+  color: #8B5CF6;
+}
+
+.gb-week-cal__event-time--tutoring {
+  color: #0891B2;
+}
+
+.gb-week-cal__event-time--exam {
+  color: var(--ion-color-warning);
+}
+
+.gb-week-cal__event-time ion-icon {
+  font-size: 16px;
+}
+
+.gb-week-cal__event-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.gb-week-cal__event-title {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.gb-week-cal__event-arrow {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.gb-week-cal__exam-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.gb-week-cal__exam-status--assigned {
+  background: rgba(217, 119, 6, 0.1);
+  color: #D97706;
+}
+
+.gb-week-cal__exam-status--corrected {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+}
+
+.gb-week-cal__exam-status--uploaded {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--color-text-secondary);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -548,6 +1095,10 @@
     background: #0D4A44;
   }
 
+  .gb-hero__badge {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
   .gb-tabs-wrapper {
     background: var(--ion-toolbar-background);
     border-bottom-color: rgba(255, 255, 255, 0.08);
@@ -561,6 +1112,12 @@
     background: rgba(44, 158, 146, 0.12);
     color: #2C9E92;
     border-color: rgba(44, 158, 146, 0.2);
+  }
+
+  .gb-content--subject .gb-action-btn--alt {
+    background: color-mix(in srgb, var(--subject-color) 12%, transparent);
+    color: color-mix(in srgb, var(--subject-color) 80%, white);
+    border-color: color-mix(in srgb, var(--subject-color) 20%, transparent);
   }
 
   .gb-alert-row--warning {
@@ -594,6 +1151,13 @@
     color: #2C9E92;
   }
 
+  .gb-overview-nav-btn {
+    background: #16161A;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+  }
+
   .gb-roster-search {
     --background: #16161A;
     border-color: rgba(255, 255, 255, 0.08);
@@ -619,6 +1183,38 @@
   .student-input-row {
     background: rgba(255, 255, 255, 0.05);
   }
+
+  .gb-week-cal {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .gb-week-cal__nav-btn {
+    background: var(--ion-card-background);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .gb-week-cal__nav-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .gb-week-cal__day {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .gb-week-cal__day--selected {
+    background: rgba(var(--ion-color-primary-rgb), 0.2);
+    border-color: var(--ion-color-primary);
+  }
+
+  .gb-week-cal__day--today {
+    background: var(--ion-color-primary);
+    border-color: var(--ion-color-primary);
+  }
+
+  .gb-week-cal__event {
+    background: rgba(255, 255, 255, 0.04);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -642,4 +1238,195 @@
   .gb-nav-row {
     padding: var(--space-md);
   }
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .gb-hero {
+    padding: var(--space-sm) var(--space-2xl);
+  }
+
+  .gb-tabs-wrapper {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+    border-bottom: none;
+  }
+
+  .gb-overview {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .gb-grades {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .gb-roster {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .gb-subject-cards {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .gb-overview-nav {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .gb-actions {
+    max-width: 480px;
+  }
+
+  .gb-alerts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gb-nav-row:hover {
+    background: rgba(var(--ion-color-primary-rgb), 0.04);
+  }
+
+  .gb-student-item:hover {
+    border-color: var(--ion-color-primary);
+  }
+
+  .gb-overview-nav-btn:hover {
+    background: var(--color-border);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SUBJECT COLOR THEMING
+   When inside a subject page, --subject-color overrides primary accents.
+   Uses color-mix() for subtle, non-saturating tints.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.gb-content--subject .gb-tabs-wrapper {
+  border-bottom-color: color-mix(in srgb, var(--subject-color) 12%, transparent);
+}
+
+.gb-content--subject .gb-tabs ion-segment-button {
+  --indicator-color: var(--subject-color);
+  --color-checked: #ffffff;
+}
+
+.gb-content--subject .gb-action-btn {
+  background: var(--subject-color);
+}
+
+.gb-content--subject .gb-action-btn--alt {
+  background: color-mix(in srgb, var(--subject-color) 8%, transparent);
+  color: var(--subject-color);
+  border-color: color-mix(in srgb, var(--subject-color) 15%, transparent);
+}
+
+.gb-content--subject .gb-action-btn--alt:active {
+  background: color-mix(in srgb, var(--subject-color) 14%, transparent);
+}
+
+.gb-content--subject .gb-nav-row__icon {
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-nav-row:active {
+  background: color-mix(in srgb, var(--subject-color) 4%, transparent);
+}
+
+.gb-content--subject .gb-nav-row__count {
+  background: color-mix(in srgb, var(--subject-color) 8%, transparent);
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-overview-nav-btn ion-icon {
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-roster-search {
+  border-color: color-mix(in srgb, var(--subject-color) 20%, transparent);
+}
+
+.gb-content--subject .gb-roster-search:focus-within {
+  border-color: var(--subject-color);
+}
+
+.gb-content--subject .gb-student-avatar {
+  background: var(--subject-color) !important;
+}
+
+.gb-content--subject .gb-comments-section__icon {
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-comments-section__send-btn {
+  background: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__day--today {
+  background: var(--subject-color);
+  border-color: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__day--selected {
+  background: color-mix(in srgb, var(--subject-color) 10%, transparent);
+  border-color: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__day--selected .gb-week-cal__day-name,
+.gb-content--subject .gb-week-cal__day--selected .gb-week-cal__day-num {
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__day-dot {
+  background: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__title ion-icon {
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__today-btn {
+  color: var(--subject-color);
+}
+
+.gb-content--subject .gb-week-cal__event-time--class_session {
+  color: var(--subject-color);
+}
+
+/* Override Ionic primary color within subject context */
+.gb-content--subject {
+  --ion-color-primary: var(--subject-color);
+}
+
+.gb-content--subject .gb-grades-toolbar ion-button {
+  --ion-color-primary: var(--subject-color);
+}
+
+.gb-content--subject .gb-roster-toolbar ion-button {
+  --ion-color-primary: var(--subject-color);
+}
+
+/* Desktop hover states */
+@media (min-width: 992px) {
+  .gb-content--subject .gb-nav-row:hover {
+    background: color-mix(in srgb, var(--subject-color) 4%, transparent);
+  }
+
+  .gb-content--subject .gb-student-item:hover {
+    border-color: var(--subject-color);
+  }
+}
+
+.gb-student-item:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
 }

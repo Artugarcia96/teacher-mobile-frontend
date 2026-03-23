@@ -122,7 +122,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
 
   return (
     <div className="cip">
-      {/* Compact stats row */}
+      {/* Compact stats row — click to expand details */}
       <div className="cip__header" onClick={() => setExpanded(!expanded)}>
         <div className="cip__stats-inline">
           <div className="cip__stat">
@@ -146,18 +146,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
             <span className="cip__stat-value">{trendText}</span>
           </div>
         </div>
-        <div className="cip__header-actions">
-          <IonButton
-            fill="clear"
-            size="small"
-            onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
-            disabled={refreshing}
-            className="cip__refresh-btn"
-          >
-            <IonIcon icon={refreshOutline} slot="icon-only" className={refreshing ? 'spinning' : ''} />
-          </IonButton>
-          <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="cip__expand-icon" />
-        </div>
+        <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="cip__expand-icon" />
       </div>
 
       {/* Weak areas — always visible as compact tags */}
@@ -177,10 +166,54 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
         </div>
       )}
 
-      {/* Expanded content */}
+      {/* AI Insight — always visible */}
+      {insights.ai_summary && (
+        <div className="cip__ai-summary cip__ai-summary--prominent">
+          <div className="cip__ai-header">
+            <span className="cip__section-label cip__section-label--ai">
+              <IonIcon icon={sparkles} />
+              Análisis IA
+            </span>
+            {insights.updated_at && (
+              <span className="cip__updated">
+                {new Date(insights.updated_at).toLocaleString('es-ES', {
+                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                })}
+              </span>
+            )}
+          </div>
+          <div className="cip__ai-content">
+            <ReactMarkdown>{insights.ai_summary}</ReactMarkdown>
+          </div>
+          <button
+            className="cip__ai-refresh-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <IonIcon icon={refreshOutline} className={refreshing ? 'spinning' : ''} />
+            {refreshing ? 'Generando análisis...' : 'Regenerar análisis'}
+          </button>
+        </div>
+      )}
+
+      {/* No AI summary yet — show generate button */}
+      {!insights.ai_summary && !subjectId && (
+        <div className="cip__ai-summary cip__ai-summary--empty">
+          <button
+            className="cip__ai-generate-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <IonIcon icon={sparkles} className={refreshing ? 'spinning' : ''} />
+            {refreshing ? 'Generando análisis...' : 'Generar análisis IA'}
+          </button>
+        </div>
+      )}
+
+      {/* Expanded content — details */}
       {expanded && (
         <div className="cip__expanded">
-          {/* Generate button */}
+          {/* Generate exercises button */}
           {onGenerateExercises && validWeakAreas.length > 0 && (
             <button
               className="cip__generate-btn"
@@ -209,27 +242,6 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
                 </div>
               ))}
             </div>
-          )}
-
-          {/* AI Summary — collapsed with max-height */}
-          {insights.ai_summary && (
-            <div className="cip__ai-summary">
-              <span className="cip__section-label">
-                <IonIcon icon={sparkles} />
-                Resumen IA
-              </span>
-              <div className="cip__ai-content">
-                <ReactMarkdown>{insights.ai_summary}</ReactMarkdown>
-              </div>
-            </div>
-          )}
-
-          {insights.updated_at && (
-            <span className="cip__updated">
-              Actualizado {new Date(insights.updated_at).toLocaleString('es-ES', {
-                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-              })}
-            </span>
           )}
         </div>
       )}

@@ -210,6 +210,172 @@
   color: var(--ion-color-warning);
 }
 
+/* ─── Pending Corrections List ─── */
+.cal-pending-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.cal-pending-header__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.cal-pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.cal-pending-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--ion-card-background);
+  border: 1px solid rgba(217, 119, 6, 0.12);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.cal-pending-item__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cal-pending-item__name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-pending-item__class {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.cal-pending-item__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cal-pending-item__count {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--ion-color-warning);
+}
+
+.cal-pending-item__deadline {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cal-pending-item__deadline--overdue {
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+}
+
+.cal-pending-item__deadline--urgent {
+  background: rgba(217, 119, 6, 0.1);
+  color: #D97706;
+}
+
+.cal-pending-item__deadline--soon {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563EB;
+}
+
+.cal-pending-item__arrow {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* ─── Students at Risk ─── */
+.cal-risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.cal-risk-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--ion-card-background);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.cal-risk-item__grade {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.cal-risk-item__grade--high {
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+}
+
+.cal-risk-item__grade--medium {
+  background: rgba(217, 119, 6, 0.1);
+  color: #D97706;
+}
+
+.cal-risk-item__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cal-risk-item__name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.cal-risk-item__details {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.cal-risk-item__arrow {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
 /* ─── Prepare Your Day Button ─── */
 .cal-prepare-btn {
   display: flex;
@@ -288,8 +454,8 @@
 
 .cal-view-toggle ion-segment-button {
   --indicator-color: var(--ion-color-primary);
-  --color: #64748B;
-  --color-checked: var(--ion-color-primary);
+  --color: var(--color-text-secondary);
+  --color-checked: #ffffff;
   font-weight: 600;
   font-size: var(--font-size-sm);
   text-transform: none;
@@ -478,12 +644,13 @@
 
 .cal-month__day {
   position: relative;
-  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
+  padding: var(--space-xs) 0;
+  min-height: 40px;
   background: none;
   border: none;
   border-right: 1px solid rgba(0, 0, 0, 0.04);
@@ -589,8 +756,15 @@
   font-weight: 700;
   color: var(--color-text-secondary);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.cal-agenda-item__endtime {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.6;
 }
 
 .cal-agenda-item__time--class_session {
@@ -610,7 +784,7 @@
 }
 
 .cal-agenda-item__time--exam-uploaded {
-  color: #64748B;
+  color: var(--color-text-secondary);
 }
 
 .cal-agenda-item__time ion-icon {
@@ -662,7 +836,42 @@
 
 .cal-agenda-item__status--uploaded {
   background: rgba(100, 116, 139, 0.1);
-  color: #64748B;
+  color: var(--color-text-secondary);
+}
+
+.cal-agenda-item__attendance-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-xs, 4px);
+  padding: 3px 8px;
+  font-size: var(--font-size-xs, 12px);
+  font-weight: 600;
+  color: var(--color-primary, #15665E);
+  background: none;
+  border: 1px solid var(--color-primary, #15665E);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.cal-agenda-item__attendance-btn:active {
+  background: rgba(21, 102, 94, 0.08);
+}
+
+.cal-agenda-item__attendance-btn ion-icon {
+  font-size: 14px;
+}
+
+.cal-agenda-item__attendance-btn--done {
+  color: #059669;
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.06);
+}
+
+.cal-agenda-item__attendance-btn--done:active {
+  background: rgba(5, 150, 105, 0.12);
 }
 
 /* ─── Quick Actions ─── */
@@ -841,6 +1050,16 @@
     border-color: rgba(255, 255, 255, 0.06);
   }
 
+  .cal-pending-item,
+  .cal-risk-item {
+    background: var(--ion-card-background);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .cal-pending-item {
+    border-color: rgba(217, 119, 6, 0.2);
+  }
+
   .cal-pending {
     background: rgba(217, 119, 6, 0.12);
     border-color: rgba(217, 119, 6, 0.2);
@@ -904,4 +1123,103 @@
   .cal-month__day:active {
     background: rgba(255, 255, 255, 0.1);
   }
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  /* Hide duplicate logo in banner (sidebar already shows it) */
+  .cal-banner__left {
+    display: none;
+  }
+
+  .cal-banner {
+    padding: var(--space-md) var(--space-2xl);
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+
+  .cal-banner__right {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .cal-section {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: var(--space-lg) var(--space-2xl);
+  }
+
+  .cal-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .cal-actions {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* Month calendar: slightly taller cells on desktop */
+  .cal-month__day {
+    padding: var(--space-sm) var(--space-xs);
+    min-height: 48px;
+  }
+
+  .cal-pending-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .cal-risk-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .cal-agenda {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+
+  /* Mini calendar: fit nicely, no scroll */
+  .cal-mini-cal {
+    overflow-x: visible;
+  }
+
+  .cal-mini-cal__day {
+    min-width: 0;
+  }
+
+  /* Hover states for mouse */
+  .cal-week-nav__btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .cal-action:hover {
+    background: rgba(var(--ion-color-primary-rgb), 0.04);
+  }
+
+  .cal-agenda-item:hover {
+    border-color: var(--ion-color-primary);
+  }
+
+  .cal-stat:hover {
+    border-color: var(--ion-color-primary);
+  }
+
+  .cal-month__day:hover:not(.cal-month__day--today) {
+    background: rgba(var(--ion-color-primary-rgb), 0.06);
+  }
+
+  .cal-prepare-btn:hover {
+    border-color: var(--ion-color-primary);
+  }
+}
+
+.cal-agenda-item:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
 }

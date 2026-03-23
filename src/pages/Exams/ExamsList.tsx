@@ -16,6 +16,8 @@ import { useClassesStore } from '../../store/classesStore';
 import { classes as classesApi, subjects as subjectsApi } from '../../services/api';
 import { ClassGroup, Exam } from '../../types';
 import EmptyState from '../../components/EmptyState';
+import { subjectThemeStyle } from '../../utils/subjectTheme';
+import { useDashboardStore } from '../../store/dashboardStore';
 import './ExamsList.css';
 
 const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
@@ -40,7 +42,8 @@ const ExamsList: React.FC = () => {
   const fetchExams = useExamsStore((s) => s.fetchExams);
   const deleteExam = useExamsStore((s) => s.deleteExam);
   const examsLoading = useExamsStore((s) => s.loading);
-  
+  const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
+
   const allStudents = useStudentsStore((s) => s.students);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
   
@@ -49,6 +52,8 @@ const ExamsList: React.FC = () => {
   
   const allClasses = useClassesStore((s) => s.classes);
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
+  const classSubjects = useClassesStore((s) => s.classSubjects);
+  const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'uploaded' | 'assigned' | 'corrected'>('all');
   const [lectureFilter, setLectureFilter] = useState<string>('all');
@@ -58,7 +63,7 @@ const ExamsList: React.FC = () => {
 
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
-  const exams = useMemo(() => allExams.filter((e) => e.classId === classId), [allExams, classId]);
+  const exams = useMemo(() => allExams.filter((e) => e.classId === classId && (!subjectId || e.subjectId === subjectId)), [allExams, classId, subjectId]);
 
   const fetchClassDetails = useCallback(async () => {
     if (!classId) return;
@@ -87,7 +92,8 @@ const ExamsList: React.FC = () => {
     fetchAllCorrections();
     fetchClassDetails();
     fetchSubjectName();
-  }, [classId, subjectId, fetchClasses, fetchExams, fetchStudents, fetchAllCorrections, fetchClassDetails, fetchSubjectName]);
+    if (classId) fetchClassSubjects(classId);
+  }, [classId, subjectId, fetchClasses, fetchExams, fetchStudents, fetchAllCorrections, fetchClassDetails, fetchSubjectName, fetchClassSubjects]);
 
   const filteredExams = useMemo(() => {
     let filtered = [...exams];
@@ -118,6 +124,7 @@ const ExamsList: React.FC = () => {
     try {
       await deleteExam(deleteTarget.id);
       await fetchExams(classId, subjectId);
+      fetchDashboard();
     } catch (err) {
       console.error('Failed to delete exam:', err);
     }
@@ -125,6 +132,9 @@ const ExamsList: React.FC = () => {
   };
 
   const displayClass = classGroup || basicClassGroup;
+  const currentSubjectSummary = subjectId ? classSubjects[classId]?.find(s => s.subjectId === subjectId) : null;
+  const subjectColor = currentSubjectSummary?.subjectColor;
+  const aulaLabel = currentSubjectSummary?.aula;
   const basePath = subjectId
     ? `/tabs/classes/${classId}/subjects/${subjectId}`
     : `/tabs/classes/${classId}`;
@@ -132,9 +142,9 @@ const ExamsList: React.FC = () => {
 
   return (
     <IonPage>
-      <IonContent className="exams-list-content" scrollY>
+      <IonContent className="exams-list-content" scrollY style={subjectThemeStyle(subjectColor)}>
         {/* Hero Header */}
-        <div className="exams-list-hero">
+        <div className="exams-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
           <div className="exams-list-hero__nav">
             <IonButtons>
               <IonBackButton defaultHref={basePath} text="" color="light" />
@@ -143,7 +153,7 @@ const ExamsList: React.FC = () => {
               <h1 className="exams-list-hero__title">Exámenes</h1>
               {(displayClass || subjectName) && (
                 <p className="exams-list-hero__subtitle">
-                  {displayClass?.name}{subjectName ? ` — ${subjectName}` : ''}
+                  {displayClass?.name}{subjectName ? ` — ${subjectName}` : ''}{aulaLabel ? ` · ${aulaLabel}` : ''}
                 </p>
               )}
             </div>
@@ -212,7 +222,7 @@ const ExamsList: React.FC = () => {
               {filteredExams.map((exam) => {
                 const status = statusConfig[exam.status] || statusConfig.uploaded;
                 const corrections = getExamCorrections(exam.id);
-                const correctedCount = corrections.filter(c => c.grade !== null).length;
+                const correctedCount = corrections.filter(c => c.grade !== null || c.aiProcessed).length;
                 const deadline = exam.deadlineStatus ? deadlineConfig[exam.deadlineStatus] : null;
                 const lectureName = getLectureName(exam.lectureId);
                 

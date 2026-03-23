@@ -189,7 +189,7 @@
   border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 500;
-  color: #15665E;
+  color: var(--ion-color-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -236,6 +236,12 @@
   font-weight: 600;
   color: var(--ion-color-warning);
   margin-top: 4px;
+}
+
+.class-card__last-activity {
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-medium);
+  margin-top: 2px;
 }
 
 .class-card__right {
@@ -298,7 +304,7 @@
 .curso-dates__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #64748B;
+  color: var(--color-text-secondary);
   display: block;
   margin-bottom: var(--space-sm);
   padding-left: var(--space-xs);
@@ -329,7 +335,7 @@
 .education-level-section__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #64748B;
+  color: var(--color-text-secondary);
   display: block;
   margin-bottom: var(--space-sm);
   padding-left: var(--space-xs);
@@ -765,4 +771,44 @@
   color: #ea580c;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .classes-controls {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .classes-pending-banner {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .classes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .class-card:hover {
+    border-color: var(--ion-color-primary);
+  }
+
+  .class-card__subject-chip:hover {
+    background: rgba(21, 102, 94, 0.15);
+  }
+
+  .class-card__subject-row:hover {
+    background: rgba(var(--ion-color-primary-rgb), 0.04);
+  }
+}
+
+.class-card:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
 }

@@ -5,25 +5,37 @@ import {
   IonModal, IonSpinner, IonBadge, IonAlert, IonChip, IonProgressBar,
   IonItemSliding, IonItemOptions, IonItemOption, IonReorder, IonReorderGroup,
   IonSearchbar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonCheckbox,
+  IonRange,
 } from '@ionic/react';
 import {
   addOutline, documentTextOutline, cloudUploadOutline, closeCircleOutline,
-  bookOutline, linkOutline, trashOutline,
+  bookOutline, linkOutline, trashOutline, sparklesOutline, downloadOutline,
+  sparkles, checkmarkCircleOutline,
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
-import { subjects as subjectsApi } from '../../services/api';
-import { SubjectListItem } from '../../types';
+import { useTextbooksStore } from '../../store/textbooksStore';
+import { subjects as subjectsApi, batch } from '../../services/api';
+import { SubjectListItem, Textbook } from '../../types';
 import EmptyState from '../../components/EmptyState';
+import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
+import TextbookCard from '../../components/TextbookCard';
+import TextbookDetailModal from '../../components/TextbookDetailModal';
+import { useIsDesktop } from '../../hooks/useIsDesktop';
+import { subjectThemeStyle } from '../../utils/subjectTheme';
+import '../../components/ContentCreatorModal.css';
 import './TopicsList.css';
 
 const TopicsList: React.FC = () => {
   const { classId, subjectId: urlSubjectId } = useParams<{ classId: string; subjectId?: string }>();
   const history = useHistory();
+  const isDesktop = useIsDesktop();
 
   const allClasses = useClassesStore((s) => s.classes);
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
+  const classesStoreSubjects = useClassesStore((s) => s.classSubjects);
+  const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const classGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
 
   const topicsBySubject = useTopicsStore((s) => s.topicsBySubject);
@@ -32,12 +44,12 @@ const TopicsList: React.FC = () => {
   const fetchTopicsForClass = useTopicsStore((s) => s.fetchTopicsForClass);
   const linkSubjectToClass = useTopicsStore((s) => s.linkSubjectToClass);
   const unlinkSubjectFromClass = useTopicsStore((s) => s.unlinkSubjectFromClass);
-  const createAndLinkSubject = useTopicsStore((s) => s.createAndLinkSubject);
   const createTopic = useTopicsStore((s) => s.createTopic);
   const deleteTopic = useTopicsStore((s) => s.deleteTopic);
   const uploadMaterial = useTopicsStore((s) => s.uploadMaterial);
 
   const [activeSubjectId, setActiveSubjectId] = useState('');
+  const [activeTrimester, setActiveTrimester] = useState<string>('all');
   const [showTopicModal, setShowTopicModal] = useState(false);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [search, setSearch] = useState('');
@@ -45,13 +57,13 @@ const TopicsList: React.FC = () => {
   // New topic form
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newTrimester, setNewTrimester] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
 
   // Link subject form
   const [selectedLinkIds, setSelectedLinkIds] = useState<string[]>([]);
-  const [newSubjectName, setNewSubjectName] = useState('');
   const [linkingSaving, setLinkingSaving] = useState(false);
 
   // Import from class selector
@@ -63,19 +75,49 @@ const TopicsList: React.FC = () => {
   const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Content creation state
+  const [topicMode, setTopicMode] = useState<'manual' | 'generate'>('manual');
+  const [selectedTextbook, setSelectedTextbook] = useState<Textbook | null>(null);
+
+  // Generate content form state
+  const [genTitle, setGenTitle] = useState('');
+  const [genEnfoque, setGenEnfoque] = useState<string>('practico');
+  const [genNotas, setGenNotas] = useState('');
+  const [genGuidePdfs, setGenGuidePdfs] = useState<File[]>([]);
+  const [genTargetPages, setGenTargetPages] = useState(80);
+  const [genExercisesPerChapter, setGenExercisesPerChapter] = useState(15);
+  const [genExamplesPerSection, setGenExamplesPerSection] = useState(2);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
+  const genFileInputRef = useRef<HTMLInputElement>(null);
+  const generateTextbook = useTextbooksStore((s) => s.generateTextbook);
+  const { textbooks, fetchTextbooks } = useTextbooksStore();
+  const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
+
   const activeSubject = useMemo(
     () => topicsBySubject.find((s) => s.subjectId === activeSubjectId),
     [topicsBySubject, activeSubjectId]
   );
 
   const activeTopics = useMemo(() => {
-    const topics = activeSubject?.topics || [];
+    let topics = activeSubject?.topics || [];
+    if (activeTrimester !== 'all') {
+      const tri = parseInt(activeTrimester);
+      topics = topics.filter((t) => (t.trimester || 0) === tri);
+    }
     if (!search) return topics;
     const term = search.toLowerCase();
     return topics.filter(
       (t) => t.name.toLowerCase().includes(term) || t.description?.toLowerCase().includes(term)
     );
-  }, [activeSubject, search]);
+  }, [activeSubject, activeTrimester, search]);
+
+  // Check which trimesters have topics to show relevant filter options
+  const availableTrimesters = useMemo(() => {
+    const topics = activeSubject?.topics || [];
+    const trims = new Set(topics.map((t) => t.trimester || 0));
+    return trims;
+  }, [activeSubject]);
 
   // Other classes to import from (excluding current class)
   const otherClasses = useMemo(
@@ -92,20 +134,25 @@ const TopicsList: React.FC = () => {
   useEffect(() => {
     fetchClasses();
     fetchTopicsForClass(classId);
-  }, [classId, fetchClasses, fetchTopicsForClass]);
+    if (classId) fetchClassSubjects(classId);
+  }, [classId, fetchClasses, fetchTopicsForClass, fetchClassSubjects]);
 
   useEffect(() => {
     if (urlSubjectId) {
-      // When navigating from a subject-scoped route, lock to that subject
       setActiveSubjectId(urlSubjectId);
     } else if (classSubjects.length > 0 && (!activeSubjectId || !classSubjects.find((s) => s.id === activeSubjectId))) {
       setActiveSubjectId(classSubjects[0].id);
     }
   }, [classSubjects, activeSubjectId, urlSubjectId]);
 
+  useEffect(() => {
+    if (activeSubjectId) {
+      fetchTextbooks(activeSubjectId);
+    }
+  }, [activeSubjectId, fetchTextbooks]);
+
   const handleOpenSubjectModal = () => {
     setSelectedLinkIds([]);
-    setNewSubjectName('');
     setSelectedSourceClassId('');
     setSourceClassSubjects([]);
     setShowSubjectModal(true);
@@ -143,12 +190,8 @@ const TopicsList: React.FC = () => {
       for (const subjectId of selectedLinkIds) {
         await linkSubjectToClass(subjectId, classId);
       }
-      if (newSubjectName.trim()) {
-        await createAndLinkSubject(newSubjectName.trim(), classId);
-      }
       setShowSubjectModal(false);
       setSelectedLinkIds([]);
-      setNewSubjectName('');
     } catch (err) {
       console.error('Failed to link subjects:', err);
     } finally {
@@ -180,6 +223,7 @@ const TopicsList: React.FC = () => {
       const newTopic = await createTopic(activeSubjectId, {
         name: newName.trim(),
         description: newDescription.trim() || undefined,
+        trimester: newTrimester ? parseInt(newTrimester) : undefined,
       });
 
       if (selectedFiles.length > 0 && newTopic) {
@@ -191,6 +235,7 @@ const TopicsList: React.FC = () => {
 
       setNewName('');
       setNewDescription('');
+      setNewTrimester('');
       setSelectedFiles([]);
       setUploadProgress('');
       setShowTopicModal(false);
@@ -204,10 +249,73 @@ const TopicsList: React.FC = () => {
 
   const handleTopicModalDismiss = () => {
     setShowTopicModal(false);
+    setTopicMode('manual');
     setNewName('');
     setNewDescription('');
+    setNewTrimester('');
     setSelectedFiles([]);
     setUploadProgress('');
+    // Reset generate state
+    setGenTitle('');
+    setGenEnfoque('practico');
+    setGenNotas('');
+    setGenGuidePdfs([]);
+    setGenTargetPages(80);
+    setGenExercisesPerChapter(15);
+    setGenExamplesPerSection(2);
+    setGenerating(false);
+    setGenError('');
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGenError('');
+    try {
+      const result = await generateTextbook({
+        subject_id: activeSubjectId,
+        class_id: classId,
+        title: genTitle.trim() || undefined,
+        enfoque: genEnfoque,
+        notas: genNotas.trim() || undefined,
+        target_pages: genTargetPages,
+        exercises_per_chapter: genExercisesPerChapter,
+        examples_per_section: genExamplesPerSection,
+        guide_pdfs: genGuidePdfs.length > 0 ? genGuidePdfs : undefined,
+      });
+
+      const jobId = result.batchJobId;
+      const capturedSubjectId = activeSubjectId;
+      const capturedSubjectName = activeSubjectName;
+
+      addBackgroundTask({
+        type: 'textbook',
+        label: capturedSubjectName,
+        description: 'La IA estructura el temario por capítulos, redacta explicaciones con ejemplos y ejercicios, y genera el PDF.',
+        batchJobId: jobId,
+        expectedResultUrl: `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`,
+        execute: async () => {
+          const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+          let interval = 5000;
+          while (true) {
+            await sleep(interval);
+            const res = await batch.getJobProgress(jobId);
+            const status = res.data.status;
+            if (status === 'completed') break;
+            if (status === 'failed' || status === 'cancelled') {
+              throw new Error('Error generando contenido');
+            }
+            interval = Math.min(interval + 1000, 10000);
+          }
+          await fetchTextbooks(capturedSubjectId);
+          return `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`;
+        },
+      });
+
+      handleTopicModalDismiss();
+    } catch (err: any) {
+      setGenError(err.response?.data?.detail || 'Error al generar contenido');
+      setGenerating(false);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -231,21 +339,27 @@ const TopicsList: React.FC = () => {
   };
 
   const activeSubjectName = classSubjects.find((s) => s.id === activeSubjectId)?.name || '';
+  const subjectColor = urlSubjectId ? classesStoreSubjects[classId]?.find(s => s.subjectId === urlSubjectId)?.subjectColor : undefined;
 
   return (
-    <IonPage>
+    <IonPage style={subjectThemeStyle(subjectColor)}>
       <IonHeader>
-        <IonToolbar>
+        <IonToolbar style={subjectColor ? { '--background': subjectColor, '--color': 'white' } as React.CSSProperties : undefined}>
           <IonButtons slot="start">
-            <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
+            <IonBackButton defaultHref={urlSubjectId ? `/tabs/classes/${classId}/subjects/${urlSubjectId}` : `/tabs/classes/${classId}`} text="" color={subjectColor ? 'light' : undefined} />
           </IonButtons>
           <IonTitle>{classGroup ? `${classGroup.name} — Temario` : 'Temario'}</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={handleOpenSubjectModal} title="Gestionar asignaturas">
+            <IonButton onClick={handleOpenSubjectModal} title="Gestionar asignaturas" color={subjectColor ? 'light' : undefined}>
               <IonIcon icon={linkOutline} />
             </IonButton>
             {activeSubjectId && (
-              <IonButton onClick={() => setShowTopicModal(true)}>
+              <IonButton onClick={() => {
+                if (activeTrimester !== 'all' && activeTrimester !== '0') {
+                  setNewTrimester(activeTrimester);
+                }
+                setShowTopicModal(true);
+              }} color={subjectColor ? 'light' : undefined}>
                 <IonIcon icon={addOutline} />
               </IonButton>
             )}
@@ -258,7 +372,7 @@ const TopicsList: React.FC = () => {
             {classSubjects.length <= 4 ? (
               <IonSegment
                 value={activeSubjectId}
-                onIonChange={(e) => { setActiveSubjectId(e.detail.value as string); setSearch(''); }}
+                onIonChange={(e) => { setActiveSubjectId(e.detail.value as string); setSearch(''); setActiveTrimester('all'); }}
                 className="subject-segment"
               >
                 {classSubjects.map((s) => (
@@ -270,7 +384,7 @@ const TopicsList: React.FC = () => {
             ) : (
               <IonSelect
                 value={activeSubjectId}
-                onIonChange={(e) => { setActiveSubjectId(e.detail.value); setSearch(''); }}
+                onIonChange={(e) => { setActiveSubjectId(e.detail.value); setSearch(''); setActiveTrimester('all'); }}
                 interface="popover"
                 className="subject-dropdown"
               >
@@ -281,6 +395,7 @@ const TopicsList: React.FC = () => {
             )}
           </IonToolbar>
         )}
+
       </IonHeader>
 
       <IonContent>
@@ -303,16 +418,54 @@ const TopicsList: React.FC = () => {
             actionLabel="Añadir asignaturas"
             onAction={handleOpenSubjectModal}
           />
-        ) : activeTopics.length === 0 && !search ? (
-          <EmptyState
-            icon="📄"
-            title={`Sin temas en ${activeSubjectName}`}
-            subtitle="Añade temas y sube materiales para esta asignatura"
-            actionLabel="Nuevo tema"
-            onAction={() => setShowTopicModal(true)}
-          />
         ) : (
           <>
+            {/* ─── Pending textbooks (not yet split into temas) ─── */}
+            {activeSubjectId && textbooks.filter(tb => !tb.temasCreated).length > 0 && (
+              <div className="topics-generated">
+                <div className="topics-generated__header">
+                  <IonIcon icon={sparklesOutline} className="topics-generated__icon" />
+                  <span className="topics-generated__title">Contenido generado</span>
+                </div>
+                {textbooks.filter(tb => !tb.temasCreated).map((tb) => (
+                  <TextbookCard
+                    key={tb.id}
+                    textbook={tb}
+                    onClick={() => setSelectedTextbook(tb)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Trimester pill filters */}
+            {availableTrimesters.size > 1 && (
+              <div className="trimester-pills">
+                <button
+                  className={`trimester-pill ${activeTrimester === 'all' ? 'trimester-pill--active' : ''}`}
+                  onClick={() => { setActiveTrimester('all'); setSearch(''); }}
+                >
+                  Todos
+                </button>
+                {[1, 2, 3].filter((t) => availableTrimesters.has(t)).map((t) => (
+                  <button
+                    key={t}
+                    className={`trimester-pill ${activeTrimester === String(t) ? 'trimester-pill--active' : ''}`}
+                    onClick={() => { setActiveTrimester(String(t)); setSearch(''); }}
+                  >
+                    T{t}
+                  </button>
+                ))}
+                {availableTrimesters.has(0) && (
+                  <button
+                    className={`trimester-pill ${activeTrimester === '0' ? 'trimester-pill--active' : ''}`}
+                    onClick={() => { setActiveTrimester('0'); setSearch(''); }}
+                  >
+                    Sin trimestre
+                  </button>
+                )}
+              </div>
+            )}
+
             {(activeSubject?.topics.length || 0) > 3 && (
               <IonSearchbar
                 value={search}
@@ -321,27 +474,56 @@ const TopicsList: React.FC = () => {
                 className="topics-search"
               />
             )}
-            {activeTopics.length === 0 && search ? (
-              <EmptyState icon="🔍" title="Sin resultados" subtitle="No hay temas que coincidan" />
-            ) : (
+            {activeTopics.length === 0 && !search && activeTrimester === 'all' && textbooks.filter(tb => !tb.temasCreated).length === 0 ? (
+              <EmptyState
+                icon="📄"
+                title={`Sin temas en ${activeSubjectName}`}
+                subtitle="Añade temas y sube materiales para esta asignatura"
+                actionLabel="Nuevo tema"
+                onAction={() => setShowTopicModal(true)}
+              />
+            ) : activeTopics.length === 0 && (search || activeTrimester !== 'all') ? (
+              <EmptyState icon="🔍" title="Sin resultados" subtitle={search ? "No hay temas que coincidan" : "No hay temas en este trimestre"} />
+            ) : activeTopics.length > 0 ? (
               <IonList className="topics-list">
                 <IonReorderGroup disabled={false} onIonItemReorder={(e) => e.detail.complete()}>
                   {activeTopics.map((topic, idx) => (
                     <IonItemSliding key={topic.id}>
                       <IonItem
                         button
-                        onClick={() => history.push(`/tabs/classes/${classId}/topics/${topic.id}`)}
+                        onClick={() => history.push(activeSubjectId ? `/tabs/classes/${classId}/subjects/${activeSubjectId}/topics/${topic.id}` : `/tabs/classes/${classId}/topics/${topic.id}`)}
                         className="topic-item card-item"
                       >
-                        <div className="topic-item__number" slot="start">{idx + 1}</div>
-                        <IonLabel>
+                        <div className="topic-item__left" slot="start">
+                          <div className="topic-item__number">{idx + 1}</div>
+                        </div>
+                        <IonLabel className="topic-item__body">
                           <h3 className="topic-item__name">{topic.name}</h3>
                           {topic.description && <p className="topic-item__desc">{topic.description}</p>}
+                          {((topic.trimester && activeTrimester === 'all') || topic.hasContent) && (
+                            <div className="topic-item__tags">
+                              {topic.trimester && activeTrimester === 'all' && (
+                                <span className="topic-item__trimester-tag">T{topic.trimester}</span>
+                              )}
+                              {topic.hasContent && (
+                                <span className={`topic-item__content-tag topic-item__content-tag--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'default'}`}>
+                                  {topic.pageCount ? `${topic.pageCount}p` : 'IA'}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </IonLabel>
-                        <IonBadge slot="end" color="medium" className="topic-item__badge">
-                          <IonIcon icon={documentTextOutline} /> {topic.materialCount}
-                        </IonBadge>
-                        <IonReorder slot="end" />
+                        <div className="topic-item__right" slot="end">
+                          {topic.materialCount > 0 && (
+                            <span className="topic-item__material-count">
+                              <IonIcon icon={documentTextOutline} /> {topic.materialCount}
+                            </span>
+                          )}
+                          <button className="topic-item__delete" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: topic.id, name: topic.name }); }}>
+                            <IonIcon icon={trashOutline} />
+                          </button>
+                          <IonReorder />
+                        </div>
                       </IonItem>
                       <IonItemOptions side="end">
                         <IonItemOption
@@ -355,9 +537,20 @@ const TopicsList: React.FC = () => {
                   ))}
                 </IonReorderGroup>
               </IonList>
-            )}
+            ) : null}
           </>
         )}
+
+        {/* Textbook detail modal */}
+        <TextbookDetailModal
+          isOpen={!!selectedTextbook}
+          onClose={() => {
+            setSelectedTextbook(null);
+            if (activeSubjectId) fetchTextbooks(activeSubjectId);
+            fetchTopicsForClass(classId);
+          }}
+          textbook={selectedTextbook}
+        />
 
         {/* Delete topic confirmation */}
         <IonAlert
@@ -387,13 +580,13 @@ const TopicsList: React.FC = () => {
         <IonModal
           isOpen={showSubjectModal}
           onDidDismiss={() => setShowSubjectModal(false)}
-          initialBreakpoint={0.65}
-          breakpoints={[0, 0.5, 0.65, 0.85]}
+          initialBreakpoint={isDesktop ? 1 : 0.65}
+          breakpoints={isDesktop ? [0, 1] : [0, 0.65, 0.85]}
         >
           <div className="modal-sheet">
             <h2 className="modal-sheet__title">Asignaturas de {classGroup?.name || 'la clase'}</h2>
             <p className="modal-sheet__subtitle">
-              Vincula asignaturas existentes (comparten temario con otras clases) o crea una nueva.
+              Vincula asignaturas existentes (comparten temario con otras clases).
             </p>
 
             {classSubjects.length > 0 && (
@@ -469,92 +662,310 @@ const TopicsList: React.FC = () => {
               </div>
             )}
 
-            <div className="new-subject-section">
-              <span className="new-subject-section__label">Crear nueva asignatura:</span>
-              <IonItem lines="none" className="new-subject-input">
-                <IonInput
-                  value={newSubjectName}
-                  onIonInput={(e) => setNewSubjectName(e.detail.value ?? '')}
-                  placeholder="ej. Matemáticas, Lengua, Ciencias..."
-                />
-              </IonItem>
-            </div>
-
             <IonButton
               expand="block"
               className="ion-margin-top"
               onClick={handleLinkSubjects}
-              disabled={linkingSaving || (selectedLinkIds.length === 0 && !newSubjectName.trim())}
+              disabled={linkingSaving || selectedLinkIds.length === 0}
             >
               {linkingSaving ? <IonSpinner name="crescent" /> : 'Añadir'}
             </IonButton>
           </div>
         </IonModal>
 
-        {/* ─── New topic modal ─── */}
+        {/* ─── New topic / generate content modal ─── */}
         <IonModal
           isOpen={showTopicModal}
           onDidDismiss={handleTopicModalDismiss}
-          initialBreakpoint={0.75}
-          breakpoints={[0, 0.5, 0.75]}
+          initialBreakpoint={isDesktop ? 1 : 0.75}
+          breakpoints={isDesktop ? [0, 1] : [0, 0.75, 1]}
         >
-          <div className="modal-sheet">
-            <h2 className="modal-sheet__title">Nuevo tema — {activeSubjectName}</h2>
-            <IonList>
-              <IonItem>
-                <IonLabel position="stacked">Nombre</IonLabel>
-                <IonInput
-                  value={newName}
-                  onIonInput={(e) => setNewName(e.detail.value ?? '')}
-                  placeholder="ej. Ecuaciones lineales"
-                />
-              </IonItem>
-              <IonItem>
-                <IonLabel position="stacked">Descripción (opcional)</IonLabel>
-                <IonTextarea
-                  value={newDescription}
-                  onIonInput={(e) => setNewDescription(e.detail.value ?? '')}
-                  placeholder="Breve descripción del tema"
-                  rows={2}
-                />
-              </IonItem>
-            </IonList>
+          <IonHeader>
+            <IonToolbar style={subjectColor ? { '--background': subjectColor, '--color': 'white' } as React.CSSProperties : undefined}>
+              <IonTitle style={{ fontSize: 16 }}>Añadir — {activeSubjectName}</IonTitle>
+              <IonButtons slot="end">
+                <IonButton color={subjectColor ? 'light' : undefined} onClick={handleTopicModalDismiss}>
+                  <IonIcon icon={closeCircleOutline} />
+                </IonButton>
+              </IonButtons>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="ion-padding">
+            <div className="modal-sheet modal-sheet--scrollable" style={{ padding: 0 }}>
 
-            <div className="topic-upload-section">
-              <IonButton fill="outline" expand="block" onClick={() => fileInputRef.current?.click()} disabled={saving}>
-                <IonIcon icon={cloudUploadOutline} slot="start" />
-                Añadir documentos
-              </IonButton>
+            <IonSegment value={topicMode} onIonChange={(e) => setTopicMode(e.detail.value as 'manual' | 'generate')} className="ccm__mode-segment">
+              <IonSegmentButton value="manual"><IonLabel>Crear tema</IonLabel></IonSegmentButton>
+              <IonSegmentButton value="generate"><IonLabel>Generar con IA</IonLabel></IonSegmentButton>
+            </IonSegment>
 
-              {selectedFiles.length > 0 && (
-                <div className="topic-files-list">
-                  {selectedFiles.map((file, idx) => (
-                    <IonChip key={idx} className="topic-file-chip">
-                      <IonIcon icon={documentTextOutline} />
-                      <span className="topic-file-name">{file.name}</span>
-                      <IonIcon icon={closeCircleOutline} onClick={() => removeFile(idx)} className="topic-file-remove" />
-                    </IonChip>
-                  ))}
+            {topicMode === 'manual' ? (
+              <div className="ccm">
+                {/* Nombre */}
+                <div className="ccm__field">
+                  <span className="ccm__enfoque-label">Nombre</span>
+                  <IonItem lines="none" className="ccm__input">
+                    <IonInput
+                      value={newName}
+                      onIonInput={(e) => setNewName(e.detail.value ?? '')}
+                      placeholder="ej. Ecuaciones lineales"
+                    />
+                  </IonItem>
                 </div>
-              )}
-            </div>
 
-            {uploadProgress && (
-              <div className="topic-upload-progress">
-                <IonProgressBar type="indeterminate" />
-                <span>{uploadProgress}</span>
+                {/* Descripción */}
+                <div className="ccm__notes">
+                  <span className="ccm__enfoque-label">Descripción (opcional)</span>
+                  <IonItem lines="none" className="ccm__notes-item">
+                    <IonTextarea
+                      value={newDescription}
+                      onIonInput={(e) => setNewDescription(e.detail.value ?? '')}
+                      placeholder="Breve descripción del tema"
+                      rows={2}
+                    />
+                  </IonItem>
+                </div>
+
+                {/* Trimestre */}
+                <div className="ccm__field">
+                  <span className="ccm__enfoque-label">Trimestre</span>
+                  <div className="ccm__trimester-pills">
+                    {[
+                      { value: '', label: 'Sin asignar' },
+                      { value: '1', label: '1er trimestre' },
+                      { value: '2', label: '2º trimestre' },
+                      { value: '3', label: '3er trimestre' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        className={`ccm__trimester-pill${(newTrimester || '') === opt.value ? ' ccm__trimester-pill--active' : ''}`}
+                        onClick={() => setNewTrimester(opt.value)}
+                        type="button"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Documentos */}
+                <div className="ccm__upload">
+                  <span className="ccm__enfoque-label">Documentos (opcional)</span>
+                  <button
+                    className={`ccm__upload-btn ${selectedFiles.length > 0 ? 'ccm__upload-btn--has-file' : ''}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={saving}
+                  >
+                    <IonIcon icon={selectedFiles.length > 0 ? checkmarkCircleOutline : cloudUploadOutline} />
+                    <span className="ccm__upload-name">
+                      {selectedFiles.length > 0 ? `${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}` : 'Añadir documentos'}
+                    </span>
+                  </button>
+
+                  {selectedFiles.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      {selectedFiles.map((file, idx) => (
+                        <IonChip key={idx} style={{ margin: 0 }}>
+                          <IonIcon icon={documentTextOutline} />
+                          <IonLabel>{file.name}</IonLabel>
+                          <IonIcon icon={closeCircleOutline} onClick={() => removeFile(idx)} style={{ cursor: 'pointer' }} />
+                        </IonChip>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {uploadProgress && (
+                  <div className="topic-upload-progress">
+                    <IonProgressBar type="indeterminate" />
+                    <span>{uploadProgress}</span>
+                  </div>
+                )}
+
+                <IonButton
+                  expand="block"
+                  color="primary"
+                  onClick={handleCreate}
+                  className="ccm__generate"
+                  disabled={saving || !newName.trim() || !activeSubjectId}
+                >
+                  {saving ? (
+                    <>
+                      <IonSpinner name="crescent" style={{ marginRight: 8 }} />
+                      Creando...
+                    </>
+                  ) : (
+                    <>
+                      <IonIcon icon={addOutline} slot="start" />
+                      Crear tema
+                    </>
+                  )}
+                </IonButton>
+              </div>
+            ) : (
+              <div className="ccm">
+                {/* Title */}
+                <div className="ccm__field">
+                  <span className="ccm__enfoque-label">Título (opcional)</span>
+                  <IonItem lines="none" className="ccm__input">
+                    <IonInput
+                      value={genTitle}
+                      onIonInput={(e) => setGenTitle(e.detail.value ?? '')}
+                      placeholder="ej. Apuntes de álgebra"
+                    />
+                  </IonItem>
+                </div>
+
+                {/* Enfoque */}
+                <div className="ccm__field">
+                  <span className="ccm__enfoque-label">Enfoque del contenido</span>
+                  <div className="ccm__enfoque-pills">
+                    {[
+                      { value: 'teorico', label: 'Teórico', desc: 'Explicaciones y conceptos' },
+                      { value: 'practico', label: 'Práctico', desc: 'Ejercicios y problemas' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        className={`ccm__enfoque-pill${genEnfoque === opt.value ? ' ccm__enfoque-pill--active' : ''}`}
+                        onClick={() => setGenEnfoque(opt.value)}
+                        type="button"
+                      >
+                        <span className="ccm__enfoque-pill-label">{opt.label}</span>
+                        <span className="ccm__enfoque-pill-desc">{opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Configuration */}
+                <div className="ccm__config">
+                  <span className="ccm__config-label">Configuración</span>
+
+                  <div className="ccm__config-item">
+                    <div className="ccm__config-item-label">
+                      <span>Páginas objetivo</span>
+                      <span className="ccm__config-item-value">{genTargetPages}</span>
+                    </div>
+                    <IonRange
+                      min={2} max={200} step={1}
+                      value={genTargetPages}
+                      onIonInput={(e) => setGenTargetPages(e.detail.value as number)}
+                    />
+                  </div>
+
+                  <div className="ccm__config-row">
+                    <div className="ccm__config-item">
+                      <div className="ccm__config-item-label">
+                        <span>Ejerc./cap.</span>
+                        <span className="ccm__config-item-value">{genExercisesPerChapter}</span>
+                      </div>
+                      <IonRange
+                        min={3} max={30} step={1}
+                        value={genExercisesPerChapter}
+                        onIonInput={(e) => setGenExercisesPerChapter(e.detail.value as number)}
+                      />
+                    </div>
+
+                    <div className="ccm__config-item">
+                      <div className="ccm__config-item-label">
+                        <span>Ejemplos/sec.</span>
+                        <span className="ccm__config-item-value">{genExamplesPerSection}</span>
+                      </div>
+                      <IonRange
+                        min={0} max={5} step={1}
+                        value={genExamplesPerSection}
+                        onIonInput={(e) => setGenExamplesPerSection(e.detail.value as number)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* PDF upload */}
+                <div className="ccm__upload">
+                  <span className="ccm__enfoque-label">PDFs de referencia (opcional)</span>
+                  <input
+                    type="file"
+                    ref={genFileInputRef}
+                    accept=".pdf"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) setGenGuidePdfs((prev) => [...prev, ...files]);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    className={`ccm__upload-btn ${genGuidePdfs.length > 0 ? 'ccm__upload-btn--has-file' : ''}`}
+                    onClick={() => genFileInputRef.current?.click()}
+                  >
+                    <IonIcon icon={genGuidePdfs.length > 0 ? checkmarkCircleOutline : cloudUploadOutline} />
+                    <span className="ccm__upload-name">
+                      {genGuidePdfs.length > 0 ? `${genGuidePdfs.length} archivo${genGuidePdfs.length > 1 ? 's' : ''}` : 'Subir PDFs guía'}
+                    </span>
+                  </button>
+                  {genGuidePdfs.length > 0 && (
+                    <div className="ccm__upload-files">
+                      {genGuidePdfs.map((file, idx) => (
+                        <div key={idx} className="ccm__upload-file-chip">
+                          <span className="ccm__upload-file-name">{file.name}</span>
+                          <button
+                            className="ccm__upload-file-remove"
+                            onClick={() => setGenGuidePdfs((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <IonIcon icon={closeCircleOutline} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div className="ccm__notes">
+                  <span className="ccm__enfoque-label">Instrucciones adicionales (opcional)</span>
+                  <IonItem lines="none" className="ccm__notes-item">
+                    <IonTextarea
+                      value={genNotas}
+                      onIonInput={(e) => setGenNotas(e.detail.value ?? '')}
+                      placeholder="Ej: Mis alumnos tienen dificultades con..."
+                      rows={3}
+                      autoGrow
+                    />
+                  </IonItem>
+                </div>
+
+                {/* Error */}
+                {genError && (
+                  <div className="ccm__error">
+                    <IonIcon icon={closeCircleOutline} />
+                    {genError}
+                  </div>
+                )}
+
+                {/* Generate button */}
+                <IonButton
+                  expand="block"
+                  color="primary"
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="ccm__generate"
+                >
+                  {generating ? (
+                    <>
+                      <IonSpinner name="crescent" style={{ marginRight: 8 }} />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <IonIcon icon={sparkles} slot="start" />
+                      Generar contenido
+                    </>
+                  )}
+                </IonButton>
               </div>
             )}
-
-            <IonButton
-              expand="block"
-              onClick={handleCreate}
-              className="ion-margin-top"
-              disabled={saving || !newName.trim() || !activeSubjectId}
-            >
-              {saving ? <IonSpinner name="crescent" /> : 'Crear tema'}
-            </IonButton>
           </div>
+          </IonContent>
         </IonModal>
       </IonContent>
     </IonPage>

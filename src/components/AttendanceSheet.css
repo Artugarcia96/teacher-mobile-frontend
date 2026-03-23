@@ -1,0 +1,166 @@
+.att-sheet {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-lg);
+  height: 100%;
+  overflow: hidden;
+}
+
+.att-sheet__header {
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.att-sheet__title {
+  font-size: 20px;
+  font-weight: var(--font-weight-bold, 700);
+  margin: 0;
+}
+
+.att-sheet__date {
+  font-size: 13px;
+  color: var(--color-text-secondary, #64748b);
+  margin: 4px 0 var(--space-md) 0;
+  text-transform: capitalize;
+}
+
+.att-sheet__summary {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.att-sheet__count {
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold, 600);
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.att-sheet__count--present {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.att-sheet__count--late {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.att-sheet__count--absent {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.att-sheet__all-present {
+  font-size: 12px;
+  color: var(--color-primary, #15665E);
+  background: none;
+  border: 1px solid var(--color-primary, #15665E);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.att-sheet__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-md) 0;
+}
+
+.att-student {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border-light, #f1f5f9);
+  cursor: pointer;
+  animation: staggerIn 0.25s ease forwards;
+  opacity: 0;
+}
+
+.att-student__name {
+  font-size: 14px;
+  font-weight: var(--font-weight-medium, 500);
+  flex: 1;
+  cursor: pointer;
+}
+
+.att-student__status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold, 600);
+  min-width: 44px;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.att-student__status ion-icon {
+  font-size: 16px;
+}
+
+.att-sheet__save {
+  padding-top: var(--space-lg);
+  padding-bottom: var(--space-xl);
+}
+
+.att-student__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.att-student__attach {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  color: #2563EB;
+  font-size: 18px;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.att-student__attach:active {
+  background: rgba(37, 99, 235, 0.16);
+}
+
+.att-student__attach--has-file {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.att-student__file-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #059669;
+}
+
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-color-scheme: dark) {
+  .att-student__attach {
+    background: rgba(37, 99, 235, 0.15);
+  }
+
+  .att-student__attach--has-file {
+    background: rgba(37, 99, 235, 0.25);
+  }
+}

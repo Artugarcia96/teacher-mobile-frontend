@@ -1,15 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   IonModal, IonButton, IonSelect, IonSelectOption, IonItem, IonLabel,
-  IonInput, IonTextarea, IonSpinner, IonIcon, IonSearchbar, IonList, IonRadioGroup, IonRadio,
+  IonInput, IonTextarea, IonSpinner, IonIcon,
 } from '@ionic/react';
-import { arrowForwardOutline, chatbubbleOutline, checkmarkOutline, personOutline, checkmarkCircleOutline } from 'ionicons/icons';
+import { arrowForwardOutline, chatbubbleOutline, personOutline, checkmarkCircleOutline, closeCircleOutline, searchOutline, addOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { CalendarEvent } from '../types';
 import { useClassesStore } from '../store/classesStore';
-import { useStudentsStore } from '../store/studentsStore';
+import { useStudentsStore, StudentPoolEntry } from '../store/studentsStore';
 import { useCalendarStore } from '../store/calendarStore';
-import { useNotesStore } from '../store/notesStore';
+import { useCommentsStore } from '../store/commentsStore';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import './EventEditorSheet.css';
 
 interface Props {
@@ -20,14 +21,21 @@ interface Props {
 }
 
 const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, defaultDate }) => {
+  const isDesktop = useIsDesktop();
   const history = useHistory();
   const allClasses = useClassesStore((s) => s.classes);
+  const classSubjects = useClassesStore((s) => s.classSubjects);
+  const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
   const allStudents = useStudentsStore((s) => s.students);
+  const pool = useStudentsStore((s) => s.pool);
+  const fetchPool = useStudentsStore((s) => s.fetchPool);
   const createEvent = useCalendarStore((s) => s.createEvent);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
-  const createClassNote = useNotesStore((s) => s.createClassNote);
+  const eventObservations = useCommentsStore((s) => s.eventObservations);
+  const fetchEventObservations = useCommentsStore((s) => s.fetchEventObservations);
+  const createEventObservation = useCommentsStore((s) => s.createEventObservation);
 
   const [title, setTitle] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -36,50 +44,80 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   const [eventType, setEventType] = useState<'class_session' | 'custom' | 'tutoring'>('custom');
   const [classId, setClassId] = useState('');
   const [studentId, setStudentId] = useState('');
-  const [notes, setNotes] = useState('');
+  const [observations, setObservations] = useState('');
   const [saving, setSaving] = useState(false);
-  
-  // Session note state
-  const [showNoteInput, setShowNoteInput] = useState(false);
-  const [sessionNote, setSessionNote] = useState('');
-  const [noteSaved, setNoteSaved] = useState(false);
-  
+  const [newObservation, setNewObservation] = useState('');
+  const [savingObservation, setSavingObservation] = useState(false);
+  const obsInputRef = useRef<HTMLIonTextareaElement>(null);
+
   // Student filter state for tutoring
   const [studentSearch, setStudentSearch] = useState('');
   const [studentClassFilter, setStudentClassFilter] = useState('');
 
+  // Fetch pool when opening with tutoring type
+  useEffect(() => {
+    if (isOpen && pool.length === 0) {
+      fetchPool();
+    }
+  }, [isOpen]);
+
   const filteredStudents = useMemo(() => {
-    let students = allStudents;
-    
+    let students = pool;
+
     if (studentClassFilter) {
-      students = students.filter((s) => 
-        s.classes?.some((c: any) => c.class_id === studentClassFilter) || 
-        s.class_id === studentClassFilter
+      students = students.filter((s) =>
+        s.classes?.some((c) => c.class_id === studentClassFilter)
       );
     }
-    
+
     if (studentSearch.trim()) {
       const searchLower = studentSearch.toLowerCase();
-      students = students.filter((s) => 
+      students = students.filter((s) =>
         s.name.toLowerCase().includes(searchLower)
       );
     }
-    
+
     return students;
-  }, [allStudents, studentClassFilter, studentSearch]);
+  }, [pool, studentClassFilter, studentSearch]);
+
+  // Group filtered students by class for display
+  const groupedStudents = useMemo(() => {
+    if (studentClassFilter) {
+      // When filtering by class, show flat list
+      return null;
+    }
+    const groups: Record<string, { className: string; students: StudentPoolEntry[] }> = {};
+    const noClass: StudentPoolEntry[] = [];
+
+    filteredStudents.forEach((s) => {
+      if (s.classes.length === 0) {
+        noClass.push(s);
+      } else {
+        // Add student under their first class for grouping
+        const firstClass = s.classes[0];
+        if (!groups[firstClass.class_id]) {
+          groups[firstClass.class_id] = { className: firstClass.class_name, students: [] };
+        }
+        groups[firstClass.class_id].students.push(s);
+      }
+    });
+
+    const result = Object.values(groups).sort((a, b) => a.className.localeCompare(b.className));
+    if (noClass.length > 0) {
+      result.push({ className: 'Sin clase', students: noClass });
+    }
+    return result;
+  }, [filteredStudents, studentClassFilter]);
 
   const selectedStudent = useMemo(() => {
-    return allStudents.find((s) => s.id === studentId);
-  }, [allStudents, studentId]);
+    return pool.find((s) => s.id === studentId) || allStudents.find((s) => s.id === studentId);
+  }, [pool, allStudents, studentId]);
 
   useEffect(() => {
     if (isOpen) {
-      setShowNoteInput(false);
-      setSessionNote('');
-      setNoteSaved(false);
       setStudentSearch('');
       setStudentClassFilter('');
-      
+
       if (existingEvent) {
         setTitle(existingEvent.title);
         setEventDate(existingEvent.date);
@@ -88,7 +126,9 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
         setEventType(existingEvent.eventType as 'class_session' | 'custom' | 'tutoring');
         setClassId(existingEvent.classId || '');
         setStudentId(existingEvent.studentId || '');
-        setNotes(existingEvent.notes || '');
+        setObservations(existingEvent.notes || '');
+        setNewObservation('');
+        fetchEventObservations(existingEvent.id);
       } else {
         setTitle('');
         const today = new Date();
@@ -99,34 +139,44 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
         setEventType('custom');
         setClassId('');
         setStudentId('');
-        setNotes('');
+        setObservations('');
       }
     }
   }, [isOpen, existingEvent, defaultDate]);
 
-  const handleGoToClass = () => {
-    if (existingEvent?.classId) {
-      onDismiss();
+  const handleGoToSubject = async () => {
+    if (!existingEvent?.classId) return;
+    onDismiss();
+    // Use subjectId from the event (via lecture), or resolve from class subjects
+    let subjectId = existingEvent.subjectId;
+    if (!subjectId && existingEvent.classSubject) {
+      let subjects = classSubjects[existingEvent.classId];
+      if (!subjects) {
+        subjects = await fetchClassSubjects(existingEvent.classId);
+      }
+      const match = subjects?.find((s) => s.subjectName === existingEvent.classSubject);
+      if (match) subjectId = match.subjectId;
+    }
+    if (subjectId) {
+      history.push(`/tabs/classes/${existingEvent.classId}/subjects/${subjectId}`);
+    } else {
       history.push(`/tabs/classes/${existingEvent.classId}`);
     }
   };
 
-  const handleSaveSessionNote = async () => {
-    if (!existingEvent?.classId || !sessionNote.trim()) return;
-    setSaving(true);
+  const handleAddObservation = async () => {
+    if (!existingEvent || !newObservation.trim()) return;
+    setSavingObservation(true);
     try {
-      await createClassNote({
-        class_id: existingEvent.classId,
+      await createEventObservation({
         event_id: existingEvent.id,
-        event_date: existingEvent.date,
-        text: sessionNote.trim(),
+        text: newObservation.trim(),
       });
-      setNoteSaved(true);
-      setShowNoteInput(false);
+      setNewObservation('');
     } catch (err) {
-      console.error('Failed to save session note:', err);
+      console.error('Failed to save observation:', err);
     } finally {
-      setSaving(false);
+      setSavingObservation(false);
     }
   };
 
@@ -146,9 +196,13 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   const handleStudentChange = (id: string) => {
     setStudentId(id);
     if (id) {
-      const student = allStudents.find((s) => s.id === id);
-      if (student && !title) {
+      const student = pool.find((s) => s.id === id) || allStudents.find((s) => s.id === id);
+      if (student) {
         setTitle(`Tutoría con ${student.name}`);
+        // Set classId from the student's first class for navigation
+        if ('classes' in student && (student as StudentPoolEntry).classes?.length > 0) {
+          setClassId((student as StudentPoolEntry).classes[0].class_id);
+        }
       }
       setEventType('tutoring');
     }
@@ -174,7 +228,6 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           event_date: eventDate,
           start_time: startTime || undefined,
           end_time: endTime || undefined,
-          notes: notes || undefined,
         });
       } else {
         await createEvent({
@@ -185,7 +238,7 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           start_time: startTime || undefined,
           end_time: endTime || undefined,
           event_type: eventType,
-          notes: notes || undefined,
+          notes: observations || undefined,
         });
       }
       onDismiss();
@@ -236,65 +289,36 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
     <IonModal
       isOpen={isOpen}
       onDidDismiss={onDismiss}
-      initialBreakpoint={0.75}
-      breakpoints={[0, 0.75, 0.95]}
+      initialBreakpoint={isDesktop ? 1 : 0.65}
+      breakpoints={isDesktop ? [0, 1] : [0, 0.65, 0.85]}
     >
       <div className="ev-editor">
         <h2 className="ev-editor__title">
           {existingEvent ? 'Editar evento' : 'Nuevo evento'}
         </h2>
 
-        {/* Quick actions for class sessions */}
-        {isClassSession && (
+        {/* Quick actions for existing events */}
+        {existingEvent && (isClassSession || isTutoring) && (
           <div className="ev-editor__quick-actions">
-            <button className="ev-editor__quick-btn" onClick={handleGoToClass}>
-              <IonIcon icon={arrowForwardOutline} />
-              Ir a la clase
-            </button>
-            {!noteSaved ? (
-              <button 
-                className="ev-editor__quick-btn ev-editor__quick-btn--note" 
-                onClick={() => setShowNoteInput(!showNoteInput)}
-              >
-                <IonIcon icon={chatbubbleOutline} />
-                Añadir nota
+            {isClassSession && (
+              <button className="ev-editor__quick-btn" onClick={handleGoToSubject}>
+                <IonIcon icon={arrowForwardOutline} />
+                Ir a la asignatura
               </button>
-            ) : (
-              <span className="ev-editor__note-saved">
-                <IonIcon icon={checkmarkOutline} />
-                Nota guardada
-              </span>
             )}
-          </div>
-        )}
-
-        {/* Quick actions for tutoring sessions */}
-        {isTutoring && (
-          <div className="ev-editor__quick-actions">
-            <button className="ev-editor__quick-btn" onClick={handleGoToStudent}>
-              <IonIcon icon={personOutline} />
-              Ver ficha del alumno
-            </button>
-          </div>
-        )}
-
-        {/* Session note input */}
-        {showNoteInput && isClassSession && (
-          <div className="ev-editor__session-note">
-            <IonTextarea
-              value={sessionNote}
-              onIonInput={(e) => setSessionNote(e.detail.value ?? '')}
-              placeholder="¿Cómo ha ido la clase? Escribe una nota rápida..."
-              rows={2}
-              className="ev-editor__session-note-input"
-            />
-            <IonButton
-              size="small"
-              onClick={handleSaveSessionNote}
-              disabled={saving || !sessionNote.trim()}
+            {isTutoring && (
+              <button className="ev-editor__quick-btn" onClick={handleGoToStudent}>
+                <IonIcon icon={personOutline} />
+                Ver ficha del alumno
+              </button>
+            )}
+            <button
+              className="ev-editor__quick-btn ev-editor__quick-btn--note"
+              onClick={() => obsInputRef.current?.setFocus()}
             >
-              {saving ? <IonSpinner name="dots" /> : 'Guardar nota'}
-            </IonButton>
+              <IonIcon icon={chatbubbleOutline} />
+              Añadir nota
+            </button>
           </div>
         )}
 
@@ -344,69 +368,112 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
             {eventType === 'tutoring' && (
               <div className="ev-editor__student-picker">
                 <IonLabel className="ev-editor__label">Alumno</IonLabel>
-                
+
                 {selectedStudent ? (
                   <div className="ev-editor__selected-student">
                     <div className="ev-editor__selected-student-info">
                       <IonIcon icon={checkmarkCircleOutline} color="success" />
-                      <span className="ev-editor__selected-student-name">{selectedStudent.name}</span>
+                      <div>
+                        <span className="ev-editor__selected-student-name">{selectedStudent.name}</span>
+                        {'classes' in selectedStudent && (selectedStudent as StudentPoolEntry).classes?.length > 0 && (
+                          <span className="ev-editor__selected-student-class">
+                            {(selectedStudent as StudentPoolEntry).classes.map((c) => c.class_name).join(', ')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <button 
+                    <button
                       className="ev-editor__change-student-btn"
-                      onClick={() => setStudentId('')}
+                      onClick={() => { setStudentId(''); setTitle(''); }}
                     >
                       Cambiar
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="ev-editor__student-filters">
-                      <IonSearchbar
+                    {/* Search bar */}
+                    <div className="ev-editor__student-search-wrap">
+                      <IonIcon icon={searchOutline} className="ev-editor__student-search-icon" />
+                      <input
+                        type="text"
                         value={studentSearch}
-                        onIonInput={(e) => setStudentSearch(e.detail.value ?? '')}
+                        onChange={(e) => setStudentSearch(e.target.value)}
                         placeholder="Buscar alumno..."
-                        className="ev-editor__student-search"
+                        className="ev-editor__student-search-input"
                       />
-                      {classes.length > 0 && (
-                        <IonSelect
-                          value={studentClassFilter}
-                          onIonChange={(e) => setStudentClassFilter(e.detail.value)}
-                          interface="popover"
-                          placeholder="Todas las clases"
-                          className="ev-editor__class-filter"
+                      {studentSearch && (
+                        <button
+                          className="ev-editor__student-search-clear"
+                          onClick={() => setStudentSearch('')}
                         >
-                          <IonSelectOption value="">Todas las clases</IonSelectOption>
-                          {classes.map((c) => (
-                            <IonSelectOption key={c.id} value={c.id}>
-                              {c.name}
-                            </IonSelectOption>
-                          ))}
-                        </IonSelect>
+                          <IonIcon icon={closeCircleOutline} />
+                        </button>
                       )}
                     </div>
-                    
+
+                    {/* Class filter chips */}
+                    {classes.length > 0 && (
+                      <div className="ev-editor__class-chips">
+                        <button
+                          className={`ev-editor__class-chip ${!studentClassFilter ? 'ev-editor__class-chip--active' : ''}`}
+                          onClick={() => setStudentClassFilter('')}
+                        >
+                          Todos
+                        </button>
+                        {classes.map((c) => (
+                          <button
+                            key={c.id}
+                            className={`ev-editor__class-chip ${studentClassFilter === c.id ? 'ev-editor__class-chip--active' : ''}`}
+                            onClick={() => setStudentClassFilter(studentClassFilter === c.id ? '' : c.id)}
+                          >
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Student list */}
                     <div className="ev-editor__student-list">
                       {filteredStudents.length === 0 ? (
                         <div className="ev-editor__no-students">
                           No se encontraron alumnos
                         </div>
+                      ) : studentClassFilter || !groupedStudents ? (
+                        // Flat list when filtering by class
+                        <div className="ev-editor__student-list-inner">
+                          {filteredStudents.map((s) => (
+                            <button
+                              key={s.id}
+                              className="ev-editor__student-option"
+                              onClick={() => handleStudentChange(s.id)}
+                            >
+                              <span className="ev-editor__student-name">{s.name}</span>
+                              {s.classes.length > 0 && !studentClassFilter && (
+                                <span className="ev-editor__student-class-badge">
+                                  {s.classes.map((c) => c.class_name).join(', ')}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
                       ) : (
-                        <IonList className="ev-editor__student-list-inner">
-                          <IonRadioGroup value={studentId} onIonChange={(e) => handleStudentChange(e.detail.value)}>
-                            {filteredStudents.map((s) => (
-                              <IonItem key={s.id} lines="none" className="ev-editor__student-item">
-                                <IonRadio value={s.id} labelPlacement="end">
-                                  <div className="ev-editor__student-row">
-                                    <span className="ev-editor__student-name">{s.name}</span>
-                                    {s.class_name && (
-                                      <span className="ev-editor__student-class">{s.class_name}</span>
-                                    )}
-                                  </div>
-                                </IonRadio>
-                              </IonItem>
-                            ))}
-                          </IonRadioGroup>
-                        </IonList>
+                        // Grouped list
+                        <div className="ev-editor__student-list-inner">
+                          {groupedStudents.map((group) => (
+                            <div key={group.className} className="ev-editor__student-group">
+                              <div className="ev-editor__student-group-header">{group.className}</div>
+                              {group.students.map((s) => (
+                                <button
+                                  key={s.id}
+                                  className="ev-editor__student-option"
+                                  onClick={() => handleStudentChange(s.id)}
+                                >
+                                  <span className="ev-editor__student-name">{s.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </>
@@ -447,14 +514,65 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           </IonItem>
         </div>
 
-        <IonItem lines="none" className="ev-editor__field">
-          <IonTextarea
-            value={notes}
-            onIonInput={(e) => setNotes(e.detail.value ?? '')}
-            placeholder="Notas (opcional)"
-            rows={2}
-          />
-        </IonItem>
+        {existingEvent ? (
+          <div className="ev-editor__observations">
+            <div className="ev-editor__obs-header">
+              <span className="ev-editor__obs-label">Observaciones</span>
+              {(eventObservations.length > 0 || existingEvent.notes) && (
+                <span className="ev-editor__obs-count">
+                  {eventObservations.length + (existingEvent.notes ? 1 : 0)}
+                </span>
+              )}
+            </div>
+
+            {(eventObservations.length > 0 || existingEvent.notes) && (
+              <div className="ev-editor__obs-list">
+                {existingEvent.notes && (
+                  <div className="ev-editor__obs-item">
+                    <span className="ev-editor__obs-text">{existingEvent.notes}</span>
+                  </div>
+                )}
+                {eventObservations.map((obs) => (
+                  <div key={obs.id} className="ev-editor__obs-item">
+                    <span className="ev-editor__obs-text">{obs.text}</span>
+                    <span className="ev-editor__obs-date">
+                      {new Date(obs.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                      {' '}
+                      {new Date(obs.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="ev-editor__obs-add">
+              <IonTextarea
+                ref={obsInputRef}
+                value={newObservation}
+                onIonInput={(e) => setNewObservation(e.detail.value ?? '')}
+                placeholder="Añadir observación..."
+                rows={2}
+                className="ev-editor__obs-input"
+              />
+              <button
+                className="ev-editor__obs-add-btn"
+                onClick={handleAddObservation}
+                disabled={savingObservation || !newObservation.trim()}
+              >
+                {savingObservation ? <IonSpinner name="dots" /> : <IonIcon icon={addOutline} />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <IonItem lines="none" className="ev-editor__field">
+            <IonTextarea
+              value={observations}
+              onIonInput={(e) => setObservations(e.detail.value ?? '')}
+              placeholder="Observaciones (opcional)"
+              rows={2}
+            />
+          </IonItem>
+        )}
 
         <IonButton
           expand="block"

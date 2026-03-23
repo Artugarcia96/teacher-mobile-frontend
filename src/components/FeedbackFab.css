@@ -1,0 +1,222 @@
+.feedback-fab {
+  position: fixed;
+  bottom: calc(90px + env(safe-area-inset-bottom));
+  right: 16px;
+  z-index: 999;
+}
+
+.feedback-fab__button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ion-color-secondary, #E87A1C);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(232, 122, 28, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.feedback-fab__button:active {
+  transform: scale(0.92);
+}
+
+.feedback-fab__button ion-icon {
+  font-size: 24px;
+}
+
+/* Modal content wrapper - prevents content from stretching to fill modal */
+.feedback-modal__content {
+  overflow-y: auto;
+}
+
+.feedback-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md, 16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.feedback-modal__header h2 {
+  margin: 0;
+  font-size: var(--font-size-lg, 18px);
+  font-weight: 600;
+}
+
+.feedback-modal__back {
+  background: none;
+  border: none;
+  color: var(--ion-color-primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-sm, 14px);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.feedback-modal__back ion-icon {
+  font-size: 20px;
+}
+
+.feedback-modal__add-btn {
+  background: none;
+  border: none;
+  color: var(--ion-color-primary);
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.feedback-modal__add-btn ion-icon {
+  font-size: 20px;
+}
+
+/* Empty state */
+.feedback-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 24px;
+  color: #94A3B8;
+  text-align: center;
+}
+
+.feedback-empty ion-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+.feedback-empty p {
+  margin: 0;
+  font-size: var(--font-size-sm, 14px);
+  line-height: 1.4;
+}
+
+/* List items */
+.feedback-item {
+  --padding-start: var(--space-md, 16px);
+  --padding-end: var(--space-md, 16px);
+  --inner-padding-end: 0;
+}
+
+.feedback-item__content {
+  width: 100%;
+  padding: var(--space-sm, 8px) 0;
+}
+
+.feedback-item__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.feedback-item__badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.feedback-item__badge--suggestion {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+}
+
+.feedback-item__badge--bug {
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+}
+
+.feedback-item__badge--other {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748B;
+}
+
+.feedback-item__date {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.feedback-item__text {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--ion-text-color);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Form */
+.feedback-form {
+  padding: var(--space-md, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+}
+
+.feedback-form__segment {
+  --background: rgba(0, 0, 0, 0.03);
+}
+
+.feedback-form__textarea {
+  --background: rgba(0, 0, 0, 0.03);
+  --border-radius: var(--radius-md, 8px);
+  --padding-start: var(--space-md, 16px);
+  --padding-end: var(--space-md, 16px);
+  --padding-top: var(--space-sm, 8px);
+  --padding-bottom: var(--space-sm, 8px);
+  font-size: var(--font-size-sm, 14px);
+}
+
+.feedback-form__submit {
+  --border-radius: var(--radius-md, 8px);
+  font-weight: 600;
+}
+
+/* Delete option */
+.feedback-delete-option {
+  --background: var(--ion-color-danger);
+  --color: #fff;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .feedback-fab__button {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .feedback-modal__header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .feedback-form__segment {
+    --background: rgba(255, 255, 255, 0.05);
+  }
+
+  .feedback-form__textarea {
+    --background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .feedback-fab {
+    bottom: 24px;
+  }
+
+  .feedback-fab__button:hover {
+    transform: scale(1.05);
+  }
+}

@@ -31,7 +31,7 @@ function mapCorrection(c: any): ExerciseCorrectionResult {
     paperUrl: c.paper_url,
     aiAnalysis: mapAIResult(c.ai_result),
     grade: c.grade,
-    teacherNotes: c.teacher_notes,
+    teacherComments: c.teacher_notes,
     weakAreas: c.weak_areas,
     savedAt: c.saved_at,
     createdAt: c.created_at,
@@ -41,6 +41,7 @@ function mapCorrection(c: any): ExerciseCorrectionResult {
 interface ExerciseCorrectionState {
   corrections: ExerciseCorrectionResult[];
   loading: boolean;
+  fetchAllCorrections: () => Promise<void>;
   fetchCorrections: (exerciseId: string) => Promise<void>;
   bulkUpload: (exerciseId: string, files: File[]) => Promise<BulkUploadResult>;
   updateCorrection: (id: string, data: { student_id?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) => Promise<void>;
@@ -52,6 +53,17 @@ interface ExerciseCorrectionState {
 export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, get) => ({
   corrections: [],
   loading: false,
+
+  fetchAllCorrections: async () => {
+    set({ loading: true });
+    try {
+      const res = await api.listAll();
+      const data = res.data.map(mapCorrection);
+      set({ corrections: data, loading: false });
+    } catch {
+      set({ loading: false });
+    }
+  },
 
   fetchCorrections: async (exerciseId) => {
     set({ loading: true });
@@ -107,7 +119,7 @@ export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, 
               ...c,
               studentId: res.data.student_id || c.studentId,
               grade: res.data.grade ?? c.grade,
-              teacherNotes: res.data.teacher_notes ?? c.teacherNotes,
+              teacherComments: res.data.teacher_notes ?? c.teacherComments,
               weakAreas: res.data.weak_areas ?? c.weakAreas,
               savedAt: res.data.saved_at,
             }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { IonPage, IonContent, IonIcon, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonSegment, IonSegmentButton, useIonViewWillEnter } from '@ionic/react';
+import { IonPage, IonContent, IonIcon, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonSegment, IonSegmentButton, IonRefresher, IonRefresherContent, useIonViewWillEnter } from '@ionic/react';
 import {
-  arrowForwardOutline,
   calendarOutline,
   documentTextOutline,
   timeOutline,
@@ -10,16 +9,23 @@ import {
   checkmarkDoneOutline,
   sparklesOutline,
   checkmarkCircleOutline,
+  readerOutline,
+  trendingDownOutline,
 } from 'ionicons/icons';
 import SepiaLogo from '../../components/SepiaLogo';
+import { avatarColor } from '../../utils/avatarColors';
 import { useHistory } from 'react-router-dom';
 import { useClassesStore } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCalendarStore, CalendarView } from '../../store/calendarStore';
 import { useStudentsStore } from '../../store/studentsStore';
+import { useDashboardStore } from '../../store/dashboardStore';
+import { useAttendanceStore } from '../../store/attendanceStore';
 import EventEditorSheet from '../../components/EventEditorSheet';
 import PrepareYourDayModal from '../../components/PrepareYourDayModal';
+import AttendanceSheet from '../../components/AttendanceSheet';
 import { CalendarEvent } from '../../types';
+import { useIsDesktop } from '../../hooks/useIsDesktop';
 import './Calendar.css';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -101,19 +107,10 @@ function formatTime(time?: string): string {
   return time.slice(0, 5);
 }
 
-const AVATAR_COLORS = [
-  '#15665E', '#1E8A7F', '#059669', '#0891B2', '#E87A1C',
-  '#DC2626', '#2563EB', '#7C3AED', '#DB2777', '#4F46E5',
-];
-
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 const Calendar: React.FC = () => {
   const history = useHistory();
+  const isDesktop = useIsDesktop();
   const todayStr = toDateStr(new Date());
   const today = new Date();
 
@@ -142,13 +139,19 @@ const Calendar: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [showPrepareModal, setShowPrepareModal] = useState(false);
+  const [attendanceData, setAttendanceData] = useState<{classId: string; date: string; eventId?: string; subjectId?: string} | null>(null);
+
+  const fetchTaken = useAttendanceStore(s => s.fetchTaken);
+  const isAttendanceTaken = useAttendanceStore(s => s.isAttendanceTaken);
   
   // Week/Month navigation state
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthDate, setMonthDate] = useState(new Date());
 
+  const dashboardData = useDashboardStore((s) => s.data);
+  const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
+
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
-  const pendingExams = useMemo(() => exams.filter((e) => e.status === 'assigned'), [exams]);
   const correctedExams = useMemo(() => exams.filter((e) => e.status === 'corrected'), [exams]);
 
   // Get week dates based on offset
@@ -162,9 +165,12 @@ const Calendar: React.FC = () => {
   const currentWeekSunday = useMemo(() => getSunday(currentWeekMonday), [currentWeekMonday]);
 
   const loadDateRange = useCallback((startDate: Date, endDate: Date) => {
-    fetchEvents(toDateStr(startDate), toDateStr(endDate));
-    fetchPreparedDates(toDateStr(startDate), toDateStr(endDate));
-  }, [fetchEvents, fetchPreparedDates]);
+    const start = toDateStr(startDate);
+    const end = toDateStr(endDate);
+    fetchEvents(start, end);
+    fetchPreparedDates(start, end);
+    fetchTaken(start, end);
+  }, [fetchEvents, fetchPreparedDates, fetchTaken]);
 
   const loadWeek = useCallback(() => {
     loadDateRange(currentWeekMonday, currentWeekSunday);
@@ -183,12 +189,13 @@ const Calendar: React.FC = () => {
     fetchClasses();
     fetchExams();
     fetchAllStudents();
+    fetchDashboard();
     if (view === 'week') {
       loadWeek();
     } else {
       loadMonth();
     }
-  }, [fetchClasses, fetchExams, fetchAllStudents, loadWeek, loadMonth, view]);
+  }, [fetchClasses, fetchExams, fetchAllStudents, fetchDashboard, loadWeek, loadMonth, view]);
 
   // Refresh when schedule is updated from another page (e.g., GradeBook)
   useEffect(() => {
@@ -208,6 +215,7 @@ const Calendar: React.FC = () => {
     fetchClasses();
     fetchExams();
     fetchAllStudents();
+    fetchDashboard();
     if (view === 'week') {
       loadWeek();
     } else {
@@ -354,6 +362,10 @@ const Calendar: React.FC = () => {
   return (
     <IonPage>
       <IonContent className="cal-content" scrollY>
+        <IonRefresher slot="fixed" onIonRefresh={async (e) => { await Promise.all([fetchClasses(), fetchExams(), fetchAllStudents(), fetchDashboard()]); if (view === 'week') { loadWeek(); } else { loadMonth(); } e.detail.complete(); }}>
+          <IonRefresherContent />
+        </IonRefresher>
+
         <div className="cal-banner">
           <div className="cal-banner__left">
             <SepiaLogo size={36} showText variant="white" />
@@ -385,20 +397,39 @@ const Calendar: React.FC = () => {
           </button>
         </div>
 
-        {pendingExams.length > 0 && (
+        {dashboardData && dashboardData.pendingCorrections.length > 0 && (
           <div className="cal-section">
-            <div 
-              className="cal-pending"
-              onClick={() => history.push(`/correction/${pendingExams[0].id}`)}
-            >
-              <div className="cal-pending__badge">{pendingExams.length}</div>
-              <div className="cal-pending__content">
-                <span className="cal-pending__title">
-                  {pendingExams.length === 1 ? 'Examen pendiente de corregir' : 'Exámenes pendientes de corregir'}
-                </span>
-                <span className="cal-pending__subtitle">Toca para continuar</span>
-              </div>
-              <IonIcon icon={arrowForwardOutline} className="cal-pending__arrow" />
+            <div className="cal-pending-header">
+              <div className="cal-pending__badge">{dashboardData.stats.pendingCorrectionsCount}</div>
+              <span className="cal-pending-header__title">
+                {dashboardData.pendingCorrections.length === 1 ? 'Corrección pendiente' : 'Correcciones pendientes'}
+              </span>
+            </div>
+            <div className="cal-pending-list">
+              {dashboardData.pendingCorrections.slice(0, 4).map((pc) => (
+                <button
+                  key={pc.examId}
+                  className="cal-pending-item"
+                  onClick={() => history.push(`/correction/${pc.examId}`)}
+                >
+                  <div className="cal-pending-item__info">
+                    <span className="cal-pending-item__name">{pc.examName}</span>
+                    <span className="cal-pending-item__class">
+                      {pc.className}{pc.subjectName ? ` · ${pc.subjectName}` : ''}
+                    </span>
+                  </div>
+                  <div className="cal-pending-item__right">
+                    <span className="cal-pending-item__count">{pc.pendingCount}/{pc.totalCount}</span>
+                    {pc.deadlineStatus && pc.deadlineStatus !== 'ok' && (
+                      <span className={`cal-pending-item__deadline cal-pending-item__deadline--${pc.deadlineStatus}`}>
+                        {pc.deadlineStatus === 'overdue' ? 'Vencido' :
+                         pc.deadlineStatus === 'urgent' ? 'Urgente' : 'Pronto'}
+                      </span>
+                    )}
+                  </div>
+                  <IonIcon icon={chevronForwardOutline} className="cal-pending-item__arrow" />
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -539,10 +570,37 @@ const Calendar: React.FC = () => {
                     <div key={ev.id} className="cal-agenda-item" onClick={() => handleEventClick(ev)}>
                       <div className={`cal-agenda-item__time cal-agenda-item__time--${ev.eventType}`}>
                         {formatTime(ev.startTime) || '—'}
+                        {ev.endTime && <span className="cal-agenda-item__endtime">{formatTime(ev.endTime)}</span>}
                       </div>
                       <div className="cal-agenda-item__content">
                         <span className="cal-agenda-item__title">{ev.title}</span>
                         {ev.className && <span className="cal-agenda-item__class">{ev.className}</span>}
+                        {ev.eventType === 'class_session' && ev.classId && (() => {
+                          const taken = isAttendanceTaken(ev.classId!, ev.date, ev.subjectId);
+                          return taken ? (
+                            <button
+                              className="cal-agenda-item__attendance-btn cal-agenda-item__attendance-btn--done"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAttendanceData({ classId: ev.classId!, date: ev.date, eventId: ev.id, subjectId: ev.subjectId });
+                              }}
+                            >
+                              <IonIcon icon={checkmarkCircleOutline} />
+                              <span>Lista revisada</span>
+                            </button>
+                          ) : (
+                            <button
+                              className="cal-agenda-item__attendance-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAttendanceData({ classId: ev.classId!, date: ev.date, eventId: ev.id, subjectId: ev.subjectId });
+                              }}
+                            >
+                              <IonIcon icon={readerOutline} />
+                              <span>Pasar lista</span>
+                            </button>
+                          );
+                        })()}
                       </div>
                       <IonIcon icon={chevronForwardOutline} className="cal-agenda-item__arrow" />
                     </div>
@@ -591,6 +649,38 @@ const Calendar: React.FC = () => {
           </div>
         </div>
 
+        {dashboardData && dashboardData.studentsAtRisk.length > 0 && (
+          <div className="cal-section">
+            <div className="cal-section__header">
+              <h2 className="cal-section__title">
+                <IonIcon icon={trendingDownOutline} /> Alumnos en riesgo
+              </h2>
+            </div>
+            <div className="cal-risk-list">
+              {dashboardData.studentsAtRisk.slice(0, 3).map((s) => (
+                <button
+                  key={s.studentId}
+                  className="cal-risk-item"
+                  onClick={() => {
+                    if (s.classId) history.push(`/tabs/classes/${s.classId}/students/${s.studentId}`);
+                  }}
+                >
+                  <div className={`cal-risk-item__grade cal-risk-item__grade--${s.riskLevel}`}>
+                    {s.avgGrade !== null ? s.avgGrade.toFixed(1) : '—'}
+                  </div>
+                  <div className="cal-risk-item__info">
+                    <span className="cal-risk-item__name">{s.studentName}</span>
+                    <span className="cal-risk-item__details">
+                      {s.className} · {s.factors.join(', ')}
+                    </span>
+                  </div>
+                  <IonIcon icon={chevronForwardOutline} className="cal-risk-item__arrow" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {correctedExams.length > 0 && (
           <div className="cal-section">
             <div className="cal-section__header">
@@ -627,8 +717,8 @@ const Calendar: React.FC = () => {
       <IonModal
         isOpen={showClassSelector}
         onDidDismiss={() => setShowClassSelector(false)}
-        initialBreakpoint={0.5}
-        breakpoints={[0, 0.5, 0.75]}
+        initialBreakpoint={isDesktop ? 1 : 0.5}
+        breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.75]}
       >
         <div className="class-selector-modal">
           <h2 className="class-selector-modal__title">Selecciona una clase</h2>
@@ -658,6 +748,15 @@ const Calendar: React.FC = () => {
           </IonList>
         </div>
       </IonModal>
+
+      <AttendanceSheet
+        isOpen={!!attendanceData}
+        classId={attendanceData?.classId || ''}
+        date={attendanceData?.date || ''}
+        eventId={attendanceData?.eventId}
+        subjectId={attendanceData?.subjectId}
+        onDismiss={() => setAttendanceData(null)}
+      />
     </IonPage>
   );
 };

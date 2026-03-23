@@ -28,8 +28,8 @@ interface ExamsState {
   exams: Exam[];
   loading: boolean;
   fetchExams: (classId?: string, subjectId?: string) => Promise<void>;
-  addExam: (data: { name: string; classId?: string; lectureId?: string; subjectId?: string; date: string; maxScore: number; isPersonalized?: boolean; correctionDeadline?: string; blankPagesCount?: number }, file?: File) => Promise<string>;
-  generateExam: (data: GenerateExamParams) => Promise<string>;
+  addExam: (data: { name: string; classId?: string; lectureId?: string; subjectId?: string; date: string; maxScore: number; isPersonalized?: boolean; correctionDeadline?: string; blankPagesCount?: number }, files?: File | File[]) => Promise<string>;
+  generateExam: (data: GenerateExamParams) => Promise<{ id: string; batchJobId: string }>;
   updateExam: (id: string, data: Partial<Exam>) => Promise<void>;
   iterateExam: (id: string, data: IterateExamParams) => Promise<Exam>;
   assignExam: (id: string) => Promise<void>;
@@ -64,6 +64,7 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
         blankPagesCount: e.blank_pages_count || 0,
         iterationHistory: e.iteration_history,
         deadlineStatus: e.deadline_status,
+        weight: e.weight ?? 1.0,
       }));
       set({ exams: data, loading: false });
     } catch {
@@ -134,7 +135,7 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
       deadlineStatus: res.data.deadline_status,
     };
     set((s) => ({ exams: [...s.exams, newExam] }));
-    return res.data.id;
+    return { id: res.data.id, batchJobId: res.data.batch_job_id || '' };
   },
 
   updateExam: async (id, data) => {

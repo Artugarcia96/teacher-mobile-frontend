@@ -1,5 +1,8 @@
 .exd-content {
-  --background: #f8fafc;
+  --padding-top: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-bottom: 100px;
 }
 
 .exd-loading {
@@ -9,140 +12,123 @@
   min-height: 200px;
 }
 
-/* Hero Header */
+/* ═══════════════════════════════════════════════════════════════════════════
+   HERO HEADER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .exd-hero {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  padding: 16px 16px 24px;
-  color: white;
+  background: var(--gradient-primary);
+  padding: var(--space-md) var(--space-lg);
+  padding-top: max(var(--space-md), env(safe-area-inset-top));
+  position: relative;
+  overflow: hidden;
+}
+
+.exd-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 60%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .exd-hero__nav {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  position: relative;
+  z-index: 1;
+  gap: var(--space-sm);
+}
+
+.exd-hero__nav ion-buttons {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .exd-hero__center {
   flex: 1;
   text-align: center;
+  min-width: 0;
 }
 
 .exd-hero__title {
-  font-size: 1.2rem;
+  font-size: var(--font-size-lg);
   font-weight: 700;
+  color: #ffffff;
   margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
-  margin: 0 auto;
 }
 
 .exd-hero__subtitle {
-  font-size: 0.875rem;
-  opacity: 0.9;
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.75);
   margin: 2px 0 0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.exd-hero__type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.25);
+  color: #FDE68A;
+  white-space: nowrap;
+}
+
+.exd-hero__type-badge ion-icon {
+  font-size: 11px;
 }
 
 .exd-hero__actions {
   display: flex;
-  gap: 4px;
+  gap: var(--space-xs);
+  flex-shrink: 0;
 }
 
 .exd-hero__action-btn {
-  --color: white;
+  --color: rgba(255, 255, 255, 0.9);
+  --padding-start: 8px;
+  --padding-end: 8px;
+}
+
+.exd-hero__action-btn ion-icon {
+  font-size: 20px;
 }
 
 .exd-hero__action-btn--danger {
-  --color: #fca5a5;
-}
-
-/* Info Card */
-.exd-info-card {
-  background: white;
-  margin: -12px 16px 16px;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.exd-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.exd-info-row:last-child {
-  border-bottom: none;
-}
-
-.exd-info-label {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
-.exd-info-value {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #1e293b;
-}
-
-.exd-info-value--student {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #4f46e5;
-}
-
-.exd-info-value--student ion-icon {
-  font-size: 1rem;
-}
-
-.exd-info-status {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 100px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.exd-info-deadline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.exd-deadline-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 100px;
-}
-
-.exd-deadline-badge ion-icon {
-  font-size: 0.75rem;
+  --color: rgba(255, 100, 100, 0.9);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   INFO RIBBON - Compact horizontal strip
+   INFO RIBBON - Compact horizontal strip (matches ExamDetail)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .exd-ribbon {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm, 8px);
-  padding: var(--space-sm, 8px) var(--space-lg, 16px);
-  margin: -12px 16px 16px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  margin: var(--space-md) var(--space-lg) 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
   flex-wrap: wrap;
 }
 
@@ -154,9 +140,9 @@
 }
 
 .exd-ribbon__value {
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #1e293b;
+  color: var(--ion-text-color);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -164,46 +150,37 @@
 
 .exd-ribbon__icon {
   font-size: 14px;
-  color: #6366f1;
+  color: var(--ion-color-primary);
 }
 
 .exd-ribbon__label {
   font-size: 9px;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .exd-ribbon__status {
-  font-size: 0.7rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 2px 10px;
-  border-radius: 100px;
-}
-
-.exd-ribbon__deadline {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 9px;
-  font-weight: 600;
-}
-
-.exd-ribbon__deadline ion-icon {
-  font-size: 10px;
+  border-radius: var(--radius-full);
 }
 
 .exd-ribbon__divider {
   width: 1px;
   height: 24px;
-  background: #e2e8f0;
+  background: var(--color-border);
   flex-shrink: 0;
 }
 
-/* Areas Section */
+/* ═══════════════════════════════════════════════════════════════════════════
+   AREAS SECTION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .exd-areas-section {
-  padding: 0 16px 16px;
+  padding: var(--space-md) var(--space-lg) 0;
 }
 
 .exd-areas-list {
@@ -216,33 +193,38 @@
   font-size: 0.8rem;
 }
 
-/* Stats Dashboard */
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATS DASHBOARD (matches ExamDetail)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .exd-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 0 16px 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+  margin: var(--space-md) var(--space-lg);
 }
 
 .exd-stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 14px 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--color-border);
   display: flex;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  gap: var(--space-md);
 }
 
 .exd-stat-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(100, 116, 139, 0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--color-text-secondary);
+  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -256,8 +238,13 @@
 }
 
 .exd-stat-icon--primary {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+}
+
+.exd-stat-icon--warning {
+  background: rgba(217, 119, 6, 0.1);
+  color: #D97706;
 }
 
 .exd-stat-content {
@@ -266,240 +253,296 @@
 }
 
 .exd-stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1e293b;
-  line-height: 1.2;
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--ion-text-color);
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .exd-stat-label {
-  font-size: 0.7rem;
-  color: #64748b;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+  margin-top: 4px;
 }
 
-/* Action Buttons */
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROGRESS SECTION (matches ExamDetail)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.exd-progress-section {
+  margin: 0 var(--space-lg) var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+}
+
+.exd-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.exd-progress-section ion-progress-bar {
+  height: 6px;
+  border-radius: var(--radius-sm);
+  --background: var(--color-border);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERFORMANCE CHARTS (matches ExamDetail)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.exd-performance {
+  margin: 0 var(--space-lg) var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
+}
+
+.exd-performance__charts {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.exd-performance__weak-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  justify-content: center;
+}
+
+.exd-weak-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: rgba(var(--ion-color-warning-rgb), 0.10);
+  color: var(--ion-color-warning-shade);
+}
+
+.exd-weak-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  border-radius: var(--radius-full);
+  padding: 0 5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACTION BUTTONS (matches ExamDetail)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .exd-actions {
-  padding: 0 16px 16px;
+  padding: 0 var(--space-lg);
+  margin-bottom: var(--space-xl);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
 .exd-action-btn {
-  --border-radius: 12px;
+  --border-radius: var(--radius-md);
   font-weight: 600;
+}
+
+.exd-downloads-section {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.exd-section-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+  display: block;
 }
 
 .exd-actions-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
 }
 
 .exd-actions-row ion-button {
-  --border-radius: 12px;
-  font-size: 0.85rem;
+  --border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
 }
 
-/* Questions Section */
-.exd-questions-section {
-  padding: 0 16px 16px;
+/* ═══════════════════════════════════════════════════════════════════════════
+   CORRECTIONS SECTION (matches ExamDetail)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.exd-corrections-section {
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+.exd-corrections-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.exd-corrections-header .exd-section-title {
+  margin: 0;
 }
 
 .exd-section-title {
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 12px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--space-md);
 }
 
-.exd-questions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.exd-question-card {
-  background: white;
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.exd-question-number {
-  width: 28px;
+.exd-edit-corrections-btn {
+  --padding-start: var(--space-sm);
+  --padding-end: var(--space-sm);
+  font-size: var(--font-size-xs);
   height: 28px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 700;
-  flex-shrink: 0;
 }
 
-.exd-question-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.exd-question-text {
-  font-size: 0.9rem;
-  color: #1e293b;
-  margin: 0 0 6px;
-  line-height: 1.4;
-}
-
-.exd-question-hint {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.exd-question-hint ion-icon {
-  color: #6366f1;
-  font-size: 0.85rem;
-}
-
-.exd-question-points {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #4f46e5;
-  background: rgba(99, 102, 241, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-top: 6px;
-}
-
-/* Corrections Section */
-.exd-corrections-section {
-  padding: 0 16px 16px;
+.exd-corrections-section .correction-review-list {
+  background: var(--ion-card-background, #ffffff);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .exd-corrections-list {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 0;
 }
 
 .exd-correction-item {
-  --padding-start: 16px;
-  --padding-end: 12px;
+  --background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-sm);
+  overflow: hidden;
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
   --inner-padding-end: 0;
+}
+
+.exd-correction-item::part(native) {
+  background: var(--color-surface);
 }
 
 .exd-correction-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  color: #ffffff;
+  text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .exd-correction-name {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #1e293b;
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  color: var(--ion-text-color);
   margin: 0;
 }
 
 .exd-correction-summary {
-  font-size: 0.8rem;
-  color: #64748b;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin: 2px 0 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 200px;
 }
 
+.exd-correction-bar {
+  max-width: 160px;
+  margin-top: 4px;
+}
+
 .exd-correction-grade {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .exd-grade-value {
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   font-weight: 700;
-  color: #059669;
 }
 
 .exd-grade-pending {
-  font-size: 0.8rem;
-  color: #94a3b8;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 .exd-correction-arrow {
-  color: #94a3b8;
-  font-size: 1.1rem;
+  font-size: 16px;
+  color: var(--color-text-muted);
 }
 
-/* History Section */
-.exd-history-section {
-  padding: 0 16px 24px;
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAPER PREVIEW (shared styles)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.paper-preview-content {
+  --background: #000;
 }
 
-.exd-history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.exd-history-item {
-  background: white;
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.exd-history-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+.paper-preview-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  min-height: 100%;
+  padding: var(--space-md);
 }
 
-.exd-history-icon ion-icon {
-  font-size: 1rem;
+.paper-preview-img {
+  max-width: 100%;
+  max-height: calc(100vh - 80px);
+  object-fit: contain;
+  border-radius: var(--radius-sm);
 }
 
-.exd-history-content {
-  flex: 1;
+.paper-preview-pdf {
+  width: 100%;
+  height: calc(100vh - 80px);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: white;
 }
 
-.exd-history-instruction {
-  font-size: 0.9rem;
-  color: #1e293b;
-  margin: 0 0 4px;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   ITERATE MODAL
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.exd-history-date {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-/* Iterate Modal */
 .exd-iterate-modal {
   --max-width: 400px;
   --max-height: 500px;
@@ -547,97 +590,172 @@
   font-weight: 600;
 }
 
-/* Radar in areas section */
-.exd-areas-radar {
-  display: flex;
-  justify-content: center;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK THEME
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Toggle buttons */
-.exd-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  background: none;
-  border: none;
-  color: #6366f1;
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  padding: 8px 0;
-  margin-top: 4px;
-  transition: opacity 0.15s;
-}
-
-.exd-toggle-btn:hover {
-  opacity: 0.8;
-}
-
-.exd-toggle-btn ion-icon {
-  font-size: 14px;
-}
-
-.exd-history-toggle {
-  margin-top: 0;
-  justify-content: flex-start;
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-/* Compact QuestionStatusBar in correction list */
-.exd-correction-bar {
-  max-width: 160px;
-  margin-top: 4px;
-}
-
-/* Dark theme */
 @media (prefers-color-scheme: dark) {
   .exd-content {
     --background: #09090B;
   }
 
-  .exd-ribbon {
-    background: #16161A;
-    box-shadow: none;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+  .exd-hero {
+    background: linear-gradient(135deg, #0D4A44 0%, #1E8A7F 100%);
   }
 
-  .exd-ribbon__value {
-    color: #f1f5f9;
+  .exd-hero::before {
+    background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+  }
+
+  .exd-ribbon {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .exd-ribbon__divider {
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .exd-question-card,
-  .exd-stat-card,
-  .exd-corrections-list,
-  .exd-history-item {
+  .exd-performance {
     background: #16161A;
-    box-shadow: none;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .exd-question-text,
-  .exd-stat-value,
-  .exd-correction-name,
-  .exd-history-instruction {
-    color: #f1f5f9;
+  .exd-stat-card {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .exd-progress-section {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .exd-correction-item {
+    --background: #16161A !important;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .exd-correction-item::part(native) {
+    background: #16161A !important;
+  }
+
+  .exd-correction-arrow {
+    color: #52525B;
+  }
+
+  .exd-corrections-section .correction-review-list {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.06);
   }
 }
 
-/* Mobile adjustments */
-@media (max-width: 640px) {
-  .exd-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 380px) {
   .exd-hero__title {
-    font-size: 1rem;
-    max-width: 160px;
+    font-size: var(--font-size-base);
   }
+
+  .exd-stats {
+    gap: var(--space-sm);
+  }
+
+  .exd-stat-card {
+    padding: var(--space-sm);
+  }
+
+  .exd-stat-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .exd-stat-value {
+    font-size: var(--font-size-lg);
+  }
+
+  .exd-actions-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .exd-hero {
+    padding: var(--space-sm) var(--space-2xl);
+  }
+
+  .exd-content {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* ─── Version History ─── */
+.exd-iteration-history {
+  margin-top: var(--space-lg);
+}
+
+.exd-iteration-history ion-item {
+  --background: transparent;
+  --padding-start: 0;
+  --padding-end: 0;
+  --inner-padding-end: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.exd-history-content {
+  padding: var(--space-md) 0;
+}
+
+.exd-history-item {
+  padding: var(--space-md);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.exd-history-item:last-child {
+  margin-bottom: 0;
+}
+
+.exd-history-version {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.exd-history-label {
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-primary);
+  font-weight: 600;
+}
+
+.exd-history-time {
+  font-size: var(--font-size-xs);
+  color: #94A3B8;
+}
+
+.exd-history-instruction {
+  font-size: var(--font-size-sm);
+  color: var(--ion-text-color);
+  margin: 0 0 var(--space-xs);
+  font-style: italic;
+}
+
+.exd-history-changes {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: var(--space-xs) 0 0;
+  padding-left: var(--space-lg);
+}
+
+.exd-history-changes li {
+  margin-bottom: 2px;
 }

@@ -84,10 +84,17 @@ export const classes = {
   getSubjectInsights: (classId: string, subjectId: string) =>
     api.get(`/classes/${classId}/subjects/${subjectId}/insights`),
   getSubjectsSummary: (id: string) => api.get(`/classes/${id}/subjects-summary`),
+  updateExamWeightPct: (classId: string, examWeightPct: number) =>
+    api.patch(`/classes/${classId}/exam-weight`, { exam_weight_pct: examWeightPct }),
+  getTrimesterSummary: (classId: string, subjectId?: string) =>
+    api.get(`/classes/${classId}/trimester-summary`, { params: subjectId ? { subject_id: subjectId } : {} }),
+  getRiskSummary: (classId: string) =>
+    api.get(`/classes/${classId}/risk-summary`),
 };
 
 export const lectures = {
   list: (classId: string) => api.get(`/classes/${classId}/lectures`),
+  allSchedules: () => api.get('/classes/all-schedules'),
   create: (classId: string, data: { name: string; subject_id?: string; schedule?: Array<{ day: string; start_time: string; end_time: string }> }) =>
     api.post(`/classes/${classId}/lectures`, data),
   update: (classId: string, lectureId: string, data: { name?: string; subject_id?: string; schedule?: Array<{ day: string; start_time: string; end_time: string }> }) =>
@@ -103,9 +110,11 @@ export const students = {
   get: (id: string) => api.get(`/students/${id}`),
   update: (id: string, data: any) => api.put(`/students/${id}`, data),
   delete: (id: string) => api.delete(`/students/${id}`),
-  getNotes: (id: string) => api.get(`/students/${id}/notes`),
-  addNote: (id: string, text: string) => api.post(`/students/${id}/notes`, { text }),
+  getComments: (id: string) => api.get(`/students/${id}/comments`),
+  addComment: (id: string, text: string) => api.post(`/students/${id}/comments`, { text }),
   
+  getSummary: (id: string, classId?: string) =>
+    api.post(`/students/${id}/summary`, null, { params: classId ? { class_id: classId } : {} }),
   getPool: () => api.get('/students/pool/all'),
   getPoolNotInClass: (classId: string) => api.get(`/students/pool/not-in-class/${classId}`),
   addExistingToClass: (classId: string, studentIds: string[]) =>
@@ -114,12 +123,14 @@ export const students = {
     api.post(`/students/class/${classId}/bulk-create`, { names }),
   removeFromClass: (classId: string, studentId: string) =>
     api.delete(`/students/class/${classId}/remove/${studentId}`),
+  getRiskAssessment: (id: string) =>
+    api.get(`/students/${id}/risk-assessment`),
 };
 
 export const exams = {
   list: (classId?: string, subjectId?: string) => api.get('/exams/', { params: { ...(classId ? { class_id: classId } : {}), ...(subjectId ? { subject_id: subjectId } : {}) } }),
   get: (id: string) => api.get(`/exams/${id}`),
-  create: (data: { name: string; class_id?: string; lecture_id?: string; subject_id?: string; exam_date: string; max_score: number; is_personalized?: boolean; correction_deadline?: string; blank_pages_count?: number }, file?: File) => {
+  create: (data: { name: string; class_id?: string; lecture_id?: string; subject_id?: string; exam_date: string; max_score: number; is_personalized?: boolean; correction_deadline?: string; blank_pages_count?: number }, files?: File | File[]) => {
     const formData = new FormData();
     formData.append('name', data.name);
     if (data.class_id && data.class_id.trim()) formData.append('class_id', data.class_id);
@@ -130,9 +141,16 @@ export const exams = {
     if (data.is_personalized) formData.append('is_personalized', 'true');
     if (data.correction_deadline) formData.append('correction_deadline', data.correction_deadline);
     if (data.blank_pages_count) formData.append('blank_pages_count', String(data.blank_pages_count));
-    if (file) formData.append('document', file);
+    const fileList = files ? (Array.isArray(files) ? files : [files]) : [];
+    if (fileList.length === 1) {
+      formData.append('document', fileList[0]);
+    } else {
+      fileList.forEach((f) => formData.append('documents', f));
+    }
+    const hasFiles = fileList.length > 0;
     return api.post('/exams/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: hasFiles ? 120000 : 30000,
     });
   },
   update: (id: string, data: any) => api.put(`/exams/${id}`, data),
@@ -143,12 +161,14 @@ export const exams = {
     num_questions?: number; max_score?: number; difficulty?: string;
     question_types?: string[]; refinement_prompt?: string; is_personalized?: boolean;
     correction_deadline?: string; blank_pages_count?: number;
-  }) => api.post('/exams/generate', data, { timeout: 300000 }),
+  }) => api.post('/exams/generate', data),
   iterate: (id: string, data: { instruction: string; preserve_questions?: number[] }) => 
     api.post(`/exams/${id}/iterate`, data, { timeout: 120000 }),
+  updateWeight: (id: string, weight: number) => api.patch(`/exams/${id}/weight`, { weight }),
   getQuestions: (id: string) => api.get(`/exams/${id}/questions`),
   downloadExamUrl: (id: string) => `${getBaseUrl()}/exams/${id}/download`,
   downloadSolutionsUrl: (id: string) => `${getBaseUrl()}/exams/${id}/solutions`,
+  downloadDigitalizedUrl: (id: string) => `${getBaseUrl()}/exams/${id}/digitalized`,
 };
 
 export const corrections = {
@@ -176,42 +196,56 @@ export const corrections = {
   finish: (examId: string) => api.post(`/corrections/${examId}/finish`),
   processAI: (correctionId: string) => api.post(`/corrections/${correctionId}/process-ai`, null, {
     timeout: 300000
-  })
+  }),
+  delete: (correctionId: string) => api.delete(`/corrections/item/${correctionId}`),
+  downloadReportUrl: (correctionId: string) => `${api.defaults.baseURL}/corrections/item/${correctionId}/report`,
+  batchDownloadReports: (examId: string) =>
+    api.post(`/corrections/${examId}/batch-reports`, null, {
+      responseType: 'blob' as const,
+      timeout: 120000,
+    }),
 };
 
 export const exercises = {
-  list: (studentId?: string, subjectId?: string) => api.get('/exercises/', { params: { ...(studentId ? { student_id: studentId } : {}), ...(subjectId ? { subject_id: subjectId } : {}) } }),
+  list: (studentId?: string, subjectId?: string, exerciseType?: string) => api.get('/exercises/', { params: { ...(studentId ? { student_id: studentId } : {}), ...(subjectId ? { subject_id: subjectId } : {}), ...(exerciseType ? { exercise_type: exerciseType } : {}) } }),
   generate: (params: {
     studentIds: string[];
     name: string;
     sourceExamIds?: string[];
     sourceTopicIds?: string[];
+    subjectId?: string;
     refinementPrompt?: string;
     difficulty?: 'easier' | 'same' | 'harder';
     numQuestions?: number;
+    maxScore?: number;
     numBlankPages?: number;
     focusTopics?: string[];
     deliveryDate?: string;
     correctionDate?: string;
+    exerciseType?: 'practice' | 'recovery';
   }) =>
     api.post('/exercises/generate', {
       student_ids: params.studentIds,
       name: params.name,
       source_exam_ids: params.sourceExamIds,
       source_topic_ids: params.sourceTopicIds,
+      subject_id: params.subjectId,
       refinement_prompt: params.refinementPrompt,
       difficulty: params.difficulty,
       num_questions: params.numQuestions,
+      max_score: params.maxScore,
       num_blank_pages: params.numBlankPages,
       focus_topics: params.focusTopics,
       delivery_date: params.deliveryDate,
       correction_date: params.correctionDate,
+      exercise_type: params.exerciseType || 'practice',
     }, {
       timeout: 300000,
     }),
   get: (id: string) => api.get(`/exercises/${id}`),
   update: (id: string, data: any) => api.put(`/exercises/${id}`, data),
   rename: (id: string, name: string) => api.patch(`/exercises/${id}/rename`, { name }),
+  updateWeight: (id: string, weight: number) => api.patch(`/exercises/${id}/weight`, { weight }),
   delete: (id: string) => api.delete(`/exercises/${id}`),
   iterate: (id: string, data: { instruction: string }) =>
     api.post(`/exercises/${id}/iterate`, data, { timeout: 120000 }),
@@ -226,6 +260,7 @@ export const exercises = {
 };
 
 export const exerciseCorrections = {
+  listAll: () => api.get('/exercise-corrections/'),
   list: (exerciseId: string) => api.get(`/exercise-corrections/${exerciseId}`),
   upload: (exerciseId: string, file: File) => {
     const formData = new FormData();
@@ -258,29 +293,31 @@ export const exerciseCorrections = {
   finish: (exerciseId: string) => api.post(`/exercise-corrections/${exerciseId}/finish`),
   processAI: (correctionId: string) => api.post(`/exercise-corrections/${correctionId}/process-ai`, null, {
     timeout: 300000
-  })
+  }),
+  delete: (correctionId: string) => api.delete(`/exercise-corrections/correction/${correctionId}`),
 };
 
 export const subjects = {
   list: () => api.get('/subjects/'),
   get: (id: string) => api.get(`/subjects/${id}`),
-  create: (data: { name: string; description?: string }) => api.post('/subjects/', data),
-  update: (id: string, data: { name?: string; description?: string }) => api.put(`/subjects/${id}`, data),
+  create: (data: { name: string; description?: string; color?: string }) => api.post('/subjects/', data),
+  update: (id: string, data: { name?: string; description?: string; color?: string }) => api.put(`/subjects/${id}`, data),
   delete: (id: string) => api.delete(`/subjects/${id}`),
   forClass: (classId: string) => api.get(`/subjects/for-class/${classId}`),
   topicsForClass: (classId: string) => api.get(`/subjects/topics-for-class/${classId}`),
   classPairs: () => api.get('/subjects/class-pairs'),
   linkToClass: (subjectId: string, classId: string) => api.post(`/subjects/${subjectId}/classes/${classId}`),
   unlinkFromClass: (subjectId: string, classId: string) => api.delete(`/subjects/${subjectId}/classes/${classId}`),
+  updateClassLink: (subjectId: string, classId: string, data: { aula?: string; exam_weight_pct?: number }) => api.patch(`/subjects/${subjectId}/classes/${classId}`, data),
 };
 
 export const topics = {
   listBySubject: (subjectId: string) => api.get(`/topics/subject/${subjectId}`),
   listByClass: (classId: string) => api.get(`/topics/class/${classId}`),
   get: (id: string) => api.get(`/topics/${id}`),
-  create: (subjectId: string, data: { name: string; description?: string; order?: number }) =>
+  create: (subjectId: string, data: { name: string; description?: string; trimester?: number; order?: number; parent_id?: string }) =>
     api.post(`/topics/subject/${subjectId}`, data),
-  update: (id: string, data: { name?: string; description?: string; order?: number }) =>
+  update: (id: string, data: { name?: string; description?: string; trimester?: number; order?: number; include_in_generation?: boolean }) =>
     api.put(`/topics/${id}`, data),
   delete: (id: string) => api.delete(`/topics/${id}`),
   uploadMaterial: (topicId: string, file: File) => {
@@ -292,8 +329,25 @@ export const topics = {
   },
   deleteMaterial: (topicId: string, materialId: string) =>
     api.delete(`/topics/${topicId}/materials/${materialId}`),
+  updateMaterial: (topicId: string, materialId: string, data: { include_in_exercises?: boolean }) =>
+    api.patch(`/topics/${topicId}/materials/${materialId}`, data),
+  generateMaterial: (topicId: string, data: { prompt: string; include_in_exercises: boolean }) =>
+    api.post(`/topics/${topicId}/generate-material`, data, { timeout: 120000 }),
+  getMaterialDownloadUrl: (documentUrl: string) => `${getBaseUrl()}${documentUrl}`,
   reorder: (subjectId: string, topicIds: string[]) =>
-    api.post(`/topics/subject/${subjectId}/reorder`, topicIds)
+    api.post(`/topics/subject/${subjectId}/reorder`, topicIds),
+  // Temas Vivos
+  getContent: (topicId: string) => api.get(`/topics/${topicId}/content`),
+  getPdfUrl: (topicId: string) => `${getBaseUrl()}/topics/${topicId}/pdf`,
+  editContent: (topicId: string, data: { instruction: string; preset?: string }) =>
+    api.post(`/topics/${topicId}/edit`, data),
+  updateStatus: (topicId: string, status: string) =>
+    api.patch(`/topics/${topicId}/status`, { status }),
+  generateContent: (topicId: string, data: { prompt: string; enfoque: string; target_pages: number }) =>
+    api.post(`/topics/${topicId}/generate-content`, data),
+  recompile: (topicId: string) => api.post(`/topics/${topicId}/recompile`),
+  generateSummary: (topicId: string) => api.post(`/topics/${topicId}/generate-summary`),
+  generateQuiz: (topicId: string) => api.post(`/topics/${topicId}/generate-quiz`),
 };
 
 export const materials = {
@@ -340,15 +394,17 @@ export const calendar = {
   }),
 };
 
-export const notes = {
-  list: (params?: { note_type?: string; class_id?: string; days?: number }) =>
-    api.get('/notes/', { params }),
-  createClassNote: (data: { class_id: string; event_id?: string; event_date?: string; text: string }) =>
-    api.post('/notes/class', data),
-  createGeneralNote: (data: { text: string }) =>
-    api.post('/notes/general', data),
+export const comments = {
+  list: (params?: { note_type?: string; class_id?: string; subject_id?: string; event_id?: string; days?: number }) =>
+    api.get('/comments/', { params }),
+  createClassComment: (data: { class_id: string; subject_id?: string; event_id?: string; event_date?: string; text: string }) =>
+    api.post('/comments/class', data),
+  createEventObservation: (data: { event_id: string; text: string }) =>
+    api.post('/comments/event', data),
+  createGeneralComment: (data: { text: string }) =>
+    api.post('/comments/general', data),
   getRecentSessions: () =>
-    api.get('/notes/recent-sessions'),
+    api.get('/comments/recent-sessions'),
 };
 
 export const preparation = {
@@ -459,13 +515,16 @@ export const batch = {
     source_exam_ids?: string[];
     source_topic_ids?: string[];
     focus_topics?: string[];
+    subject_id?: string;
     num_questions?: number;
+    max_score?: number;
     num_blank_pages?: number;
     difficulty?: 'easier' | 'same' | 'harder';
     delivery_date?: string;
     correction_date?: string;
     group_by_weakness?: boolean;
     unique_per_student?: boolean;
+    exercise_type?: 'practice' | 'recovery';
   }) =>
     api.post<BatchJobResponse>('/batch/exercises/generate', {
       class_id: data.class_id,
@@ -474,12 +533,16 @@ export const batch = {
       source_exam_ids: data.source_exam_ids,
       source_topic_ids: data.source_topic_ids,
       focus_topics: data.focus_topics,
+      subject_id: data.subject_id,
       num_questions: data.num_questions ?? 5,
+      max_score: data.max_score ?? 10,
+      num_blank_pages: data.num_blank_pages ?? 0,
       difficulty: data.difficulty ?? 'same',
       delivery_date: data.delivery_date,
       correction_date: data.correction_date,
       group_by_weakness: data.group_by_weakness ?? true,
-      unique_per_student: data.unique_per_student ?? false
+      unique_per_student: data.unique_per_student ?? false,
+      exercise_type: data.exercise_type ?? 'practice',
     }),
 
   // Batch exercise corrections
@@ -488,6 +551,118 @@ export const batch = {
       exercise_ids: exerciseIds,
       correction_ids: correctionIds,
     }),
+};
+
+export const gradeCategories = {
+  list: (subjectId: string) => api.get(`/subjects/${subjectId}/categories`),
+  create: (subjectId: string, data: { name: string; weight: number; order?: number }) =>
+    api.post(`/subjects/${subjectId}/categories`, data),
+  update: (subjectId: string, categoryId: string, data: { name?: string; weight?: number; order?: number }) =>
+    api.put(`/subjects/${subjectId}/categories/${categoryId}`, data),
+  delete: (subjectId: string, categoryId: string) =>
+    api.delete(`/subjects/${subjectId}/categories/${categoryId}`),
+};
+
+export const academicConfig = {
+  get: (classId: string) => api.get(`/academic-config/${classId}`),
+  save: (data: {
+    class_id?: string; year: string;
+    trimester_1_start: string; trimester_1_end: string;
+    trimester_2_start: string; trimester_2_end: string;
+    trimester_3_start: string; trimester_3_end: string;
+    recovery_start?: string; recovery_end?: string;
+  }) => api.post('/academic-config', data),
+  detectTrimester: (classId: string, date: string) =>
+    api.get('/academic-config/detect-trimester', { params: { class_id: classId, date } }),
+};
+
+export const attendance = {
+  list: (params?: { class_id?: string; date?: string; event_id?: string; subject_id?: string }) =>
+    api.get('/attendance/', { params }),
+  bulkCreate: (data: {
+    class_id: string; date: string; event_id?: string; subject_id?: string;
+    records: Array<{ student_id: string; status: string }>;
+  }) => api.post('/attendance/bulk', data),
+  update: (id: string, data: { status?: string; note?: string }) =>
+    api.put(`/attendance/${id}`, data),
+  getSummary: (classId: string, subjectId?: string, startDate?: string, endDate?: string) =>
+    api.get('/attendance/summary', { params: { class_id: classId, ...(subjectId ? { subject_id: subjectId } : {}), ...(startDate ? { start_date: startDate } : {}), ...(endDate ? { end_date: endDate } : {}) } }),
+  getStudentHistory: (studentId: string, classId?: string, subjectId?: string) =>
+    api.get(`/attendance/student/${studentId}`, { params: { ...(classId ? { class_id: classId } : {}), ...(subjectId ? { subject_id: subjectId } : {}) } }),
+  getTaken: (startDate: string, endDate: string) =>
+    api.get('/attendance/taken', { params: { start_date: startDate, end_date: endDate } }),
+  uploadJustification: (attendanceId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/attendance/${attendanceId}/justification`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteJustification: (attendanceId: string) =>
+    api.delete(`/attendance/${attendanceId}/justification`),
+};
+
+export const dashboard = {
+  get: () => api.get('/dashboard'),
+};
+
+export const reports = {
+  generateComments: (data: { class_id: string; subject_id?: string; trimester?: number; student_ids?: string[] }) =>
+    api.post('/reports/generate-comments', data, { timeout: 300000 }),
+  regenerateComment: (data: { student_id: string; class_id: string; subject_id?: string; instruction?: string }) =>
+    api.post('/reports/regenerate-comment', data, { timeout: 120000 }),
+  generateClassReport: (data: { class_id: string; subject_id?: string; trimester?: number }) =>
+    api.post('/reports/generate-class-report', data, { timeout: 300000 }),
+};
+
+export const feedback = {
+  list: () => api.get('/feedback/'),
+  create: (data: { category: string; text: string }) => api.post('/feedback/', data),
+  update: (id: string, data: { category?: string; text?: string }) => api.put(`/feedback/${id}`, data),
+  delete: (id: string) => api.delete(`/feedback/${id}`),
+};
+
+export const textbooks = {
+  list: (subjectId?: string) =>
+    api.get('/textbooks/', { params: subjectId ? { subject_id: subjectId } : {} }),
+  get: (id: string) => api.get(`/textbooks/${id}`),
+  generate: (data: {
+    subject_id: string;
+    class_id: string;
+    title?: string;
+    enfoque: string;
+    notas?: string;
+    topic_ids?: string[];
+    target_pages?: number;
+    exercises_per_chapter?: number;
+    examples_per_section?: number;
+    guide_pdfs?: File[];
+  }) => {
+    const form = new FormData();
+    form.append('subject_id', data.subject_id);
+    form.append('class_id', data.class_id);
+    form.append('enfoque', data.enfoque);
+    if (data.title) form.append('title', data.title);
+    if (data.notas) form.append('notas', data.notas);
+    if (data.topic_ids) form.append('topic_ids', JSON.stringify(data.topic_ids));
+    if (data.target_pages !== undefined) form.append('target_pages', String(data.target_pages));
+    if (data.exercises_per_chapter !== undefined) form.append('exercises_per_chapter', String(data.exercises_per_chapter));
+    if (data.examples_per_section !== undefined) form.append('examples_per_section', String(data.examples_per_section));
+    if (data.guide_pdfs) {
+      data.guide_pdfs.forEach((pdf) => form.append('guide_pdfs', pdf));
+    }
+    return api.post('/textbooks/generate', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  getPdfUrl: (id: string) => `${getBaseUrl()}/textbooks/${id}/pdf`,
+  iterate: (id: string, data: { chapter_number: number; instruction: string }) =>
+    api.post(`/textbooks/${id}/iterate`, data, { timeout: 300000 }),
+  suggestTemas: (id: string) =>
+    api.post(`/textbooks/${id}/suggest-temas`),
+  createTemas: (id: string, data: { temas: { name: string; sections: number[]; trimester?: number }[] }) =>
+    api.post(`/textbooks/${id}/create-temas`, data),
+  delete: (id: string) => api.delete(`/textbooks/${id}`),
 };
 
 export default api;

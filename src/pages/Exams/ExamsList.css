@@ -345,3 +345,36 @@
     font-size: var(--font-size-sm);
   }
 }
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .exams-list-hero {
+    padding: var(--space-sm) var(--space-2xl);
+  }
+
+  .exams-list-filters {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .exams-list-container {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .exams-list-items {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .exams-list-card:hover {
+    border-color: var(--ion-color-primary);
+  }
+}
+
+.exams-list-card:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
+}

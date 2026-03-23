@@ -8,6 +8,7 @@ export interface ClassSubjectPair {
   className: string;
   subjectId: string;
   subjectName: string;
+  aula?: string;
 }
 
 interface Props {

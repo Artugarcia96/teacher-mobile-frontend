@@ -28,6 +28,39 @@
   letter-spacing: -0.01em;
 }
 
+/* ─── Correction status & grade ─── */
+.exercise-card-status {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.exercise-card-status--corrected {
+  background: rgba(var(--ion-color-success-rgb), 0.1);
+  color: var(--ion-color-success);
+}
+
+.exercise-card-status--in-progress {
+  background: rgba(var(--ion-color-warning-rgb), 0.1);
+  color: var(--ion-color-warning);
+}
+
+.exercise-card-grade {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.exercise-card-grade--pass {
+  color: var(--ion-color-success);
+}
+
+.exercise-card-grade--fail {
+  color: var(--ion-color-danger);
+}
+
 .exercise-card-meta {
   display: flex;
   justify-content: space-between;
@@ -242,7 +275,7 @@
 /* ─── Dark theme ─── */
 @media (prefers-color-scheme: dark) {
   .exercise-card {
-    background: #16161A !important;
+    background: var(--color-surface) !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
   }
 
@@ -269,4 +302,9 @@
   .exercise-card-iteration-input {
     --background: rgba(255, 255, 255, 0.04);
   }
+}
+
+.exercise-card:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
 }

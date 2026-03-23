@@ -1,0 +1,26 @@
+.qc-sheet {
+  padding: var(--space-lg, 20px) var(--space-lg, 20px) var(--space-xl, 24px);
+}
+
+.qc-sheet__title {
+  font-size: var(--font-size-md, 16px);
+  font-weight: 600;
+  margin: 0 0 var(--space-md, 12px);
+  color: var(--ion-text-color);
+}
+
+.qc-sheet__textarea {
+  --background: var(--color-surface, #f8f9fa);
+  --border-radius: var(--radius-md, 8px);
+  --padding-start: 12px;
+  --padding-end: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: var(--space-md, 12px);
+}
+
+.qc-sheet__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm, 8px);
+}

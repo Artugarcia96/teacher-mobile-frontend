@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Student, Note } from '../types';
+import { Student, Comment } from '../types';
 import { students as studentsApi, classes as classesApi } from '../services/api';
 
 export interface StudentPoolEntry {
@@ -23,7 +23,7 @@ interface StudentsState {
   addExistingToClass: (classId: string, studentIds: string[]) => Promise<number>;
   removeStudent: (id: string) => Promise<void>;
   removeFromClass: (classId: string, studentId: string) => Promise<void>;
-  addNote: (studentId: string, text: string) => Promise<void>;
+  addComment: (studentId: string, text: string) => Promise<void>;
   getByClass: (classId: string) => Student[];
 }
 
@@ -43,7 +43,7 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
         classId: s.class_id,
         studentId: s.student_code,
         email: s.email,
-        notes: [],
+        comments: [],
       }));
       set({ students: data, loading: false });
     } catch {
@@ -62,7 +62,7 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
         classId: s.class_id,
         studentId: s.student_code,
         email: s.email,
-        notes: [],
+        comments: [],
       }));
       set((state) => {
         // Keep students from other classes, and remove any stale entries for students now in this class
@@ -106,7 +106,7 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
       classId: res.data.class_id,
       studentId: res.data.student_code,
       email: res.data.email,
-      notes: [],
+      comments: [],
     };
     set((s) => ({ students: [...s.students, newStudent] }));
   },
@@ -119,7 +119,7 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
       classId: s.class_id,
       studentId: s.student_code,
       email: s.email,
-      notes: [],
+      comments: [],
     }));
     set((s) => ({ students: [...s.students, ...newStudents] }));
   },
@@ -140,12 +140,12 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
     set((s) => ({ students: s.students.filter((st) => !(st.id === studentId && st.classId === classId)) }));
   },
 
-  addNote: async (studentId, text) => {
-    const res = await studentsApi.addNote(studentId, text);
-    const note: Note = { id: res.data.id, text: res.data.text, createdAt: res.data.created_at };
+  addComment: async (studentId, text) => {
+    const res = await studentsApi.addComment(studentId, text);
+    const comment: Comment = { id: res.data.id, text: res.data.text, createdAt: res.data.created_at };
     set((s) => ({
       students: s.students.map((st) =>
-        st.id === studentId ? { ...st, notes: [note, ...st.notes] } : st
+        st.id === studentId ? { ...st, comments: [comment, ...st.comments] } : st
       ),
     }));
   },

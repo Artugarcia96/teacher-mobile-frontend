@@ -1,18 +1,8 @@
 import { IonIcon } from '@ionic/react';
-import { chevronForwardOutline, checkboxOutline, squareOutline } from 'ionicons/icons';
+import { chevronForwardOutline, checkboxOutline, squareOutline, readerOutline, checkmarkCircleOutline } from 'ionicons/icons';
 import { CalendarEvent, Exam } from '../types';
+import { avatarColor as colorFromName } from '../utils/avatarColors';
 import './EventCard.css';
-
-const AVATAR_COLORS = [
-  '#6C3AED', '#8B5CF6', '#059669', '#0891B2', '#D97706',
-  '#DC2626', '#2563EB', '#7C3AED', '#DB2777', '#4F46E5',
-];
-
-function colorFromName(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 interface CalendarEventCardProps {
   event: CalendarEvent;
@@ -21,10 +11,12 @@ interface CalendarEventCardProps {
   selected?: boolean;
   onToggleSelect?: () => void;
   compact?: boolean;
+  onTakeAttendance?: (classId: string, date: string, eventId: string, subjectId?: string) => void;
+  attendanceTaken?: boolean;
 }
 
 export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({
-  event, onClick, selectable, selected, onToggleSelect, compact,
+  event, onClick, selectable, selected, onToggleSelect, compact, onTakeAttendance, attendanceTaken,
 }) => {
   const color = event.className ? colorFromName(event.className) : '#64748B';
 
@@ -69,6 +61,18 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({
             )}
             {event.notes && <span className="ev-card__notes">{event.notes}</span>}
           </div>
+        )}
+        {!selectable && event.eventType === 'class_session' && event.classId && onTakeAttendance && (
+          <button
+            className={`ev-card__attendance-btn ${attendanceTaken ? 'ev-card__attendance-btn--done' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTakeAttendance(event.classId!, event.date, event.id, event.subjectId);
+            }}
+          >
+            <IonIcon icon={attendanceTaken ? checkmarkCircleOutline : readerOutline} />
+            <span>{attendanceTaken ? 'Lista revisada' : 'Pasar lista'}</span>
+          </button>
         )}
       </div>
     </div>

@@ -28,6 +28,7 @@ export interface ClassGroup {
   educationLevel: EducationLevel;
   studentCount: number;
   lectureCount: number;
+  examWeightPct: number;
   lastActivity: string;
   archived: boolean;
   lectures?: Lecture[];
@@ -40,10 +41,10 @@ export interface Student {
   classId: string;
   studentId?: string;
   email?: string;
-  notes: Note[];
+  comments: Comment[];
 }
 
-export interface Note {
+export interface Comment {
   id: string;
   text: string;
   createdAt: string;
@@ -76,6 +77,10 @@ export interface Exam {
   blankPagesCount?: number;
   iterationHistory?: ExamIterationHistoryItem[];
   deadlineStatus?: 'ok' | 'soon' | 'urgent' | 'overdue' | 'completed';
+  trimester?: number;
+  categoryId?: string;
+  categoryName?: string;
+  weight?: number;
 }
 
 export interface AIQuestionFeedback {
@@ -100,8 +105,9 @@ export interface CorrectionResult {
   aiAnalysis?: AIAnalysis;
   aiProcessed?: boolean;
   grade: number | null;
-  teacherNotes?: string;
+  teacherComments?: string;
   weakAreas?: string[];
+  delivered?: boolean;
   savedAt?: string;
 }
 
@@ -132,6 +138,11 @@ export interface Exercise {
   correctionDeadlineStatus?: 'ok' | 'soon' | 'urgent' | 'overdue' | 'completed';
   subjectId?: string;
   subjectName?: string;
+  trimester?: number;
+  categoryId?: string;
+  exerciseType?: 'practice' | 'recovery';
+  maxScore: number;
+  weight?: number;
 }
 
 export interface ExerciseCorrectionResult {
@@ -141,7 +152,7 @@ export interface ExerciseCorrectionResult {
   paperUrl?: string;
   aiAnalysis?: AIAnalysis;
   grade: number | null;
-  teacherNotes?: string;
+  teacherComments?: string;
   weakAreas?: string[];
   savedAt?: string;
   createdAt?: string;
@@ -172,17 +183,40 @@ export interface TopicMaterial {
   documentUrl: string;
   documentType?: string;
   uploadedAt: string;
+  includeInExercises: boolean;
+  isGenerated: boolean;
+}
+
+export interface SubTopic {
+  id: string;
+  name: string;
+  description?: string;
+  order: number;
+  materials: TopicMaterial[];
+  hasContent: boolean;
+  status: string;
+  includeInGeneration: boolean;
 }
 
 export interface Topic {
   id: string;
   subjectId: string;
+  parentId?: string | null;
   subjectName?: string;
   name: string;
   description?: string;
+  trimester?: number | null;
   order: number;
   createdAt: string;
   materials: TopicMaterial[];
+  children: SubTopic[];
+  // Temas Vivos
+  textbookId?: string;
+  pdfUrl?: string;
+  status: string; // draft | ready | taught
+  pageCount?: number;
+  hasContent: boolean;
+  includeInGeneration: boolean;
 }
 
 export interface TopicListItem {
@@ -191,8 +225,22 @@ export interface TopicListItem {
   subjectName?: string;
   name: string;
   description?: string;
+  trimester?: number | null;
   order: number;
   materialCount: number;
+  // Temas Vivos
+  hasContent: boolean;
+  status: string;
+  pageCount?: number;
+  pdfUrl?: string;
+}
+
+export interface TopicContent {
+  sections: { title: string; key_concepts: string[] }[];
+  wordCount: number;
+  pageCount?: number;
+  hasPdf: boolean;
+  status: string;
 }
 
 export interface SubjectWithTopics {
@@ -263,6 +311,7 @@ export interface CalendarEvent {
   isCancelled: boolean;
   className?: string;
   classSubject?: string;
+  subjectId?: string;
   studentName?: string;
   examName?: string;
   examStatus?: string;
@@ -283,6 +332,7 @@ export interface MaterialWithContext {
 export interface TopicForUpload {
   id: string;
   name: string;
+  trimester?: number | null;
   order: number;
 }
 
@@ -325,12 +375,188 @@ export interface SubjectListItem {
 export interface ClassSubjectSummary {
   subjectId: string;
   subjectName: string;
+  subjectColor?: string;
   lectureId?: string;
   examCount: number;
   pendingCorrections: number;
   exerciseCount: number;
+  pendingExerciseCount: number;
   topicCount: number;
   averageGrade: number | null;
   correctedCount: number;
   passRate: number | null;
+  aula?: string;
+  schedule?: ScheduleSlot[];
+  examWeightPct: number;
+}
+
+export interface GradeCategory {
+  id: string;
+  subjectId: string;
+  name: string;
+  weight: number;
+  order: number;
+}
+
+export interface AcademicConfig {
+  id: string;
+  teacherId: string;
+  classId?: string;
+  year: string;
+  t1Start: string;
+  t1End: string;
+  t2Start: string;
+  t2End: string;
+  t3Start: string;
+  t3End: string;
+  recoveryStart?: string;
+  recoveryEnd?: string;
+}
+
+export interface TrimesterSummaryRow {
+  studentId: string;
+  studentName: string;
+  t1Avg: number | null;
+  t2Avg: number | null;
+  t3Avg: number | null;
+  finalAvg: number | null;
+  riskStatus: 'ok' | 'borderline' | 'at_risk';
+}
+
+export interface AttendanceRecord {
+  id: string;
+  studentId: string;
+  classId: string;
+  subjectId?: string;
+  eventId?: string;
+  date: string;
+  status: 'present' | 'absent' | 'late' | 'justified';
+  note?: string;
+  justificationUrl?: string;
+  studentName?: string;
+  subjectName?: string;
+}
+
+export interface AttendanceTaken {
+  classId: string;
+  subjectId?: string;
+  date: string;
+  eventId?: string;
+}
+
+export interface AttendanceSummary {
+  studentId: string;
+  studentName: string;
+  totalSessions: number;
+  present: number;
+  absent: number;
+  late: number;
+  justified: number;
+  attendanceRate: number;
+}
+
+export interface DashboardData {
+  pendingCorrections: PendingCorrection[];
+  pendingExerciseCorrections: PendingExerciseCorrection[];
+  upcomingExams: UpcomingExam[];
+  studentsAtRisk: StudentAtRisk[];
+  recentActivity: RecentActivity[];
+  todayBriefingSummary: string | null;
+  stats: DashboardStats;
+}
+
+export interface PendingCorrection {
+  examId: string;
+  examName: string;
+  classId: string;
+  className: string;
+  subjectName?: string;
+  pendingCount: number;
+  totalCount: number;
+  deadline?: string;
+  deadlineStatus?: string;
+}
+
+export interface PendingExerciseCorrection {
+  exerciseId: string;
+  exerciseName: string;
+  studentName: string;
+  className: string;
+}
+
+export interface UpcomingExam {
+  examId: string;
+  examName: string;
+  classId: string;
+  className: string;
+  date: string;
+  daysUntil: number;
+}
+
+export interface StudentAtRisk {
+  studentId: string;
+  studentName: string;
+  classId: string;
+  className: string;
+  avgGrade: number | null;
+  riskLevel: 'high' | 'medium' | 'low';
+  factors: string[];
+}
+
+export interface RecentActivity {
+  type: 'correction' | 'exam_created' | 'exercise_generated' | 'grade_entered';
+  description: string;
+  timestamp: string;
+  link?: string;
+}
+
+export interface DashboardStats {
+  totalClasses: number;
+  totalStudents: number;
+  examsThisTrimester: number;
+  pendingCorrectionsCount: number;
+}
+
+export interface SuggestedTema {
+  name: string;
+  sections: number[];
+  trimester: number;
+  description?: string;
+}
+
+export interface TextbookChapter {
+  number: number;
+  title: string;
+  sections?: { number: number; title: string }[];
+  estimated_pages?: number;
+}
+
+export interface Textbook {
+  id: string;
+  subjectId: string;
+  batchJobId?: string;
+  enfoque: string;
+  notas?: string;
+  educationLevel: string;
+  topicIds?: string[];
+  title?: string;
+  bookPlan?: {
+    title: string;
+    subtitle?: string;
+    chapters: TextbookChapter[];
+  };
+  stats?: {
+    total_words?: number;
+    estimated_pages?: number;
+    estimated_cost_usd?: number;
+    generation_time_seconds?: number;
+    style_variety_score?: number;
+  };
+  pdfUrl?: string;
+  iterationHistory?: { chapter_number: number; instruction: string; timestamp: string }[];
+  status: string;
+  errorMessage?: string;
+  createdAt: string;
+  completedAt?: string;
+  temasCreated?: boolean;
 }

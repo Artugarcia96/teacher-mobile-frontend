@@ -1,23 +1,28 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonSpinner, IonAlert, IonChip, IonProgressBar, IonList, IonItem, IonLabel,
+  IonSpinner, IonAlert, IonChip, IonBadge,
+  IonModal, IonHeader, IonToolbar, IonTitle,
 } from '@ionic/react';
-import { 
-  trashOutline, createOutline, downloadOutline, chevronForwardOutline,
-  checkmarkCircleOutline, timeOutline, alertCircleOutline, sparkles,
-  documentTextOutline, peopleOutline, statsChartOutline
+import {
+  trashOutline, createOutline, downloadOutline, checkmarkCircleOutline,
+  timeOutline, alertCircleOutline, sparkles,
+  documentTextOutline, peopleOutline, statsChartOutline, closeOutline, eyeOutline
 } from 'ionicons/icons';
-import { useParams, useHistory, Redirect } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
 import { useClassesStore } from '../../store/classesStore';
-import { exams as examsApi } from '../../services/api';
+import api, { exams as examsApi, corrections as correctionsApi } from '../../services/api';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
-import EmptyState from '../../components/EmptyState';
-import { GradeDonut, WeakAreasRadar, QuestionStatusBar } from '../../components/charts';
+import CorrectionReviewCard from '../../components/CorrectionReviewCard';
+import CorrectionPanel from '../../components/CorrectionPanel';
+import { GradeDonut } from '../../components/charts';
+import { subjectThemeStyle } from '../../utils/subjectTheme';
+import { useDashboardStore } from '../../store/dashboardStore';
 import './ExamDetail.css';
+import '../../pages/Correction/Correction.css';
 
 const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
   uploaded: { color: '#64748B', label: 'Subido', bg: 'rgba(100, 116, 139, 0.1)' },
@@ -33,17 +38,6 @@ const deadlineConfig: Record<string, { color: string; label: string; bg: string 
   completed: { color: '#059669', label: 'Completado', bg: 'rgba(5, 150, 105, 0.1)' },
 };
 
-const AVATAR_COLORS = [
-  '#6C3AED', '#8B5CF6', '#059669', '#0891B2', '#D97706',
-  '#DC2626', '#2563EB', '#7C3AED', '#DB2777', '#4F46E5',
-];
-
-function avatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
 const ExamDetail: React.FC = () => {
   const { classId, examId } = useParams<{ classId: string; examId: string }>();
   const history = useHistory();
@@ -51,7 +45,8 @@ const ExamDetail: React.FC = () => {
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
   const deleteExam = useExamsStore((s) => s.deleteExam);
-  
+  const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
+
   const allStudents = useStudentsStore((s) => s.students);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
   
@@ -60,10 +55,14 @@ const ExamDetail: React.FC = () => {
   
   const allClasses = useClassesStore((s) => s.classes);
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
+  const classSubjects = useClassesStore((s) => s.classSubjects);
+  const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
 
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [savingGrade, setSavingGrade] = useState<Record<string, boolean>>({});
 
   const isNewExam = examId === 'new';
   
@@ -81,18 +80,27 @@ const ExamDetail: React.FC = () => {
     const gradedCorrections = examCorrections.filter(c => c.grade !== null && c.grade !== undefined);
     const totalGraded = gradedCorrections.length;
     const totalPapers = examCorrections.length;
-    
+
     if (totalGraded === 0) {
       return { average: null, passRate: null, totalGraded: 0, totalPapers, studentsCount: students.length };
     }
-    
+
     const sum = gradedCorrections.reduce((acc, c) => acc + (c.grade || 0), 0);
     const average = sum / totalGraded;
     const passed = gradedCorrections.filter(c => (c.grade || 0) >= (exam?.maxScore || 10) * 0.5).length;
     const passRate = (passed / totalGraded) * 100;
-    
+
     return { average, passRate, totalGraded, totalPapers, studentsCount: students.length };
   }, [examCorrections, students.length, exam?.maxScore]);
+
+  const pipeline = useMemo(() => {
+    const total = students.length;
+    const uploaded = examCorrections.filter(c => c.paperUrl).length;
+    const aiProcessed = examCorrections.filter(c => c.aiProcessed).length;
+    const graded = examCorrections.filter(c => c.grade !== null && c.grade !== undefined).length;
+    const delivered = examCorrections.filter(c => c.delivered).length;
+    return { total, uploaded, aiProcessed, graded, delivered };
+  }, [examCorrections, students.length]);
 
   const correctionsList = useMemo(() => {
     return examCorrections
@@ -137,6 +145,7 @@ const ExamDetail: React.FC = () => {
     fetchExams(classId);
     fetchStudents(classId);
     fetchCorrections(examId);
+    if (classId) fetchClassSubjects(classId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId, examId, isNewExam]);
   
@@ -149,6 +158,7 @@ const ExamDetail: React.FC = () => {
   const handleDelete = async () => {
     try {
       await deleteExam(examId);
+      fetchDashboard();
       history.replace(`/tabs/classes/${classId}`);
     } catch (err) {
       console.error('Failed to delete exam:', err);
@@ -156,42 +166,104 @@ const ExamDetail: React.FC = () => {
     setShowDeleteAlert(false);
   };
 
-  const handleDownload = async (type: 'exam' | 'solutions') => {
+  const handleDownload = async (type: 'exam' | 'solutions' | 'digitalized') => {
     if (!exam) return;
     setDownloading(true);
     try {
+      const urlMap = {
+        exam: examsApi.downloadExamUrl(examId!),
+        solutions: examsApi.downloadSolutionsUrl(examId!),
+        digitalized: examsApi.downloadDigitalizedUrl(examId!),
+      };
+      const url = urlMap[type];
       const token = localStorage.getItem('access_token');
-      const url = type === 'exam' 
-        ? examsApi.downloadExamUrl(examId)
-        : examsApi.downloadSolutionsUrl(examId);
-      
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = downloadUrl;
-      
+      a.href = blobUrl;
       let filename = exam.name;
-      if (type === 'solutions') {
-        filename += '_soluciones';
-      } else if (exam.isPersonalized) {
-        filename += '_personalizado';
-      }
+      if (type === 'solutions') filename += '_soluciones';
+      else if (type === 'digitalized') filename += '_digitalizado';
+      else if (exam.isPersonalized) filename += '_personalizado';
       a.download = `${filename}.pdf`;
-      
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error('Failed to download:', err);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handlePreview = async (type: 'exam' | 'solutions' | 'digitalized') => {
+    if (!exam) return;
+    try {
+      const pathMap = {
+        exam: `/exams/${examId}/download`,
+        solutions: `/exams/${examId}/solutions`,
+        digitalized: `/exams/${examId}/digitalized`,
+      };
+      const path = pathMap[type];
+      const res = await api.get(path, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const blobUrl = window.URL.createObjectURL(blob);
+      setPreviewUrl(blobUrl + '#.pdf');
+    } catch (err) {
+      console.error('Failed to preview:', err);
+    }
+  };
+
+  const getFullPaperUrl = (paperUrl?: string) => {
+    if (!paperUrl) return null;
+    if (paperUrl.startsWith('http')) return paperUrl;
+    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    baseUrl = baseUrl.replace(/\/+$/, '');
+    if (paperUrl.startsWith('/files/')) return `${baseUrl}${paperUrl}`;
+    if (paperUrl.startsWith('/uploads/')) return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
+    if (paperUrl.startsWith('uploads/')) return `${baseUrl}/files/${paperUrl.replace('uploads/', '')}`;
+    if (!paperUrl.startsWith('/')) return `${baseUrl}/${paperUrl}`;
+    return `${baseUrl}${paperUrl}`;
+  };
+
+  const handleDownloadStudentPaper = (paperUrl: string, studentName?: string) => {
+    if (!paperUrl || !exam) return;
+    const fullUrl = getFullPaperUrl(paperUrl);
+    if (!fullUrl) return;
+    const token = localStorage.getItem('access_token');
+    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (!res.ok) throw new Error('Download failed');
+        return res.blob();
+      })
+      .then((blob) => {
+        const ext = paperUrl.toLowerCase().includes('.pdf') ? 'pdf' : 'jpg';
+        const fileName = studentName ? `${exam.name}_${studentName}.${ext}` : `${exam.name}_examen.${ext}`;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch((err) => console.error('Download error:', err));
+  };
+
+  const handleGradeChange = async (correctionId: string, newGrade: number) => {
+    setSavingGrade((prev) => ({ ...prev, [correctionId]: true }));
+    try {
+      await correctionsApi.update(correctionId, { grade: newGrade });
+      fetchCorrections(examId);
+    } catch (err) {
+      console.error('Failed to update grade:', err);
+    } finally {
+      setSavingGrade((prev) => ({ ...prev, [correctionId]: false }));
     }
   };
 
@@ -207,12 +279,13 @@ const ExamDetail: React.FC = () => {
 
   const status = statusConfig[exam.status] || statusConfig.uploaded;
   const deadline = exam.deadlineStatus ? deadlineConfig[exam.deadlineStatus] : null;
+  const subjectColor = exam.subjectId ? classSubjects[classId]?.find(s => s.subjectId === exam.subjectId)?.subjectColor : undefined;
 
   return (
     <IonPage>
-      <IonContent className="ed-content" scrollY>
+      <IonContent className="ed-content" scrollY style={subjectThemeStyle(subjectColor)}>
         {/* Hero Header */}
-        <div className="ed-hero">
+        <div className="ed-hero" style={subjectColor ? { background: subjectColor } : undefined}>
           <div className="ed-hero__nav">
             <IonButtons>
               <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" color="light" />
@@ -227,7 +300,11 @@ const ExamDetail: React.FC = () => {
               <IonButton 
                 fill="clear" 
                 size="small"
-                onClick={() => history.push(`/tabs/exams/${examId}`)}
+                onClick={() => history.push(
+                  exam.subjectId
+                    ? `/tabs/classes/${classId}/subjects/${exam.subjectId}/exams/${examId}/edit`
+                    : `/tabs/classes/${classId}/exams/${examId}/edit`
+                )}
                 className="ed-hero__action-btn"
               >
                 <IonIcon icon={createOutline} slot="icon-only" />
@@ -250,7 +327,7 @@ const ExamDetail: React.FC = () => {
             <span className="ed-ribbon__value">
               {new Date(exam.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
             </span>
-            <span className="ed-ribbon__label">Fecha</span>
+            <span className="ed-ribbon__label">Fecha examen</span>
           </div>
           <div className="ed-ribbon__divider" />
           <div className="ed-ribbon__item">
@@ -301,38 +378,39 @@ const ExamDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Dashboard */}
-        {exam.status !== 'uploaded' && (
+        {/* Pipeline Status Counters */}
+        {pipeline.total > 0 && (
+          <div className="ed-pipeline">
+            {[
+              { label: 'Realizado', count: pipeline.total, done: pipeline.total > 0 },
+              { label: 'Subido', count: pipeline.uploaded, done: pipeline.uploaded >= pipeline.total },
+              { label: 'Corregido IA', count: pipeline.aiProcessed, done: pipeline.aiProcessed >= pipeline.uploaded && pipeline.uploaded > 0 },
+              { label: 'Evaluado', count: pipeline.graded, done: pipeline.graded >= pipeline.uploaded && pipeline.uploaded > 0 },
+              { label: 'Entregado', count: pipeline.delivered, done: pipeline.delivered >= pipeline.graded && pipeline.graded > 0 },
+            ].map((step, i, arr) => (
+              <div key={step.label} className="ed-pipeline__step-wrapper">
+                <div className={`ed-pipeline__step${step.done ? ' ed-pipeline__step--done' : step.count > 0 ? ' ed-pipeline__step--active' : ''}`}>
+                  <div className="ed-pipeline__count">{step.label === 'Realizado' ? step.count : `${step.count}/${pipeline.total}`}</div>
+                  <div className="ed-pipeline__label">{step.label}</div>
+                </div>
+                {i < arr.length - 1 && <div className="ed-pipeline__connector" />}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Stats Summary */}
+        {stats.totalGraded > 0 && (
           <div className="ed-stats">
             <div className="ed-stat-card">
-              <div className="ed-stat-icon">
-                <IonIcon icon={documentTextOutline} />
+              <div className="ed-stat-icon ed-stat-icon--primary">
+                <IonIcon icon={statsChartOutline} />
               </div>
               <div className="ed-stat-content">
-                <span className="ed-stat-value">{stats.totalPapers}</span>
-                <span className="ed-stat-label">Entregas</span>
+                <span className="ed-stat-value">{stats.average !== null ? stats.average.toFixed(1) : '—'}</span>
+                <span className="ed-stat-label">Media</span>
               </div>
             </div>
-            <div className="ed-stat-card">
-              <div className="ed-stat-icon ed-stat-icon--success">
-                <IonIcon icon={checkmarkCircleOutline} />
-              </div>
-              <div className="ed-stat-content">
-                <span className="ed-stat-value">{stats.totalGraded}</span>
-                <span className="ed-stat-label">Corregidos</span>
-              </div>
-            </div>
-            {stats.average !== null && (
-              <div className="ed-stat-card">
-                <div className="ed-stat-icon ed-stat-icon--primary">
-                  <IonIcon icon={statsChartOutline} />
-                </div>
-                <div className="ed-stat-content">
-                  <span className="ed-stat-value">{stats.average.toFixed(1)}</span>
-                  <span className="ed-stat-label">Media</span>
-                </div>
-              </div>
-            )}
             {stats.passRate !== null && (
               <div className="ed-stat-card">
                 <div className="ed-stat-icon ed-stat-icon--warning">
@@ -347,20 +425,6 @@ const ExamDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Progress Bar */}
-        {exam.status !== 'uploaded' && stats.studentsCount > 0 && (
-          <div className="ed-progress-section">
-            <div className="ed-progress-header">
-              <span>Progreso de corrección</span>
-              <span>{stats.totalGraded}/{stats.studentsCount}</span>
-            </div>
-            <IonProgressBar 
-              value={stats.totalGraded / stats.studentsCount} 
-              color={exam.status === 'corrected' ? 'success' : 'primary'}
-            />
-          </div>
-        )}
-
         {/* Performance Charts */}
         {stats.totalGraded > 0 && (
           <div className="ed-performance">
@@ -369,18 +433,15 @@ const ExamDetail: React.FC = () => {
                 distribution={[
                   { label: 'Excelente', count: gradeDistribution.excellent, color: 'var(--chart-excellent, #10B981)' },
                   { label: 'Bien', count: gradeDistribution.good, color: 'var(--chart-good, #3B82F6)' },
-                  { label: 'Justo', count: gradeDistribution.borderline, color: 'var(--chart-borderline, #F59E0B)' },
+                  { label: 'Suficiente', count: gradeDistribution.borderline, color: 'var(--chart-borderline, #F59E0B)' },
                   { label: 'Suspenso', count: gradeDistribution.fail, color: 'var(--chart-fail, #EF4444)' },
                 ]}
                 centerLabel={stats.average !== null ? stats.average.toFixed(1) : '—'}
                 centerSubLabel="Promedio"
                 size={140}
               />
-              {classWeakAreas.length >= 3 && (
-                <WeakAreasRadar areas={classWeakAreas} size={160} />
-              )}
             </div>
-            {classWeakAreas.length > 0 && classWeakAreas.length < 3 && (
+            {classWeakAreas.length > 0 && (
               <div className="ed-performance__weak-tags">
                 {classWeakAreas.map(({ area, count }) => (
                   <span key={area} className="ed-weak-tag">
@@ -392,58 +453,97 @@ const ExamDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Downloads & Actions */}
         <div className="ed-actions">
-          <IonButton 
-            expand="block" 
-            onClick={() => history.push(`/correction/${examId}`)}
-            className="ed-action-btn"
-          >
-            <IonIcon icon={createOutline} slot="start" />
-            {exam.status === 'corrected' ? 'Ver correcciones' : 'Ir a corregir'}
-          </IonButton>
-          
           {/* Download Buttons */}
           {(exam.documentUrl || exam.hasGeneratedQuestions) && (
             <div className="ed-downloads-section">
-              <span className="ed-section-label">Descargas</span>
+              <span className="ed-section-label">
+                {exam.isPersonalized ? 'Documento (1 copia por alumno con QR)' : 'Documento'}
+                {exam.iterationHistory && exam.iterationHistory.length > 0 && (
+                  <IonBadge color="primary" style={{ marginLeft: '8px', verticalAlign: 'middle' }}>
+                    v{exam.iterationHistory.length + 1} — última versión
+                  </IonBadge>
+                )}
+              </span>
               <div className="ed-actions-row">
                 {exam.documentUrl && (
-                  <IonButton 
+                  <>
+                    <IonButton
+                      expand="block"
+                      fill="solid"
+                      onClick={() => handlePreview('exam')}
+                    >
+                      <IonIcon icon={eyeOutline} slot="start" />
+                      {exam.isPersonalized
+                        ? 'Ver todas las copias'
+                        : 'Ver examen'}
+                    </IonButton>
+                    <IonButton
+                      expand="block"
+                      fill="outline"
+                      onClick={() => handleDownload('exam')}
+                      disabled={downloading}
+                    >
+                      <IonIcon icon={downloadOutline} slot="start" />
+                      {exam.isPersonalized
+                        ? 'Descargar todo'
+                        : 'Descargar'}
+                    </IonButton>
+                  </>
+                )}
+              </div>
+              {exam.hasGeneratedQuestions && exam.documentUrl && (
+                <div className="ed-actions-row" style={{ marginTop: '8px' }}>
+                  <IonButton
+                    expand="block"
+                    fill="solid"
+                    onClick={() => handlePreview('digitalized')}
+                  >
+                    <IonIcon icon={eyeOutline} slot="start" />
+                    Ver digitalizado
+                  </IonButton>
+                  <IonButton
                     expand="block"
                     fill="outline"
-                    onClick={() => handleDownload('exam')}
+                    onClick={() => handleDownload('digitalized')}
                     disabled={downloading}
                   >
                     <IonIcon icon={downloadOutline} slot="start" />
-                    {exam.isPersonalized 
-                      ? 'PDF Personalizado (todos)' 
-                      : exam.hasGeneratedQuestions 
-                        ? 'Examen IA' 
-                        : 'Examen PDF'}
+                    Descargar
                   </IonButton>
-                )}
-                {exam.hasGeneratedQuestions && (
-                  <IonButton 
+                </div>
+              )}
+              {exam.hasGeneratedQuestions && (
+                <div className="ed-actions-row" style={{ marginTop: '8px' }}>
+                  <IonButton
+                    expand="block"
+                    fill="solid"
+                    onClick={() => handlePreview('solutions')}
+                  >
+                    <IonIcon icon={eyeOutline} slot="start" />
+                    Ver soluciones
+                  </IonButton>
+                  <IonButton
                     expand="block"
                     fill="outline"
                     onClick={() => handleDownload('solutions')}
                     disabled={downloading}
                   >
-                    <IonIcon icon={documentTextOutline} slot="start" />
-                    Soluciones
+                    <IonIcon icon={downloadOutline} slot="start" />
+                    Descargar
                   </IonButton>
-                )}
-              </div>
+                </div>
+              )}
               {exam.isPersonalized && (
                 <p className="ed-downloads-hint">
-                  El PDF personalizado contiene una copia para cada alumno con su código impreso.
+                  El PDF incluye una copia del examen por cada alumno, con su nombre y código QR impresos para identificación automática al corregir.
                 </p>
               )}
             </div>
           )}
 
-          <IonButton 
+          <IonButton
             expand="block"
             fill="outline"
             color="secondary"
@@ -454,65 +554,89 @@ const ExamDetail: React.FC = () => {
           </IonButton>
         </div>
 
-        {/* Corrections List */}
-        <div className="ed-corrections-section">
-          <h2 className="ed-section-title">Correcciones ({correctionsList.length})</h2>
-          
-          {correctionsList.length === 0 ? (
-            <EmptyState
-              icon="📄"
-              title="Sin entregas"
-              subtitle={exam.status === 'uploaded' ? 'Asigna el examen para empezar a recibir entregas' : 'Aún no se han subido entregas'}
-              actionLabel={exam.status === 'uploaded' ? 'Asignar examen' : undefined}
-              onAction={exam.status === 'uploaded' ? () => history.push(`/correction/${examId}`) : undefined}
-            />
-          ) : (
-            <IonList className="ed-corrections-list">
-              {correctionsList.map((correction) => (
-                <IonItem 
-                  key={correction.id}
-                  button
-                  onClick={() => history.push(`/correction/${examId}?studentId=${correction.studentId}`)}
-                  className="ed-correction-item"
-                >
-                  <div 
-                    className="ed-correction-avatar" 
-                    slot="start"
-                    style={{ background: avatarColor(correction.studentName) }}
+        {/* Corrections section */}
+        <div className={`ed-corrections-section${exam.status !== 'corrected' ? ' ed-corrections-section--inline' : ''}`}>
+          {exam.status === 'corrected' ? (
+            /* Review mode: inline review cards */
+            <>
+              <div className="ed-corrections-header">
+                <h2 className="ed-section-title">Correcciones ({correctionsList.length})</h2>
+                {correctionsList.length > 0 && (
+                  <IonButton
+                    fill="clear"
+                    size="small"
+                    onClick={() => history.push(`/correction/${examId}`)}
+                    className="ed-edit-corrections-btn"
                   >
-                    {correction.studentName.charAt(0)}
-                  </div>
-                  <IonLabel>
-                    <h3 className="ed-correction-name">{correction.studentName}</h3>
-                    {correction.aiAnalysis?.questions && correction.aiAnalysis.questions.length > 0 && (
-                      <div className="ed-correction-bar">
-                        <QuestionStatusBar questions={correction.aiAnalysis.questions} compact />
-                      </div>
-                    )}
-                    {!correction.aiAnalysis?.questions?.length && correction.aiAnalysis?.summary && (
-                      <p className="ed-correction-summary">{correction.aiAnalysis.summary}</p>
-                    )}
-                  </IonLabel>
-                  <div className="ed-correction-grade" slot="end">
-                    {correction.grade !== null && correction.grade !== undefined ? (
-                      <span 
-                        className="ed-grade-value"
-                        style={{ 
-                          color: correction.grade >= (exam.maxScore * 0.5) ? '#059669' : '#DC2626'
-                        }}
-                      >
-                        {correction.grade}/{exam.maxScore}
-                      </span>
-                    ) : (
-                      <span className="ed-grade-pending">Pendiente</span>
-                    )}
-                    <IonIcon icon={chevronForwardOutline} className="ed-correction-arrow" />
-                  </div>
-                </IonItem>
-              ))}
-            </IonList>
+                    <IonIcon icon={createOutline} slot="start" />
+                    Editar
+                  </IonButton>
+                )}
+              </div>
+              {correctionsList.length > 0 ? (
+                <div className="correction-review-list">
+                  {correctionsList.map((correction, i) => (
+                    <CorrectionReviewCard
+                      key={correction.id}
+                      index={i}
+                      studentName={correction.studentName}
+                      grade={correction.grade}
+                      maxScore={exam.maxScore}
+                      teacherComments={correction.teacherComments}
+                      weakAreas={correction.weakAreas}
+                      aiAnalysis={correction.aiAnalysis}
+                      aiProcessed={correction.aiProcessed}
+                      paperUrl={getFullPaperUrl(correction.paperUrl) || undefined}
+                      onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
+                      onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, correction.studentName) : undefined}
+                      onGradeChange={(newGrade) => handleGradeChange(correction.id, newGrade)}
+                      savingGrade={savingGrade[correction.id]}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            /* Edit mode: inline correction workflow */
+            <>
+              <div className="ed-corrections-header">
+                <h2 className="ed-section-title">Correcciones</h2>
+              </div>
+              <CorrectionPanel
+                examId={examId}
+                onFinished={() => {
+                  fetchExams(classId);
+                  fetchCorrections(examId);
+                }}
+              />
+            </>
           )}
         </div>
+
+        {/* Paper preview modal */}
+        <IonModal isOpen={!!previewUrl} onDidDismiss={() => { if (previewUrl?.startsWith('blob:')) window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} className="paper-preview-modal">
+          <IonHeader>
+            <IonToolbar>
+              <IonTitle>Vista previa</IonTitle>
+              <IonButtons slot="end">
+                <IonButton onClick={() => setPreviewUrl(null)}>
+                  <IonIcon icon={closeOutline} />
+                </IonButton>
+              </IonButtons>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="paper-preview-content">
+            {previewUrl && (
+              <div className="paper-preview-container">
+                {previewUrl.toLowerCase().endsWith('.pdf') ? (
+                  <iframe src={previewUrl} title="Examen" className="paper-preview-pdf" />
+                ) : (
+                  <img src={previewUrl} alt="Examen" className="paper-preview-img" />
+                )}
+              </div>
+            )}
+          </IonContent>
+        </IonModal>
 
         {/* Delete Alert */}
         <IonAlert

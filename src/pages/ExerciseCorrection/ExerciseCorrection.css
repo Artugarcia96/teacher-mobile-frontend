@@ -17,6 +17,7 @@
   padding: var(--space-md);
   background: rgba(15, 23, 42, 0.02);
   border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
 }
 
 .exercise-correction-toolbar ion-button {
@@ -66,10 +67,138 @@
   border-radius: var(--radius-sm);
 }
 
+/* Review list - same style as exam correction review */
+.exercise-correction-content .correction-review-list {
+  margin: var(--space-md);
+  background: var(--ion-card-background, #ffffff);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Paper preview - PDF support */
+.paper-preview-pdf {
+  width: 100%;
+  height: calc(100vh - 80px);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: white;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ASSIGNMENT GROUPING
+   ═══════════════════════════════════════════════════════ */
+.assignment-status-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) var(--space-md) 0;
+  border-radius: var(--radius-md);
+  background: rgba(var(--ion-color-warning-rgb), 0.06);
+  border: 1px solid rgba(var(--ion-color-warning-rgb), 0.2);
+}
+
+.assignment-status-summary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assignment-status-counts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.assignment-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.assignment-count--assigned {
+  color: var(--ion-color-success);
+}
+
+.assignment-count--unassigned {
+  color: var(--ion-color-warning-shade);
+}
+
+.assignment-count ion-icon {
+  font-size: 14px;
+}
+
+.assignment-progress {
+  height: 4px;
+  border-radius: var(--radius-full);
+}
+
+.assignment-status-banner ion-button {
+  --border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.assignment-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-color-success);
+}
+
+.assignment-section-header ion-icon {
+  font-size: 16px;
+}
+
+.assignment-section-header--unassigned {
+  color: var(--ion-color-warning-shade);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 2px dashed rgba(var(--ion-color-warning-rgb), 0.3);
+}
+
+.exercise-correction-scans--unassigned .scan-card {
+  border-left: 3px solid var(--ion-color-warning) !important;
+  background: rgba(var(--ion-color-warning-rgb), 0.03);
+}
+
 /* Dark theme */
 @media (prefers-color-scheme: dark) {
   .exercise-correction-toolbar {
     background: rgba(255, 255, 255, 0.02);
     border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exercise-correction-content .correction-review-list {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .assignment-status-banner {
+    background: rgba(var(--ion-color-warning-rgb), 0.1);
+    border-color: rgba(var(--ion-color-warning-rgb), 0.25);
+  }
+
+  .exercise-correction-scans--unassigned .scan-card {
+    background: rgba(var(--ion-color-warning-rgb), 0.06);
+  }
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .exercise-correction-content {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }

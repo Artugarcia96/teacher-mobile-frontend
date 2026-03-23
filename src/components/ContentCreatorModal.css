@@ -1,0 +1,457 @@
+/* ─── Mode segment (tabs at top) ─── */
+.ccm__mode-segment {
+  --background: rgba(15, 23, 42, 0.05);
+  border-radius: var(--radius-lg, 12px);
+  margin-bottom: var(--space-md);
+  min-height: 40px;
+}
+
+.ccm__mode-segment ion-segment-button {
+  --indicator-height: 0;
+  --indicator-color: transparent;
+  --color: var(--color-text-secondary, #64748b);
+  --color-checked: var(--ion-color-primary);
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+  min-height: 40px;
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  border-radius: var(--radius-md, 10px);
+  margin: 3px;
+  transition: all 0.15s ease;
+}
+
+.ccm__mode-segment ion-segment-button.segment-button-checked {
+  --background: #fff;
+  --color: var(--ion-color-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Force the Ionic sheet modal wrapper to scroll */
+.content-creator-modal .modal-wrapper {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ccm {
+  padding: var(--space-lg) var(--space-xl) var(--space-3xl);
+}
+
+.ccm__header {
+  margin-bottom: var(--space-xl);
+}
+
+.ccm__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+  color: var(--ion-text-color);
+}
+
+.ccm__subtitle {
+  font-size: var(--font-size-sm);
+  color: #94A3B8;
+  margin: var(--space-xs) 0 0;
+}
+
+/* ─── Context chips ─── */
+.ccm__context {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+}
+
+.ccm__context ion-chip {
+  margin: 0;
+  height: 28px;
+  font-size: var(--font-size-xs);
+}
+
+/* ─── Enfoque toggle ─── */
+.ccm__enfoque {
+  margin-bottom: var(--space-lg);
+}
+
+.ccm__enfoque-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+/* ─── Trimester pills ─── */
+.ccm__trimester-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ccm__trimester-pill {
+  padding: 8px 16px;
+  border-radius: var(--radius-full, 999px);
+  border: 1.5px solid rgba(15, 23, 42, 0.12);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-secondary, #64748b);
+  font-family: inherit;
+  font-size: var(--font-size-sm, 13px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ccm__trimester-pill:active {
+  transform: scale(0.96);
+}
+
+.ccm__trimester-pill--active {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(var(--ion-color-primary-rgb), 0.25);
+}
+
+/* ─── Enfoque card pills ─── */
+.ccm__enfoque-pills {
+  display: flex;
+  gap: 10px;
+}
+
+.ccm__enfoque-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: var(--radius-lg, 12px);
+  border: 1.5px solid rgba(15, 23, 42, 0.10);
+  background: var(--color-surface, #fff);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--shadow-xs);
+}
+
+.ccm__enfoque-pill:active {
+  transform: scale(0.97);
+}
+
+.ccm__enfoque-pill--active {
+  border-color: var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  box-shadow: 0 0 0 1px var(--ion-color-primary), var(--shadow-xs);
+}
+
+.ccm__enfoque-pill-label {
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.ccm__enfoque-pill--active .ccm__enfoque-pill-label {
+  color: var(--ion-color-primary);
+}
+
+.ccm__enfoque-pill-desc {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #94a3b8);
+  font-weight: 400;
+}
+
+/* ─── Form fields ─── */
+.ccm__field {
+  margin-bottom: var(--space-md);
+}
+
+.ccm__input {
+  --background: var(--color-surface);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-md);
+  --min-height: 48px;
+  margin: 0;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+/* ─── Config section ─── */
+.ccm__config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.ccm__config-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.ccm__config-row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.ccm__config-item {
+  flex: 1;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  padding: var(--space-md) var(--space-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.ccm__config-item-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+
+.ccm__config-item-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.ccm__config-item ion-range {
+  --padding-start: 0;
+  --padding-end: 0;
+  --bar-height: 4px;
+  --bar-border-radius: 2px;
+  --knob-size: 20px;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── PDF upload ─── */
+.ccm__upload {
+  margin-bottom: var(--space-lg);
+}
+
+.ccm__upload-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface);
+  border: 1.5px dashed rgba(15, 23, 42, 0.15);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ccm__upload-btn:hover {
+  border-color: var(--ion-color-primary);
+  color: var(--ion-color-primary);
+}
+
+.ccm__upload-btn--has-file {
+  border-style: solid;
+  border-color: var(--ion-color-success);
+  background: rgba(var(--ion-color-success-rgb), 0.04);
+  color: var(--ion-color-success-shade);
+}
+
+.ccm__upload-btn ion-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.ccm__upload-name {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ccm__upload-remove {
+  background: none;
+  border: none;
+  padding: 4px;
+  color: var(--ion-color-medium);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.ccm__upload-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ccm__upload-file-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: var(--font-size-xs);
+}
+
+.ccm__upload-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ion-color-light);
+}
+
+.ccm__upload-file-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ion-color-medium);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+}
+
+/* ─── Notes ─── */
+.ccm__notes {
+  margin-bottom: var(--space-lg);
+}
+
+.ccm__notes-item {
+  --background: var(--color-surface);
+  --border-radius: var(--radius-md);
+  --padding-start: var(--space-lg);
+  --padding-end: var(--space-md);
+  margin: 0;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+/* ─── Error ─── */
+.ccm__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-md);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
+  color: var(--ion-color-danger-shade);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+/* ─── Generate button ─── */
+.ccm__generate {
+  --border-radius: var(--radius-lg);
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  --box-shadow: var(--shadow-primary);
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: var(--space-sm);
+}
+
+/* ─── Dark theme ─── */
+@media (prefers-color-scheme: dark) {
+  .ccm__mode-segment {
+    --background: rgba(255, 255, 255, 0.06);
+  }
+
+  .ccm__mode-segment ion-segment-button.segment-button-checked {
+    --background: rgba(255, 255, 255, 0.12);
+  }
+
+  .ccm__config-item {
+    background: var(--color-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .ccm__input {
+    --background: var(--color-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .ccm__notes-item {
+    --background: var(--color-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .ccm__upload-btn {
+    background: var(--color-surface);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .ccm__upload-btn--has-file {
+    border-color: var(--ion-color-success);
+    background: rgba(var(--ion-color-success-rgb), 0.08);
+  }
+
+  .ccm__trimester-pill {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: var(--color-surface, #1e1e2e);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .ccm__trimester-pill--active {
+    background: var(--ion-color-primary);
+    border-color: var(--ion-color-primary);
+    color: #fff;
+  }
+
+  .ccm__enfoque-pill {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: var(--color-surface, #1e1e2e);
+  }
+
+  .ccm__enfoque-pill--active {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.12);
+  }
+
+  .ccm__enfoque-pill-label {
+    color: #f1f5f9;
+  }
+}
+
+/* ─── Desktop ─── */
+@media (min-width: 992px) {
+  .ccm {
+    max-width: 540px;
+    margin: 0 auto;
+  }
+}

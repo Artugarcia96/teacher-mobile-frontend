@@ -1,5 +1,5 @@
 import { IonSelect, IonSelectOption, IonBadge, IonIcon, IonSpinner } from '@ionic/react';
-import { checkmarkCircle, warningOutline, expandOutline, documentOutline, downloadOutline } from 'ionicons/icons';
+import { checkmarkCircle, warningOutline, expandOutline, documentOutline, downloadOutline, trashOutline } from 'ionicons/icons';
 import './QRReviewTable.css';
 
 export interface QRReviewItem {
@@ -34,6 +34,7 @@ interface Props {
   onAssign: (correctionId: string, studentId: string) => void;
   onPreview?: (url: string) => void;
   onDownload?: (url: string) => void;
+  onDelete?: (correctionId: string) => void;
 }
 
 const reasonTexts: Record<string, string> = {
@@ -57,7 +58,7 @@ function getReasonText(reason: string): string {
 const QRReviewTable: React.FC<Props> = ({
   items, itemLabel, assignments, students, assignedStudentIds,
   thumbnails, paperUrls, thumbsLoading,
-  onAssign, onPreview, onDownload,
+  onAssign, onPreview, onDownload, onDelete,
 }) => {
   if (items.length === 0) return null;
 
@@ -140,17 +141,29 @@ const QRReviewTable: React.FC<Props> = ({
                 </IonSelect>
               </div>
 
-              {/* Download button */}
-              {paperUrl && onDownload && (
-                <button
-                  className="qrt__download"
-                  onClick={() => onDownload(paperUrl)}
-                  title="Descargar"
-                  type="button"
-                >
-                  <IonIcon icon={downloadOutline} />
-                </button>
-              )}
+              {/* Action buttons */}
+              <div className="qrt__actions">
+                {paperUrl && onDownload && (
+                  <button
+                    className="qrt__action-btn"
+                    onClick={() => onDownload(paperUrl)}
+                    title="Descargar"
+                    type="button"
+                  >
+                    <IonIcon icon={downloadOutline} />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    className="qrt__action-btn qrt__action-btn--danger"
+                    onClick={() => onDelete(item.correctionId)}
+                    title="Eliminar examen"
+                    type="button"
+                  >
+                    <IonIcon icon={trashOutline} />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}

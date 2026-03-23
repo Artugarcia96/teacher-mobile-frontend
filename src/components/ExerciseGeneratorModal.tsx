@@ -3,8 +3,9 @@ import {
   IonModal, IonButton, IonSelect, IonSelectOption, IonItem, IonLabel,
   IonBadge, IonTextarea, IonSpinner, IonIcon, IonCheckbox, IonToggle,
   IonSegment, IonSegmentButton, IonInput, IonSearchbar, IonChip,
+  IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
 } from '@ionic/react';
-import { sparkles, chevronDownOutline, chevronUpOutline, downloadOutline, documentTextOutline, globeOutline, schoolOutline, peopleOutline, timeOutline, flashOutline, layersOutline, checkmarkCircleOutline, closeCircleOutline, eyeOutline } from 'ionicons/icons';
+import { sparkles, chevronDownOutline, chevronUpOutline, downloadOutline, documentTextOutline, globeOutline, schoolOutline, timeOutline, layersOutline, checkmarkCircleOutline, closeCircleOutline, closeOutline, eyeOutline, informationCircleOutline, medkitOutline, barbellOutline } from 'ionicons/icons';
 import { useExamsStore } from '../store/examsStore';
 import { useClassesStore } from '../store/classesStore';
 import { useStudentsStore } from '../store/studentsStore';
@@ -12,7 +13,10 @@ import { useCorrectionStore } from '../store/correctionStore';
 import { useExercisesStore } from '../store/exercisesStore';
 import { exercises as exercisesApi, batch, GroupedExercisePreview, subjects as subjectsApi } from '../services/api';
 import { SubjectWithTopics } from '../types';
-import BatchProgressModal from './BatchProgressModal';
+
+import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
+import { useIsDesktop } from '../hooks/useIsDesktop';
+import { subjectThemeStyle } from '../utils/subjectTheme';
 import './ExerciseGeneratorModal.css';
 
 interface Props {
@@ -24,22 +28,26 @@ interface Props {
   classId?: string;
   preselectedExamId?: string;
   preselectedSubjectId?: string;
+  subjectColor?: string;
 }
 
 const ExerciseGeneratorModal: React.FC<Props> = ({
   isOpen, onDismiss, studentId, studentName, weakAreas,
-  classId: preClassId, preselectedExamId, preselectedSubjectId,
+  classId: preClassId, preselectedExamId, preselectedSubjectId, subjectColor,
 }) => {
   const multiMode = !studentId;
+  const isDesktop = useIsDesktop();
 
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
   const allClasses = useClassesStore((s) => s.classes);
+  const classSubjects = useClassesStore((s) => s.classSubjects);
   const allStudents = useStudentsStore((s) => s.students);
   const fetchAllStudents = useStudentsStore((s) => s.fetchAllStudents);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
   const corrections = useCorrectionStore((s) => s.corrections);
   const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
+  const allExercises = useExercisesStore((s) => s.exercises);
   const generateExercises = useExercisesStore((s) => s.generateExercises);
   const fetchExercises = useExercisesStore((s) => s.fetchExercises);
   const [topicsBySubject, setTopicsBySubject] = useState<SubjectWithTopics[]>([]);
@@ -54,6 +62,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const [showOptions, setShowOptions] = useState(false);
   const [difficulty, setDifficulty] = useState<'easier' | 'same' | 'harder'>('same');
   const [numQuestions, setNumQuestions] = useState(5);
+  const [maxScore, setMaxScore] = useState(10);
   const [numBlankPages, setNumBlankPages] = useState(1);
   const [refinement, setRefinement] = useState('');
   const [exerciseName, setExerciseName] = useState('');
@@ -72,12 +81,11 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const [correctionDate, setCorrectionDate] = useState('');
   
   // Batch processing state
+  const [exerciseType, setExerciseType] = useState<'practice' | 'recovery'>('practice');
   const [groupByWeakness, setGroupByWeakness] = useState(true);
-  const [uniquePerStudent, setUniquePerStudent] = useState(false);
+  const uniquePerStudent = exerciseType === 'recovery';
   const [groupPreview, setGroupPreview] = useState<GroupedExercisePreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [batchJobId, setBatchJobId] = useState<string | null>(null);
-  const [showBatchProgress, setShowBatchProgress] = useState(false);
 
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
   
@@ -88,6 +96,15 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     const student = allStudents.find((s) => s.id === studentId);
     return student?.classId || '';
   }, [isTransversal, multiMode, classId, studentId, allStudents]);
+
+  // Resolve subject color: use dynamically selected subject color, fall back to prop
+  const activeSubjectColor = useMemo(() => {
+    if (selectedSubjectId && effectiveClassId) {
+      const found = classSubjects[effectiveClassId]?.find(s => s.subjectId === selectedSubjectId);
+      if (found?.subjectColor) return found.subjectColor;
+    }
+    return subjectColor;
+  }, [selectedSubjectId, effectiveClassId, classSubjects, subjectColor]);
 
   const classStudents = useMemo(() => {
     if (isTransversal) {
@@ -115,11 +132,24 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     return allExams.filter((e) => e.status === 'corrected' && e.classId === effectiveClassId);
   }, [allExams, corrections, studentId, effectiveClassId, isTransversal]);
 
-  const filteredTopics = useMemo(() => {
+  const [exerciseTrimesterFilter, setExerciseTrimesterFilter] = useState<string>('all');
+
+  const allSubjectTopicsForExercise = useMemo(() => {
     if (!selectedSubjectId) return [];
     const subj = topicsBySubject.find((s) => s.subjectId === selectedSubjectId);
     return subj?.topics || [];
   }, [topicsBySubject, selectedSubjectId]);
+
+  const exerciseTopicTrimesters = useMemo(() => {
+    const trims = new Set(allSubjectTopicsForExercise.map((t) => (t as any).trimester || 0));
+    return trims;
+  }, [allSubjectTopicsForExercise]);
+
+  const filteredTopics = useMemo(() => {
+    if (exerciseTrimesterFilter === 'all') return allSubjectTopicsForExercise;
+    const tri = parseInt(exerciseTrimesterFilter);
+    return allSubjectTopicsForExercise.filter((t) => ((t as any).trimester || 0) === tri);
+  }, [allSubjectTopicsForExercise, exerciseTrimesterFilter]);
 
   const allTopics = useMemo(
     () => topicsBySubject.flatMap((s) => s.topics),
@@ -130,10 +160,39 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     if (selectedExamIds.length === 0) return new Set<string>();
     const ids = new Set<string>();
     corrections
-      .filter((c) => selectedExamIds.includes(c.examId) && c.weakAreas && c.weakAreas.length > 0)
-      .forEach((c) => { if (c.studentId) ids.add(c.studentId); });
+      .filter((c) => selectedExamIds.includes(c.examId))
+      .forEach((c) => {
+        if (!c.studentId) return;
+        const hasWeakAreas = (c.weakAreas && c.weakAreas.length > 0) ||
+          (c.aiAnalysis?.weakAreas && c.aiAnalysis.weakAreas.length > 0);
+        const hasLowGrade = c.grade !== null && c.grade !== undefined && c.grade < 5;
+        if (hasWeakAreas || hasLowGrade) ids.add(c.studentId);
+      });
     return ids;
   }, [selectedExamIds, corrections]);
+
+  // Per-student weak areas from corrections (for recovery preview)
+  // Uses: teacher-set weakAreas > AI-suggested weakAreas
+  const studentWeakAreas = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (exerciseType !== 'recovery') return map;
+    const relevantCorrections = selectedExamIds.length > 0
+      ? corrections.filter((c) => selectedExamIds.includes(c.examId))
+      : corrections;
+    relevantCorrections.forEach((c) => {
+      if (!c.studentId) return;
+      const areas = (c.weakAreas && c.weakAreas.length > 0)
+        ? c.weakAreas
+        : (c.aiAnalysis?.weakAreas || []);
+      if (areas.length === 0) return;
+      const existing = map.get(c.studentId) || [];
+      areas.forEach((area) => {
+        if (!existing.includes(area)) existing.push(area);
+      });
+      map.set(c.studentId, existing);
+    });
+    return map;
+  }, [corrections, exerciseType, selectedExamIds]);
 
   // Group exams by class for transversal mode
   const examsByClass = useMemo(() => {
@@ -226,6 +285,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               subjectId: s.subject_id,
               subjectName: s.subject_name,
               name: t.name,
+              trimester: t.trimester ?? null,
               order: t.order,
               materialCount: t.material_count || 0,
             })),
@@ -247,9 +307,13 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     if (multiMode && selectedExamIds.length > 0 && studentsWithIssues.size > 0) {
       setSelectedStudentIds(Array.from(studentsWithIssues));
     } else if (multiMode && selectedExamIds.length > 0) {
-      setSelectedStudentIds(classStudents.map((s) => s.id));
+      if (exerciseType === 'recovery' && studentsWithIssues.size > 0) {
+        setSelectedStudentIds(Array.from(studentsWithIssues));
+      } else {
+        setSelectedStudentIds(classStudents.map((s) => s.id));
+      }
     }
-  }, [selectedExamIds, studentsWithIssues, classStudents, multiMode]);
+  }, [selectedExamIds, studentsWithIssues, classStudents, multiMode, exerciseType]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -276,6 +340,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
       setShowStudentPicker(false);
       setDeliveryDate('');
       setCorrectionDate('');
+      setExerciseType('practice');
     }
   }, [isOpen]);
 
@@ -326,116 +391,118 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     return () => clearTimeout(debounce);
   }, [multiMode, selectedStudentIds, selectedExamIds, effectiveClassId, groupByWeakness, sourceType]);
 
+  const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
+
   const handleGenerate = async () => {
-    const studentIds = multiMode ? selectedStudentIds : [studentId!];
-    if (studentIds.length === 0) return;
+    const sIds = multiMode ? [...selectedStudentIds] : [studentId!];
+    if (sIds.length === 0) return;
     if (sourceType === 'exam' && selectedExamIds.length === 0) return;
     if (sourceType === 'topic' && selectedTopicIds.length === 0) return;
 
-    setGenerating(true);
     setError('');
-    
+
     // Use batch processing for multiple students
-    if (multiMode && studentIds.length > 1 && effectiveClassId) {
+    if (multiMode && sIds.length > 1 && effectiveClassId) {
+      setGenerating(true);
       try {
         const response = await batch.startBatchExerciseGeneration({
           class_id: effectiveClassId,
-          student_ids: studentIds,
+          student_ids: sIds,
           name: exerciseName,
           source_exam_ids: sourceType === 'exam' ? selectedExamIds : undefined,
           source_topic_ids: sourceType === 'topic' ? selectedTopicIds : undefined,
+          subject_id: selectedSubjectId || undefined,
           num_questions: numQuestions,
+          max_score: maxScore,
           num_blank_pages: numBlankPages,
           difficulty,
           delivery_date: deliveryDate || undefined,
           correction_date: correctionDate || undefined,
           group_by_weakness: groupByWeakness,
           unique_per_student: uniquePerStudent,
+          exercise_type: exerciseType,
         });
-        setBatchJobId(response.data.id);
-        setShowBatchProgress(true);
+        const jobId = response.data.id;
         setGenerating(false);
+        const taskLabel = exerciseName || 'Ejercicios';
+        const capturedClassId = preClassId || effectiveClassId;
+        addBackgroundTask({
+          type: 'exercises',
+          label: taskLabel,
+          description: exerciseType === 'recovery'
+            ? 'La IA crea ejercicios de recuperación personalizados según las áreas débiles y genera el PDF.'
+            : 'La IA crea ejercicios adaptados al nivel de los alumnos y genera el PDF con soluciones.',
+          batchJobId: jobId,
+          expectedResultUrl: capturedClassId ? `/tabs/classes/${capturedClassId}/exercises` : '/tabs/classes',
+          execute: async () => {
+            // Polling is handled by the store's batchJobId mechanism.
+            // This execute just refreshes exercises when the store signals completion.
+            const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+            let attempts = 0;
+            while (attempts < 600) {
+              await sleep(5000);
+              attempts++;
+              const task = useBackgroundTasksStore.getState().tasks.find(t => t.batchJobId === jobId);
+              if (!task || task.status !== 'running') break;
+            }
+            await fetchExercises();
+            return capturedClassId ? `/tabs/classes/${capturedClassId}/exercises` : '/tabs/classes';
+          },
+        });
+        onDismiss();
       } catch (err: any) {
-        console.error('Batch generation failed, falling back to direct:', err);
-        // Fallback to direct generation
-        await handleDirectGenerate(studentIds);
+        console.error('Batch generation failed, falling back to background:', err);
+        setGenerating(false);
+        handleDirectGenerateBackground(sIds);
       }
     } else {
-      await handleDirectGenerate(studentIds);
+      handleDirectGenerateBackground(sIds);
     }
-  };
-  
-  const handleDirectGenerate = async (studentIds: string[]) => {
-    try {
-      // Simulate generation steps for better UX
-      setGeneratingStep(1);
-      await new Promise(r => setTimeout(r, 800));
-      setGeneratingStep(2);
-      
-      const result = await generateExercises({
-        studentIds,
-        name: exerciseName,
-        sourceExamIds: sourceType === 'exam' ? selectedExamIds : undefined,
-        sourceTopicIds: sourceType === 'topic' ? selectedTopicIds : undefined,
-        refinementPrompt: refinement || undefined,
-        difficulty,
-        numQuestions,
-        numBlankPages,
-        deliveryDate: deliveryDate || undefined,
-        correctionDate: correctionDate || undefined,
-      });
-      
-      setGeneratingStep(3);
-      await new Promise(r => setTimeout(r, 500));
-      
-      setSuccess(true);
-      if (result && Array.isArray(result)) {
-        setGeneratedIds(result.map((e: any) => e.id));
-        setGeneratedExercises(result);
-      }
-      if (studentId) await fetchExercises(studentId);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al generar ejercicios');
-    } finally {
-      setGenerating(false);
-      setGeneratingStep(0);
-    }
-  };
-  
-  const handleBatchComplete = async (job: { id: string; status: string }) => {
-    // Fetch full job details to get the exercise IDs from results
-    try {
-      const jobRes = await batch.getJob(job.id);
-      const results = jobRes.data.results as { items?: Array<{ result?: { exercise_ids?: string[] } }> } | undefined;
-      
-      if (results?.items) {
-        // Extract all exercise IDs from the batch results
-        const allExerciseIds: string[] = [];
-        for (const item of results.items) {
-          if (item.result?.exercise_ids) {
-            allExerciseIds.push(...item.result.exercise_ids);
-          }
-        }
-        
-        if (allExerciseIds.length > 0) {
-          setGeneratedIds(allExerciseIds);
-          // Fetch exercise details for the generated exercises
-          const exerciseDetails = await Promise.all(
-            allExerciseIds.slice(0, 10).map(id => exercisesApi.get(id).then(r => r.data).catch(() => null))
-          );
-          setGeneratedExercises(exerciseDetails.filter(Boolean));
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching batch job results:', err);
-    }
-    
-    setShowBatchProgress(false);
-    setBatchJobId(null);
-    setSuccess(true);
-    await fetchExercises();
   };
 
+  const handleDirectGenerateBackground = (sIds: string[]) => {
+    const taskLabel = exerciseName || 'Ejercicios';
+    const genParams = {
+      studentIds: sIds,
+      name: exerciseName,
+      sourceExamIds: sourceType === 'exam' ? [...selectedExamIds] : undefined,
+      sourceTopicIds: sourceType === 'topic' ? [...selectedTopicIds] : undefined,
+      subjectId: selectedSubjectId || undefined,
+      refinementPrompt: refinement || undefined,
+      difficulty: difficulty as 'easier' | 'same' | 'harder',
+      numQuestions,
+      maxScore,
+      numBlankPages,
+      deliveryDate: deliveryDate || undefined,
+      correctionDate: correctionDate || undefined,
+      exerciseType,
+    };
+    const capturedStudentId = studentId;
+    const capturedClassId = preClassId || effectiveClassId;
+
+    addBackgroundTask({
+      type: 'exercises',
+      label: taskLabel,
+      description: exerciseType === 'recovery'
+            ? 'La IA crea ejercicios de recuperación personalizados según las áreas débiles y genera el PDF.'
+            : 'La IA crea ejercicios adaptados al nivel de los alumnos y genera el PDF con soluciones.',
+      execute: async () => {
+        const result = await generateExercises(genParams);
+        if (capturedStudentId) await fetchExercises(capturedStudentId);
+        else await fetchExercises();
+        if (result && Array.isArray(result) && result.length > 0) {
+          const firstEx = result[0] as any;
+          const cId = firstEx.class_id || capturedClassId || '';
+          return cId ? `/tabs/classes/${cId}/exercises/${firstEx.id}` : '/tabs/classes';
+        }
+        return '/tabs/classes';
+      },
+    });
+
+    // Close modal immediately — generation continues in background
+    onDismiss();
+  };
+  
   const canGenerate = (() => {
     const hasStudents = multiMode ? selectedStudentIds.length > 0 : !!studentId;
     const hasSource = sourceType === 'exam' ? selectedExamIds.length > 0 : selectedTopicIds.length > 0;
@@ -449,37 +516,58 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     return cls?.name || 'Sin clase';
   };
 
+  const toolbarStyle = activeSubjectColor ? { '--background': activeSubjectColor, '--color': 'white' } as React.CSSProperties : undefined;
+
   return (
     <IonModal
       isOpen={isOpen}
       onDidDismiss={onDismiss}
-      initialBreakpoint={multiMode ? 0.85 : 0.65}
-      breakpoints={[0, 0.65, 0.85, 0.95]}
       className="exercise-generator-modal"
+      style={subjectThemeStyle(activeSubjectColor)}
     >
-      <div className="exgen">
-        <div className="exgen__header">
-          <h2 className="exgen__title">Generar ejercicios</h2>
-          <p className="exgen__subtitle">
-            {multiMode
-              ? (isTransversal 
-                  ? 'Ejercicios transversales' 
-                  : (classId ? classes.find((c) => c.id === classId)?.name || '' : 'Selecciona una clase'))
-              : `Para ${studentName}`}
-          </p>
+      <IonHeader>
+        <IonToolbar style={toolbarStyle}>
+          <IonTitle>{exerciseType === 'recovery' ? 'Ejercicios de recuperación' : 'Generar ejercicios'}</IonTitle>
+          <IonButtons slot="end">
+            <IonButton onClick={onDismiss} color={activeSubjectColor ? 'light' : undefined}>
+              <IonIcon icon={closeOutline} />
+            </IonButton>
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent style={subjectThemeStyle(activeSubjectColor)}>
+      <div className="exgen" style={subjectThemeStyle(activeSubjectColor)}>
+
+        <div className="exgen__body">
+        {/* Exercise type toggle */}
+        <div className="exgen__type-toggle">
+          <button
+            className={`exgen__type-btn ${exerciseType === 'practice' ? 'exgen__type-btn--active' : ''}`}
+            onClick={() => setExerciseType('practice')}
+          >
+            <IonIcon icon={barbellOutline} />
+            <span>Práctica</span>
+          </button>
+          <button
+            className={`exgen__type-btn exgen__type-btn--recovery ${exerciseType === 'recovery' ? 'exgen__type-btn--active' : ''}`}
+            onClick={() => setExerciseType('recovery')}
+          >
+            <IonIcon icon={medkitOutline} />
+            <span>Recuperación</span>
+          </button>
         </div>
 
         {/* Transversal toggle (multi-mode only, when not pre-selected class) */}
         {multiMode && !preClassId && (
           <div className="exgen__mode-toggle">
-            <button 
+            <button
               className={`exgen__mode-btn ${!isTransversal ? 'exgen__mode-btn--active' : ''}`}
               onClick={() => { setIsTransversal(false); setSelectedExamIds([]); setSelectedStudentIds([]); }}
             >
               <IonIcon icon={schoolOutline} />
               <span>Por clase</span>
             </button>
-            <button 
+            <button
               className={`exgen__mode-btn ${isTransversal ? 'exgen__mode-btn--active' : ''}`}
               onClick={() => { setIsTransversal(true); setClassId(''); setSelectedExamIds([]); setSelectedStudentIds([]); fetchAllStudents(); }}
             >
@@ -495,12 +583,12 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             <IonLabel>Clase</IonLabel>
             <IonSelect
               value={classId}
-              onIonChange={(e) => { 
+              onIonChange={(e) => {
                 const newClassId = e.detail.value;
-                setClassId(newClassId); 
-                setSelectedStudentIds([]); 
-                setSelectedExamIds([]); 
-                setSelectedTopicIds([]); 
+                setClassId(newClassId);
+                setSelectedStudentIds([]);
+                setSelectedExamIds([]);
+                setSelectedTopicIds([]);
                 if (newClassId) {
                   fetchStudents(newClassId);
                 }
@@ -514,17 +602,6 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             </IonSelect>
           </IonItem>
         )}
-
-        {/* Exercise name */}
-        <IonItem lines="none" className="exgen__select">
-          <IonInput
-            value={exerciseName}
-            onIonInput={(e) => setExerciseName(e.detail.value ?? '')}
-            placeholder="Nombre del ejercicio *"
-            className="exgen__name-input"
-            required
-          />
-        </IonItem>
 
         {/* Weak areas (single-student only) */}
         {!multiMode && weakAreas && weakAreas.length > 0 && (
@@ -637,7 +714,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                     <IonLabel>Asignatura</IonLabel>
                     <IonSelect
                       value={selectedSubjectId}
-                      onIonChange={(e) => { setSelectedSubjectId(e.detail.value || ''); setSelectedTopicIds([]); }}
+                      onIonChange={(e) => { setSelectedSubjectId(e.detail.value || ''); setSelectedTopicIds([]); setExerciseTrimesterFilter('all'); }}
                       interface="popover"
                       placeholder="Seleccionar asignatura"
                     >
@@ -649,11 +726,28 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                     </IonSelect>
                   </IonItem>
 
+                  {/* Trimester filter for topics */}
+                  {selectedSubjectId && allSubjectTopicsForExercise.length > 0 && exerciseTopicTrimesters.size > 1 && (
+                    <div className="trimester-pills">
+                      <button
+                        className={`trimester-pill ${exerciseTrimesterFilter === 'all' ? 'trimester-pill--active' : ''}`}
+                        onClick={() => setExerciseTrimesterFilter('all')}
+                      >Todos</button>
+                      {[1, 2, 3].filter((t) => exerciseTopicTrimesters.has(t)).map((t) => (
+                        <button
+                          key={t}
+                          className={`trimester-pill ${exerciseTrimesterFilter === String(t) ? 'trimester-pill--active' : ''}`}
+                          onClick={() => setExerciseTrimesterFilter(String(t))}
+                        >T{t}</button>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Topic list for selected subject */}
                   {selectedSubjectId && (
                     filteredTopics.length === 0 ? (
                       <div className="exgen__empty">
-                        <p>No hay temas en esta asignatura.</p>
+                        <p>No hay temas{exerciseTrimesterFilter !== 'all' ? ' en este trimestre' : ' en esta asignatura'}.</p>
                       </div>
                     ) : (
                       <div className="exgen__topics-list">
@@ -668,6 +762,11 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                             <IonBadge color="medium" className="exgen__topic-count">{topic.materialCount}</IonBadge>
                           </div>
                         ))}
+                        {/* NOTE: material text budget is shared (30K chars total across all documents) */}
+                        <p className="exgen__materials-note">
+                          <IonIcon icon={informationCircleOutline} />
+                          Se usarán hasta ~30.000 caracteres del material adjunto (repartidos entre todos los documentos).
+                        </p>
                       </div>
                     )
                   )}
@@ -789,7 +888,37 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Generation Mode (multi-student only) */}
+            {/* Recovery: per-student weak areas summary */}
+            {exerciseType === 'recovery' && selectedStudentIds.length > 0 && studentWeakAreas.size > 0 && (
+              <div className="exgen__recovery-summary">
+                <span className="exgen__recovery-summary-title">Áreas débiles detectadas</span>
+                <div className="exgen__recovery-students">
+                  {selectedStudentIds.map((sid) => {
+                    const student = classStudents.find((s) => s.id === sid);
+                    const areas = studentWeakAreas.get(sid);
+                    if (!student || !areas || areas.length === 0) return null;
+                    return (
+                      <div key={sid} className="exgen__recovery-student">
+                        <span className="exgen__recovery-student-name">{student.name}</span>
+                        <div className="exgen__recovery-student-areas">
+                          {areas.slice(0, 4).map((a, i) => (
+                            <span key={i} className="exgen__picker-area-tag">{a}</span>
+                          ))}
+                          {areas.length > 4 && <span className="exgen__picker-area-more">+{areas.length - 4}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {selectedStudentIds.filter((sid) => !studentWeakAreas.has(sid) || studentWeakAreas.get(sid)!.length === 0).length > 0 && (
+                    <p className="exgen__recovery-no-areas">
+                      {selectedStudentIds.filter((sid) => !studentWeakAreas.has(sid) || studentWeakAreas.get(sid)!.length === 0).length} alumno(s) sin áreas débiles registradas — se generará repaso general.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Generation config (multi-student only) */}
             {multiMode && selectedStudentIds.length > 1 && (
               <div className="exgen__gen-section">
                 <div className="exgen__gen-section-header">
@@ -802,48 +931,17 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                   </div>
                 </div>
                 
-                <div className="exgen__gen-cards">
-                  <button
-                    className={`exgen__gen-card ${!uniquePerStudent ? 'exgen__gen-card--active' : ''}`}
-                    onClick={() => setUniquePerStudent(false)}
-                  >
-                    <div className="exgen__gen-card-icon">
-                      <IonIcon icon={peopleOutline} />
-                    </div>
-                    <div className="exgen__gen-card-content">
-                      <span className="exgen__gen-card-title">Ejercicios por grupos</span>
-                      <span className="exgen__gen-card-desc">Mismo contenido por área débil</span>
-                    </div>
-                    <div className="exgen__gen-card-badge exgen__gen-card-badge--fast">
-                      <IonIcon icon={flashOutline} />
-                      <span>Rápido</span>
-                    </div>
-                  </button>
-                  
-                  <button
-                    className={`exgen__gen-card ${uniquePerStudent ? 'exgen__gen-card--active' : ''}`}
-                    onClick={() => setUniquePerStudent(true)}
-                  >
-                    <div className="exgen__gen-card-icon">
-                      <IonIcon icon={sparkles} />
-                    </div>
-                    <div className="exgen__gen-card-content">
-                      <span className="exgen__gen-card-title">Único por alumno</span>
-                      <span className="exgen__gen-card-desc">Ejercicios personalizados</span>
-                    </div>
-                    <div className="exgen__gen-card-badge exgen__gen-card-badge--premium">
-                      <IonIcon icon={timeOutline} />
-                      <span>+Tiempo</span>
-                    </div>
-                  </button>
-                </div>
-                
-                {loadingPreview ? (
+                {uniquePerStudent ? (
+                  <div className="exgen__gen-recovery-info">
+                    <IonIcon icon={medkitOutline} />
+                    <span>Cada alumno recibirá ejercicios únicos basados en sus áreas débiles individuales.</span>
+                  </div>
+                ) : loadingPreview ? (
                   <div className="exgen__gen-preview-loading">
                     <IonSpinner name="dots" />
                     <span>Calculando grupos...</span>
                   </div>
-                ) : groupPreview && !uniquePerStudent ? (
+                ) : groupPreview ? (
                   <div className="exgen__gen-preview">
                     <div className="exgen__gen-preview-stats">
                       <div className="exgen__gen-stat">
@@ -870,63 +968,70 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                       ))}
                     </div>
                   </div>
-                ) : uniquePerStudent ? (
-                  <div className="exgen__gen-preview exgen__gen-preview--unique">
-                    <div className="exgen__gen-preview-stats">
-                      <div className="exgen__gen-stat">
-                        <span className="exgen__gen-stat-value">{selectedStudentIds.length}</span>
-                        <span className="exgen__gen-stat-label">ejercicios únicos</span>
-                      </div>
-                      <div className="exgen__gen-stat-divider"></div>
-                      <div className="exgen__gen-stat">
-                        <span className="exgen__gen-stat-value">~{Math.ceil((selectedStudentIds.length * 15) / 60)}</span>
-                        <span className="exgen__gen-stat-label">minutos</span>
-                      </div>
-                    </div>
-                  </div>
                 ) : null}
               </div>
             )}
 
-            {/* Advanced options */}
-            <button className="exgen__options-toggle" onClick={() => setShowOptions(!showOptions)}>
-              <span>Opciones avanzadas</span>
-              <IonIcon icon={showOptions ? chevronUpOutline : chevronDownOutline} />
-            </button>
+            {/* Exercise name */}
+              <div className="exgen__name-field">
+                <IonInput
+                  value={exerciseName}
+                  onIonInput={(e) => setExerciseName(e.detail.value ?? '')}
+                  placeholder="Nombre del ejercicio"
+                  className="exgen__name-primary"
+                  required
+                />
+                {exerciseName.trim() && allExercises.some(e => e.name?.toLowerCase() === exerciseName.trim().toLowerCase()) && (
+                  <p className="exgen__name-warning">
+                    Ya existe un ejercicio con este nombre
+                  </p>
+                )}
+              </div>
 
-            {showOptions && (
+            {/* Options — 2×2 grid */}
               <div className="exgen__options">
-                <IonItem lines="none" className="exgen__select">
-                  <IonLabel>Dificultad</IonLabel>
-                  <IonSelect value={difficulty} onIonChange={(e) => setDifficulty(e.detail.value)} interface="popover">
-                    <IonSelectOption value="easier">Mas facil</IonSelectOption>
-                    <IonSelectOption value="same">Mismo nivel</IonSelectOption>
-                    <IonSelectOption value="harder">Mas dificil</IonSelectOption>
-                  </IonSelect>
-                </IonItem>
-                <IonItem lines="none" className="exgen__select">
-                  <IonLabel>Preguntas</IonLabel>
-                  <IonSelect value={numQuestions} onIonChange={(e) => setNumQuestions(e.detail.value)} interface="popover">
-                    {[3, 4, 5, 6, 7, 8, 10].map((n) => (
-                      <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
-                    ))}
-                  </IonSelect>
-                </IonItem>
-                <IonItem lines="none" className="exgen__select">
-                  <IonLabel>Hojas de respuesta (QR)</IonLabel>
-                  <IonSelect value={numBlankPages} onIonChange={(e) => setNumBlankPages(e.detail.value)} interface="popover">
-                    {[0, 1, 2, 3, 4, 5].map((n) => (
-                      <IonSelectOption key={n} value={n}>{n === 0 ? 'Ninguna' : n}</IonSelectOption>
-                    ))}
-                  </IonSelect>
-                </IonItem>
+                <span className="exgen__section-label">Configuración</span>
+                <div className="exgen__options-grid">
+                  <IonItem lines="none" className="exgen__select exgen__select-half">
+                    <IonLabel>Preguntas</IonLabel>
+                    <IonSelect value={numQuestions} onIonChange={(e) => setNumQuestions(e.detail.value)} interface="popover">
+                      {[3, 4, 5, 6, 7, 8, 10].map((n) => (
+                        <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                      ))}
+                    </IonSelect>
+                  </IonItem>
+                  <IonItem lines="none" className="exgen__select exgen__select-half">
+                    <IonLabel>Dificultad</IonLabel>
+                    <IonSelect value={difficulty} onIonChange={(e) => setDifficulty(e.detail.value)} interface="popover">
+                      <IonSelectOption value="easier">Más fácil</IonSelectOption>
+                      <IonSelectOption value="same">Mismo nivel</IonSelectOption>
+                      <IonSelectOption value="harder">Más difícil</IonSelectOption>
+                    </IonSelect>
+                  </IonItem>
+                  <IonItem lines="none" className="exgen__select exgen__select-half">
+                    <IonLabel>Nota máx.</IonLabel>
+                    <IonSelect value={maxScore} onIonChange={(e) => setMaxScore(e.detail.value)} interface="popover">
+                      {[5, 10, 15, 20].map((n) => (
+                        <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                      ))}
+                    </IonSelect>
+                  </IonItem>
+                  <IonItem lines="none" className="exgen__select exgen__select-half">
+                    <IonLabel>Hojas resp.</IonLabel>
+                    <IonSelect value={numBlankPages} onIonChange={(e) => setNumBlankPages(e.detail.value)} interface="popover">
+                      {[0, 1, 2, 3, 4, 5].map((n) => (
+                        <IonSelectOption key={n} value={n}>{n === 0 ? 'Ninguna' : n}</IonSelectOption>
+                      ))}
+                    </IonSelect>
+                  </IonItem>
+                </div>
                 <div className="exgen__dates-row">
                   <IonItem lines="none" className="exgen__select exgen__select-half">
                     <IonInput
                       type="date"
                       value={deliveryDate}
                       onIonInput={(e) => setDeliveryDate(e.detail.value ?? '')}
-                      label="Fecha entrega"
+                      label="Fecha de entrega"
                       labelPlacement="stacked"
                     />
                   </IonItem>
@@ -935,7 +1040,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                       type="date"
                       value={correctionDate}
                       onIonInput={(e) => setCorrectionDate(e.detail.value ?? '')}
-                      label="Fecha recogida"
+                      label="Fecha de recogida"
                       labelPlacement="stacked"
                     />
                   </IonItem>
@@ -949,7 +1054,6 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                   />
                 </IonItem>
               </div>
-            )}
 
             {error && (
               <div className="exgen__error"><IonBadge color="danger">{error}</IonBadge></div>
@@ -1143,19 +1247,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             )}
           </>
         )}
+        </div>
       </div>
-      
-      {/* Batch Progress Modal */}
-      <BatchProgressModal
-        isOpen={showBatchProgress}
-        jobId={batchJobId}
-        title="Generando ejercicios"
-        onClose={() => {
-          setShowBatchProgress(false);
-          setBatchJobId(null);
-        }}
-        onComplete={handleBatchComplete}
-      />
+      </IonContent>
+
     </IonModal>
   );
 };

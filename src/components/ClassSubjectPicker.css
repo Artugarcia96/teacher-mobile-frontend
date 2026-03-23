@@ -213,3 +213,8 @@
     background: rgba(255, 255, 255, 0.04);
   }
 }
+
+.csp__option:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
+}

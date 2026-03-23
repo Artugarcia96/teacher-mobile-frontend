@@ -19,8 +19,9 @@ import { exerciseCorrections as ecApi, batch } from '../../services/api';
 import { Exercise, BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import QRReviewTable from '../../components/QRReviewTable';
-import BatchProgressModal from '../../components/BatchProgressModal';
+
 import EmptyState from '../../components/EmptyState';
+import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
 import './ExerciseBulkCorrection.css';
 
 type Step = 'select' | 'upload' | 'review' | 'correct';
@@ -39,6 +40,7 @@ const ExerciseBulkCorrection: React.FC = () => {
 
   const allExercises = useExercisesStore((s) => s.exercises);
   const fetchExercises = useExercisesStore((s) => s.fetchExercises);
+  const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
 
   const allStudents = useStudentsStore((s) => s.students);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
@@ -61,13 +63,10 @@ const ExerciseBulkCorrection: React.FC = () => {
   const [reviewAssignments, setReviewAssignments] = useState<Record<string, string>>({});
   const [confirmingReview, setConfirmingReview] = useState(false);
 
-  const [localGrades, setLocalGrades] = useState<Record<string, { grade: number | null; notes: string; studentId: string }>>({});
+  const [localGrades, setLocalGrades] = useState<Record<string, { grade: number | null; teacherComments: string; studentId: string }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [aiProcessing, setAiProcessing] = useState<Record<string, boolean>>({});
   const [aiErrors, setAiErrors] = useState<Record<string, string>>({});
-
-  const [batchJobId, setBatchJobId] = useState<string | null>(null);
-  const [showBatchProgress, setShowBatchProgress] = useState(false);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [thumbBlobUrls, setThumbBlobUrls] = useState<Record<string, string>>({});
@@ -133,7 +132,7 @@ const ExerciseBulkCorrection: React.FC = () => {
       const next = { ...prev };
       groupCorrections.forEach((c) => {
         if (!next[c.id]) {
-          next[c.id] = { grade: c.grade, notes: c.teacherNotes || '', studentId: c.studentId || '' };
+          next[c.id] = { grade: c.grade, teacherComments: c.teacherComments || '', studentId: c.studentId || '' };
         } else if (!next[c.id].studentId && c.studentId) {
           next[c.id] = { ...next[c.id], studentId: c.studentId };
         }
@@ -243,8 +242,8 @@ const ExerciseBulkCorrection: React.FC = () => {
     if (assignedCorrectionIds.length > 1) {
       try {
         const res = await batch.startBatchExerciseCorrection(groupExerciseIds, assignedCorrectionIds);
-        setBatchJobId(res.data.id);
-        setShowBatchProgress(true);
+        const jobId = res.data.id;
+        registerExerciseCorrectionBackgroundTask(jobId, selectedGroup?.name || 'Ejercicios');
       } catch (err) {
         console.error('Failed to start batch correction:', err);
         for (const cId of assignedCorrectionIds) {
@@ -320,8 +319,8 @@ const ExerciseBulkCorrection: React.FC = () => {
     setLocalGrades((prev) => ({ ...prev, [correctionId]: { ...prev[correctionId], grade } }));
   };
 
-  const handleNotesChange = (correctionId: string, notes: string) => {
-    setLocalGrades((prev) => ({ ...prev, [correctionId]: { ...prev[correctionId], notes } }));
+  const handleCommentsChange = (correctionId: string, teacherComments: string) => {
+    setLocalGrades((prev) => ({ ...prev, [correctionId]: { ...prev[correctionId], teacherComments } }));
   };
 
   const handleSavePaper = async (correctionId: string) => {
@@ -329,13 +328,10 @@ const ExerciseBulkCorrection: React.FC = () => {
     if (!local || local.grade === null) return;
     setSaving((prev) => ({ ...prev, [correctionId]: true }));
     try {
-      const correction = groupCorrections.find((c) => c.id === correctionId);
-      const weakAreas = correction?.aiAnalysis?.weakAreas || [];
       await updateCorrection(correctionId, {
         student_id: local.studentId || undefined,
         grade: local.grade,
-        teacher_notes: local.notes,
-        weak_areas: weakAreas,
+        teacher_notes: local.teacherComments,
       });
     } catch (err) {
       console.error('Failed to save correction:', err);
@@ -374,6 +370,38 @@ const ExerciseBulkCorrection: React.FC = () => {
     }
   };
 
+  const registerExerciseCorrectionBackgroundTask = (jobId: string, label: string) => {
+    const capturedClassId = classId;
+    const capturedGroup = selectedGroup;
+    addBackgroundTask({
+      type: 'exercises',
+      label: `Corrección: ${label}`,
+      description: 'La IA revisa los ejercicios de cada alumno y genera comentarios detallados.',
+      batchJobId: jobId,
+      expectedResultUrl: `/exercise-bulk-correction/${capturedClassId}`,
+      execute: async () => {
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        let interval = 3000;
+        while (true) {
+          await sleep(interval);
+          const res = await batch.getJobProgress(jobId);
+          const status = res.data.status;
+          if (status === 'completed') break;
+          if (status === 'failed' || status === 'cancelled') {
+            throw new Error('Error en la corrección');
+          }
+          interval = Math.min(interval + 500, 8000);
+        }
+        if (capturedGroup) {
+          for (const ex of capturedGroup.exercises) {
+            await fetchCorrections(ex.id);
+          }
+        }
+        return `/exercise-bulk-correction/${capturedClassId}`;
+      },
+    });
+  };
+
   const handleBatchProcessAll = async () => {
     const unprocessedIds = groupCorrections
       .filter(c => !c.aiAnalysis && c.studentId)
@@ -382,22 +410,13 @@ const ExerciseBulkCorrection: React.FC = () => {
 
     try {
       const res = await batch.startBatchExerciseCorrection(groupExerciseIds, unprocessedIds);
-      setBatchJobId(res.data.id);
-      setShowBatchProgress(true);
+      const jobId = res.data.id;
+      registerExerciseCorrectionBackgroundTask(jobId, selectedGroup?.name || 'Ejercicios');
     } catch (err) {
       console.error('Failed to start batch:', err);
     }
   };
 
-  const handleBatchComplete = async () => {
-    setShowBatchProgress(false);
-    setBatchJobId(null);
-    if (selectedGroup) {
-      for (const ex of selectedGroup.exercises) {
-        await fetchCorrections(ex.id);
-      }
-    }
-  };
 
   const handleFinishAll = async () => {
     if (!selectedGroup) return;
@@ -414,7 +433,7 @@ const ExerciseBulkCorrection: React.FC = () => {
   const totalPoints = useMemo(() => {
     if (!selectedGroup) return 10;
     const first = selectedGroup.exercises[0];
-    return first?.questions?.reduce((sum, q) => sum + (q.points || 0), 0) || 10;
+    return first?.maxScore || 10;
   }, [selectedGroup]);
 
   const savedCount = groupCorrections.filter((c) => c.savedAt).length;
@@ -633,10 +652,15 @@ const ExerciseBulkCorrection: React.FC = () => {
               />
 
               <div className="bulk-review-actions">
+                {bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId]) && (
+                  <p className="bulk-review-pending-hint">
+                    <IonIcon icon={warningOutline} /> Asigna todos los ejercicios pendientes para analizar con IA
+                  </p>
+                )}
                 <IonButton
                   expand="block"
                   onClick={handleConfirmReviewAssignments}
-                  disabled={confirmingReview}
+                  disabled={confirmingReview || bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId])}
                   className="bulk-review-confirm-btn"
                 >
                   {confirmingReview ? (
@@ -672,7 +696,14 @@ const ExerciseBulkCorrection: React.FC = () => {
               </IonButton>
 
               {unprocessedCount > 1 && (
-                <IonButton size="small" fill="solid" color="tertiary" onClick={handleBatchProcessAll}>
+                <IonButton
+                  size="small"
+                  fill="solid"
+                  color="tertiary"
+                  onClick={handleBatchProcessAll}
+                  disabled={groupCorrections.some(c => c.paperUrl && !c.studentId)}
+                  title={groupCorrections.some(c => c.paperUrl && !c.studentId) ? 'Asigna todos los ejercicios a un alumno primero' : undefined}
+                >
                   <IonIcon icon={sparkles} slot="start" /> Analizar todo ({unprocessedCount})
                 </IonButton>
               )}
@@ -695,7 +726,7 @@ const ExerciseBulkCorrection: React.FC = () => {
             ) : (
               <div className="ebc-scans">
                 {groupCorrections.map((correction, i) => {
-                  const local = localGrades[correction.id] || { grade: correction.grade, notes: '', studentId: correction.studentId || '' };
+                  const local = localGrades[correction.id] || { grade: correction.grade, teacherComments: '', studentId: correction.studentId || '' };
                   const isSaved = !!correction.savedAt;
                   return (
                     <ScanCard
@@ -706,12 +737,12 @@ const ExerciseBulkCorrection: React.FC = () => {
                       students={students}
                       maxScore={totalPoints}
                       grade={local.grade}
-                      teacherNotes={local.notes}
+                      teacherComments={local.teacherComments}
                       saved={isSaved}
                       paperUrl={getFullPaperUrl(correction.paperUrl) || undefined}
                       onStudentChange={(sid) => handleStudentChange(correction.id, sid)}
                       onGradeChange={(g) => handleGradeChange(correction.id, g)}
-                      onNotesChange={(n) => handleNotesChange(correction.id, n)}
+                      onCommentsChange={(n) => handleCommentsChange(correction.id, n)}
                       onSave={() => handleSavePaper(correction.id)}
                       onProcessAI={() => handleProcessAI(correction.id)}
                       onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
@@ -725,15 +756,6 @@ const ExerciseBulkCorrection: React.FC = () => {
             )}
           </>
         )}
-
-        {/* Batch progress modal */}
-        <BatchProgressModal
-          isOpen={showBatchProgress}
-          jobId={batchJobId}
-          title={`Corrigiendo: ${selectedGroup?.name || 'Ejercicios'}`}
-          onClose={() => setShowBatchProgress(false)}
-          onComplete={handleBatchComplete}
-        />
 
         {/* Paper preview modal */}
         <IonModal isOpen={!!previewUrl} onDidDismiss={() => setPreviewUrl(null)} className="paper-preview-modal">

@@ -65,7 +65,7 @@
 
 .settings-info-label {
   font-size: var(--font-size-sm);
-  color: #64748B;
+  color: var(--color-text-secondary);
 }
 
 .settings-info-value {
@@ -127,9 +127,15 @@
   font-weight: 500;
 }
 
+.lecture-card__aula {
+  font-weight: 400;
+  color: var(--ion-color-medium);
+  font-size: var(--font-size-sm, 13px);
+}
+
 .lecture-card__schedule {
   font-size: var(--font-size-sm);
-  color: #64748B;
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   gap: var(--space-xs);
@@ -177,7 +183,7 @@
 
 .settings-student-code {
   font-size: var(--font-size-xs);
-  color: #64748B;
+  color: var(--color-text-secondary);
   font-family: monospace;
 }
 
@@ -250,7 +256,7 @@
 
 .settings-add-hint {
   font-size: var(--font-size-sm);
-  color: #64748B;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -322,6 +328,52 @@
   font-size: var(--font-size-sm);
 }
 
+/* Color Picker Section */
+.color-picker-section {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.color-picker-section__label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+  margin-bottom: var(--space-sm);
+}
+
+.color-picker-dots {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-picker-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  outline: none;
+}
+
+.color-picker-dot:active {
+  transform: scale(0.9);
+}
+
+.color-picker-dot--active {
+  border-color: var(--color-text-primary, #0f172a);
+  transform: scale(1.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  .color-picker-dot--active {
+    border-color: #fff;
+  }
+}
+
 /* Schedule Section in Modal */
 .schedule-section {
   margin-top: var(--space-lg);
@@ -382,6 +434,33 @@
 .schedule-slot__separator {
   color: #94A3B8;
   font-size: var(--font-size-sm);
+}
+
+/* Schedule conflict */
+.schedule-slot--conflict {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+}
+
+.schedule-slot__conflict-msg {
+  margin: 2px 0 0;
+  padding: 0 var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: #DC2626;
+  font-weight: 500;
+}
+
+.schedule-conflict-warning {
+  margin: var(--space-md) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+  color: #DC2626;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: center;
 }
 
 /* Modal Sheet */
@@ -501,6 +580,75 @@
   color: rgba(var(--ion-color-primary-rgb), 0.7);
 }
 
+/* Class Actions (Save / Delete) */
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-md);
+  margin-top: var(--space-md);
+  padding-bottom: calc(var(--space-xl) + env(safe-area-inset-bottom, 0px));
+}
+
+.settings-actions__save {
+  --border-radius: 12px;
+  font-weight: 600;
+}
+
+.settings-actions__delete {
+  --border-radius: 12px;
+}
+
+/* Delete preview (reused from Classes) */
+.delete-preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg) 0;
+  color: var(--ion-color-medium);
+}
+
+.delete-preview {
+  background: rgba(var(--ion-color-danger-rgb, 235, 68, 90), 0.06);
+  border-radius: 12px;
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.delete-preview__warning {
+  font-weight: 600;
+  color: var(--ion-color-danger);
+  margin: 0 0 var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.delete-preview__list {
+  list-style: disc;
+  padding-left: var(--space-lg);
+  margin: 0;
+  color: var(--ion-text-color);
+}
+
+.delete-preview__list li {
+  padding: 2px 0;
+}
+
+.delete-preview__note {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+}
+
+.delete-modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .settings-info-card,
@@ -540,6 +688,22 @@
     background: rgba(255, 255, 255, 0.04);
   }
 
+  .schedule-slot--conflict {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+  }
+
+  .schedule-conflict-warning {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #F87171;
+  }
+
+  .schedule-slot__conflict-msg {
+    color: #F87171;
+  }
+
   .lecture-card--selected {
     background: rgba(var(--ion-color-primary-rgb), 0.15);
   }
@@ -571,5 +735,16 @@
 
   .education-level-chip--active .education-level-chip__ages {
     color: rgba(94, 234, 212, 0.6);
+  }
+}
+
+/* ─── Desktop (≥992px) ─── */
+@media (min-width: 992px) {
+  .settings-content {
+    --padding-start: var(--space-3xl);
+    --padding-end: var(--space-3xl);
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }

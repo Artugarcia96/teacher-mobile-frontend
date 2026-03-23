@@ -103,35 +103,17 @@
   color: var(--ion-color-medium);
 }
 
-/* Header actions */
-.cip__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.cip__refresh-btn {
-  --padding-start: 4px;
-  --padding-end: 4px;
-  margin: 0;
-  height: 28px;
+/* Expand icon */
+.cip__expand-icon {
   font-size: 16px;
-}
-
-.cip__refresh-btn ion-icon.spinning {
-  animation: cip-spin 1s linear infinite;
+  color: var(--ion-color-medium);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 @keyframes cip-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-.cip__expand-icon {
-  font-size: 16px;
-  color: var(--ion-color-medium);
-  transition: transform 0.2s ease;
 }
 
 /* Weak area tags — always visible */
@@ -190,6 +172,184 @@
   font-weight: 500;
 }
 
+/* AI Summary — prominent insight box, always visible */
+.cip__ai-summary {
+  margin-top: 10px;
+}
+
+.cip__ai-summary--prominent {
+  margin: 0;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
+.cip__ai-summary--empty {
+  margin: 0;
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--ion-color-light-shade);
+}
+
+.cip__ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cip__ai-header .cip__updated {
+  margin: 0;
+  font-size: 10px;
+  color: var(--ion-color-medium);
+}
+
+.cip__section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ion-color-medium);
+  margin: 10px 0 6px;
+}
+
+.cip__section-label ion-icon {
+  font-size: 14px;
+}
+
+.cip__section-label--ai {
+  color: var(--ion-color-primary);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.cip__section-label--ai ion-icon {
+  font-size: 15px;
+  color: var(--ion-color-primary);
+}
+
+.cip__ai-content {
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.06));
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-left: 3px solid var(--ion-color-primary);
+}
+
+.cip__ai-content p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ion-color-dark);
+}
+
+.cip__ai-content p:last-child {
+  margin-bottom: 0;
+}
+
+.cip__ai-content strong {
+  font-weight: 700;
+  color: var(--ion-color-primary-shade);
+}
+
+.cip__ai-content ul,
+.cip__ai-content ol {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.cip__ai-content li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ion-color-dark);
+  margin-bottom: 3px;
+}
+
+.cip__ai-content h1,
+.cip__ai-content h2,
+.cip__ai-content h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  color: var(--ion-color-primary-shade);
+}
+
+/* Regenerate AI button — subtle link under the AI content */
+.cip__ai-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ion-color-medium);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.cip__ai-refresh-btn:hover {
+  color: var(--ion-color-primary);
+}
+
+.cip__ai-refresh-btn ion-icon {
+  font-size: 13px;
+}
+
+.cip__ai-refresh-btn ion-icon.spinning {
+  animation: cip-spin 1s linear infinite;
+}
+
+.cip__ai-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Generate AI button — when no summary exists yet */
+.cip__ai-generate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed var(--ion-color-primary-tint);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--ion-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cip__ai-generate-btn:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.cip__ai-generate-btn ion-icon {
+  font-size: 16px;
+}
+
+.cip__ai-generate-btn ion-icon.spinning {
+  animation: cip-spin 1s linear infinite;
+}
+
+.cip__ai-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Updated timestamp */
+.cip__updated {
+  display: block;
+  font-size: 10px;
+  color: var(--ion-color-medium);
+  text-align: right;
+  margin-top: 8px;
+}
+
 /* Expanded content */
 .cip__expanded {
   padding: 0 12px 12px;
@@ -220,23 +380,6 @@
 }
 
 .cip__generate-btn ion-icon {
-  font-size: 14px;
-}
-
-/* Section labels */
-.cip__section-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--ion-color-medium);
-  margin: 10px 0 6px;
-}
-
-.cip__section-label ion-icon {
   font-size: 14px;
 }
 
@@ -275,68 +418,6 @@
   white-space: nowrap;
 }
 
-/* AI Summary — collapsed box */
-.cip__ai-summary {
-  margin-top: 6px;
-}
-
-.cip__ai-content {
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
-  max-height: 120px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.cip__ai-content p {
-  margin: 0 0 6px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ion-color-dark);
-}
-
-.cip__ai-content p:last-child {
-  margin-bottom: 0;
-}
-
-.cip__ai-content strong {
-  font-weight: 600;
-  color: var(--ion-color-primary-shade);
-}
-
-.cip__ai-content ul,
-.cip__ai-content ol {
-  margin: 4px 0;
-  padding-left: 18px;
-}
-
-.cip__ai-content li {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ion-color-dark);
-  margin-bottom: 2px;
-}
-
-.cip__ai-content h1,
-.cip__ai-content h2,
-.cip__ai-content h3 {
-  font-size: 12px;
-  font-weight: 700;
-  margin: 6px 0 4px;
-  color: var(--ion-color-primary-shade);
-}
-
-/* Updated timestamp */
-.cip__updated {
-  display: block;
-  font-size: 10px;
-  color: var(--ion-color-medium);
-  text-align: right;
-  margin-top: 8px;
-}
-
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .cip {
@@ -360,11 +441,17 @@
   }
 
   .cip__ai-content {
-    background: linear-gradient(145deg, rgba(99, 102, 241, 0.14), rgba(139, 92, 246, 0.06));
-    border-color: rgba(99, 102, 241, 0.2);
+    background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.08));
+    border-color: rgba(99, 102, 241, 0.25);
+    border-left-color: var(--ion-color-primary);
   }
 
   .cip__generate-btn {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+
+  .cip__ai-generate-btn {
     background: rgba(99, 102, 241, 0.1);
     border-color: rgba(99, 102, 241, 0.25);
   }

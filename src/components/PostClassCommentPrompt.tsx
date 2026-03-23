@@ -5,29 +5,29 @@ import {
   checkmarkOutline,
   chatbubbleOutline,
 } from 'ionicons/icons';
-import { useNotesStore, RecentSession } from '../store/notesStore';
-import './PostClassNotePrompt.css';
+import { useCommentsStore, RecentSession } from '../store/commentsStore';
+import './PostClassCommentPrompt.css';
 
-const PostClassNotePrompt: React.FC = () => {
-  const [noteText, setNoteText] = useState('');
+const PostClassCommentPrompt: React.FC = () => {
+  const [commentText, setCommentText] = useState('');
   const [saving, setSaving] = useState(false);
   const [currentSession, setCurrentSession] = useState<RecentSession | null>(null);
 
-  const recentSessions = useNotesStore((s) => s.recentSessions);
-  const promptDismissed = useNotesStore((s) => s.promptDismissed);
-  const fetchRecentSessions = useNotesStore((s) => s.fetchRecentSessions);
-  const createClassNote = useNotesStore((s) => s.createClassNote);
-  const dismissPrompt = useNotesStore((s) => s.dismissPrompt);
+  const recentSessions = useCommentsStore((s) => s.recentSessions);
+  const promptDismissed = useCommentsStore((s) => s.promptDismissed);
+  const fetchRecentSessions = useCommentsStore((s) => s.fetchRecentSessions);
+  const createClassComment = useCommentsStore((s) => s.createClassComment);
+  const dismissPrompt = useCommentsStore((s) => s.dismissPrompt);
 
   useEffect(() => {
     // Check for recent sessions when component mounts
     fetchRecentSessions();
-    
+
     // Poll every 5 minutes for new sessions
     const interval = setInterval(() => {
       fetchRecentSessions();
     }, 5 * 60 * 1000);
-    
+
     return () => clearInterval(interval);
   }, [fetchRecentSessions]);
 
@@ -41,16 +41,16 @@ const PostClassNotePrompt: React.FC = () => {
   }, [recentSessions, promptDismissed]);
 
   const handleSave = async () => {
-    if (!currentSession || !noteText.trim()) return;
-    
+    if (!currentSession || !commentText.trim()) return;
+
     setSaving(true);
     try {
-      await createClassNote({
+      await createClassComment({
         class_id: currentSession.class_id,
         event_id: currentSession.event_id,
-        text: noteText.trim(),
+        text: commentText.trim(),
       });
-      setNoteText('');
+      setCommentText('');
       // If there are more sessions, show the next one
       if (recentSessions.length > 1) {
         setCurrentSession(recentSessions[1]);
@@ -58,7 +58,7 @@ const PostClassNotePrompt: React.FC = () => {
         setCurrentSession(null);
       }
     } catch (err) {
-      console.error('Failed to save note:', err);
+      console.error('Failed to save comment:', err);
     } finally {
       setSaving(false);
     }
@@ -87,7 +87,7 @@ const PostClassNotePrompt: React.FC = () => {
         </div>
         <div className="post-class-prompt__title-area">
           <h3 className="post-class-prompt__title">¿Cómo ha ido la clase?</h3>
-          <p className="post-class-prompt__class">{currentSession.class_name}</p>
+          <p className="post-class-prompt__class">{currentSession.title || currentSession.class_name}</p>
         </div>
         <button className="post-class-prompt__close" onClick={handleDismiss}>
           <IonIcon icon={closeOutline} />
@@ -96,9 +96,9 @@ const PostClassNotePrompt: React.FC = () => {
 
       <div className="post-class-prompt__body">
         <IonTextarea
-          value={noteText}
-          onIonInput={(e) => setNoteText(e.detail.value || '')}
-          placeholder="Escribe una nota rápida sobre la sesión..."
+          value={commentText}
+          onIonInput={(e) => setCommentText(e.detail.value || '')}
+          placeholder="Escribe un comentario rápido sobre la sesión..."
           rows={2}
           className="post-class-prompt__input"
           disabled={saving}
@@ -106,17 +106,17 @@ const PostClassNotePrompt: React.FC = () => {
       </div>
 
       <div className="post-class-prompt__footer">
-        <button 
-          className="post-class-prompt__skip" 
+        <button
+          className="post-class-prompt__skip"
           onClick={handleSkip}
           disabled={saving}
         >
           Saltar
         </button>
-        <button 
-          className="post-class-prompt__save" 
+        <button
+          className="post-class-prompt__save"
           onClick={handleSave}
-          disabled={saving || !noteText.trim()}
+          disabled={saving || !commentText.trim()}
         >
           {saving ? (
             <IonSpinner name="dots" />
@@ -132,4 +132,4 @@ const PostClassNotePrompt: React.FC = () => {
   );
 };
 
-export default PostClassNotePrompt;
+export default PostClassCommentPrompt;

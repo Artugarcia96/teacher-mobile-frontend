@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { IonIcon, IonButton, IonInput, IonSpinner } from '@ionic/react';
-import { chevronDownOutline, chevronUpOutline, expandOutline, documentTextOutline, warningOutline, downloadOutline, pencilOutline, checkmarkOutline, closeOutline } from 'ionicons/icons';
+import { chevronDownOutline, chevronUpOutline, expandOutline, documentTextOutline, warningOutline, downloadOutline, pencilOutline, checkmarkOutline, closeOutline, alertCircleOutline, chatbubbleOutline } from 'ionicons/icons';
 import { AIAnalysis } from '../types';
 import { questionStatusConfig } from '../utils/statusConfig';
 import { QuestionStatusBar } from './charts';
@@ -11,7 +11,7 @@ interface Props {
   studentName: string;
   grade: number | null;
   maxScore: number;
-  teacherNotes?: string;
+  teacherComments?: string;
   weakAreas?: string[];
   aiAnalysis?: AIAnalysis;
   aiProcessed?: boolean;
@@ -19,8 +19,10 @@ interface Props {
   paperUrl?: string;
   onPreviewPaper?: () => void;
   onDownloadPaper?: () => void;
+  onDownloadReport?: () => void;
   onGradeChange?: (newGrade: number) => void;
   savingGrade?: boolean;
+  onAddComment?: () => void;
 }
 
 function isImageUrl(url: string): boolean {
@@ -28,13 +30,60 @@ function isImageUrl(url: string): boolean {
   return /\.(jpe?g|png|gif|webp)(\?.*)?$/.test(lower);
 }
 
+/* ─── Question Grid with expandable feedback ─── */
+const RV_FEEDBACK_THRESHOLD = 50;
+
+const ReviewQuestionGrid: React.FC<{ questions: AIAnalysis['questions'] }> = ({ questions }) => {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggle = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <div className="rv-row__questions">
+      {questions.map((q) => {
+        const cfg = questionStatusConfig[q.status] || questionStatusConfig.blank;
+        const isLong = (q.feedback?.length || 0) > RV_FEEDBACK_THRESHOLD;
+        const isExpanded = expandedIds.has(q.id);
+
+        return (
+          <div key={q.id} className={`rv-row__q rv-row__q--${q.status}`}>
+            <div className="rv-row__q-head">
+              <IonIcon icon={cfg.icon} color={cfg.color} />
+              <span className="rv-row__q-id">P{q.id}</span>
+              <span className={`rv-row__q-badge rv-row__q-badge--${q.status}`}>{cfg.label}</span>
+            </div>
+            {q.feedback && (
+              <span
+                className={`rv-row__q-feedback ${!isExpanded && isLong ? 'rv-row__q-feedback--clamped' : ''}`}
+                onClick={() => isLong && toggle(q.id)}
+              >
+                {q.feedback}
+              </span>
+            )}
+            {isLong && (
+              <button className="rv-row__q-toggle" onClick={() => toggle(q.id)}>
+                {isExpanded ? 'Menos' : 'Más'}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const CorrectionReviewCard: React.FC<Props> = ({
-  studentName, grade, maxScore, teacherNotes, weakAreas, aiAnalysis, aiProcessed, highlighted, paperUrl, onPreviewPaper, onDownloadPaper, onGradeChange, savingGrade
+  studentName, grade, maxScore, teacherComments, weakAreas, aiAnalysis, aiProcessed, highlighted, paperUrl, onPreviewPaper, onDownloadPaper, onDownloadReport, onGradeChange, savingGrade, onAddComment
 }) => {
-  const hasContent = !!(aiAnalysis?.questions.length) || !!teacherNotes || !!aiAnalysis?.summary
+  const hasContent = !!(aiAnalysis?.questions.length) || !!teacherComments || !!aiAnalysis?.summary
     || (weakAreas && weakAreas.length > 0) || !!paperUrl;
   const [expanded, setExpanded] = useState(highlighted || false);
-  const [showDetails, setShowDetails] = useState(false);
   const [isEditingGrade, setIsEditingGrade] = useState(false);
   const [editedGrade, setEditedGrade] = useState<number | null>(grade);
 
@@ -57,7 +106,6 @@ const CorrectionReviewCard: React.FC<Props> = ({
   const totalQuestions = aiAnalysis?.questions.length || 0;
   const showThumb = paperUrl && isImageUrl(paperUrl);
   const showPdfLink = paperUrl && !isImageUrl(paperUrl);
-  const hasDetailContent = (totalQuestions > 0) || !!teacherNotes || !!aiAnalysis?.summary;
 
   return (
     <div className={`rv-row ${expanded ? 'rv-row--open' : ''} ${highlighted ? 'rv-row--highlighted' : ''} ${noGrade ? 'rv-row--no-grade' : ''}`}>
@@ -125,7 +173,7 @@ const CorrectionReviewCard: React.FC<Props> = ({
 
       {expanded && hasContent && (
         <div className="rv-row__body">
-          {/* Level 1: Summary strip */}
+          {/* Paper actions */}
           <div className="rv-row__summary-strip">
             {showThumb && (
               <div className="rv-row__thumb" onClick={onPreviewPaper}>
@@ -146,6 +194,11 @@ const CorrectionReviewCard: React.FC<Props> = ({
                     <IonIcon icon={downloadOutline} />
                   </button>
                 )}
+                {onDownloadReport && aiProcessed && (
+                  <button className="rv-row__pdf-link rv-row__pdf-link--download" onClick={onDownloadReport} type="button" title="Descargar informe">
+                    <IonIcon icon={documentTextOutline} />
+                  </button>
+                )}
               </div>
             )}
             {showThumb && onDownloadPaper && (
@@ -159,14 +212,6 @@ const CorrectionReviewCard: React.FC<Props> = ({
                 <QuestionStatusBar questions={aiAnalysis.questions} />
               )}
 
-              {weakAreas && weakAreas.length > 0 && (
-                <div className="rv-row__weak-tags">
-                  {weakAreas.map((area, idx) => (
-                    <span key={idx} className="rv-row__weak-tag">{area}</span>
-                  ))}
-                </div>
-              )}
-
               {noGrade && !aiProcessed && totalQuestions === 0 && (
                 <div className="rv-row__no-ai-msg">
                   <IonIcon icon={warningOutline} color="warning" />
@@ -176,53 +221,47 @@ const CorrectionReviewCard: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Level 2: Details toggle */}
-          {hasDetailContent && (
-            <>
-              <button
-                className="rv-row__details-toggle"
-                onClick={() => setShowDetails(!showDetails)}
-                type="button"
-              >
-                {showDetails ? 'Ocultar detalles' : 'Ver detalles'}
-                <IonIcon icon={showDetails ? chevronUpOutline : chevronDownOutline} />
-              </button>
+          {/* Questions - shown directly, no toggle */}
+          {aiAnalysis && totalQuestions > 0 && (
+            <ReviewQuestionGrid questions={aiAnalysis.questions} />
+          )}
 
-              {showDetails && (
-                <div className="rv-row__details">
-                  {aiAnalysis && totalQuestions > 0 && (
-                    <div className="rv-row__questions">
-                      {aiAnalysis.questions.map((q) => {
-                        const cfg = questionStatusConfig[q.status] || questionStatusConfig.blank;
-                        return (
-                          <div key={q.id} className={`rv-row__q rv-row__q--${q.status}`}>
-                            <div className="rv-row__q-head">
-                              <IonIcon icon={cfg.icon} color={cfg.color} />
-                              <span className="rv-row__q-id">P{q.id}</span>
-                            </div>
-                            {q.feedback && <span className="rv-row__q-feedback">{q.feedback}</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+          {/* Weak areas */}
+          {weakAreas && weakAreas.length > 0 && (
+            <div className="rv-row__weak-section">
+              <span className="rv-row__weak-label">
+                <IonIcon icon={alertCircleOutline} /> Áreas débiles
+              </span>
+              <div className="rv-row__weak-tags">
+                {weakAreas.map((area, idx) => (
+                  <span key={idx} className="rv-row__weak-tag">{area}</span>
+                ))}
+              </div>
+            </div>
+          )}
 
-                  {teacherNotes && (
-                    <div className="rv-row__section">
-                      <span className="rv-row__section-label">Notas del profesor</span>
-                      <p className="rv-row__section-text">{teacherNotes}</p>
-                    </div>
-                  )}
+          {/* Teacher comments */}
+          {teacherComments && (
+            <div className="rv-row__section">
+              <span className="rv-row__section-label">Comentarios del profesor</span>
+              <p className="rv-row__section-text">{teacherComments}</p>
+            </div>
+          )}
 
-                  {aiAnalysis?.summary && (
-                    <div className="rv-row__section">
-                      <span className="rv-row__section-label">Resumen IA</span>
-                      <p className="rv-row__section-text">{aiAnalysis.summary}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+          {/* AI Summary */}
+          {aiAnalysis?.summary && (
+            <div className="rv-row__section">
+              <span className="rv-row__section-label">Resumen IA</span>
+              <p className="rv-row__section-text">{aiAnalysis.summary}</p>
+            </div>
+          )}
+
+          {/* Add comment action */}
+          {onAddComment && (
+            <button className="rv-row__comment-btn" onClick={(e) => { e.stopPropagation(); onAddComment(); }}>
+              <IonIcon icon={chatbubbleOutline} />
+              <span>Añadir comentario</span>
+            </button>
           )}
         </div>
       )}

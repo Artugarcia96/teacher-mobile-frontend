@@ -18,6 +18,7 @@ function mapEvent(e: any): CalendarEvent {
     isCancelled: e.is_cancelled,
     className: e.class_name,
     classSubject: e.class_subject,
+    subjectId: e.subject_id,
     studentName: e.student_name,
     examName: e.exam_name,
     examStatus: e.exam_status,
@@ -32,6 +33,7 @@ export interface ClassBreakdown {
   subject: string;
   subject_id?: string | null;
   start_time?: string;
+  aula?: string | null;
   class_avg_grade?: number;
   topics_to_cover?: string[];
   student_alerts?: { name: string; issue: string; suggested_action?: string }[];
@@ -40,7 +42,8 @@ export interface ClassBreakdown {
   class_weak_points?: string[];
   suggestions?: string[];
   exercises_today?: { type: string; student: string; exercise: string }[];
-  recent_notes?: string[];
+  recent_comments?: string[];
+  grade_alerts?: { student_name: string; class_name: string; avg_grade: number; trend?: string; issue: string }[];
 }
 
 export interface PreparedDay {
@@ -211,9 +214,14 @@ export const useCalendarStore = create<CalendarState>()(
       getPreparation: async (date) => {
         try {
           const res = await prepApi.get(date);
+          if (res.status === 204 || !res.data || !res.data.id) {
+            set({ currentPreparation: null });
+            return null;
+          }
           set({ currentPreparation: res.data });
           return res.data;
         } catch {
+          set({ currentPreparation: null });
           return null;
         }
       },
