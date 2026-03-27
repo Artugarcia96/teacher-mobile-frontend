@@ -23,6 +23,10 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSubmit();
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
@@ -73,26 +77,32 @@ const Login: React.FC = () => {
                 <IonInput
                   className="login-input"
                   type="text"
-                  placeholder="Nombre"
+                  label="Nombre"
+                  labelPlacement="floating"
                   value={name}
                   onIonInput={(e) => setName(e.detail.value || '')}
+                  onKeyDown={handleKeyDown}
                 />
               )}
 
               <IonInput
                 className="login-input"
                 type="email"
-                placeholder="Correo electrónico"
+                label="Correo electrónico"
+                labelPlacement="floating"
                 value={email}
                 onIonInput={(e) => setEmail(e.detail.value || '')}
+                onKeyDown={handleKeyDown}
               />
 
               <IonInput
                 className="login-input"
                 type="password"
-                placeholder="Contraseña"
+                label="Contraseña"
+                labelPlacement="floating"
                 value={password}
                 onIonInput={(e) => setPassword(e.detail.value || '')}
+                onKeyDown={handleKeyDown}
               />
 
               <IonButton
@@ -104,10 +114,22 @@ const Login: React.FC = () => {
                 {loading ? <IonSpinner name="crescent" /> : isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
               </IonButton>
 
+              {!isRegister && (
+                <button type="button" className="login-forgot" disabled>
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
+
               <button
                 type="button"
                 className="login-toggle"
-                onClick={() => setIsRegister(!isRegister)}
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setEmail('');
+                  setPassword('');
+                  setName('');
+                  setError('');
+                }}
               >
                 {isRegister ? '¿Ya tienes cuenta? Iniciar sesión' : '¿No tienes cuenta? Registrarse'}
               </button>
