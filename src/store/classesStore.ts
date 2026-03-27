@@ -19,6 +19,9 @@ export interface DeletePreview {
 interface ClassesState {
   classes: ClassGroup[];
   classSubjects: Record<string, ClassSubjectSummary[]>;
+  /** Tracks which classIds have had their subjects fetched at least once.
+   *  Allows components to distinguish "still loading" from "truly empty". */
+  classSubjectsLoaded: Record<string, boolean>;
   loading: boolean;
   error: string | null;
   fetchClasses: () => Promise<void>;
@@ -34,6 +37,7 @@ interface ClassesState {
 export const useClassesStore = create<ClassesState>((set, get) => ({
   classes: [],
   classSubjects: {},
+  classSubjectsLoaded: {},
   loading: false,
   error: null,
 
@@ -59,9 +63,14 @@ export const useClassesStore = create<ClassesState>((set, get) => ({
       }));
       set((state) => ({
         classSubjects: { ...state.classSubjects, [classId]: subjects },
+        classSubjectsLoaded: { ...state.classSubjectsLoaded, [classId]: true },
       }));
       return subjects;
     } catch {
+      // Mark as loaded even on error so components show "Sin asignaturas" instead of skeleton
+      set((state) => ({
+        classSubjectsLoaded: { ...state.classSubjectsLoaded, [classId]: true },
+      }));
       return [];
     }
   },

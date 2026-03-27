@@ -858,7 +858,7 @@ const ExerciseCorrection: React.FC = () => {
               </IonButtons>
             </IonToolbar>
           </IonHeader>
-          <IonContent className="paper-preview-content">
+          <IonContent className="paper-preview-content" scrollY={false}>
             {previewUrl && (
               <div className="paper-preview-container">
                 {previewUrl.toLowerCase().endsWith('.pdf') ? (

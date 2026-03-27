@@ -85,6 +85,7 @@ const ExamEditor: React.FC = () => {
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficulty, setDifficulty] = useState('medium');
   const [refinement, setRefinement] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
 
   // Phase 4: Deadline and iteration
@@ -236,18 +237,20 @@ const ExamEditor: React.FC = () => {
       setTopicsFetching(true);
       subjectsApi.topicsForClass(classId)
         .then((res) => {
+          const mapTopic = (t: any, subj: any): any => ({
+            id: t.id,
+            subjectId: subj.subject_id,
+            subjectName: subj.subject_name,
+            name: t.name,
+            trimester: t.trimester ?? null,
+            order: t.order,
+            materialCount: t.material_count || 0,
+            children: (t.children || []).map((c: any) => mapTopic(c, subj)),
+          });
           const grouped: SubjectWithTopics[] = res.data.map((s: any) => ({
             subjectId: s.subject_id,
             subjectName: s.subject_name,
-            topics: (s.topics || []).map((t: any) => ({
-              id: t.id,
-              subjectId: s.subject_id,
-              subjectName: s.subject_name,
-              name: t.name,
-              trimester: t.trimester ?? null,
-              order: t.order,
-              materialCount: t.material_count || 0,
-            })),
+            topics: (s.topics || []).map((t: any) => mapTopic(t, s)),
           }));
           setTopicsBySubject(grouped);
           // Pre-select subject if coming from a subject-scoped route
@@ -557,22 +560,21 @@ const ExamEditor: React.FC = () => {
         />
 
         <div className="exam-editor-form">
-          {/* ─── EXAM NAME (upload mode & edit: always first) ─── */}
-          {(mode === 'upload' || !isNew) && (
-            <div className="exam-name-field">
-              <IonInput
-                value={name}
-                onIonInput={(e) => setName(e.detail.value ?? '')}
-                placeholder="Nombre del examen"
-                className="exam-name-input"
-              />
-              {duplicateName && (
-                <p className="exam-name-warning">
-                  Ya existe un examen con este nombre en esta clase
-                </p>
-              )}
-            </div>
-          )}
+          {/* ─── EXAM NAME (always first, both modes) ─── */}
+          <div className="exam-name-field">
+            <label className="exam-name-label">Nombre del examen</label>
+            <IonInput
+              value={name}
+              onIonInput={(e) => setName(e.detail.value ?? '')}
+              placeholder="Ej: Examen T2 Ecuaciones"
+              className="exam-name-input"
+            />
+            {duplicateName && (
+              <p className="exam-name-warning">
+                Ya existe un examen con este nombre en esta clase
+              </p>
+            )}
+          </div>
 
           {/* ─── UPLOAD MODE (existing + editing) ─── */}
           {(mode === 'upload' || !isNew) && (
@@ -664,22 +666,67 @@ const ExamEditor: React.FC = () => {
                     </div>
                   ) : (
                     <div className="gen-topics__list">
-                      {filteredTopics.map((topic) => (
-                        <div
-                          key={topic.id}
-                          className={`gen-topic-chip ${selectedTopicIds.includes(topic.id) ? 'gen-topic-chip--active' : ''}`}
-                          onClick={() => toggleTopic(topic.id)}
-                        >
-                          <IonCheckbox
-                            checked={selectedTopicIds.includes(topic.id)}
-                            className="gen-topic-chip__check"
-                          />
-                          <span className="gen-topic-chip__name">{topic.name}</span>
-                          <IonBadge color="medium" className="gen-topic-chip__materials">
-                            {topic.materialCount}
-                          </IonBadge>
-                        </div>
-                      ))}
+                      {filteredTopics.map((topic) => {
+                        const children = topic.children || [];
+                        const childIds = children.map(c => c.id);
+                        const allChildrenSelected = children.length > 0 && childIds.every(id => selectedTopicIds.includes(id));
+                        const someChildrenSelected = children.length > 0 && childIds.some(id => selectedTopicIds.includes(id));
+                        const parentSelected = selectedTopicIds.includes(topic.id);
+                        const isActive = parentSelected || allChildrenSelected;
+
+                        return (
+                          <div key={topic.id}>
+                            <div
+                              className={`gen-topic-chip ${isActive ? 'gen-topic-chip--active' : someChildrenSelected ? 'gen-topic-chip--partial' : ''}`}
+                              onClick={() => {
+                                if (children.length === 0) {
+                                  toggleTopic(topic.id);
+                                } else {
+                                  // Toggle parent + all children together
+                                  const allIds = [topic.id, ...childIds];
+                                  if (isActive) {
+                                    setSelectedTopicIds(prev => prev.filter(id => !allIds.includes(id)));
+                                  } else {
+                                    setSelectedTopicIds(prev => [...new Set([...prev, ...allIds])]);
+                                  }
+                                }
+                              }}
+                            >
+                              <IonCheckbox
+                                checked={isActive}
+                                indeterminate={!isActive && someChildrenSelected}
+                                className="gen-topic-chip__check"
+                              />
+                              <span className="gen-topic-chip__name">{topic.name}</span>
+                              {children.length > 0 && (
+                                <IonBadge color="light" style={{ fontSize: 10, fontWeight: 600 }}>{children.length} sub</IonBadge>
+                              )}
+                              <IonBadge color="medium" className="gen-topic-chip__materials">
+                                {topic.materialCount + children.reduce((s, c) => s + (c.materialCount || 0), 0)}
+                              </IonBadge>
+                            </div>
+                            {/* Subtopics — shown indented when parent has children */}
+                            {children.length > 0 && (parentSelected || someChildrenSelected) && (
+                              <div style={{ paddingLeft: 20, borderLeft: '2px solid var(--ion-color-primary-tint, #4d9a93)', marginLeft: 14, marginBottom: 4 }}>
+                                {children.map(child => (
+                                  <div
+                                    key={child.id}
+                                    className={`gen-topic-chip gen-topic-chip--sub ${selectedTopicIds.includes(child.id) ? 'gen-topic-chip--active' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); toggleTopic(child.id); }}
+                                    style={{ marginTop: 2, marginBottom: 2 }}
+                                  >
+                                    <IonCheckbox checked={selectedTopicIds.includes(child.id)} className="gen-topic-chip__check" />
+                                    <span className="gen-topic-chip__name" style={{ fontSize: 12 }}>{child.name}</span>
+                                    {child.materialCount > 0 && (
+                                      <IonBadge color="medium" className="gen-topic-chip__materials">{child.materialCount}</IonBadge>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       {/* NOTE: material text budget is shared (30K chars total across all documents) */}
                       <p className="gen-materials-note">
                         <IonIcon icon={informationCircleOutline} />
@@ -693,21 +740,7 @@ const ExamEditor: React.FC = () => {
               {/* Configuration */}
               {selectedTopicIds.length > 0 && (
                 <div className="gen-config">
-                  {/* Exam name — right above questions/difficulty */}
-                  <div className="exam-name-field" style={{ marginBottom: 0 }}>
-                    <IonInput
-                      value={name}
-                      onIonInput={(e) => setName(e.detail.value ?? '')}
-                      placeholder="Nombre del examen"
-                      className="exam-name-input"
-                    />
-                    {duplicateName && (
-                      <p className="exam-name-warning">
-                        Ya existe un examen con este nombre en esta clase
-                      </p>
-                    )}
-                  </div>
-
+                  <span className="gen-config__label">Configuración</span>
                   <div className="gen-config__row">
                     <IonItem lines="none" className="form-item form-item-half">
                       <IonLabel position="stacked">Preguntas</IonLabel>
@@ -765,14 +798,26 @@ const ExamEditor: React.FC = () => {
                     />
                   </IonItem>
 
-                  <IonItem lines="none" className="form-item">
-                    <IonTextarea
-                      value={refinement}
-                      onIonInput={(e) => setRefinement(e.detail.value ?? '')}
-                      placeholder="Instrucciones adicionales (opcional)"
-                      rows={2}
-                    />
-                  </IonItem>
+                  <button
+                    type="button"
+                    className="exgen__instructions-toggle"
+                    onClick={() => setShowInstructions(v => !v)}
+                  >
+                    <IonIcon icon={chevronForwardOutline} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
+                    <span>Instrucciones adicionales</span>
+                    {!showInstructions && refinement && <IonBadge color="primary" className="exgen__instructions-dot">1</IonBadge>}
+                  </button>
+                  {showInstructions && (
+                    <IonItem lines="none" className="form-item">
+                      <IonTextarea
+                        value={refinement}
+                        onIonInput={(e) => setRefinement(e.detail.value ?? '')}
+                        placeholder="Describe lo que quieres que incluya o evite el examen..."
+                        rows={3}
+                        autoGrow
+                      />
+                    </IonItem>
+                  )}
 
                 </div>
               )}

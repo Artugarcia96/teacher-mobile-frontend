@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import {
-  IonModal, IonButton, IonTextarea, IonSpinner,
+  IonModal, IonButton, IonSpinner,
 } from '@ionic/react';
+import { MentionedStudent } from '../types';
 import { useStudentsStore } from '../store/studentsStore';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import MentionTextarea from './MentionTextarea';
 import './QuickCommentModal.css';
 
 interface Props {
@@ -17,14 +19,16 @@ const QuickCommentModal: React.FC<Props> = ({ isOpen, studentId, studentName, on
   const isDesktop = useIsDesktop();
   const addComment = useStudentsStore((s) => s.addComment);
   const [text, setText] = useState('');
+  const [mentions, setMentions] = useState<MentionedStudent[]>([]);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      await addComment(studentId, text.trim());
+      await addComment(studentId, text.trim(), mentions.map((s) => s.id));
       setText('');
+      setMentions([]);
       onDismiss();
     } catch (err) {
       console.error('Failed to save comment:', err);
@@ -35,6 +39,7 @@ const QuickCommentModal: React.FC<Props> = ({ isOpen, studentId, studentName, on
 
   const handleDismiss = () => {
     setText('');
+    setMentions([]);
     onDismiss();
   };
 
@@ -48,13 +53,14 @@ const QuickCommentModal: React.FC<Props> = ({ isOpen, studentId, studentName, on
     >
       <div className="qc-sheet">
         <h3 className="qc-sheet__title">Comentario sobre {studentName}</h3>
-        <IonTextarea
+        <MentionTextarea
           value={text}
-          onIonInput={(e) => setText(e.detail.value ?? '')}
+          onChange={setText}
+          mentionedStudents={mentions}
+          onMentionsChange={setMentions}
           placeholder="Escribe un comentario..."
           rows={3}
-          autoGrow
-          className="qc-sheet__textarea"
+          helperText="Usa @ para mencionar otros alumnos"
         />
         <div className="qc-sheet__actions">
           <IonButton size="small" fill="outline" onClick={handleDismiss}>

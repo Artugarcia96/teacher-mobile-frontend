@@ -19,12 +19,12 @@ interface FeedbackState {
   deleteFeedback: (id: string) => Promise<void>;
 }
 
-export const useFeedbackStore = create<FeedbackState>((set) => ({
+export const useFeedbackStore = create<FeedbackState>((set, get) => ({
   items: [],
   loading: false,
 
   fetchFeedback: async () => {
-    set({ loading: true });
+    if (!get().items.length) set({ loading: true });
     try {
       const res = await feedbackApi.list();
       set({ items: res.data, loading: false });

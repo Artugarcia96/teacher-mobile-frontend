@@ -5,7 +5,7 @@ import {
 } from '@ionic/react';
 import {
   refreshOutline, trendingUpOutline, trendingDownOutline,
-  removeOutline, alertCircleOutline, sparkles,
+  removeOutline, alertCircleOutline, sparkles, bulbOutline,
   schoolOutline, checkmarkCircleOutline, chevronDownOutline, chevronUpOutline,
 } from 'ionicons/icons';
 import { classes as classesApi } from '../services/api';
@@ -116,9 +116,9 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
   const trendIcon = insights.trend === 'improving' ? trendingUpOutline :
     insights.trend === 'declining' ? trendingDownOutline : removeOutline;
   const trendColor = insights.trend === 'improving' ? 'success' :
-    insights.trend === 'declining' ? 'danger' : 'medium';
+    insights.trend === 'declining' ? 'warning' : 'medium';
   const trendText = insights.trend === 'improving' ? 'Mejorando' :
-    insights.trend === 'declining' ? 'Empeorando' : 'Estable';
+    insights.trend === 'declining' ? 'Necesita atención' : 'Estable';
 
   return (
     <div className="cip">
@@ -224,12 +224,20 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
             </button>
           )}
 
+          {/* Class-level suggestion when declining */}
+          {insights.trend === 'declining' && (
+            <div className="cip__trend-tip">
+              <IonIcon icon={bulbOutline} />
+              <span>Consejo: Revisa los temas recientes y considera ejercicios de refuerzo o dedicar tiempo a resolver dudas en clase.</span>
+            </div>
+          )}
+
           {/* Student alerts — compact */}
           {insights.student_alerts.length > 0 && (
             <div className="cip__alerts">
               <span className="cip__section-label">
                 <IonIcon icon={alertCircleOutline} />
-                Alumnos con dificultades
+                Alumnos que necesitan apoyo
               </span>
               {insights.student_alerts.slice(0, 3).map((alert, i) => (
                 <div
@@ -237,8 +245,13 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
                   className="cip__alert-row"
                   onClick={() => onStudentClick?.(alert.student_id)}
                 >
-                  <span className="cip__alert-name">{alert.student_name}</span>
-                  <span className="cip__alert-issue">{alert.issue}</span>
+                  <div className="cip__alert-info">
+                    <span className="cip__alert-name">{alert.student_name}</span>
+                    <span className="cip__alert-issue">{alert.issue}</span>
+                  </div>
+                  {alert.suggested_action && (
+                    <span className="cip__alert-action">{alert.suggested_action}</span>
+                  )}
                 </div>
               ))}
             </div>

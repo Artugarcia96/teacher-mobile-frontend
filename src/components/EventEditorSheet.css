@@ -1,5 +1,6 @@
 .ev-editor {
   padding: var(--space-2xl) var(--space-xl) var(--space-3xl);
+  overflow: visible;
 }
 
 .ev-editor__title {
@@ -315,6 +316,7 @@
 /* Observations Section */
 .ev-editor__observations {
   margin-bottom: var(--space-md);
+  overflow: visible;
 }
 
 .ev-editor__obs-header {
@@ -413,6 +415,34 @@
 .ev-editor__obs-add-btn ion-icon {
   font-size: 22px;
 }
+
+/* Mention field - must NOT have overflow:hidden so the dropdown is visible */
+.ev-editor__field--mention {
+  --background: transparent;
+  --border-radius: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --min-height: auto;
+  padding: 0;
+  margin: 0 0 var(--space-md);
+  overflow: visible !important;
+}
+
+.ev-editor__mention-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+}
+
+.ev-editor__obs-mention {
+  flex: 1;
+}
+
+/* Dropdown uses fixed positioning so no overflow overrides needed */
 
 /* Dark theme */
 @media (prefers-color-scheme: dark) {

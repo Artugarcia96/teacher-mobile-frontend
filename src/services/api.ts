@@ -111,7 +111,12 @@ export const students = {
   update: (id: string, data: any) => api.put(`/students/${id}`, data),
   delete: (id: string) => api.delete(`/students/${id}`),
   getComments: (id: string) => api.get(`/students/${id}/comments`),
-  addComment: (id: string, text: string) => api.post(`/students/${id}/comments`, { text }),
+  addComment: (id: string, text: string, mentionedStudentIds?: string[]) =>
+    api.post(`/students/${id}/comments`, { text, mentioned_student_ids: mentionedStudentIds || [] }),
+  search: (q: string, classId?: string) =>
+    api.get('/students/search', { params: { q, ...(classId ? { class_id: classId } : {}) } }),
+  getMentions: (id: string, days?: number) =>
+    api.get(`/students/${id}/mentions`, { params: { days: days || 90 } }),
   
   getSummary: (id: string, classId?: string) =>
     api.post(`/students/${id}/summary`, null, { params: classId ? { class_id: classId } : {} }),
@@ -331,8 +336,14 @@ export const topics = {
     api.delete(`/topics/${topicId}/materials/${materialId}`),
   updateMaterial: (topicId: string, materialId: string, data: { include_in_exercises?: boolean }) =>
     api.patch(`/topics/${topicId}/materials/${materialId}`, data),
-  generateMaterial: (topicId: string, data: { prompt: string; include_in_exercises: boolean }) =>
-    api.post(`/topics/${topicId}/generate-material`, data, { timeout: 120000 }),
+  moveMaterial: (topicId: string, materialId: string, targetTopicId: string) =>
+    api.patch(`/topics/${topicId}/materials/${materialId}`, { target_topic_id: targetTopicId }),
+  generateMaterial: (topicId: string, data: {
+    prompt: string; include_in_exercises?: boolean;
+    enfoque?: string; target_pages?: number;
+    exercises_per_chapter?: number; examples_per_section?: number;
+  }) =>
+    api.post(`/topics/${topicId}/generate-material`, data, { timeout: 30000 }),
   getMaterialDownloadUrl: (documentUrl: string) => `${getBaseUrl()}${documentUrl}`,
   reorder: (subjectId: string, topicIds: string[]) =>
     api.post(`/topics/subject/${subjectId}/reorder`, topicIds),
@@ -397,11 +408,11 @@ export const calendar = {
 export const comments = {
   list: (params?: { note_type?: string; class_id?: string; subject_id?: string; event_id?: string; days?: number }) =>
     api.get('/comments/', { params }),
-  createClassComment: (data: { class_id: string; subject_id?: string; event_id?: string; event_date?: string; text: string }) =>
+  createClassComment: (data: { class_id: string; subject_id?: string; event_id?: string; event_date?: string; text: string; mentioned_student_ids?: string[] }) =>
     api.post('/comments/class', data),
-  createEventObservation: (data: { event_id: string; text: string }) =>
+  createEventObservation: (data: { event_id: string; text: string; mentioned_student_ids?: string[] }) =>
     api.post('/comments/event', data),
-  createGeneralComment: (data: { text: string }) =>
+  createGeneralComment: (data: { text: string; mentioned_student_ids?: string[] }) =>
     api.post('/comments/general', data),
   getRecentSessions: () =>
     api.get('/comments/recent-sessions'),
@@ -416,6 +427,8 @@ export const preparation = {
     api.get(`/preparation/check/${prepDate}`),
   getPreparedDates: (startDate: string, endDate: string) =>
     api.get('/preparation/prepared-dates', { params: { start_date: startDate, end_date: endDate } }),
+  getForSubject: (prepDate: string, classId: string, subjectId: string) =>
+    api.get(`/preparation/${prepDate}/class/${classId}/subject/${subjectId}`),
 };
 
 export interface BatchJobProgress {
@@ -636,6 +649,8 @@ export const textbooks = {
     target_pages?: number;
     exercises_per_chapter?: number;
     examples_per_section?: number;
+    depth?: number;
+    visual_density?: string;
     guide_pdfs?: File[];
   }) => {
     const form = new FormData();
@@ -648,6 +663,8 @@ export const textbooks = {
     if (data.target_pages !== undefined) form.append('target_pages', String(data.target_pages));
     if (data.exercises_per_chapter !== undefined) form.append('exercises_per_chapter', String(data.exercises_per_chapter));
     if (data.examples_per_section !== undefined) form.append('examples_per_section', String(data.examples_per_section));
+    if (data.depth !== undefined) form.append('depth', String(data.depth));
+    if (data.visual_density) form.append('visual_density', data.visual_density);
     if (data.guide_pdfs) {
       data.guide_pdfs.forEach((pdf) => form.append('guide_pdfs', pdf));
     }

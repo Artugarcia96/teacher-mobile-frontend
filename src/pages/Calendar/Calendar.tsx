@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { IonPage, IonContent, IonIcon, IonSpinner, IonModal, IonList, IonItem, IonLabel, IonSegment, IonSegmentButton, IonRefresher, IonRefresherContent, useIonViewWillEnter } from '@ionic/react';
+import { IonPage, IonContent, IonIcon, IonSpinner, IonSegment, IonSegmentButton, IonRefresher, IonRefresherContent, useIonViewWillEnter } from '@ionic/react';
 import {
   calendarOutline,
   documentTextOutline,
   timeOutline,
   chevronForwardOutline,
   chevronBackOutline,
-  checkmarkDoneOutline,
   sparklesOutline,
   checkmarkCircleOutline,
   readerOutline,
   trendingDownOutline,
+  addCircleOutline,
 } from 'ionicons/icons';
 import SepiaLogo from '../../components/SepiaLogo';
 import { avatarColor } from '../../utils/avatarColors';
@@ -137,7 +137,7 @@ const Calendar: React.FC = () => {
   const [showEventEditor, setShowEventEditor] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [showClassSelector, setShowClassSelector] = useState(false);
+
   const [showPrepareModal, setShowPrepareModal] = useState(false);
   const [attendanceData, setAttendanceData] = useState<{classId: string; date: string; eventId?: string; subjectId?: string} | null>(null);
 
@@ -152,8 +152,6 @@ const Calendar: React.FC = () => {
   const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
 
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
-  const correctedExams = useMemo(() => exams.filter((e) => e.status === 'corrected'), [exams]);
-
   // Get week dates based on offset
   const currentWeekMonday = useMemo(() => {
     const d = new Date();
@@ -342,22 +340,6 @@ const Calendar: React.FC = () => {
     setShowEventEditor(true);
   };
 
-  const handleNewExam = () => {
-    if (classes.length === 0) {
-      history.push('/tabs/classes');
-      return;
-    }
-    if (classes.length === 1) {
-      history.push(`/tabs/classes/${classes[0].id}/exams/new`);
-    } else {
-      setShowClassSelector(true);
-    }
-  };
-
-  const handleClassSelect = (classId: string) => {
-    setShowClassSelector(false);
-    history.push(`/tabs/classes/${classId}/exams/new`);
-  };
 
   return (
     <IonPage>
@@ -548,9 +530,15 @@ const Calendar: React.FC = () => {
             <h2 className="cal-section__title">
               <IonIcon icon={timeOutline} /> {formatSelectedDate()}
             </h2>
-            <span className="cal-section__count">
-              {selectedDayEvents.length + groupedDayExams.length} {selectedDayEvents.length + groupedDayExams.length === 1 ? 'evento' : 'eventos'}
-            </span>
+            <div className="cal-section__actions">
+              <span className="cal-section__count">
+                {selectedDayEvents.length + groupedDayExams.length} {selectedDayEvents.length + groupedDayExams.length === 1 ? 'evento' : 'eventos'}
+              </span>
+              <button className="cal-section__add-btn" onClick={handleNewEvent}>
+                <IonIcon icon={addCircleOutline} />
+                <span>Añadir</span>
+              </button>
+            </div>
           </div>
 
           {calLoading ? (
@@ -574,7 +562,11 @@ const Calendar: React.FC = () => {
                       </div>
                       <div className="cal-agenda-item__content">
                         <span className="cal-agenda-item__title">{ev.title}</span>
-                        {ev.className && <span className="cal-agenda-item__class">{ev.className}</span>}
+                        {(ev.className || ev.aula) && (
+                          <span className="cal-agenda-item__class">
+                            {ev.className}{ev.aula ? ` · Aula ${ev.aula}` : ''}
+                          </span>
+                        )}
                         {ev.eventType === 'class_session' && ev.classId && (() => {
                           const taken = isAttendanceTaken(ev.classId!, ev.date, ev.subjectId);
                           return taken ? (
@@ -633,22 +625,6 @@ const Calendar: React.FC = () => {
           )}
         </div>
 
-        <div className="cal-section">
-          <div className="cal-section__header">
-            <h2 className="cal-section__title">Acciones rápidas</h2>
-          </div>
-          <div className="cal-actions">
-            <button className="cal-action" onClick={handleNewExam}>
-              <IonIcon icon={documentTextOutline} />
-              <span>Nuevo examen</span>
-            </button>
-            <button className="cal-action" onClick={handleNewEvent}>
-              <IonIcon icon={calendarOutline} />
-              <span>Nuevo evento</span>
-            </button>
-          </div>
-        </div>
-
         {dashboardData && dashboardData.studentsAtRisk.length > 0 && (
           <div className="cal-section">
             <div className="cal-section__header">
@@ -681,20 +657,6 @@ const Calendar: React.FC = () => {
           </div>
         )}
 
-        {correctedExams.length > 0 && (
-          <div className="cal-section">
-            <div className="cal-section__header">
-              <h2 className="cal-section__title">Progreso del curso</h2>
-            </div>
-            <div className="cal-summary">
-              <div className="cal-summary__item">
-                <IonIcon icon={checkmarkDoneOutline} className="cal-summary__icon cal-summary__icon--success" />
-                <span className="cal-summary__value">{correctedExams.length}</span>
-                <span className="cal-summary__label">exámenes corregidos</span>
-              </div>
-            </div>
-          </div>
-        )}
       </IonContent>
 
       <EventEditorSheet
@@ -713,41 +675,6 @@ const Calendar: React.FC = () => {
         onDismiss={() => setShowPrepareModal(false)}
         date={todayStr}
       />
-
-      <IonModal
-        isOpen={showClassSelector}
-        onDidDismiss={() => setShowClassSelector(false)}
-        initialBreakpoint={isDesktop ? 1 : 0.5}
-        breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.75]}
-      >
-        <div className="class-selector-modal">
-          <h2 className="class-selector-modal__title">Selecciona una clase</h2>
-          <p className="class-selector-modal__subtitle">¿Para qué clase quieres crear el examen?</p>
-          <IonList className="class-selector-modal__list">
-            {classes.map((c) => (
-              <IonItem 
-                key={c.id} 
-                button 
-                onClick={() => handleClassSelect(c.id)}
-                className="class-selector-modal__item"
-              >
-                <div 
-                  className="class-selector-modal__avatar" 
-                  style={{ background: avatarColor(c.name) }}
-                  slot="start"
-                >
-                  {c.name.charAt(0)}
-                </div>
-                <IonLabel>
-                  <h3>{c.name}</h3>
-                  <p>{c.studentCount} alumnos</p>
-                </IonLabel>
-                <IonIcon icon={chevronForwardOutline} slot="end" />
-              </IonItem>
-            ))}
-          </IonList>
-        </div>
-      </IonModal>
 
       <AttendanceSheet
         isOpen={!!attendanceData}

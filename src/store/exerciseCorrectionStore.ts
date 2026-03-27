@@ -55,7 +55,7 @@ export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, 
   loading: false,
 
   fetchAllCorrections: async () => {
-    set({ loading: true });
+    if (!get().corrections.length) set({ loading: true });
     try {
       const res = await api.listAll();
       const data = res.data.map(mapCorrection);
@@ -66,7 +66,8 @@ export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, 
   },
 
   fetchCorrections: async (exerciseId) => {
-    set({ loading: true });
+    const hasCachedForExercise = get().corrections.some((c) => c.exerciseId === exerciseId);
+    if (!hasCachedForExercise) set({ loading: true });
     try {
       const res = await api.list(exerciseId);
       const data = res.data.map(mapCorrection);

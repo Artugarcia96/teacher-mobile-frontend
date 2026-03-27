@@ -24,7 +24,8 @@ interface TopicsState {
   uploadMaterial: (topicId: string, file: File) => Promise<TopicMaterial>;
   deleteMaterial: (topicId: string, materialId: string) => Promise<void>;
   updateMaterial: (topicId: string, materialId: string, data: { include_in_exercises?: boolean }) => Promise<void>;
-  generateMaterial: (topicId: string, data: { prompt: string; include_in_exercises: boolean }) => Promise<TopicMaterial>;
+  generateMaterial: (topicId: string, data: { prompt: string; enfoque?: string; target_pages?: number; exercises_per_chapter?: number; examples_per_section?: number }) => Promise<{ textbook_id: string; batch_job_id: string }>;
+  moveMaterial: (fromTopicId: string, materialId: string, toTopicId: string) => Promise<void>;
   clearCurrentTopic: () => void;
 }
 
@@ -100,7 +101,7 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
   error: null,
 
   fetchTopicsForClass: async (classId: string) => {
-    set({ loading: true, error: null });
+    if (!get().topics.length) set({ loading: true, error: null });
     try {
       const [topicsRes, subjectsRes] = await Promise.all([
         subjectsApi.topicsForClass(classId),
@@ -143,7 +144,7 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
   },
 
   fetchTopicsBySubject: async (subjectId: string) => {
-    set({ loading: true, error: null });
+    if (!get().topics.length) set({ loading: true, error: null });
     try {
       const res = await topicsApi.listBySubject(subjectId);
       set({ topics: res.data.map(mapTopicListResponse), loading: false });
@@ -337,36 +338,19 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
     }
   },
 
-  generateMaterial: async (topicId: string, data: { prompt: string; include_in_exercises: boolean }) => {
+  generateMaterial: async (topicId: string, data: { prompt: string; enfoque?: string; target_pages?: number; exercises_per_chapter?: number; examples_per_section?: number }) => {
     const res = await topicsApi.generateMaterial(topicId, data);
-    const material: TopicMaterial = {
-      id: res.data.material_id,
-      topicId: topicId,
-      name: res.data.name,
-      documentUrl: res.data.document_url,
-      documentType: 'generated',
-      uploadedAt: new Date().toISOString(),
-      includeInExercises: res.data.include_in_exercises ?? true,
-      isGenerated: true,
-    };
+    return { textbook_id: res.data.textbook_id, batch_job_id: res.data.batch_job_id };
+  },
 
-    const { currentTopic, topics, topicsBySubject } = get();
-    if (currentTopic && currentTopic.id === topicId) {
-      set({ currentTopic: { ...currentTopic, materials: [...currentTopic.materials, material] } });
+  moveMaterial: async (fromTopicId: string, materialId: string, toTopicId: string) => {
+    await topicsApi.moveMaterial(fromTopicId, materialId, toTopicId);
+    // Re-fetch the full topic to get updated children & materials
+    const { currentTopic } = get();
+    if (currentTopic) {
+      const res = await topicsApi.get(currentTopic.id);
+      set({ currentTopic: mapTopicResponse(res.data) });
     }
-
-    const incCount = (t: TopicListItem) =>
-      t.id === topicId ? { ...t, materialCount: t.materialCount + 1 } : t;
-
-    set({
-      topics: topics.map(incCount),
-      topicsBySubject: topicsBySubject.map((s) => ({
-        ...s,
-        topics: s.topics.map(incCount),
-      })),
-    });
-
-    return material;
   },
 
   clearCurrentTopic: () => set({ currentTopic: null })

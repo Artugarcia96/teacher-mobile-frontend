@@ -1,0 +1,144 @@
+.mention-textarea {
+  position: relative;
+  width: 100%;
+}
+
+.mention-textarea__wrap {
+  position: relative;
+}
+
+.mention-textarea__input {
+  width: 100%;
+  border: 1px solid var(--ion-color-light-shade, #d1d5db);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px;
+  font-size: var(--font-size-sm, 14px);
+  font-family: inherit;
+  color: var(--ion-text-color, #1e293b);
+  background: var(--ion-background-color, #fff);
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+.mention-textarea__input:focus {
+  border-color: var(--ion-color-primary, #15665E);
+}
+
+.mention-textarea__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mention-textarea__input::placeholder {
+  color: var(--ion-color-medium, #92949c);
+}
+
+.mention-textarea__helper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 2px 0;
+  font-size: 11px;
+  color: var(--ion-color-medium, #92949c);
+}
+
+.mention-textarea__helper ion-icon {
+  font-size: 12px;
+}
+
+/* Mention chips below textarea */
+.mention-textarea__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.mention-textarea__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  background: var(--ion-color-primary-tint, #e0f2f1);
+  color: var(--ion-color-primary, #15665E);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mention-textarea__chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ion-color-primary, #15665E);
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.mention-textarea__chip-remove:hover {
+  opacity: 1;
+}
+
+/*
+ * Autocomplete dropdown — rendered as a React portal on document.body
+ * so it escapes Ionic modal transform/overflow. Position set via inline style.
+ */
+.mention-textarea__dropdown {
+  z-index: 99999;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  max-height: 200px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mention-textarea__dropdown-loading,
+.mention-textarea__dropdown-empty,
+.mention-textarea__dropdown-hint {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #92949c;
+}
+
+.mention-textarea__dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  color: #1e293b;
+  transition: background 0.1s;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.mention-textarea__dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.mention-textarea__dropdown-item:hover,
+.mention-textarea__dropdown-item--selected {
+  background: #f1f5f9;
+}
+
+.mention-textarea__dropdown-name {
+  font-weight: 500;
+}
+
+.mention-textarea__dropdown-class {
+  font-size: 12px;
+  color: #92949c;
+  margin-left: 8px;
+  flex-shrink: 0;
+}

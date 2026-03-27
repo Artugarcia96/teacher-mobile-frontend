@@ -98,6 +98,11 @@
   color: var(--ion-color-danger);
 }
 
+.cip__stat--warning .cip__stat-icon,
+.cip__stat--warning .cip__stat-value {
+  color: var(--ion-color-warning-shade);
+}
+
 .cip__stat--medium .cip__stat-icon,
 .cip__stat--medium .cip__stat-value {
   color: var(--ion-color-medium);
@@ -390,17 +395,43 @@
   gap: 0;
 }
 
+.cip__trend-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--ion-color-warning-tint, #fff8e1);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ion-color-dark);
+}
+
+.cip__trend-tip ion-icon {
+  color: var(--ion-color-warning-shade);
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 .cip__alert-row {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 5px 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
   cursor: pointer;
   border-bottom: 1px solid var(--ion-color-light);
 }
 
 .cip__alert-row:last-child {
   border-bottom: none;
+}
+
+.cip__alert-info {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .cip__alert-name {
@@ -416,6 +447,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cip__alert-action {
+  font-size: 11.5px;
+  color: var(--ion-color-primary);
+  padding-left: 2px;
 }
 
 /* Dark mode */

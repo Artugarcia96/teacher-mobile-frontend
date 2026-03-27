@@ -376,6 +376,89 @@
   display: block;
 }
 
+.exd-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.exd-doc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exd-doc-item:last-child {
+  border-bottom: none;
+}
+
+.exd-doc-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  flex: 1;
+}
+
+.exd-doc-icon {
+  font-size: 18px;
+  color: var(--ion-color-primary);
+  flex-shrink: 0;
+}
+
+.exd-doc-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--ion-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exd-doc-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  margin-left: var(--space-sm);
+}
+
+.exd-doc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--ion-text-color);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.exd-doc-btn:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.12);
+  color: var(--ion-color-primary);
+}
+
+.exd-doc-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.exd-doc-btn ion-icon {
+  font-size: 18px;
+}
+
 .exd-actions-row {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -517,25 +600,21 @@
 }
 
 .paper-preview-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100%;
-  padding: var(--space-md);
+  width: 100%;
+  height: 100%;
 }
 
 .paper-preview-img {
   max-width: 100%;
-  max-height: calc(100vh - 80px);
+  max-height: 100%;
   object-fit: contain;
   border-radius: var(--radius-sm);
 }
 
 .paper-preview-pdf {
   width: 100%;
-  height: calc(100vh - 80px);
+  height: 100%;
   border: none;
-  border-radius: var(--radius-sm);
   background: white;
 }
 
@@ -647,6 +726,19 @@
   .exd-corrections-section .correction-review-list {
     background: #16161A;
     border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exd-doc-list {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .exd-doc-item {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .exd-doc-btn {
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 

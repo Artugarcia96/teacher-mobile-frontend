@@ -9,12 +9,12 @@ interface DashboardState {
   fetchDashboard: () => Promise<void>;
 }
 
-export const useDashboardStore = create<DashboardState>((set) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   data: null,
   loading: false,
   error: null,
   fetchDashboard: async () => {
-    set({ loading: true, error: null });
+    if (!get().data) set({ loading: true, error: null });
     try {
       const res = await dashboardApi.get();
       const d = res.data;

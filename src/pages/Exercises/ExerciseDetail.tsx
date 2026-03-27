@@ -9,7 +9,8 @@ import {
   trashOutline, downloadOutline,
   checkmarkCircleOutline, sparkles,
   documentTextOutline, personOutline, refreshOutline, closeOutline,
-  peopleOutline, statsChartOutline, eyeOutline, medkitOutline
+  peopleOutline, statsChartOutline, eyeOutline, medkitOutline,
+  documentOutline, checkboxOutline
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
@@ -535,43 +536,35 @@ const ExerciseDetail: React.FC = () => {
                 </IonBadge>
               )}
             </span>
-            <div className="exd-actions-row">
-              <IonButton
-                expand="block"
-                fill="solid"
-                onClick={() => handlePreview('exercises')}
-              >
-                <IonIcon icon={eyeOutline} slot="start" />
-                Ver ejercicios
-              </IonButton>
-              <IonButton
-                expand="block"
-                fill="outline"
-                onClick={() => handleDownload('exercises')}
-                disabled={downloading}
-              >
-                <IonIcon icon={downloadOutline} slot="start" />
-                Descargar
-              </IonButton>
-            </div>
-            <div className="exd-actions-row" style={{ marginTop: '8px' }}>
-              <IonButton
-                expand="block"
-                fill="solid"
-                onClick={() => handlePreview('solutions')}
-              >
-                <IonIcon icon={eyeOutline} slot="start" />
-                Ver soluciones
-              </IonButton>
-              <IonButton
-                expand="block"
-                fill="outline"
-                onClick={() => handleDownload('solutions')}
-                disabled={downloading}
-              >
-                <IonIcon icon={downloadOutline} slot="start" />
-                Descargar
-              </IonButton>
+            <div className="exd-doc-list">
+              <div className="exd-doc-item">
+                <div className="exd-doc-info">
+                  <IonIcon icon={documentOutline} className="exd-doc-icon" />
+                  <span className="exd-doc-name">Ejercicios</span>
+                </div>
+                <div className="exd-doc-actions">
+                  <button className="exd-doc-btn" onClick={() => handlePreview('exercises')} title="Ver">
+                    <IonIcon icon={eyeOutline} />
+                  </button>
+                  <button className="exd-doc-btn" onClick={() => handleDownload('exercises')} disabled={downloading} title="Descargar">
+                    <IonIcon icon={downloadOutline} />
+                  </button>
+                </div>
+              </div>
+              <div className="exd-doc-item">
+                <div className="exd-doc-info">
+                  <IonIcon icon={checkboxOutline} className="exd-doc-icon" />
+                  <span className="exd-doc-name">Soluciones</span>
+                </div>
+                <div className="exd-doc-actions">
+                  <button className="exd-doc-btn" onClick={() => handlePreview('solutions')} title="Ver">
+                    <IonIcon icon={eyeOutline} />
+                  </button>
+                  <button className="exd-doc-btn" onClick={() => handleDownload('solutions')} disabled={downloading} title="Descargar">
+                    <IonIcon icon={downloadOutline} />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -708,7 +701,7 @@ const ExerciseDetail: React.FC = () => {
               </IonButtons>
             </IonToolbar>
           </IonHeader>
-          <IonContent className="paper-preview-content">
+          <IonContent className="paper-preview-content" scrollY={false}>
             {previewUrl && (
               <div className="paper-preview-container">
                 {previewUrl.toLowerCase().endsWith('.pdf') ? (

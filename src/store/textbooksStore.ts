@@ -12,6 +12,8 @@ interface GenerateTextbookParams {
   target_pages?: number;
   exercises_per_chapter?: number;
   examples_per_section?: number;
+  depth?: number;
+  visual_density?: string;
   guide_pdfs?: File[];
 }
 
@@ -42,6 +44,8 @@ const mapTextbook = (t: any): Textbook => ({
   createdAt: t.created_at,
   completedAt: t.completed_at,
   temasCreated: t.temas_created || false,
+  depth: t.depth || 3,
+  visualDensity: t.visual_density || 'equilibrado',
 });
 
 export const useTextbooksStore = create<TextbooksState>((set, get) => ({
@@ -49,7 +53,7 @@ export const useTextbooksStore = create<TextbooksState>((set, get) => ({
   loading: false,
 
   fetchTextbooks: async (subjectId) => {
-    set({ loading: true });
+    if (!get().textbooks.length) set({ loading: true });
     try {
       const res = await textbooksApi.list(subjectId);
       set({ textbooks: res.data.map(mapTextbook) });

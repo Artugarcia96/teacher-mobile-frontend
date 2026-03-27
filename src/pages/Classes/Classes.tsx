@@ -12,7 +12,8 @@ import { useExamsStore } from '../../store/examsStore';
 import { ClassSubjectSummary, EducationLevel } from '../../types';
 import EmptyState from '../../components/EmptyState';
 import OnboardingChecklist from '../../components/OnboardingChecklist';
-import { SkeletonClassCard } from '../../components/SkeletonLoaders';
+import { SkeletonClassCard, SkeletonSubjectChip } from '../../components/SkeletonLoaders';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { avatarColor } from '../../utils/avatarColors';
 import './Classes.css';
@@ -28,6 +29,7 @@ const Classes: React.FC = () => {
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const classSubjects = useClassesStore((s) => s.classSubjects);
+  const classSubjectsLoaded = useClassesStore((s) => s.classSubjectsLoaded);
   const loading = useClassesStore((s) => s.loading);
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
 
@@ -83,12 +85,14 @@ const Classes: React.FC = () => {
     });
   }, [classes, classSubjects, fetchClassSubjects]);
 
-  // Refresh data when tab becomes visible
+  // Refresh data when tab becomes visible — throttle subjects to avoid N API calls per tab switch
   useIonViewWillEnter(() => {
     fetchClasses();
     fetchExams();
-    // Refresh subjects too
-    classes.forEach((c) => fetchClassSubjects(c.id));
+    if (fetchRegistry.isStale('classSubjects', 60_000)) {
+      classes.forEach((c) => fetchClassSubjects(c.id));
+      fetchRegistry.register('classSubjects');
+    }
   });
 
   const pendingByClass = useMemo(() => {
@@ -309,7 +313,7 @@ const Classes: React.FC = () => {
         </IonToolbar>
       </IonHeader>
       <IonContent>
-        <IonRefresher slot="fixed" onIonRefresh={async (e) => { await Promise.all([fetchClasses(), fetchExams()]); e.detail.complete(); }}>
+        <IonRefresher slot="fixed" onIonRefresh={async (e) => { fetchRegistry.invalidate('classSubjects'); await Promise.all([fetchClasses(), fetchExams(), ...classes.map((c) => fetchClassSubjects(c.id))]); e.detail.complete(); }}>
           <IonRefresherContent />
         </IonRefresher>
 
@@ -444,7 +448,7 @@ const Classes: React.FC = () => {
                             )}
                           </div>
                         )}
-                        {!selectionMode && subjects.length === 0 && (
+                        {!selectionMode && subjects.length === 0 && !!classSubjectsLoaded[c.id] && (
                           <span
                             className="class-card__no-subjects"
                             onClick={(e) => {
@@ -454,6 +458,12 @@ const Classes: React.FC = () => {
                           >
                             Sin asignaturas
                           </span>
+                        )}
+                        {!selectionMode && subjects.length === 0 && !classSubjectsLoaded[c.id] && (
+                          <div className="class-card__subjects">
+                            <SkeletonSubjectChip />
+                            <SkeletonSubjectChip />
+                          </div>
                         )}
                       </div>
                       <div className="class-card__right">

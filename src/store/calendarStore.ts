@@ -19,9 +19,11 @@ function mapEvent(e: any): CalendarEvent {
     className: e.class_name,
     classSubject: e.class_subject,
     subjectId: e.subject_id,
+    aula: e.aula || undefined,
     studentName: e.student_name,
     examName: e.exam_name,
     examStatus: e.exam_status,
+    mentionedStudents: e.mentioned_students || undefined,
   };
 }
 
@@ -99,10 +101,12 @@ interface CalendarState {
   createEvent: (data: {
     class_id?: string; student_id?: string; title: string; event_date: string;
     start_time?: string; end_time?: string; event_type?: string; notes?: string;
+    mentioned_student_ids?: string[];
   }) => Promise<CalendarEvent>;
   updateEvent: (id: string, data: {
     title?: string; event_date?: string; start_time?: string;
     end_time?: string; notes?: string; is_cancelled?: boolean;
+    mentioned_student_ids?: string[];
   }) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
   bulkDelete: (ids: string[]) => Promise<void>;

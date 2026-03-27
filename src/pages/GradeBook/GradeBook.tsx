@@ -13,6 +13,7 @@ import {
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useClassesStore, DeletePreview } from '../../store/classesStore';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useExercisesStore } from '../../store/exercisesStore';
@@ -25,6 +26,7 @@ import ClassInsightsPanel from '../../components/ClassInsightsPanel';
 import SubjectCard from '../../components/SubjectCard';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { avatarColor } from '../../utils/avatarColors';
+import { SkeletonSubjectCard } from '../../components/SkeletonLoaders';
 import QuickCommentModal from '../../components/QuickCommentModal';
 import './GradeBook.css';
 
@@ -40,6 +42,7 @@ const GradeBook: React.FC = () => {
   const deleteClassPermanently = useClassesStore((s) => s.deleteClassPermanently);
   const getDeletePreview = useClassesStore((s) => s.getDeletePreview);
   const classSubjects = useClassesStore((s) => s.classSubjects);
+  const classSubjectsLoaded = useClassesStore((s) => s.classSubjectsLoaded);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
 
   const allStudents = useStudentsStore((s) => s.students);
@@ -97,6 +100,10 @@ const GradeBook: React.FC = () => {
 
   useIonViewWillEnter(() => {
     fetchClassDetails();
+    if (fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
+      fetchClassSubjects(classId);
+      fetchRegistry.register(`classSubjects-${classId}`);
+    }
   });
 
   const handleRemoveConfirm = async () => {
@@ -221,6 +228,11 @@ const GradeBook: React.FC = () => {
         {tab === 'overview' && (
           <div className="gb-overview">
             {/* Subject Cards — primary navigation when subjects exist */}
+            {!classSubjectsLoaded[classId] && !classSubjects[classId]?.length && (
+              <div className="gb-subject-cards">
+                {[1, 2].map((i) => <SkeletonSubjectCard key={i} />)}
+              </div>
+            )}
             {(classSubjects[classId]?.length || 0) > 0 && (
               <div className="gb-subject-cards">
                 {classSubjects[classId].map((subject) => {

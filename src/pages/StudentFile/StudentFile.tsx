@@ -21,7 +21,8 @@ import { useCalendarStore } from '../../store/calendarStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
-import { CalendarEvent, ClassSubjectSummary, AttendanceRecord } from '../../types';
+import { CalendarEvent, ClassSubjectSummary, AttendanceRecord, MentionedStudent, StudentMentionEntry } from '../../types';
+import MentionTextarea from '../../components/MentionTextarea';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import GradeDonut from '../../components/charts/GradeDonut';
 import GradeTrendLine from '../../components/charts/GradeTrendLine';
@@ -116,6 +117,9 @@ const StudentFile: React.FC = () => {
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [showAllAttendance, setShowAllAttendance] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentMentions, setCommentMentions] = useState<MentionedStudent[]>([]);
+  const [studentMentions, setStudentMentions] = useState<StudentMentionEntry[]>([]);
+  const [mentionsOpen, setMentionsOpen] = useState(false);
 
   // Attendance stats
   const attendanceStats = useMemo(() => {
@@ -334,14 +338,16 @@ const StudentFile: React.FC = () => {
     const end = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
     fetchEvents(start, end, undefined, id);
     fetchStudentHistory(id, classId).then(setAttendanceHistory).catch(() => {});
+    studentsApi.getMentions(id).then((res) => setStudentMentions(res.data)).catch(() => {});
   }, [classId, id, fetchStudents, fetchExams, fetchExercises, fetchAllCorrections, fetchExerciseCorrections, fetchClassSubjects, fetchEvents, fetchStudentHistory]);
 
   const handleSaveComment = async () => {
     if (!commentText.trim() || !student) return;
     setSaving(true);
     try {
-      await addComment(student.id, commentText.trim());
+      await addComment(student.id, commentText.trim(), commentMentions.map((s) => s.id));
       setCommentText('');
+      setCommentMentions([]);
       setShowCommentInput(false);
     } catch (err) { console.error(err); }
     finally { setSaving(false); }
@@ -766,15 +772,17 @@ const StudentFile: React.FC = () => {
             <>
               {showCommentInput && (
                 <div className="sf-comment-input">
-                  <IonTextarea
+                  <MentionTextarea
                     value={commentText}
-                    onIonInput={(e) => setCommentText(e.detail.value ?? '')}
+                    onChange={setCommentText}
+                    mentionedStudents={commentMentions}
+                    onMentionsChange={setCommentMentions}
                     placeholder="Escribe un comentario..."
                     rows={2}
-                    autoGrow
+                    helperText="Usa @ para mencionar otros alumnos"
                   />
                   <div className="sf-comment-input__actions">
-                    <IonButton size="small" fill="outline" onClick={() => { setShowCommentInput(false); setCommentText(''); }}>
+                    <IonButton size="small" fill="outline" onClick={() => { setShowCommentInput(false); setCommentText(''); setCommentMentions([]); }}>
                       Cancelar
                     </IonButton>
                     <IonButton size="small" onClick={handleSaveComment} disabled={saving || !commentText.trim()}>
@@ -806,6 +814,45 @@ const StudentFile: React.FC = () => {
             </>
           )}
         </div>
+        {/* ─── Menciones (collapsible) ─── */}
+        {studentMentions.length > 0 && (
+          <div className="sf-section">
+            <div className="sf-section__header sf-section__header--toggle" onClick={() => setMentionsOpen(!mentionsOpen)}>
+              <div className="sf-section__header-left">
+                <IonIcon icon={mentionsOpen ? chevronDownOutline : chevronForwardOutline} className="sf-section__chevron" />
+                <span className="sf-section__title">
+                  Menciones ({studentMentions.length})
+                </span>
+              </div>
+            </div>
+
+            {mentionsOpen && (
+              <div className="sf-mentions-list">
+                {studentMentions.map((m) => (
+                  <div key={m.id} className="sf-mention-item">
+                    <div className="sf-mention-item__header">
+                      <span className="sf-mention-item__source">
+                        {m.source_type === 'event' ? (
+                          <>{m.event_title || 'Evento'}</>
+                        ) : (
+                          <>{m.comment_note_type === 'class_session' ? 'Comentario de clase' : m.comment_note_type === 'event_observation' ? 'Observación' : 'Comentario'}</>
+                        )}
+                      </span>
+                      <span className="sf-mention-item__date">
+                        {m.event_date || m.created_at?.slice(0, 10)}
+                      </span>
+                    </div>
+                    <p className="sf-mention-item__text">{m.context_text}</p>
+                    {m.class_name && (
+                      <span className="sf-mention-item__class">{m.class_name}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </IonContent>
 
       {/* ─── Modals ─── */}
@@ -815,6 +862,9 @@ const StudentFile: React.FC = () => {
         studentId={id}
         studentName={student.name}
         weakAreas={weakAreas}
+        classId={classId}
+        preselectedSubjectId={selectedSubject !== 'all' ? selectedSubject : undefined}
+        subjectColor={selectedSubject !== 'all' ? subjects.find(s => s.subjectId === selectedSubject)?.subjectColor : undefined}
       />
 
       <IonModal

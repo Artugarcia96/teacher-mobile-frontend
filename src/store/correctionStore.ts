@@ -47,7 +47,7 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
   loading: false,
 
   fetchAllCorrections: async () => {
-    set({ loading: true });
+    if (!get().corrections.length) set({ loading: true });
     try {
       const res = await correctionsApi.listAll();
       const data = res.data.map((c: any) => ({
@@ -69,7 +69,8 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
   },
 
   fetchCorrections: async (examId) => {
-    set({ loading: true });
+    const hasCachedForExam = get().corrections.some((c) => c.examId === examId);
+    if (!hasCachedForExam) set({ loading: true });
     try {
       const res = await correctionsApi.list(examId);
       const data = res.data.map((c: any) => ({

@@ -81,12 +81,14 @@ const TopicsList: React.FC = () => {
 
   // Generate content form state
   const [genTitle, setGenTitle] = useState('');
-  const [genEnfoque, setGenEnfoque] = useState<string>('practico');
+  const [genEnfoque, setGenEnfoque] = useState<string>('teorico');
   const [genNotas, setGenNotas] = useState('');
   const [genGuidePdfs, setGenGuidePdfs] = useState<File[]>([]);
   const [genTargetPages, setGenTargetPages] = useState(80);
   const [genExercisesPerChapter, setGenExercisesPerChapter] = useState(15);
   const [genExamplesPerSection, setGenExamplesPerSection] = useState(2);
+  const [genDepth, setGenDepth] = useState<number>(3);
+  const [genVisualDensity, setGenVisualDensity] = useState<string>('equilibrado');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
   const genFileInputRef = useRef<HTMLInputElement>(null);
@@ -257,12 +259,14 @@ const TopicsList: React.FC = () => {
     setUploadProgress('');
     // Reset generate state
     setGenTitle('');
-    setGenEnfoque('practico');
+    setGenEnfoque('teorico');
     setGenNotas('');
     setGenGuidePdfs([]);
     setGenTargetPages(80);
     setGenExercisesPerChapter(15);
     setGenExamplesPerSection(2);
+    setGenDepth(3);
+    setGenVisualDensity('equilibrado');
     setGenerating(false);
     setGenError('');
   };
@@ -280,6 +284,8 @@ const TopicsList: React.FC = () => {
         target_pages: genTargetPages,
         exercises_per_chapter: genExercisesPerChapter,
         examples_per_section: genExamplesPerSection,
+        depth: genDepth,
+        visual_density: genVisualDensity,
         guide_pdfs: genGuidePdfs.length > 0 ? genGuidePdfs : undefined,
       });
 
@@ -690,7 +696,7 @@ const TopicsList: React.FC = () => {
               </IonButtons>
             </IonToolbar>
           </IonHeader>
-          <IonContent className="ion-padding">
+          <IonContent className="ion-padding" style={subjectThemeStyle(subjectColor)}>
             <div className="modal-sheet modal-sheet--scrollable" style={{ padding: 0 }}>
 
             <IonSegment value={topicMode} onIonChange={(e) => setTopicMode(e.detail.value as 'manual' | 'generate')} className="ccm__mode-segment">
@@ -836,6 +842,62 @@ const TopicsList: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Depth + Visual density row */}
+                <div className="ccm__field">
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {/* Depth level — compact range */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+                        <span className="ccm__enfoque-label" style={{ margin: 0 }}>Profundidad</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ion-color-primary)' }}>
+                          {({ 1: 'Sencillo', 2: 'Claro', 3: 'Estándar', 4: 'Avanzado', 5: 'Académico' } as Record<number, string>)[genDepth]}
+                        </span>
+                      </div>
+                      <IonRange
+                        min={1} max={5} step={1} snaps ticks
+                        value={genDepth}
+                        onIonInput={(e) => {
+                          const v = e.detail.value as number;
+                          setGenDepth(v);
+                          if (v <= 2) setGenVisualDensity('muy_visual');
+                          else if (v <= 3) setGenVisualDensity('equilibrado');
+                          else setGenVisualDensity('texto_denso');
+                        }}
+                        style={{ '--bar-height': '4px', padding: '0' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--ion-color-medium)', marginTop: -4 }}>
+                        <span>Infantil</span>
+                        <span>Máster</span>
+                      </div>
+                    </div>
+                    {/* Visual density — 3 compact pills */}
+                    <div style={{ flex: 1 }}>
+                      <span className="ccm__enfoque-label" style={{ marginBottom: 6, display: 'block' }}>Densidad visual</span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {[
+                          { value: 'muy_visual', label: 'Visual', icon: '🖼️' },
+                          { value: 'equilibrado', label: 'Medio', icon: '⚖️' },
+                          { value: 'texto_denso', label: 'Texto', icon: '📝' },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setGenVisualDensity(opt.value)}
+                            type="button"
+                            style={{
+                              flex: 1, border: genVisualDensity === opt.value ? '2px solid var(--ion-color-primary)' : '1.5px solid var(--ion-border-color, #e0e0e0)',
+                              borderRadius: 8, padding: '6px 2px', background: genVisualDensity === opt.value ? 'rgba(var(--ion-color-primary-rgb), 0.06)' : 'transparent',
+                              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                            }}
+                          >
+                            <span style={{ fontSize: 14 }}>{opt.icon}</span>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: genVisualDensity === opt.value ? 'var(--ion-color-primary)' : 'var(--ion-color-medium)' }}>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Configuration */}
                 <div className="ccm__config">
                   <span className="ccm__config-label">Configuración</span>
@@ -859,7 +921,7 @@ const TopicsList: React.FC = () => {
                         <span className="ccm__config-item-value">{genExercisesPerChapter}</span>
                       </div>
                       <IonRange
-                        min={3} max={30} step={1}
+                        min={0} max={30} step={1}
                         value={genExercisesPerChapter}
                         onIonInput={(e) => setGenExercisesPerChapter(e.detail.value as number)}
                       />

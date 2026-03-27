@@ -39,6 +39,16 @@
   flex-shrink: 0;
 }
 
+.skel-subject-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--color-border-light, #f1f5f9);
+  line-height: 1;
+  margin-right: 4px;
+}
+
 .skel-exam-card {
   flex-direction: column;
   align-items: flex-start;

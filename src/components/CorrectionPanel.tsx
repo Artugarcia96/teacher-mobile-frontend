@@ -33,6 +33,9 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
   const allExams = useExamsStore((s) => s.exams);
   const updateExamStatus = useExamsStore((s) => s.updateExam);
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
+  const hasBatchRunning = useBackgroundTasksStore((s) =>
+    s.tasks.some((t) => t.status === 'running' && t.expectedResultUrl === `/correction/${examId}`)
+  );
 
   const allStudents = useStudentsStore((s) => s.students);
 
@@ -709,7 +712,7 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
           {bulkUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={peopleOutline} slot="start" /> Subir PDF de toda la clase</>}
         </IonButton>
 
-        {!bulkResult && !Object.values(aiProcessing).some(Boolean) && examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length > 1 && (
+        {!bulkResult && !hasBatchRunning && !Object.values(aiProcessing).some(Boolean) && examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length > 1 && (
           <IonButton
             size="small"
             color="tertiary"
@@ -947,7 +950,7 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
             </IonButtons>
           </IonToolbar>
         </IonHeader>
-        <IonContent className="paper-preview-content">
+        <IonContent className="paper-preview-content" scrollY={false}>
           {previewUrl && (
             <div className="paper-preview-container">
               {previewUrl.toLowerCase().endsWith('.pdf') ? (

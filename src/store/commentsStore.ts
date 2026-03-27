@@ -23,6 +23,7 @@ export interface RecentSession {
   class_id: string;
   class_name: string;
   subject?: string;
+  subject_id?: string;
   title: string;
   end_time: string;
 }
@@ -36,9 +37,9 @@ interface CommentsState {
 
   fetchComments: (params?: { note_type?: string; class_id?: string; subject_id?: string; days?: number }) => Promise<void>;
   fetchEventObservations: (eventId: string) => Promise<void>;
-  createClassComment: (data: { class_id: string; subject_id?: string; event_id?: string; event_date?: string; text: string }) => Promise<TeacherComment>;
-  createEventObservation: (data: { event_id: string; text: string }) => Promise<TeacherComment>;
-  createGeneralComment: (text: string) => Promise<TeacherComment>;
+  createClassComment: (data: { class_id: string; subject_id?: string; event_id?: string; event_date?: string; text: string; mentioned_student_ids?: string[] }) => Promise<TeacherComment>;
+  createEventObservation: (data: { event_id: string; text: string; mentioned_student_ids?: string[] }) => Promise<TeacherComment>;
+  createGeneralComment: (text: string, mentionedStudentIds?: string[]) => Promise<TeacherComment>;
   fetchRecentSessions: () => Promise<void>;
   dismissPrompt: () => void;
   resetPrompt: () => void;
@@ -52,7 +53,7 @@ export const useCommentsStore = create<CommentsState>((set, get) => ({
   promptDismissed: false,
 
   fetchComments: async (params) => {
-    set({ loading: true });
+    if (!get().comments.length) set({ loading: true });
     try {
       const res = await commentsApi.list(params);
       set({ comments: res.data, loading: false });
@@ -90,8 +91,8 @@ export const useCommentsStore = create<CommentsState>((set, get) => ({
     return comment;
   },
 
-  createGeneralComment: async (text) => {
-    const res = await commentsApi.createGeneralComment({ text });
+  createGeneralComment: async (text, mentionedStudentIds) => {
+    const res = await commentsApi.createGeneralComment({ text, mentioned_student_ids: mentionedStudentIds || [] });
     const comment = res.data;
     set((s) => ({ comments: [comment, ...s.comments] }));
     return comment;

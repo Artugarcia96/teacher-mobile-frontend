@@ -65,6 +65,13 @@ export const SkeletonDashboard: React.FC = () => (
   </div>
 );
 
+/** Inline skeleton matching the small subject-chip pills inside class cards. */
+export const SkeletonSubjectChip: React.FC = () => (
+  <span className="skel-subject-chip">
+    <IonSkeletonText animated style={{ width: '72px', height: '11px' }} />
+  </span>
+);
+
 export const SkeletonSubjectCard: React.FC = () => (
   <div className="skel-subject-card">
     <div className="skel-subject-avg"><IonSkeletonText animated /></div>

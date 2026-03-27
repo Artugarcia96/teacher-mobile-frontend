@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
   IonSpinner, IonAlert, IonSegment, IonSegmentButton, IonLabel,
-  IonSelect, IonSelectOption,
+  IonSelect, IonSelectOption, useIonViewWillEnter,
 } from '@ionic/react';
 import { 
   addOutline, chevronForwardOutline, trashOutline, timeOutline,
@@ -94,6 +94,12 @@ const ExamsList: React.FC = () => {
     fetchSubjectName();
     if (classId) fetchClassSubjects(classId);
   }, [classId, subjectId, fetchClasses, fetchExams, fetchStudents, fetchAllCorrections, fetchClassDetails, fetchSubjectName, fetchClassSubjects]);
+
+  // Refresh exam data when returning to this screen (e.g. after correcting)
+  useIonViewWillEnter(() => {
+    fetchExams(classId, subjectId);
+    fetchAllCorrections();
+  });
 
   const filteredExams = useMemo(() => {
     let filtered = [...exams];

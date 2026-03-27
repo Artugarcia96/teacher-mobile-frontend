@@ -30,24 +30,38 @@
   margin-bottom: var(--space-lg);
 }
 
-.exgen__name-field ion-input.exgen__name-primary {
-  font-size: var(--font-size-xl, 20px);
+.exgen__name-label {
+  display: block;
+  font-size: var(--font-size-xs, 12px);
   font-weight: 600;
-  --padding-start: 0;
-  --padding-end: 0;
-  --padding-top: 0;
-  --padding-bottom: var(--space-sm);
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.exgen__name-field ion-input.exgen__name-input {
+  font-size: var(--font-size-lg, 18px);
+  font-weight: 600;
+  --padding-start: var(--space-md);
+  --padding-end: var(--space-md);
+  --padding-top: var(--space-md);
+  --padding-bottom: var(--space-md);
   --highlight-color-focused: var(--ion-color-primary);
+  --background: rgba(15, 23, 42, 0.04);
+  border: 1.5px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-md);
   letter-spacing: -0.01em;
+  transition: border-color 0.15s ease;
 }
 
-.exgen__name-field ion-input.exgen__name-primary::part(native) {
-  border-bottom: 2px solid rgba(15, 23, 42, 0.08);
-  padding-bottom: var(--space-sm);
+.exgen__name-field ion-input.exgen__name-input:hover {
+  border-color: rgba(15, 23, 42, 0.2);
 }
 
-.exgen__name-field ion-input.exgen__name-primary.has-focus::part(native) {
-  border-bottom-color: var(--ion-color-primary);
+.exgen__name-field ion-input.exgen__name-input.has-focus {
+  border-color: var(--ion-color-primary);
+  --background: rgba(var(--ion-color-primary-rgb), 0.03);
 }
 
 .exgen__name-warning {
@@ -60,8 +74,16 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .exgen__name-field ion-input.exgen__name-primary::part(native) {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
+  .exgen__name-field ion-input.exgen__name-input {
+    --background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .exgen__name-field ion-input.exgen__name-input:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  .exgen__name-field ion-input.exgen__name-input.has-focus {
+    border-color: var(--ion-color-primary);
+    --background: rgba(var(--ion-color-primary-rgb), 0.08);
   }
 }
 
@@ -454,6 +476,18 @@
   background: rgba(var(--ion-color-primary-rgb), 0.04);
 }
 
+.exgen__topic-chip--partial {
+  border-color: var(--ion-color-primary-tint);
+  border-style: dashed;
+  background: rgba(var(--ion-color-primary-rgb), 0.02);
+}
+
+.exgen__topic-chip--sub {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
 .exgen__topic-chip:active { transform: scale(0.98); }
 .exgen__topic-check { --size: 18px; pointer-events: none; }
 .exgen__topic-name { flex: 1; font-size: var(--font-size-sm); font-weight: 500; }
@@ -576,6 +610,36 @@
   --min-height: 42px;
   border-radius: var(--radius-md);
   font-size: var(--font-size-xs);
+}
+
+.exgen__instructions-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--ion-color-medium);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.exgen__instructions-chevron {
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.exgen__instructions-chevron--open {
+  transform: rotate(90deg);
+}
+
+.exgen__instructions-dot {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: var(--radius-full) !important;
 }
 
 .exgen__textarea-item {

@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   IonModal, IonButton, IonSelect, IonSelectOption, IonItem, IonLabel,
-  IonInput, IonTextarea, IonSpinner, IonIcon,
+  IonInput, IonSpinner, IonIcon,
 } from '@ionic/react';
-import { arrowForwardOutline, chatbubbleOutline, personOutline, checkmarkCircleOutline, closeCircleOutline, searchOutline, addOutline } from 'ionicons/icons';
+import { arrowForwardOutline, personOutline, addOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
-import { CalendarEvent } from '../types';
+import { CalendarEvent, MentionedStudent } from '../types';
 import { useClassesStore } from '../store/classesStore';
-import { useStudentsStore, StudentPoolEntry } from '../store/studentsStore';
 import { useCalendarStore } from '../store/calendarStore';
 import { useCommentsStore } from '../store/commentsStore';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import MentionTextarea from './MentionTextarea';
 import './EventEditorSheet.css';
 
 interface Props {
@@ -27,9 +27,6 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   const classSubjects = useClassesStore((s) => s.classSubjects);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const classes = useMemo(() => allClasses.filter((c) => !c.archived), [allClasses]);
-  const allStudents = useStudentsStore((s) => s.students);
-  const pool = useStudentsStore((s) => s.pool);
-  const fetchPool = useStudentsStore((s) => s.fetchPool);
   const createEvent = useCalendarStore((s) => s.createEvent);
   const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
@@ -43,81 +40,18 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   const [endTime, setEndTime] = useState('');
   const [eventType, setEventType] = useState<'class_session' | 'custom' | 'tutoring'>('custom');
   const [classId, setClassId] = useState('');
-  const [studentId, setStudentId] = useState('');
   const [observations, setObservations] = useState('');
   const [saving, setSaving] = useState(false);
   const [newObservation, setNewObservation] = useState('');
   const [savingObservation, setSavingObservation] = useState(false);
-  const obsInputRef = useRef<HTMLIonTextareaElement>(null);
 
-  // Student filter state for tutoring
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentClassFilter, setStudentClassFilter] = useState('');
-
-  // Fetch pool when opening with tutoring type
-  useEffect(() => {
-    if (isOpen && pool.length === 0) {
-      fetchPool();
-    }
-  }, [isOpen]);
-
-  const filteredStudents = useMemo(() => {
-    let students = pool;
-
-    if (studentClassFilter) {
-      students = students.filter((s) =>
-        s.classes?.some((c) => c.class_id === studentClassFilter)
-      );
-    }
-
-    if (studentSearch.trim()) {
-      const searchLower = studentSearch.toLowerCase();
-      students = students.filter((s) =>
-        s.name.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return students;
-  }, [pool, studentClassFilter, studentSearch]);
-
-  // Group filtered students by class for display
-  const groupedStudents = useMemo(() => {
-    if (studentClassFilter) {
-      // When filtering by class, show flat list
-      return null;
-    }
-    const groups: Record<string, { className: string; students: StudentPoolEntry[] }> = {};
-    const noClass: StudentPoolEntry[] = [];
-
-    filteredStudents.forEach((s) => {
-      if (s.classes.length === 0) {
-        noClass.push(s);
-      } else {
-        // Add student under their first class for grouping
-        const firstClass = s.classes[0];
-        if (!groups[firstClass.class_id]) {
-          groups[firstClass.class_id] = { className: firstClass.class_name, students: [] };
-        }
-        groups[firstClass.class_id].students.push(s);
-      }
-    });
-
-    const result = Object.values(groups).sort((a, b) => a.className.localeCompare(b.className));
-    if (noClass.length > 0) {
-      result.push({ className: 'Sin clase', students: noClass });
-    }
-    return result;
-  }, [filteredStudents, studentClassFilter]);
-
-  const selectedStudent = useMemo(() => {
-    return pool.find((s) => s.id === studentId) || allStudents.find((s) => s.id === studentId);
-  }, [pool, allStudents, studentId]);
+  // Mention state for new event observations
+  const [obsMentions, setObsMentions] = useState<MentionedStudent[]>([]);
+  // Mention state for add-observation on existing event
+  const [newObsMentions, setNewObsMentions] = useState<MentionedStudent[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      setStudentSearch('');
-      setStudentClassFilter('');
-
       if (existingEvent) {
         setTitle(existingEvent.title);
         setEventDate(existingEvent.date);
@@ -125,9 +59,10 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
         setEndTime(existingEvent.endTime || '');
         setEventType(existingEvent.eventType as 'class_session' | 'custom' | 'tutoring');
         setClassId(existingEvent.classId || '');
-        setStudentId(existingEvent.studentId || '');
         setObservations(existingEvent.notes || '');
         setNewObservation('');
+        setNewObsMentions([]);
+        setObsMentions(existingEvent.mentionedStudents || []);
         fetchEventObservations(existingEvent.id);
       } else {
         setTitle('');
@@ -138,8 +73,9 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
         setEndTime('');
         setEventType('custom');
         setClassId('');
-        setStudentId('');
         setObservations('');
+        setObsMentions([]);
+        setNewObsMentions([]);
       }
     }
   }, [isOpen, existingEvent, defaultDate]);
@@ -147,7 +83,6 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   const handleGoToSubject = async () => {
     if (!existingEvent?.classId) return;
     onDismiss();
-    // Use subjectId from the event (via lecture), or resolve from class subjects
     let subjectId = existingEvent.subjectId;
     if (!subjectId && existingEvent.classSubject) {
       let subjects = classSubjects[existingEvent.classId];
@@ -171,8 +106,10 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
       await createEventObservation({
         event_id: existingEvent.id,
         text: newObservation.trim(),
+        mentioned_student_ids: newObsMentions.map((s) => s.id),
       });
       setNewObservation('');
+      setNewObsMentions([]);
     } catch (err) {
       console.error('Failed to save observation:', err);
     } finally {
@@ -193,26 +130,8 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
     }
   };
 
-  const handleStudentChange = (id: string) => {
-    setStudentId(id);
-    if (id) {
-      const student = pool.find((s) => s.id === id) || allStudents.find((s) => s.id === id);
-      if (student) {
-        setTitle(`Tutoría con ${student.name}`);
-        // Set classId from the student's first class for navigation
-        if ('classes' in student && (student as StudentPoolEntry).classes?.length > 0) {
-          setClassId((student as StudentPoolEntry).classes[0].class_id);
-        }
-      }
-      setEventType('tutoring');
-    }
-  };
-
   const handleEventTypeChange = (type: 'class_session' | 'custom' | 'tutoring') => {
     setEventType(type);
-    if (type !== 'tutoring') {
-      setStudentId('');
-    }
     if (type !== 'class_session') {
       setClassId('');
     }
@@ -228,17 +147,18 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           event_date: eventDate,
           start_time: startTime || undefined,
           end_time: endTime || undefined,
+          mentioned_student_ids: obsMentions.map((s) => s.id),
         });
       } else {
         await createEvent({
           class_id: classId || undefined,
-          student_id: studentId || undefined,
           title: title.trim(),
           event_date: eventDate,
           start_time: startTime || undefined,
           end_time: endTime || undefined,
           event_type: eventType,
           notes: observations || undefined,
+          mentioned_student_ids: obsMentions.map((s) => s.id),
         });
       }
       onDismiss();
@@ -276,14 +196,6 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   };
 
   const isClassSession = existingEvent?.eventType === 'class_session' && existingEvent?.classId;
-  const isTutoring = existingEvent?.eventType === 'tutoring' && existingEvent?.studentId;
-
-  const handleGoToStudent = () => {
-    if (existingEvent?.studentId && existingEvent?.classId) {
-      onDismiss();
-      history.push(`/tabs/classes/${existingEvent.classId}/students/${existingEvent.studentId}`);
-    }
-  };
 
   return (
     <IonModal
@@ -298,26 +210,11 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
         </h2>
 
         {/* Quick actions for existing events */}
-        {existingEvent && (isClassSession || isTutoring) && (
+        {existingEvent && isClassSession && (
           <div className="ev-editor__quick-actions">
-            {isClassSession && (
-              <button className="ev-editor__quick-btn" onClick={handleGoToSubject}>
-                <IonIcon icon={arrowForwardOutline} />
-                Ir a la asignatura
-              </button>
-            )}
-            {isTutoring && (
-              <button className="ev-editor__quick-btn" onClick={handleGoToStudent}>
-                <IonIcon icon={personOutline} />
-                Ver ficha del alumno
-              </button>
-            )}
-            <button
-              className="ev-editor__quick-btn ev-editor__quick-btn--note"
-              onClick={() => obsInputRef.current?.setFocus()}
-            >
-              <IonIcon icon={chatbubbleOutline} />
-              Añadir nota
+            <button className="ev-editor__quick-btn" onClick={handleGoToSubject}>
+              <IonIcon icon={arrowForwardOutline} />
+              Ir a la asignatura
             </button>
           </div>
         )}
@@ -363,122 +260,6 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
                   ))}
                 </IonSelect>
               </IonItem>
-            )}
-
-            {eventType === 'tutoring' && (
-              <div className="ev-editor__student-picker">
-                <IonLabel className="ev-editor__label">Alumno</IonLabel>
-
-                {selectedStudent ? (
-                  <div className="ev-editor__selected-student">
-                    <div className="ev-editor__selected-student-info">
-                      <IonIcon icon={checkmarkCircleOutline} color="success" />
-                      <div>
-                        <span className="ev-editor__selected-student-name">{selectedStudent.name}</span>
-                        {'classes' in selectedStudent && (selectedStudent as StudentPoolEntry).classes?.length > 0 && (
-                          <span className="ev-editor__selected-student-class">
-                            {(selectedStudent as StudentPoolEntry).classes.map((c) => c.class_name).join(', ')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      className="ev-editor__change-student-btn"
-                      onClick={() => { setStudentId(''); setTitle(''); }}
-                    >
-                      Cambiar
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {/* Search bar */}
-                    <div className="ev-editor__student-search-wrap">
-                      <IonIcon icon={searchOutline} className="ev-editor__student-search-icon" />
-                      <input
-                        type="text"
-                        value={studentSearch}
-                        onChange={(e) => setStudentSearch(e.target.value)}
-                        placeholder="Buscar alumno..."
-                        className="ev-editor__student-search-input"
-                      />
-                      {studentSearch && (
-                        <button
-                          className="ev-editor__student-search-clear"
-                          onClick={() => setStudentSearch('')}
-                        >
-                          <IonIcon icon={closeCircleOutline} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Class filter chips */}
-                    {classes.length > 0 && (
-                      <div className="ev-editor__class-chips">
-                        <button
-                          className={`ev-editor__class-chip ${!studentClassFilter ? 'ev-editor__class-chip--active' : ''}`}
-                          onClick={() => setStudentClassFilter('')}
-                        >
-                          Todos
-                        </button>
-                        {classes.map((c) => (
-                          <button
-                            key={c.id}
-                            className={`ev-editor__class-chip ${studentClassFilter === c.id ? 'ev-editor__class-chip--active' : ''}`}
-                            onClick={() => setStudentClassFilter(studentClassFilter === c.id ? '' : c.id)}
-                          >
-                            {c.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Student list */}
-                    <div className="ev-editor__student-list">
-                      {filteredStudents.length === 0 ? (
-                        <div className="ev-editor__no-students">
-                          No se encontraron alumnos
-                        </div>
-                      ) : studentClassFilter || !groupedStudents ? (
-                        // Flat list when filtering by class
-                        <div className="ev-editor__student-list-inner">
-                          {filteredStudents.map((s) => (
-                            <button
-                              key={s.id}
-                              className="ev-editor__student-option"
-                              onClick={() => handleStudentChange(s.id)}
-                            >
-                              <span className="ev-editor__student-name">{s.name}</span>
-                              {s.classes.length > 0 && !studentClassFilter && (
-                                <span className="ev-editor__student-class-badge">
-                                  {s.classes.map((c) => c.class_name).join(', ')}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        // Grouped list
-                        <div className="ev-editor__student-list-inner">
-                          {groupedStudents.map((group) => (
-                            <div key={group.className} className="ev-editor__student-group">
-                              <div className="ev-editor__student-group-header">{group.className}</div>
-                              {group.students.map((s) => (
-                                <button
-                                  key={s.id}
-                                  className="ev-editor__student-option"
-                                  onClick={() => handleStudentChange(s.id)}
-                                >
-                                  <span className="ev-editor__student-name">{s.name}</span>
-                                </button>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
             )}
           </>
         )}
@@ -545,14 +326,16 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
               </div>
             )}
 
-            <div className="ev-editor__obs-add">
-              <IonTextarea
-                ref={obsInputRef}
+            <div className="ev-editor__obs-add ev-editor__obs-mention">
+              <MentionTextarea
                 value={newObservation}
-                onIonInput={(e) => setNewObservation(e.detail.value ?? '')}
-                placeholder="Añadir observación..."
+                onChange={setNewObservation}
+                mentionedStudents={newObsMentions}
+                onMentionsChange={setNewObsMentions}
+                placeholder="Añadir observación... Usa @ para mencionar alumnos"
                 rows={2}
-                className="ev-editor__obs-input"
+                helperText="Usa @ para referenciar alumnos"
+                classId={classId || undefined}
               />
               <button
                 className="ev-editor__obs-add-btn"
@@ -564,14 +347,19 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
             </div>
           </div>
         ) : (
-          <IonItem lines="none" className="ev-editor__field">
-            <IonTextarea
+          <div className="ev-editor__field ev-editor__field--mention">
+            <label className="ev-editor__mention-label">Observaciones (opcional)</label>
+            <MentionTextarea
               value={observations}
-              onIonInput={(e) => setObservations(e.detail.value ?? '')}
-              placeholder="Observaciones (opcional)"
+              onChange={setObservations}
+              mentionedStudents={obsMentions}
+              onMentionsChange={setObsMentions}
+              placeholder="Escribe observaciones... Usa @ para mencionar alumnos"
               rows={2}
+              helperText="Usa @ para referenciar alumnos — aparecerá en su ficha"
+              classId={classId || undefined}
             />
-          </IonItem>
+          </div>
         )}
 
         <IonButton

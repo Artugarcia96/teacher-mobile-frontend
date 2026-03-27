@@ -23,7 +23,7 @@ interface StudentsState {
   addExistingToClass: (classId: string, studentIds: string[]) => Promise<number>;
   removeStudent: (id: string) => Promise<void>;
   removeFromClass: (classId: string, studentId: string) => Promise<void>;
-  addComment: (studentId: string, text: string) => Promise<void>;
+  addComment: (studentId: string, text: string, mentionedStudentIds?: string[]) => Promise<void>;
   getByClass: (classId: string) => Student[];
 }
 
@@ -34,7 +34,7 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
   poolLoading: false,
 
   fetchAllStudents: async () => {
-    set({ loading: true });
+    if (!get().students.length) set({ loading: true });
     try {
       const res = await studentsApi.listAll();
       const data = res.data.map((s: any) => ({
@@ -52,7 +52,9 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
   },
 
   fetchStudents: async (classId) => {
-    set({ loading: true });
+    // Only show spinner if we have no students for this class yet
+    const hasStudentsForClass = get().students.some((s) => s.classId === classId);
+    if (!hasStudentsForClass) set({ loading: true });
     try {
       const res = await classesApi.getStudents(classId);
       const newStudentIds = new Set(res.data.map((s: any) => s.id));
@@ -140,8 +142,8 @@ export const useStudentsStore = create<StudentsState>((set, get) => ({
     set((s) => ({ students: s.students.filter((st) => !(st.id === studentId && st.classId === classId)) }));
   },
 
-  addComment: async (studentId, text) => {
-    const res = await studentsApi.addComment(studentId, text);
+  addComment: async (studentId, text, mentionedStudentIds) => {
+    const res = await studentsApi.addComment(studentId, text, mentionedStudentIds);
     const comment: Comment = { id: res.data.id, text: res.data.text, createdAt: res.data.created_at };
     set((s) => ({
       students: s.students.map((st) =>

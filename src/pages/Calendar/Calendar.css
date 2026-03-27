@@ -89,10 +89,41 @@
   font-size: 14px;
 }
 
+.cal-section__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .cal-section__count {
   font-size: var(--font-size-xs);
   color: #94A3B8;
   font-weight: 500;
+}
+
+.cal-section__add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border: none;
+  border-radius: 20px;
+  padding: 4px 12px 4px 8px;
+  cursor: pointer;
+  color: var(--ion-color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+
+.cal-section__add-btn:active {
+  background: rgba(var(--ion-color-primary-rgb), 0.2);
+}
+
+.cal-section__add-btn ion-icon {
+  font-size: 18px;
 }
 
 /* ─── Stats Grid ─── */
@@ -874,38 +905,6 @@
   background: rgba(5, 150, 105, 0.12);
 }
 
-/* ─── Quick Actions ─── */
-.cal-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-sm);
-}
-
-.cal-action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-lg) var(--space-sm);
-  background: var(--ion-card-background);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.cal-action ion-icon {
-  font-size: 28px;
-  color: var(--ion-color-primary);
-}
-
-.cal-action span {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-align: center;
-  line-height: 1.2;
-}
 
 /* ─── Empty State ─── */
 .cal-empty {
@@ -942,97 +941,6 @@
   padding: var(--space-xl);
 }
 
-/* ─── Summary ─── */
-.cal-summary {
-  display: flex;
-  gap: var(--space-md);
-}
-
-.cal-summary__item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  background: var(--ion-card-background);
-  border-radius: var(--radius-md);
-  flex: 1;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.cal-summary__icon {
-  font-size: 24px;
-}
-
-.cal-summary__icon--success {
-  color: var(--ion-color-success);
-}
-
-.cal-summary__value {
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--ion-text-color);
-}
-
-.cal-summary__label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  margin-left: var(--space-xs);
-}
-
-/* ─── Class Selector Modal ─── */
-.class-selector-modal {
-  padding: var(--space-lg);
-}
-
-.class-selector-modal__title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--ion-text-color);
-  margin: 0 0 var(--space-xs);
-}
-
-.class-selector-modal__subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--space-md);
-}
-
-.class-selector-modal__list {
-  background: transparent;
-}
-
-.class-selector-modal__item {
-  --padding-start: 0;
-  --inner-padding-end: 0;
-  margin-bottom: var(--space-xs);
-  border-radius: var(--radius-md);
-  --background: var(--color-surface);
-  border: 1px solid var(--color-border);
-}
-
-.class-selector-modal__item h3 {
-  font-weight: 600;
-  font-size: var(--font-size-base);
-}
-
-.class-selector-modal__item p {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-
-.class-selector-modal__avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: var(--font-size-base);
-  margin-right: var(--space-sm);
-}
-
 /* ─── Dark Mode ─── */
 @media (prefers-color-scheme: dark) {
   .cal-banner {
@@ -1042,10 +950,7 @@
   .cal-stat,
   .cal-mini-cal__day,
   .cal-agenda-item,
-  .cal-action,
-  .cal-empty,
-  .cal-summary__item,
-  .class-selector-modal__item {
+  .cal-empty {
     background: var(--ion-card-background);
     border-color: rgba(255, 255, 255, 0.06);
   }
@@ -1156,10 +1061,6 @@
     grid-template-columns: repeat(4, 1fr);
   }
 
-  .cal-actions {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
   /* Month calendar: slightly taller cells on desktop */
   .cal-month__day {
     padding: var(--space-sm) var(--space-xs);
@@ -1196,10 +1097,6 @@
   /* Hover states for mouse */
   .cal-week-nav__btn:hover {
     background: rgba(0, 0, 0, 0.05);
-  }
-
-  .cal-action:hover {
-    background: rgba(var(--ion-color-primary-rgb), 0.04);
   }
 
   .cal-agenda-item:hover {

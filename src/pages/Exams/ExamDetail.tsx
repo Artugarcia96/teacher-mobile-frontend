@@ -7,7 +7,8 @@ import {
 import {
   trashOutline, createOutline, downloadOutline, checkmarkCircleOutline,
   timeOutline, alertCircleOutline, sparkles,
-  documentTextOutline, peopleOutline, statsChartOutline, closeOutline, eyeOutline
+  documentTextOutline, peopleOutline, statsChartOutline, closeOutline, eyeOutline,
+  documentOutline, scanOutline, checkboxOutline, copyOutline
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
@@ -459,82 +460,65 @@ const ExamDetail: React.FC = () => {
           {(exam.documentUrl || exam.hasGeneratedQuestions) && (
             <div className="ed-downloads-section">
               <span className="ed-section-label">
-                {exam.isPersonalized ? 'Documento (1 copia por alumno con QR)' : 'Documento'}
+                {exam.isPersonalized ? 'Documento (1 copia por alumno con QR)' : 'Documentos'}
                 {exam.iterationHistory && exam.iterationHistory.length > 0 && (
                   <IonBadge color="primary" style={{ marginLeft: '8px', verticalAlign: 'middle' }}>
                     v{exam.iterationHistory.length + 1} — última versión
                   </IonBadge>
                 )}
               </span>
-              <div className="ed-actions-row">
+              <div className="ed-doc-list">
                 {exam.documentUrl && (
-                  <>
-                    <IonButton
-                      expand="block"
-                      fill="solid"
-                      onClick={() => handlePreview('exam')}
-                    >
-                      <IonIcon icon={eyeOutline} slot="start" />
-                      {exam.isPersonalized
-                        ? 'Ver todas las copias'
-                        : 'Ver examen'}
-                    </IonButton>
-                    <IonButton
-                      expand="block"
-                      fill="outline"
-                      onClick={() => handleDownload('exam')}
-                      disabled={downloading}
-                    >
-                      <IonIcon icon={downloadOutline} slot="start" />
-                      {exam.isPersonalized
-                        ? 'Descargar todo'
-                        : 'Descargar'}
-                    </IonButton>
-                  </>
+                  <div className="ed-doc-item">
+                    <div className="ed-doc-info">
+                      <IonIcon icon={exam.isPersonalized ? copyOutline : documentOutline} className="ed-doc-icon" />
+                      <span className="ed-doc-name">
+                        {exam.isPersonalized ? 'Todas las copias' : 'Original'}
+                      </span>
+                    </div>
+                    <div className="ed-doc-actions">
+                      <button className="ed-doc-btn" onClick={() => handlePreview('exam')} title="Ver">
+                        <IonIcon icon={eyeOutline} />
+                      </button>
+                      <button className="ed-doc-btn" onClick={() => handleDownload('exam')} disabled={downloading} title="Descargar">
+                        <IonIcon icon={downloadOutline} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {exam.hasGeneratedQuestions && exam.documentUrl && !exam.documentUrl.includes('_exam.pdf') && (
+                  <div className="ed-doc-item">
+                    <div className="ed-doc-info">
+                      <IonIcon icon={scanOutline} className="ed-doc-icon" />
+                      <span className="ed-doc-name">Examen digitalizado</span>
+                    </div>
+                    <div className="ed-doc-actions">
+                      <button className="ed-doc-btn" onClick={() => handlePreview('digitalized')} title="Ver">
+                        <IonIcon icon={eyeOutline} />
+                      </button>
+                      <button className="ed-doc-btn" onClick={() => handleDownload('digitalized')} disabled={downloading} title="Descargar">
+                        <IonIcon icon={downloadOutline} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {exam.hasGeneratedQuestions && (
+                  <div className="ed-doc-item">
+                    <div className="ed-doc-info">
+                      <IonIcon icon={checkboxOutline} className="ed-doc-icon" />
+                      <span className="ed-doc-name">Soluciones</span>
+                    </div>
+                    <div className="ed-doc-actions">
+                      <button className="ed-doc-btn" onClick={() => handlePreview('solutions')} title="Ver">
+                        <IonIcon icon={eyeOutline} />
+                      </button>
+                      <button className="ed-doc-btn" onClick={() => handleDownload('solutions')} disabled={downloading} title="Descargar">
+                        <IonIcon icon={downloadOutline} />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-              {exam.hasGeneratedQuestions && exam.documentUrl && (
-                <div className="ed-actions-row" style={{ marginTop: '8px' }}>
-                  <IonButton
-                    expand="block"
-                    fill="solid"
-                    onClick={() => handlePreview('digitalized')}
-                  >
-                    <IonIcon icon={eyeOutline} slot="start" />
-                    Ver digitalizado
-                  </IonButton>
-                  <IonButton
-                    expand="block"
-                    fill="outline"
-                    onClick={() => handleDownload('digitalized')}
-                    disabled={downloading}
-                  >
-                    <IonIcon icon={downloadOutline} slot="start" />
-                    Descargar
-                  </IonButton>
-                </div>
-              )}
-              {exam.hasGeneratedQuestions && (
-                <div className="ed-actions-row" style={{ marginTop: '8px' }}>
-                  <IonButton
-                    expand="block"
-                    fill="solid"
-                    onClick={() => handlePreview('solutions')}
-                  >
-                    <IonIcon icon={eyeOutline} slot="start" />
-                    Ver soluciones
-                  </IonButton>
-                  <IonButton
-                    expand="block"
-                    fill="outline"
-                    onClick={() => handleDownload('solutions')}
-                    disabled={downloading}
-                  >
-                    <IonIcon icon={downloadOutline} slot="start" />
-                    Descargar
-                  </IonButton>
-                </div>
-              )}
               {exam.isPersonalized && (
                 <p className="ed-downloads-hint">
                   El PDF incluye una copia del examen por cada alumno, con su nombre y código QR impresos para identificación automática al corregir.
@@ -543,15 +527,17 @@ const ExamDetail: React.FC = () => {
             </div>
           )}
 
-          <IonButton
-            expand="block"
-            fill="outline"
-            color="secondary"
-            onClick={() => setShowExerciseModal(true)}
-          >
-            <IonIcon icon={sparkles} slot="start" />
-            Generar ejercicios de repaso
-          </IonButton>
+          {exam.status === 'corrected' && (
+            <IonButton
+              expand="block"
+              fill="outline"
+              color="secondary"
+              onClick={() => setShowExerciseModal(true)}
+            >
+              <IonIcon icon={sparkles} slot="start" />
+              Generar ejercicios de repaso
+            </IonButton>
+          )}
         </div>
 
         {/* Corrections section */}
@@ -625,7 +611,7 @@ const ExamDetail: React.FC = () => {
               </IonButtons>
             </IonToolbar>
           </IonHeader>
-          <IonContent className="paper-preview-content">
+          <IonContent className="paper-preview-content" scrollY={false}>
             {previewUrl && (
               <div className="paper-preview-container">
                 {previewUrl.toLowerCase().endsWith('.pdf') ? (

@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { IonIcon, IonTextarea, IonSpinner } from '@ionic/react';
+import { IonIcon, IonSpinner } from '@ionic/react';
 import {
   closeOutline,
   checkmarkOutline,
   chatbubbleOutline,
 } from 'ionicons/icons';
+import { MentionedStudent } from '../types';
 import { useCommentsStore, RecentSession } from '../store/commentsStore';
+import MentionTextarea from './MentionTextarea';
 import './PostClassCommentPrompt.css';
 
 const PostClassCommentPrompt: React.FC = () => {
   const [commentText, setCommentText] = useState('');
+  const [mentions, setMentions] = useState<MentionedStudent[]>([]);
   const [saving, setSaving] = useState(false);
   const [currentSession, setCurrentSession] = useState<RecentSession | null>(null);
 
@@ -20,19 +23,14 @@ const PostClassCommentPrompt: React.FC = () => {
   const dismissPrompt = useCommentsStore((s) => s.dismissPrompt);
 
   useEffect(() => {
-    // Check for recent sessions when component mounts
     fetchRecentSessions();
-
-    // Poll every 5 minutes for new sessions
     const interval = setInterval(() => {
       fetchRecentSessions();
     }, 5 * 60 * 1000);
-
     return () => clearInterval(interval);
   }, [fetchRecentSessions]);
 
   useEffect(() => {
-    // Show prompt for the first recent session
     if (recentSessions.length > 0 && !promptDismissed) {
       setCurrentSession(recentSessions[0]);
     } else {
@@ -47,11 +45,13 @@ const PostClassCommentPrompt: React.FC = () => {
     try {
       await createClassComment({
         class_id: currentSession.class_id,
+        subject_id: currentSession.subject_id,
         event_id: currentSession.event_id,
         text: commentText.trim(),
+        mentioned_student_ids: mentions.map((s) => s.id),
       });
       setCommentText('');
-      // If there are more sessions, show the next one
+      setMentions([]);
       if (recentSessions.length > 1) {
         setCurrentSession(recentSessions[1]);
       } else {
@@ -65,7 +65,6 @@ const PostClassCommentPrompt: React.FC = () => {
   };
 
   const handleSkip = () => {
-    // Skip this session, show next or dismiss
     if (recentSessions.length > 1) {
       setCurrentSession(recentSessions[1]);
     } else {
@@ -95,13 +94,16 @@ const PostClassCommentPrompt: React.FC = () => {
       </div>
 
       <div className="post-class-prompt__body">
-        <IonTextarea
+        <MentionTextarea
           value={commentText}
-          onIonInput={(e) => setCommentText(e.detail.value || '')}
+          onChange={setCommentText}
+          mentionedStudents={mentions}
+          onMentionsChange={setMentions}
           placeholder="Escribe un comentario rápido sobre la sesión..."
           rows={2}
-          className="post-class-prompt__input"
           disabled={saving}
+          helperText="Usa @ para mencionar alumnos"
+          classId={currentSession.class_id}
         />
       </div>
 

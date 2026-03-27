@@ -20,10 +20,11 @@ import { useCorrectionStore } from '../../store/correctionStore';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
 import { useCommentsStore } from '../../store/commentsStore';
-import { useCalendarStore, getBreakdownForSubject } from '../../store/calendarStore';
-import { calendar as calendarApi } from '../../services/api';
+import { useCalendarStore, ClassBreakdown } from '../../store/calendarStore';
+import { calendar as calendarApi, preparation as prepApi } from '../../services/api';
 import { classes as classesApi, exams as examsApi, exercises as exercisesApi, subjects as subjectsApi } from '../../services/api';
-import { CalendarEvent, ClassGroup, ScheduleSlot } from '../../types';
+import { CalendarEvent, ClassGroup, ScheduleSlot, MentionedStudent } from '../../types';
+import MentionTextarea from '../../components/MentionTextarea';
 
 const DAY_ABBR: Record<string, string> = {
   lunes: 'L', martes: 'M', miércoles: 'X', miercoles: 'X',
@@ -129,9 +130,6 @@ const SubjectGradeBook: React.FC = () => {
   const fetchComments = useCommentsStore((s) => s.fetchComments);
   const createClassComment = useCommentsStore((s) => s.createClassComment);
 
-  const currentPreparation = useCalendarStore((s) => s.currentPreparation);
-  const getPreparation = useCalendarStore((s) => s.getPreparation);
-
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
   const studentIds = useMemo(() => new Set(students.map(s => s.id)), [students]);
@@ -143,65 +141,30 @@ const SubjectGradeBook: React.FC = () => {
   const subjectName = subjectSummary?.subjectName || '';
   const subjectColor = subjectSummary?.subjectColor || '#15665E';
 
-  // Today's preparation insight for this subject
+  // Today's preparation insight for this subject — fetched via dedicated lightweight endpoint
   const todayStr = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const subjectBreakdown = useMemo(() => {
-    const bd = getBreakdownForSubject(currentPreparation, classId, subjectId);
-    if (!bd) return null;
+  const [subjectBreakdown, setSubjectBreakdown] = useState<ClassBreakdown | null>(null);
 
-    // Filter content to only what's relevant to THIS subject
-    // Use student names from this class, and exercise/exam data for this subject
-    const studentNames = new Set(students.map(s => s.name?.toLowerCase()));
-    const hasExercisesInSubject = exercises.length > 0;
-    const hasExamsInSubject = exams.length > 0;
-
-    // Filter student_alerts: keep only students in this class, remove exercise alerts if no exercises in subject
-    const filteredAlerts = (bd.student_alerts || []).filter((alert) => {
-      if (!studentNames.has(alert.name?.toLowerCase())) return false;
-      if (!hasExercisesInSubject) {
-        const issueLC = (alert.issue || '').toLowerCase();
-        if (issueLC.includes('ejercicio') || issueLC.includes('pendiente')) return false;
+  const fetchSubjectPrep = useCallback(async () => {
+    try {
+      const res = await prepApi.getForSubject(todayStr, classId, subjectId);
+      if (res.status === 204 || !res.data?.breakdown) {
+        setSubjectBreakdown(null);
+        return;
       }
-      return true;
-    });
-
-    // Filter exercises_today: only keep if this subject actually has exercises
-    const filteredExercises = hasExercisesInSubject ? (bd.exercises_today || []) : [];
-
-    // Filter grade_alerts for this class
-    const alerts = currentPreparation?.grade_alerts?.filter(
-      (a: any) => a.class_name === bd.class_name && studentNames.has(a.student_name?.toLowerCase()),
-    ) || [];
-
-    // Filter positive_highlights to students in this class
-    const filteredHighlights = (bd.positive_highlights || []).filter(
-      (h) => studentNames.has(h.name?.toLowerCase()),
-    );
-
-    // Filter topics/weak points: remove exercise-related items if no exercises in subject
-    const filterSubjectContent = (items: string[]) => {
-      if (hasExercisesInSubject) return items;
-      return items.filter(item => {
-        const lc = item.toLowerCase();
-        return !(lc.includes('ejercicio') && !hasExamsInSubject && !lc.includes('examen'));
-      });
-    };
-
-    return {
-      ...bd,
-      student_alerts: filteredAlerts,
-      exercises_today: filteredExercises,
-      grade_alerts: alerts.length > 0 ? alerts : bd.grade_alerts || [],
-      positive_highlights: filteredHighlights,
-      topics_to_cover: filterSubjectContent(bd.topics_to_cover || []),
-      talking_points: filterSubjectContent(bd.talking_points || []),
-      suggestions: filterSubjectContent(bd.suggestions || []),
-    };
-  }, [currentPreparation, classId, subjectId, students, exercises, exams]);
+      const bd = res.data.breakdown as ClassBreakdown;
+      if (res.data.grade_alerts && res.data.grade_alerts.length > 0) {
+        bd.grade_alerts = res.data.grade_alerts;
+      }
+      setSubjectBreakdown(bd);
+    } catch {
+      setSubjectBreakdown(null);
+    }
+  }, [todayStr, classId, subjectId]);
 
   const [tab, setTab] = useState<'overview' | 'grades' | 'roster'>('overview');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -219,6 +182,7 @@ const SubjectGradeBook: React.FC = () => {
   const [showEventEditor, setShowEventEditor] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
+  const [commentMentions, setCommentMentions] = useState<MentionedStudent[]>([]);
   const [notesOpen, setNotesOpen] = useState(false);
   const [savingComment, setSavingComment] = useState(false);
 
@@ -328,11 +292,9 @@ const SubjectGradeBook: React.FC = () => {
     fetchAllExerciseCorrections();
     fetchClassSubjects(classId);
     fetchComments({ class_id: classId, subject_id: subjectId, days: 90 });
-    // Load today's preparation if not already loaded
-    if (!currentPreparation || currentPreparation.prep_date !== todayStr) {
-      getPreparation(todayStr);
-    }
-  }, [classId, subjectId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails, fetchExercises, fetchClassSubjects, fetchComments]);
+    // Load today's preparation for this subject via lightweight endpoint
+    fetchSubjectPrep();
+  }, [classId, subjectId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails, fetchExercises, fetchClassSubjects, fetchComments, fetchSubjectPrep]);
 
   useEffect(() => {
     fetchClassSubjects(classId);
@@ -341,9 +303,7 @@ const SubjectGradeBook: React.FC = () => {
   useIonViewWillEnter(() => {
     fetchClassDetails();
     // Refresh preparation when returning to page (e.g. after generating from Calendar)
-    if (!currentPreparation || currentPreparation.prep_date !== todayStr) {
-      getPreparation(todayStr);
-    }
+    fetchSubjectPrep();
   });
 
   const handleRemoveConfirm = async () => {
@@ -364,8 +324,10 @@ const SubjectGradeBook: React.FC = () => {
         class_id: classId,
         subject_id: subjectId,
         text: newCommentText.trim(),
+        mentioned_student_ids: commentMentions.map(s => s.id),
       });
       setNewCommentText('');
+      setCommentMentions([]);
       fetchComments({ class_id: classId, subject_id: subjectId, days: 90 });
     } catch (err) {
       console.error('Failed to save comment:', err);
@@ -642,17 +604,6 @@ const SubjectGradeBook: React.FC = () => {
               </div>
             </div>
 
-            {/* Primary Actions */}
-            <div className="gb-actions">
-              <button
-                className="gb-action-btn gb-action-btn--alt"
-                onClick={() => setShowBulkExerciseModal(true)}
-              >
-                <IonIcon icon={sparkles} />
-                <span>Generar ejercicios</span>
-              </button>
-            </div>
-
             {/* Subject Stats */}
             <ClassInsightsPanel
               classId={classId}
@@ -760,14 +711,16 @@ const SubjectGradeBook: React.FC = () => {
                 <>
                   {/* New comment input */}
                   <div className="gb-comments-section__input-row">
-                    <input
-                      type="text"
-                      className="gb-comments-section__input"
-                      placeholder="Escribe una nota..."
+                    <MentionTextarea
                       value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveComment(); } }}
+                      onChange={setNewCommentText}
+                      mentionedStudents={commentMentions}
+                      onMentionsChange={setCommentMentions}
+                      placeholder="Escribe una nota..."
+                      rows={1}
                       disabled={savingComment}
+                      helperText="Usa @ para mencionar alumnos"
+                      classId={classId}
                     />
                     <button
                       className="gb-comments-section__send-btn"

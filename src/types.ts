@@ -233,6 +233,7 @@ export interface TopicListItem {
   status: string;
   pageCount?: number;
   pdfUrl?: string;
+  children?: TopicListItem[];
 }
 
 export interface TopicContent {
@@ -297,6 +298,25 @@ export interface ClassBulkUploadResult {
   studentsWithoutPapers: { studentId: string; studentName: string; code: string }[];
 }
 
+export interface MentionedStudent {
+  id: string;
+  name: string;
+}
+
+export interface StudentMentionEntry {
+  id: string;
+  student_id: string;
+  context_text: string;
+  created_at: string;
+  source_type: 'comment' | 'event';
+  comment_id?: string;
+  event_id?: string;
+  event_title?: string;
+  event_date?: string;
+  class_name?: string;
+  comment_note_type?: string;
+}
+
 export interface CalendarEvent {
   id: string;
   classId?: string;
@@ -312,9 +332,11 @@ export interface CalendarEvent {
   className?: string;
   classSubject?: string;
   subjectId?: string;
+  aula?: string;
   studentName?: string;
   examName?: string;
   examStatus?: string;
+  mentionedStudents?: MentionedStudent[];
 }
 
 export interface MaterialWithContext {
@@ -559,4 +581,6 @@ export interface Textbook {
   createdAt: string;
   completedAt?: string;
   temasCreated?: boolean;
+  depth?: number;
+  visualDensity?: string;
 }

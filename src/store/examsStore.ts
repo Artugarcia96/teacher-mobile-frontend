@@ -41,7 +41,12 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
   loading: false,
 
   fetchExams: async (classId, subjectId) => {
-    set({ loading: true });
+    // Only show spinner if we have no exams for the requested scope
+    const cached = get().exams;
+    const hasCachedForScope = classId
+      ? cached.some((e) => e.classId === classId)
+      : cached.length > 0;
+    if (!hasCachedForScope) set({ loading: true });
     try {
       const res = await examsApi.list(classId, subjectId);
       const data = res.data.map((e: any) => ({

@@ -5,14 +5,14 @@ import {
   IonSegment, IonSegmentButton, IonInput, IonSearchbar, IonChip,
   IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
 } from '@ionic/react';
-import { sparkles, chevronDownOutline, chevronUpOutline, downloadOutline, documentTextOutline, globeOutline, schoolOutline, timeOutline, layersOutline, checkmarkCircleOutline, closeCircleOutline, closeOutline, eyeOutline, informationCircleOutline, medkitOutline, barbellOutline } from 'ionicons/icons';
+import { sparkles, chevronDownOutline, chevronUpOutline, chevronForwardOutline, downloadOutline, documentTextOutline, globeOutline, schoolOutline, timeOutline, layersOutline, checkmarkCircleOutline, closeCircleOutline, closeOutline, eyeOutline, informationCircleOutline, medkitOutline, barbellOutline } from 'ionicons/icons';
 import { useExamsStore } from '../store/examsStore';
 import { useClassesStore } from '../store/classesStore';
 import { useStudentsStore } from '../store/studentsStore';
 import { useCorrectionStore } from '../store/correctionStore';
 import { useExercisesStore } from '../store/exercisesStore';
 import { exercises as exercisesApi, batch, GroupedExercisePreview, subjects as subjectsApi } from '../services/api';
-import { SubjectWithTopics } from '../types';
+import { SubjectWithTopics, WeakArea } from '../types';
 
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
 import { useIsDesktop } from '../hooks/useIsDesktop';
@@ -24,7 +24,7 @@ interface Props {
   onDismiss: () => void;
   studentId?: string;
   studentName?: string;
-  weakAreas?: { topic: string }[];
+  weakAreas?: (WeakArea | { topic: string })[];
   classId?: string;
   preselectedExamId?: string;
   preselectedSubjectId?: string;
@@ -65,6 +65,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const [maxScore, setMaxScore] = useState(10);
   const [numBlankPages, setNumBlankPages] = useState(1);
   const [refinement, setRefinement] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
   const [exerciseName, setExerciseName] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatingStep, setGeneratingStep] = useState(0);
@@ -176,9 +177,8 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const studentWeakAreas = useMemo(() => {
     const map = new Map<string, string[]>();
     if (exerciseType !== 'recovery') return map;
-    const relevantCorrections = selectedExamIds.length > 0
-      ? corrections.filter((c) => selectedExamIds.includes(c.examId))
-      : corrections;
+    if (selectedExamIds.length === 0) return map;
+    const relevantCorrections = corrections.filter((c) => selectedExamIds.includes(c.examId));
     relevantCorrections.forEach((c) => {
       if (!c.studentId) return;
       const areas = (c.weakAreas && c.weakAreas.length > 0)
@@ -277,24 +277,29 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     if (effectiveClassId) {
       subjectsApi.topicsForClass(effectiveClassId)
         .then((res) => {
+          const mapTopic = (t: any, subj: any): any => ({
+            id: t.id,
+            subjectId: subj.subject_id,
+            subjectName: subj.subject_name,
+            name: t.name,
+            trimester: t.trimester ?? null,
+            order: t.order,
+            materialCount: t.material_count || 0,
+            children: (t.children || []).map((c: any) => mapTopic(c, subj)),
+          });
           const grouped: SubjectWithTopics[] = res.data.map((s: any) => ({
             subjectId: s.subject_id,
             subjectName: s.subject_name,
-            topics: (s.topics || []).map((t: any) => ({
-              id: t.id,
-              subjectId: s.subject_id,
-              subjectName: s.subject_name,
-              name: t.name,
-              trimester: t.trimester ?? null,
-              order: t.order,
-              materialCount: t.material_count || 0,
-            })),
+            topics: (s.topics || []).map((t: any) => mapTopic(t, s)),
           }));
           setTopicsBySubject(grouped);
           // Pre-select subject if provided
           if (preselectedSubjectId && grouped.some(s => s.subjectId === preselectedSubjectId)) {
             setSelectedSubjectId(preselectedSubjectId);
-            setSourceType('topic');
+            // Only switch to topic source if no exam is pre-selected
+            if (!preselectedExamId) {
+              setSourceType('topic');
+            }
           }
         })
         .catch(() => setTopicsBySubject([]));
@@ -522,7 +527,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     <IonModal
       isOpen={isOpen}
       onDidDismiss={onDismiss}
-      className="exercise-generator-modal"
+      className="exercise-generator-modal modal-fullscreen"
       style={subjectThemeStyle(activeSubjectColor)}
     >
       <IonHeader>
@@ -539,6 +544,23 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
       <div className="exgen" style={subjectThemeStyle(activeSubjectColor)}>
 
         <div className="exgen__body">
+        {/* Exercise name — always first */}
+        <div className="exgen__name-field">
+          <label className="exgen__name-label">Nombre del ejercicio</label>
+          <IonInput
+            value={exerciseName}
+            onIonInput={(e) => setExerciseName(e.detail.value ?? '')}
+            placeholder="Ej: Práctica ecuaciones T2"
+            className="exgen__name-input"
+            required
+          />
+          {exerciseName.trim() && allExercises.some(e => e.name?.toLowerCase() === exerciseName.trim().toLowerCase()) && (
+            <p className="exgen__name-warning">
+              Ya existe un ejercicio con este nombre
+            </p>
+          )}
+        </div>
+
         {/* Exercise type toggle */}
         <div className="exgen__type-toggle">
           <button
@@ -604,7 +626,36 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
         )}
 
         {/* Weak areas (single-student only) */}
-        {!multiMode && weakAreas && weakAreas.length > 0 && (
+        {!multiMode && weakAreas && weakAreas.length > 0 && exerciseType === 'recovery' ? (() => {
+          const filtered = selectedSubjectId
+            ? weakAreas.filter((a) => {
+                const examId = 'examId' in a ? a.examId : undefined;
+                if (!examId) return true; // no exam info — include by default
+                const exam = allExams.find((e) => e.id === examId);
+                return exam?.subjectId === selectedSubjectId;
+              })
+            : weakAreas;
+          const uniqueTopics = [...new Set(filtered.map((a) => a.topic))];
+          return (
+            <div className="exgen__recovery-summary">
+              <span className="exgen__recovery-summary-title">
+                <IonIcon icon={medkitOutline} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                Áreas débiles de {studentName || 'alumno'}
+              </span>
+              <div className="exgen__recovery-student-areas" style={{ marginTop: 6 }}>
+                {uniqueTopics.length > 0 ? (
+                  uniqueTopics.map((topic, i) => (
+                    <span key={i} className="exgen__picker-area-tag">{topic}</span>
+                  ))
+                ) : (
+                  <p className="exgen__recovery-no-areas">
+                    Sin áreas débiles registradas{selectedSubjectId ? ' en esta asignatura' : ''} — se generará repaso general.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })() : !multiMode && weakAreas && weakAreas.length > 0 && (
           <div className="exgen__areas">
             <span className="exgen__areas-label">Areas a reforzar</span>
             <div className="exgen__areas-list">
@@ -619,7 +670,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
           <>
             {/* Source type toggle */}
             <div className="exgen__source-toggle">
-              <IonSegment value={sourceType} onIonChange={(e) => setSourceType(e.detail.value as 'exam' | 'topic')}>
+              <IonSegment value={sourceType} onIonChange={(e) => { const v = e.detail.value as 'exam' | 'topic'; setSourceType(v); if (v === 'topic') { setSelectedExamIds([]); } else { setSelectedTopicIds([]); } }}>
                 <IonSegmentButton value="exam"><IonLabel>Examen corregido</IonLabel></IonSegmentButton>
                 <IonSegmentButton value="topic"><IonLabel>Temario</IonLabel></IonSegmentButton>
               </IonSegment>
@@ -751,17 +802,65 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                       </div>
                     ) : (
                       <div className="exgen__topics-list">
-                        {filteredTopics.map((topic) => (
-                          <div
-                            key={topic.id}
-                            className={`exgen__topic-chip ${selectedTopicIds.includes(topic.id) ? 'exgen__topic-chip--active' : ''}`}
-                            onClick={() => toggleTopic(topic.id)}
-                          >
-                            <IonCheckbox checked={selectedTopicIds.includes(topic.id)} className="exgen__topic-check" />
-                            <span className="exgen__topic-name">{topic.name}</span>
-                            <IonBadge color="medium" className="exgen__topic-count">{topic.materialCount}</IonBadge>
-                          </div>
-                        ))}
+                        {filteredTopics.map((topic) => {
+                          const children = topic.children || [];
+                          const childIds = children.map(c => c.id);
+                          const allChildrenSelected = children.length > 0 && childIds.every(id => selectedTopicIds.includes(id));
+                          const someChildrenSelected = children.length > 0 && childIds.some(id => selectedTopicIds.includes(id));
+                          const parentSelected = selectedTopicIds.includes(topic.id);
+                          const isActive = parentSelected || allChildrenSelected;
+
+                          return (
+                            <div key={topic.id}>
+                              <div
+                                className={`exgen__topic-chip ${isActive ? 'exgen__topic-chip--active' : someChildrenSelected ? 'exgen__topic-chip--partial' : ''}`}
+                                onClick={() => {
+                                  if (children.length === 0) {
+                                    toggleTopic(topic.id);
+                                  } else {
+                                    const allIds = [topic.id, ...childIds];
+                                    if (isActive) {
+                                      setSelectedTopicIds(prev => prev.filter(id => !allIds.includes(id)));
+                                    } else {
+                                      setSelectedTopicIds(prev => [...new Set([...prev, ...allIds])]);
+                                    }
+                                  }
+                                }}
+                              >
+                                <IonCheckbox
+                                  checked={isActive}
+                                  indeterminate={!isActive && someChildrenSelected}
+                                  className="exgen__topic-check"
+                                />
+                                <span className="exgen__topic-name">{topic.name}</span>
+                                {children.length > 0 && (
+                                  <IonBadge color="light" style={{ fontSize: 10, fontWeight: 600 }}>{children.length} sub</IonBadge>
+                                )}
+                                <IonBadge color="medium" className="exgen__topic-count">
+                                  {topic.materialCount + children.reduce((s, c) => s + (c.materialCount || 0), 0)}
+                                </IonBadge>
+                              </div>
+                              {children.length > 0 && (parentSelected || someChildrenSelected) && (
+                                <div style={{ paddingLeft: 20, borderLeft: '2px solid var(--ion-color-primary-tint, #4d9a93)', marginLeft: 14, marginBottom: 4 }}>
+                                  {children.map(child => (
+                                    <div
+                                      key={child.id}
+                                      className={`exgen__topic-chip exgen__topic-chip--sub ${selectedTopicIds.includes(child.id) ? 'exgen__topic-chip--active' : ''}`}
+                                      onClick={(e) => { e.stopPropagation(); toggleTopic(child.id); }}
+                                      style={{ marginTop: 2, marginBottom: 2 }}
+                                    >
+                                      <IonCheckbox checked={selectedTopicIds.includes(child.id)} className="exgen__topic-check" />
+                                      <span className="exgen__topic-name" style={{ fontSize: 12 }}>{child.name}</span>
+                                      {child.materialCount > 0 && (
+                                        <IonBadge color="medium" className="exgen__topic-count">{child.materialCount}</IonBadge>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         {/* NOTE: material text budget is shared (30K chars total across all documents) */}
                         <p className="exgen__materials-note">
                           <IonIcon icon={informationCircleOutline} />
@@ -889,7 +988,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             )}
 
             {/* Recovery: per-student weak areas summary */}
-            {exerciseType === 'recovery' && selectedStudentIds.length > 0 && studentWeakAreas.size > 0 && (
+            {exerciseType === 'recovery' && sourceType === 'exam' && selectedExamIds.length > 0 && selectedStudentIds.length > 0 && studentWeakAreas.size > 0 && (
               <div className="exgen__recovery-summary">
                 <span className="exgen__recovery-summary-title">Áreas débiles detectadas</span>
                 <div className="exgen__recovery-students">
@@ -972,22 +1071,6 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Exercise name */}
-              <div className="exgen__name-field">
-                <IonInput
-                  value={exerciseName}
-                  onIonInput={(e) => setExerciseName(e.detail.value ?? '')}
-                  placeholder="Nombre del ejercicio"
-                  className="exgen__name-primary"
-                  required
-                />
-                {exerciseName.trim() && allExercises.some(e => e.name?.toLowerCase() === exerciseName.trim().toLowerCase()) && (
-                  <p className="exgen__name-warning">
-                    Ya existe un ejercicio con este nombre
-                  </p>
-                )}
-              </div>
-
             {/* Options — 2×2 grid */}
               <div className="exgen__options">
                 <span className="exgen__section-label">Configuración</span>
@@ -1045,14 +1128,26 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                     />
                   </IonItem>
                 </div>
-                <IonItem lines="none" className="exgen__textarea-item">
-                  <IonTextarea
-                    value={refinement}
-                    onIonInput={(e) => setRefinement(e.detail.value ?? '')}
-                    placeholder="Instrucciones adicionales (opcional)"
-                    rows={2}
-                  />
-                </IonItem>
+                <button
+                  type="button"
+                  className="exgen__instructions-toggle"
+                  onClick={() => setShowInstructions(v => !v)}
+                >
+                  <IonIcon icon={chevronForwardOutline} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
+                  <span>Instrucciones adicionales</span>
+                  {!showInstructions && refinement && <IonBadge color="primary" className="exgen__instructions-dot">1</IonBadge>}
+                </button>
+                {showInstructions && (
+                  <IonItem lines="none" className="exgen__textarea-item">
+                    <IonTextarea
+                      value={refinement}
+                      onIonInput={(e) => setRefinement(e.detail.value ?? '')}
+                      placeholder="Describe lo que quieres que incluya o evite el ejercicio..."
+                      rows={3}
+                      autoGrow
+                    />
+                  </IonItem>
+                )}
               </div>
 
             {error && (

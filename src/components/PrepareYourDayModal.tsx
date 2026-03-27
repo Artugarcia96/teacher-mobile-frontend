@@ -21,6 +21,9 @@ import {
   trendingUpOutline,
   bookOutline,
   locationOutline,
+  bulbOutline,
+  trophyOutline,
+  chatbubbleOutline,
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useCalendarStore } from '../store/calendarStore';
@@ -88,6 +91,68 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// ── Priority triage types ──
+interface TriageBucket {
+  urgent: { icon: string; text: string; detail?: string }[];
+  pending: { icon: string; text: string; detail?: string }[];
+  positive: { icon: string; text: string; detail?: string }[];
+}
+
+function buildTriage(prep: any): TriageBucket {
+  const triage: TriageBucket = { urgent: [], pending: [], positive: [] };
+  if (!prep) return triage;
+
+  // Urgent: overdue/urgent deadlines, declining students, exams today
+  const deadlines = prep.upcoming_deadlines || [];
+  for (const dl of deadlines) {
+    if (dl.days_until === 0) {
+      triage.urgent.push({ icon: '🔴', text: `${dl.name} — ${dl.class_name}`, detail: 'Hoy' });
+    } else if (dl.days_until === 1) {
+      triage.urgent.push({ icon: '⚠️', text: `${dl.name} — ${dl.class_name}`, detail: 'Mañana' });
+    }
+  }
+
+  const gradeAlerts = prep.grade_alerts || [];
+  for (const alert of gradeAlerts) {
+    if (alert.trend === 'declining') {
+      triage.urgent.push({ icon: '📉', text: `${alert.student_name} bajando (${alert.avg_grade?.toFixed(1)})`, detail: alert.class_name });
+    }
+  }
+
+  // Pending: corrections, exercises, upcoming deadlines
+  const tasks = prep.pending_tasks || [];
+  for (const task of tasks) {
+    if (task.count > 0) {
+      triage.pending.push({ icon: '📋', text: task.description });
+    }
+  }
+  for (const dl of deadlines) {
+    if (dl.days_until > 1 && dl.days_until <= 3) {
+      triage.pending.push({ icon: '📅', text: `${dl.name} — ${dl.class_name}`, detail: `En ${dl.days_until} días` });
+    }
+  }
+
+  // Positive: improving students, highlights
+  const breakdowns = prep.class_breakdowns || [];
+  for (const cls of breakdowns) {
+    for (const h of (cls.positive_highlights || [])) {
+      triage.positive.push({ icon: '⭐', text: `${h.name}: ${h.achievement}`, detail: cls.class_name });
+    }
+  }
+  for (const alert of gradeAlerts) {
+    if (alert.trend === 'improving') {
+      triage.positive.push({ icon: '📈', text: `${alert.student_name} mejorando (${alert.avg_grade?.toFixed(1)})`, detail: alert.class_name });
+    }
+  }
+
+  // Cap each bucket at 4
+  triage.urgent = triage.urgent.slice(0, 4);
+  triage.pending = triage.pending.slice(0, 4);
+  triage.positive = triage.positive.slice(0, 4);
+
+  return triage;
+}
+
 const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDismiss, date }) => {
   const [activeDate, setActiveDate] = useState(date);
   const [focusTopics, setFocusTopics] = useState('');
@@ -95,6 +160,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [eventsExpanded, setEventsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoGenerateTriggered, setAutoGenerateTriggered] = useState(false);
   const history = useHistory();
   const dateInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,7 +181,9 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     setActiveDate(toDateStr(d));
   }, [activeDate]);
 
-  const goToToday = useCallback(() => setActiveDate(toDateStr(new Date())), []);
+  const goToToday = useCallback(() => {
+    setActiveDate(toDateStr(new Date()));
+  }, []);
 
   const isToday = activeDate === toDateStr(new Date());
 
@@ -131,21 +199,43 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     return dayEvents.filter((e) => e.eventType === 'class_session');
   }, [dayEvents]);
 
+  // Load preparation and events when modal opens or date changes
   useEffect(() => {
     if (isOpen) {
       setError(null);
       setExpandedClasses(new Set());
       setEventsExpanded(false);
       setShowFocusInput(false);
-      // Clear stale data before fetching for the new date
       clearPreparation();
       getPreparation(activeDate);
       fetchEvents(activeDate, activeDate);
     }
   }, [isOpen, activeDate]);
 
+  // Auto-generate: only for today's date, only once per modal session
+  useEffect(() => {
+    if (
+      isOpen &&
+      !preparationLoading &&
+      !currentPreparation &&
+      !error &&
+      !autoGenerateTriggered &&
+      activeDate === toDateStr(new Date()) // only auto-generate for today
+    ) {
+      const timer = setTimeout(() => {
+        const store = useCalendarStore.getState();
+        if (!store.currentPreparation && !store.preparationLoading) {
+          setAutoGenerateTriggered(true);
+          handleGenerate();
+        }
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, preparationLoading, currentPreparation, error, autoGenerateTriggered]);
+
   const handleGenerate = async () => {
     setError(null);
+    setAutoGenerateTriggered(true);
     try {
       await generatePreparation(activeDate, focusTopics || undefined);
       setShowFocusInput(false);
@@ -163,12 +253,12 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     }, 100);
   };
 
-  const toggleClassExpanded = (classId: string) => {
+  const toggleClassExpanded = (classKey: string) => {
     const newSet = new Set(expandedClasses);
-    if (newSet.has(classId)) {
-      newSet.delete(classId);
+    if (newSet.has(classKey)) {
+      newSet.delete(classKey);
     } else {
-      newSet.add(classId);
+      newSet.add(classKey);
     }
     setExpandedClasses(newSet);
   };
@@ -194,10 +284,9 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     history.push(path);
   }, [onDismiss, history]);
 
-  /** Merge grade_alerts into class_breakdowns for grouped display */
+  /** Merge grade_alerts into class_breakdowns, sort chronologically */
   const enrichedBreakdowns = useMemo(() => {
     if (!currentPreparation?.class_breakdowns) return [];
-    // Guard: only use data if it matches the active date
     if (currentPreparation.prep_date !== activeDate) return [];
     const alertsByClass: Record<string, any[]> = {};
     if (currentPreparation.grade_alerts) {
@@ -207,11 +296,48 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
         alertsByClass[key].push(alert);
       }
     }
-    return currentPreparation.class_breakdowns.map((cls: any) => ({
+    const breakdowns = currentPreparation.class_breakdowns.map((cls: any) => ({
       ...cls,
+      _type: 'class' as const,
       grade_alerts: alertsByClass[cls.class_name] || [],
     }));
+
+    // Sort by start_time (chronological timeline)
+    breakdowns.sort((a: any, b: any) => {
+      const ta = a.start_time || '99:99';
+      const tb = b.start_time || '99:99';
+      return ta.localeCompare(tb);
+    });
+
+    return breakdowns;
   }, [currentPreparation, activeDate]);
+
+  /** Unified timeline: class breakdowns + other events (tutoring, custom) sorted by time */
+  const timelineItems = useMemo(() => {
+    const items: any[] = [...enrichedBreakdowns];
+
+    // Add other events (tutoring, custom) as timeline items
+    for (const ev of otherEvents) {
+      items.push({
+        _type: 'event' as const,
+        _event: ev,
+        start_time: ev.startTime || null,
+      });
+    }
+
+    // Sort everything chronologically
+    items.sort((a, b) => {
+      const ta = a.start_time || '99:99';
+      const tb = b.start_time || '99:99';
+      return ta.localeCompare(tb);
+    });
+
+    return items;
+  }, [enrichedBreakdowns, otherEvents]);
+
+  // Build priority triage
+  const triage = useMemo(() => buildTriage(currentPreparation), [currentPreparation]);
+  const hasTriageContent = triage.urgent.length > 0 || triage.pending.length > 0 || triage.positive.length > 0;
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onDismiss} className="prepare-modal">
@@ -226,7 +352,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
       </div>
 
       <div className="prepare-modal__content">
-        {/* Date navigator — arrows to shift day, calendar icon to pick date */}
+        {/* Date navigator */}
         <div className="prepare-modal__date-nav">
           <button className="prepare-modal__date-nav-btn" onClick={() => shiftDate(-1)} aria-label="Día anterior">
             <IonIcon icon={chevronBackOutline} />
@@ -240,32 +366,28 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
           <button className="prepare-modal__date-nav-btn" onClick={() => shiftDate(1)} aria-label="Día siguiente">
             <IonIcon icon={chevronForwardOutline} />
           </button>
-          <button
-            className="prepare-modal__date-calendar-btn"
-            onClick={() => dateInputRef.current?.showPicker()}
-            aria-label="Seleccionar fecha"
-          >
+          <label className="prepare-modal__date-calendar-btn" aria-label="Seleccionar fecha">
             <IonIcon icon={calendarOutline} />
-          </button>
+            <input
+              ref={dateInputRef}
+              type="date"
+              className="prepare-modal__date-input-hidden"
+              value={activeDate}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setActiveDate(e.target.value);
+                }
+              }}
+            />
+          </label>
           {!isToday && (
             <button className="prepare-modal__date-today-btn" onClick={goToToday}>
               Hoy
             </button>
           )}
-          {/* Hidden native date picker */}
-          <input
-            ref={dateInputRef}
-            type="date"
-            className="prepare-modal__date-input-hidden"
-            value={activeDate}
-            onChange={(e) => {
-              if (e.target.value) setActiveDate(e.target.value);
-            }}
-          />
         </div>
-        <p className="prepare-modal__date-hint">Usa las flechas o el calendario para preparar otro día</p>
 
-        {/* Loading State - Enhanced */}
+        {/* Loading State */}
         {preparationLoading && (
           <PrepareLoadingAnimation />
         )}
@@ -281,176 +403,134 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
           </div>
         )}
 
-        {/* No Preparation Yet */}
+        {/* Empty state — no preparation exists, show generate button */}
         {!currentPreparation && !preparationLoading && !error && (
           <div className="prepare-modal__empty">
-            <div className="prepare-modal__empty-icon">
-              <IonIcon icon={sparklesOutline} />
-            </div>
-            <h3>Obtén un resumen inteligente</h3>
-            <p>
-              La IA analizará tus clases de hoy, correcciones recientes, y comentarios
-              para darte un resumen personalizado de tu jornada.
+            <p className="prepare-modal__empty-text">
+              {isToday
+                ? 'Generando tu preparación...'
+                : 'No hay preparación para este día'}
             </p>
-            
-            {showFocusInput && (
-              <div className="prepare-modal__focus">
-                <label>Temas a enfocar (opcional)</label>
-                <IonTextarea
-                  value={focusTopics}
-                  onIonInput={(e) => setFocusTopics(e.detail.value || '')}
-                  placeholder="Ej: Repasar fracciones, preparar examen de la semana que viene..."
-                  rows={2}
-                  className="prepare-modal__focus-input"
-                />
-              </div>
-            )}
-
-            <button className="prepare-modal__generate-btn" onClick={handleGenerate}>
-              <IonIcon icon={sparklesOutline} />
-              Generar preparación
-            </button>
-
-            {!showFocusInput && (
-              <button className="prepare-modal__focus-toggle" onClick={() => setShowFocusInput(true)}>
-                + Añadir temas de enfoque
-              </button>
+            {!isToday && (
+              <>
+                {showFocusInput && (
+                  <div className="prepare-modal__focus">
+                    <IonTextarea
+                      value={focusTopics}
+                      onIonInput={(e) => setFocusTopics(e.detail.value || '')}
+                      placeholder="Ej: Repasar fracciones, preparar examen..."
+                      rows={2}
+                      className="prepare-modal__focus-input"
+                    />
+                  </div>
+                )}
+                <button className="prepare-modal__generate-btn" onClick={handleGenerate}>
+                  Generar preparación
+                </button>
+                {!showFocusInput && (
+                  <button className="prepare-modal__focus-toggle" onClick={() => setShowFocusInput(true)}>
+                    + Añadir temas de enfoque
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {/* Today's Events Overview - collapsible */}
-        {!preparationLoading && (otherEvents.length > 0 || classSessions.length > 0) && (
-          <div className="prepare-modal__events-overview">
-            <button
-              className="prepare-modal__events-toggle"
-              onClick={() => setEventsExpanded(!eventsExpanded)}
-            >
-              <div className="prepare-modal__events-toggle-left">
-                <IonIcon icon={calendarOutline} />
-                <span>Eventos del día</span>
-                <span className="prepare-modal__events-count-badge">
-                  {dayEvents.length}
-                </span>
-              </div>
-              <IonIcon icon={eventsExpanded ? chevronUpOutline : chevronDownOutline} className="prepare-modal__events-chevron" />
-            </button>
+        {/* Timeline: always show if there are items (events appear even before AI generation) */}
+        {!preparationLoading && timelineItems.length > 0 && !error && (
+          <div className="prepare-modal__section">
+            <h3 className="prepare-modal__section-title">
+              <IonIcon icon={timeOutline} />
+              Tu jornada
+            </h3>
+            <div className="prepare-modal__timeline">
+              {timelineItems.map((item: any, idx: number) => {
 
-            {!eventsExpanded && (
-              <div className="prepare-modal__events-summary-row">
-                {classSessions.length > 0 && (
-                  <span className="prepare-modal__events-summary-chip">
-                    <IonIcon icon={schoolOutline} />
-                    {classSessions.length} {classSessions.length === 1 ? 'clase' : 'clases'}
-                  </span>
-                )}
-                {otherEvents.length > 0 && (
-                  <span className="prepare-modal__events-summary-chip">
-                    <IonIcon icon={calendarOutline} />
-                    {otherEvents.length} {otherEvents.length === 1 ? 'evento' : 'eventos'}
-                  </span>
-                )}
-              </div>
-            )}
+                // ── Event item (tutoring, custom) ──
+                if (item._type === 'event') {
+                  const ev = item._event;
+                  return (
+                    <div key={`ev-${ev.id}`} className="prepare-modal__timeline-item">
+                      <div className="prepare-modal__timeline-rail">
+                        <div className={`prepare-modal__timeline-dot prepare-modal__timeline-dot--event${ev.eventType === 'tutoring' ? ' prepare-modal__timeline-dot--tutoring' : ''}`}>
+                          {ev.startTime ? (
+                            <span className="prepare-modal__timeline-time">{ev.startTime.slice(0, 5)}</span>
+                          ) : (
+                            <IonIcon icon={ev.eventType === 'tutoring' ? peopleOutline : calendarOutline} />
+                          )}
+                        </div>
+                        {idx < timelineItems.length - 1 && <div className="prepare-modal__timeline-line" />}
+                      </div>
+                      <div className={`prepare-modal__timeline-card prepare-modal__timeline-card--event prepare-modal__timeline-card--${ev.eventType}`}>
+                        <div className="prepare-modal__timeline-event-body">
+                          <div className="prepare-modal__timeline-event-header">
+                            <IonIcon icon={ev.eventType === 'tutoring' ? peopleOutline : calendarOutline} />
+                            <span className="prepare-modal__class-name">{ev.title}</span>
+                            {ev.eventType === 'tutoring' && (
+                              <span className="prepare-modal__event-badge">Tutoría</span>
+                            )}
+                          </div>
+                          {(ev.startTime || ev.endTime) && (
+                            <div className="prepare-modal__event-time">
+                              <IonIcon icon={timeOutline} />
+                              <span>
+                                {ev.startTime && ev.startTime}
+                                {ev.startTime && ev.endTime && ' — '}
+                                {ev.endTime && ev.endTime}
+                              </span>
+                            </div>
+                          )}
+                          {ev.studentName && (
+                            <div className="prepare-modal__event-student">
+                              Alumno:{' '}
+                              {ev.studentId && ev.classId ? (
+                                <span
+                                  className="prepare-modal__link"
+                                  onClick={() => navigateTo(`/tabs/classes/${ev.classId}/students/${ev.studentId}`)}
+                                >
+                                  {ev.studentName}
+                                </span>
+                              ) : (
+                                ev.studentName
+                              )}
+                            </div>
+                          )}
+                          {ev.notes && (
+                            <div className="prepare-modal__event-notes">{ev.notes}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
 
-            {eventsExpanded && (
-              <div className="prepare-modal__events-list">
-                {classSessions.map((ev) => (
-                  <div key={ev.id} className="prepare-modal__event prepare-modal__event--class">
-                    <div className="prepare-modal__event-header">
-                      <IonIcon icon={schoolOutline} />
-                      <span className="prepare-modal__event-title">{ev.title}</span>
-                    </div>
-                    {(ev.startTime || ev.endTime) && (
-                      <div className="prepare-modal__event-time">
-                        <IonIcon icon={timeOutline} />
-                        <span>
-                          {ev.startTime && ev.startTime}
-                          {ev.startTime && ev.endTime && ' — '}
-                          {ev.endTime && ev.endTime}
-                        </span>
-                      </div>
-                    )}
-                    {ev.location && (
-                      <div className="prepare-modal__event-time">
-                        <IonIcon icon={locationOutline} />
-                        <span>{ev.location}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {otherEvents.map((ev) => (
-                  <div key={ev.id} className={`prepare-modal__event prepare-modal__event--${ev.eventType}`}>
-                    <div className="prepare-modal__event-header">
-                      <IonIcon icon={ev.eventType === 'tutoring' ? peopleOutline : calendarOutline} />
-                      <span className="prepare-modal__event-title">{ev.title}</span>
-                      {ev.eventType === 'tutoring' && (
-                        <span className="prepare-modal__event-badge">Tutoría</span>
-                      )}
-                    </div>
-                    {(ev.startTime || ev.endTime) && (
-                      <div className="prepare-modal__event-time">
-                        <IonIcon icon={timeOutline} />
-                        <span>
-                          {ev.startTime && ev.startTime}
-                          {ev.startTime && ev.endTime && ' — '}
-                          {ev.endTime && ev.endTime}
-                        </span>
-                      </div>
-                    )}
-                    {ev.studentName && (
-                      <div className="prepare-modal__event-student">
-                        Alumno:{' '}
-                        {ev.studentId && ev.classId ? (
-                          <span
-                            className="prepare-modal__link"
-                            onClick={() => navigateTo(`/tabs/classes/${ev.classId}/students/${ev.studentId}`)}
-                          >
-                            {ev.studentName}
-                          </span>
+                // ── Class breakdown item ──
+                const cls = item;
+                const classKey = `${cls.class_id || cls.class_name}_${cls.subject_id || cls.subject || idx}`;
+                const isExpanded = expandedClasses.has(classKey);
+                const alertCount = (cls.student_alerts?.length || 0) + (cls.grade_alerts?.length || 0);
+                const hasExercises = cls.exercises_today && cls.exercises_today.length > 0;
+
+                return (
+                  <div key={classKey} className="prepare-modal__timeline-item">
+                    <div className="prepare-modal__timeline-rail">
+                      <div className={`prepare-modal__timeline-dot ${alertCount > 0 ? 'prepare-modal__timeline-dot--alert' : ''}`}>
+                        {cls.start_time ? (
+                          <span className="prepare-modal__timeline-time">{cls.start_time}</span>
                         ) : (
-                          ev.studentName
+                          <IonIcon icon={schoolOutline} />
                         )}
                       </div>
-                    )}
-                    {ev.notes && (
-                      <div className="prepare-modal__event-notes">{ev.notes}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                      {idx < timelineItems.length - 1 && <div className="prepare-modal__timeline-line" />}
+                    </div>
 
-        {/* Preparation Content */}
-        {currentPreparation && !preparationLoading && (
-          <div className="prepare-modal__result">
-            {/* Summary */}
-            <div className="prepare-modal__summary">
-              <p>{currentPreparation.summary}</p>
-            </div>
-
-            {/* Class Breakdowns - grouped with grade alerts */}
-            {enrichedBreakdowns.length > 0 && (
-              <div className="prepare-modal__section">
-                <h3 className="prepare-modal__section-title">
-                  <IonIcon icon={schoolOutline} />
-                  Clases de hoy
-                </h3>
-                {enrichedBreakdowns.map((cls: any, idx: number) => {
-                  const classKey = `${cls.class_id || cls.class_name}_${cls.subject_id || cls.subject || idx}`;
-                  const isExpanded = expandedClasses.has(classKey);
-                  const alertCount = (cls.student_alerts?.length || 0) + (cls.grade_alerts?.length || 0);
-                  const topicCount = cls.topics_to_cover?.length || 0;
-
-                  return (
-                    <div key={classKey} className={`prepare-modal__class ${alertCount > 0 ? 'prepare-modal__class--has-alerts' : ''}`}>
+                    <div className={`prepare-modal__timeline-card ${alertCount > 0 ? 'prepare-modal__timeline-card--has-alerts' : ''}`}>
                       <button
-                        className="prepare-modal__class-header"
+                        className="prepare-modal__timeline-card-header"
                         onClick={() => toggleClassExpanded(classKey)}
                       >
-                        <div className="prepare-modal__class-info">
+                        <div className="prepare-modal__timeline-card-info">
                           <div className="prepare-modal__class-title-row">
                             {cls.class_id ? (
                               <span
@@ -469,14 +549,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </span>
                             )}
                           </div>
-                          {/* Aggregated summary badges */}
                           <div className="prepare-modal__class-badges">
-                            {cls.start_time && (
-                              <span className="prepare-modal__badge prepare-modal__badge--time">
-                                <IonIcon icon={timeOutline} />
-                                {cls.start_time}
-                              </span>
-                            )}
                             {cls.aula && (
                               <span className="prepare-modal__badge">
                                 <IonIcon icon={locationOutline} />
@@ -491,26 +564,34 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                             {alertCount > 0 && (
                               <span className="prepare-modal__badge prepare-modal__badge--warning">
                                 <IonIcon icon={alertCircleOutline} />
-                                {alertCount} {alertCount === 1 ? 'alerta' : 'alertas'}
+                                {alertCount}
                               </span>
                             )}
-                            {topicCount > 0 && (
+                            {hasExercises && (
                               <span className="prepare-modal__badge prepare-modal__badge--info">
-                                {topicCount} {topicCount === 1 ? 'tema' : 'temas'}
+                                <IonIcon icon={documentTextOutline} />
+                                Ejercicios
                               </span>
                             )}
                           </div>
+                          {!isExpanded && cls.student_alerts && cls.student_alerts.length > 0 && (
+                            <div className="prepare-modal__timeline-peek">
+                              {cls.student_alerts.slice(0, 2).map((a: any, i: number) => (
+                                <span key={i} className="prepare-modal__timeline-peek-item">
+                                  <strong>{a.name}</strong>: {a.issue?.slice(0, 50)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <IonIcon
-                          icon={isExpanded ? chevronUpOutline : chevronDownOutline}
-                        />
+                        <IonIcon icon={isExpanded ? chevronUpOutline : chevronDownOutline} />
                       </button>
 
                       {isExpanded && (
                         <div className="prepare-modal__class-details">
                           {cls.topics_to_cover && cls.topics_to_cover.length > 0 && (
                             <div className="prepare-modal__detail">
-                              <strong>Temas a tratar:</strong>
+                              <strong><IonIcon icon={bulbOutline} />Temas a reforzar</strong>
                               <ul>
                                 {cls.topics_to_cover.map((topic: string, i: number) => (
                                   <li key={i}>{topic}</li>
@@ -518,15 +599,14 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
-
                           {cls.student_alerts && cls.student_alerts.length > 0 && (
                             <div className="prepare-modal__detail prepare-modal__detail--alert">
-                              <strong>Alumnos a atender:</strong>
+                              <strong><IonIcon icon={alertCircleOutline} />Alumnos a atender</strong>
                               <ul>
                                 {cls.student_alerts.map((alert: any, i: number) => (
                                   <li key={i}>
                                     <span className="prepare-modal__student-name">{alert.name}</span>
-                                    <span className="prepare-modal__student-reason">{alert.reason}</span>
+                                    <span className="prepare-modal__student-reason">{alert.issue || alert.reason}</span>
                                     {alert.suggested_action && (
                                       <span className="prepare-modal__student-action">{alert.suggested_action}</span>
                                     )}
@@ -535,14 +615,9 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
-
-                          {/* Grade alerts merged into class card */}
                           {cls.grade_alerts && cls.grade_alerts.length > 0 && (
                             <div className="prepare-modal__detail prepare-modal__detail--grade-alert">
-                              <strong>
-                                <IonIcon icon={alertCircleOutline} />
-                                Alertas de rendimiento
-                              </strong>
+                              <strong><IonIcon icon={alertCircleOutline} />Alertas de rendimiento</strong>
                               <div className="prepare-modal__grade-alerts">
                                 {cls.grade_alerts.map((alert: any, i: number) => (
                                   <div key={i} className="prepare-modal__grade-alert-item">
@@ -566,10 +641,21 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </div>
                             </div>
                           )}
-
+                          {cls.exercises_today && cls.exercises_today.length > 0 && (
+                            <div className="prepare-modal__detail">
+                              <strong><IonIcon icon={documentTextOutline} />Ejercicios hoy</strong>
+                              <ul>
+                                {cls.exercises_today.map((ex: any, i: number) => (
+                                  <li key={i}>
+                                    {ex.type === 'deliver' ? '📤 Entregar' : '📥 Recoger'} — {ex.student}: {ex.exercise}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           {cls.class_weak_points && cls.class_weak_points.length > 0 && (
                             <div className="prepare-modal__detail">
-                              <strong>Puntos débiles:</strong>
+                              <strong>Puntos débiles</strong>
                               <div className="prepare-modal__tags">
                                 {cls.class_weak_points.map((point: string, i: number) => (
                                   <span key={i} className="prepare-modal__tag">{point}</span>
@@ -577,10 +663,9 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </div>
                             </div>
                           )}
-
                           {cls.positive_highlights && cls.positive_highlights.length > 0 && (
                             <div className="prepare-modal__detail prepare-modal__detail--positive">
-                              <strong>Destacados positivos:</strong>
+                              <strong><IonIcon icon={trophyOutline} />Destacados</strong>
                               <ul>
                                 {cls.positive_highlights.map((h: any, i: number) => (
                                   <li key={i}>
@@ -591,10 +676,9 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
-
                           {cls.suggestions && cls.suggestions.length > 0 && (
                             <div className="prepare-modal__detail">
-                              <strong>Sugerencias:</strong>
+                              <strong>Sugerencias</strong>
                               <ul>
                                 {cls.suggestions.map((sug: string, i: number) => (
                                   <li key={i}>{sug}</li>
@@ -602,11 +686,80 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
+                          {cls.recent_comments && cls.recent_comments.length > 0 && (
+                            <div className="prepare-modal__detail">
+                              <strong><IonIcon icon={chatbubbleOutline} />Comentarios recientes</strong>
+                              <ul>
+                                {cls.recent_comments.map((comment: string, i: number) => (
+                                  <li key={i}>{comment}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Preparation Content */}
+        {currentPreparation && !preparationLoading && (
+          <div className="prepare-modal__result">
+            {/* Summary — rendered as bullet list */}
+            {currentPreparation.summary && (
+              <ul className="prepare-modal__summary-bullets">
+                {currentPreparation.summary.split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
+                  <li key={i}>{line.replace(/^[•\-–]\s*/, '')}</li>
+                ))}
+              </ul>
+            )}
+
+            {/* Priority triage — lightweight, no icons */}
+            {hasTriageContent && (
+              <div className="prepare-modal__triage">
+                {triage.urgent.length > 0 && (
+                  <div className="prepare-modal__triage-row prepare-modal__triage-row--urgent">
+                    <span className="prepare-modal__triage-label">Urgente</span>
+                    <div className="prepare-modal__triage-items">
+                      {triage.urgent.map((item, i) => (
+                        <span key={i} className="prepare-modal__triage-item">
+                          {item.text}
+                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {triage.pending.length > 0 && (
+                  <div className="prepare-modal__triage-row prepare-modal__triage-row--pending">
+                    <span className="prepare-modal__triage-label">Pendiente</span>
+                    <div className="prepare-modal__triage-items">
+                      {triage.pending.map((item, i) => (
+                        <span key={i} className="prepare-modal__triage-item">
+                          {item.text}
+                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {triage.positive.length > 0 && (
+                  <div className="prepare-modal__triage-row prepare-modal__triage-row--positive">
+                    <span className="prepare-modal__triage-label">Positivo</span>
+                    <div className="prepare-modal__triage-items">
+                      {triage.positive.map((item, i) => (
+                        <span key={i} className="prepare-modal__triage-item">
+                          {item.text}
+                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -625,8 +778,8 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                         <span className="prepare-modal__deadline-class">{deadline.class_name}</span>
                       </div>
                       <span className="prepare-modal__deadline-days">
-                        {deadline.days_until === 0 ? 'Hoy' : 
-                         deadline.days_until === 1 ? 'Mañana' : 
+                        {deadline.days_until === 0 ? 'Hoy' :
+                         deadline.days_until === 1 ? 'Mañana' :
                          `En ${deadline.days_until} días`}
                       </span>
                     </div>

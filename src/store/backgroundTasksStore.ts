@@ -62,12 +62,16 @@ function startBatchPolling(
   taskId: string,
   batchJobId: string,
   expectedResultUrl: string | undefined,
-  set: (fn: (s: BackgroundTasksState) => Partial<BackgroundTasksState>) => void
+  set: (fn: (s: BackgroundTasksState) => Partial<BackgroundTasksState>) => void,
+  existingSteps?: TaskStep[]
 ) {
   if (activePolling.has(taskId)) return;
   activePolling.add(taskId);
 
-  let lastStepLabel = '';
+  // Initialize from existing steps to avoid re-pushing labels on resume
+  let lastStepLabel = existingSteps?.length
+    ? existingSteps[existingSteps.length - 1].label
+    : '';
   let hadError = false;
 
   const pushStepIfNew = (label: string) => {
@@ -76,6 +80,8 @@ function startBatchPolling(
     set((s) => ({
       tasks: s.tasks.map((t) => {
         if (t.id !== taskId) return t;
+        // Skip if this label already exists in any step
+        if ((t.steps || []).some((st) => st.label === label)) return t;
         const steps = (t.steps || []).map((st) =>
           st.status === 'running' ? { ...st, status: 'done' as const, timestamp: Date.now() } : st
         );
@@ -119,12 +125,16 @@ function startBatchPolling(
           const processed = data.processed_items;
           const total = data.total_items;
 
-          // Always update counters so the pill shows live progress
+          // Always update counters so the pill shows live progress.
+          // Show the *active* item in the count (processed + 1 while an item is running)
+          // so the user sees "2/5" as soon as item 2 starts, not only when it finishes.
           if (processed !== undefined || total !== undefined) {
+            const displayProcessed = (processed ?? 0) + (itemName ? 1 : 0);
+            const clampedProcessed = Math.min(displayProcessed, total ?? displayProcessed);
             set((s) => ({
               tasks: s.tasks.map((t) =>
                 t.id === taskId
-                  ? { ...t, processedItems: processed ?? t.processedItems, totalItems: total ?? t.totalItems }
+                  ? { ...t, processedItems: clampedProcessed, totalItems: total ?? t.totalItems }
                   : t
               ),
             }));
@@ -296,7 +306,7 @@ export const useBackgroundTasksStore = create<BackgroundTasksState>()(
 
           if (task.batchJobId) {
             // Resume polling for server-side batch jobs
-            startBatchPolling(task.id, task.batchJobId, task.expectedResultUrl, set);
+            startBatchPolling(task.id, task.batchJobId, task.expectedResultUrl, set, task.steps);
           } else {
             // Simple API call tasks can't be recovered — mark as interrupted
             set((s) => ({

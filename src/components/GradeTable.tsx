@@ -302,8 +302,8 @@ const GradeTable: React.FC<Props> = ({
           className="gt-segment"
         >
           <IonSegmentButton value="summary"><IonLabel>Resumen</IonLabel></IonSegmentButton>
-          {hasExams && <IonSegmentButton value="exams"><IonLabel>Exámenes ({exams.length})</IonLabel></IonSegmentButton>}
-          {hasExercises && <IonSegmentButton value="exercises"><IonLabel>Ejercicios ({exerciseGroups.length})</IonLabel></IonSegmentButton>}
+          {hasExams && <IonSegmentButton value="exams"><IonLabel>Exámenes</IonLabel></IonSegmentButton>}
+          {hasExercises && <IonSegmentButton value="exercises"><IonLabel>Ejercicios</IonLabel></IonSegmentButton>}
         </IonSegment>
       </div>
 

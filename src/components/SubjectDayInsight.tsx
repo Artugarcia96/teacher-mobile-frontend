@@ -46,7 +46,7 @@ const Section: React.FC<{
 };
 
 const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compact = false }) => {
-  const [expanded, setExpanded] = useState(!compact);
+  const [expanded, setExpanded] = useState(false);
 
   const hasAlerts = breakdown.student_alerts && breakdown.student_alerts.length > 0;
   const hasHighlights = breakdown.positive_highlights && breakdown.positive_highlights.length > 0;
@@ -90,7 +90,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
         <div className="sdi__body">
           {/* Topics to cover — open by default */}
           {hasTopics && (
-            <Section icon={bulbOutline} label="Temas a reforzar" defaultOpen>
+            <Section icon={bulbOutline} label="Temas a reforzar">
               <ul className="sdi__list">
                 {breakdown.topics_to_cover!.map((topic, i) => (
                   <li key={i}>{topic}</li>
@@ -101,7 +101,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
           {/* Student alerts */}
           {hasAlerts && (
-            <Section icon={alertCircleOutline} label="Alumnos que atender" variant="alert" defaultOpen>
+            <Section icon={alertCircleOutline} label="Alumnos que atender" variant="alert">
               <div className="sdi__alerts">
                 {breakdown.student_alerts!.map((alert, i) => (
                   <div key={i} className="sdi__alert-item">

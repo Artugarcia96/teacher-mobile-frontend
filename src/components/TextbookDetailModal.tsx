@@ -315,7 +315,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
               <IonButton
                 expand="block"
                 onClick={handlePreview}
-                style={{ flex: 1, '--border-radius': '10px', fontWeight: 600, '--background': '#15665E' }}
+                style={{ flex: 1, '--border-radius': '10px', fontWeight: 600, '--background': 'var(--ion-color-primary, #15665E)' }}
               >
                 <IonIcon icon={eyeOutline} slot="start" />
                 Ver PDF
@@ -345,13 +345,13 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
             }}>
               {stats.estimated_pages != null && (
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#15665E' }}>{stats.estimated_pages}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ion-color-primary, #15665E)' }}>{stats.estimated_pages}</div>
                   <div style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>Páginas</div>
                 </div>
               )}
               {stats.total_words != null && (
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#15665E' }}>{formatWords(stats.total_words)}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--ion-color-primary, #15665E)' }}>{formatWords(stats.total_words)}</div>
                   <div style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>Palabras</div>
                 </div>
               )}
@@ -382,7 +382,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 {isCompleted && allSections.length > 0 && (
                   <span style={{
-                    background: '#15665E', color: '#fff', borderRadius: 6,
+                    background: 'var(--ion-color-primary, #15665E)', color: '#fff', borderRadius: 6,
                     padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0,
                   }}>1</span>
                 )}
@@ -422,7 +422,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         width: 26, height: 26, borderRadius: 8,
-                        background: '#15665E', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        background: 'var(--ion-color-primary, #15665E)', color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
                       }}>{chapter.number}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.3 }}>{chapter.title}</div>
@@ -463,7 +463,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                             borderRadius: 10, border: '1px solid rgba(21, 102, 94, 0.15)',
                             padding: 10, background: 'rgba(21, 102, 94, 0.02)',
                           }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#15665E', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ion-color-primary, #15665E)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                               <IonIcon icon={sparkles} style={{ fontSize: 13 }} />
                               Editar con IA
                             </div>
@@ -509,7 +509,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                               expand="block" size="small"
                               onClick={() => handleIterate(chapter.number)}
                               disabled={iterating || !iterationInstruction.trim()}
-                              style={{ '--border-radius': '8px', '--background': '#15665E', fontWeight: 600, fontSize: 13 }}
+                              style={{ '--border-radius': '8px', '--background': 'var(--ion-color-primary, #15665E)', fontWeight: 600, fontSize: 13 }}
                             >
                               {iterating
                                 ? <><IonSpinner name="crescent" style={{ width: 14, height: 14, marginRight: 6 }} /> Editando...</>
@@ -534,13 +534,13 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
               {temaPhase === 'idle' && (
                 <div style={{
                   borderRadius: 14,
-                  border: '2px dashed #15665E',
+                  border: '2px dashed var(--ion-color-primary, #15665E)',
                   padding: 20,
                   background: 'rgba(21, 102, 94, 0.03)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span style={{
-                      background: '#15665E', color: '#fff', borderRadius: 6,
+                      background: 'var(--ion-color-primary, #15665E)', color: '#fff', borderRadius: 6,
                       padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0,
                     }}>2</span>
                     <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ion-text-color)' }}>
@@ -557,7 +557,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                   )}
                   <IonButton
                     expand="block"
-                    style={{ '--border-radius': '10px', '--background': '#15665E', fontWeight: 600 }}
+                    style={{ '--border-radius': '10px', '--background': 'var(--ion-color-primary, #15665E)', fontWeight: 600 }}
                     onClick={handleDividirEnTemas}
                   >
                     <IonIcon icon={layersOutline} slot="start" />
@@ -582,14 +582,14 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                         <div style={{
                           borderRadius: 12,
                           overflow: 'hidden',
-                          border: '1.5px solid rgba(21, 102, 94, 0.25)',
-                          background: '#fff',
+                          border: '1.5px solid var(--ion-border-color, rgba(21, 102, 94, 0.25))',
+                          background: 'var(--ion-card-background, var(--ion-background-color))',
                           boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                         }}>
                           {/* Tema header */}
                           <div style={{
                             padding: '10px 12px',
-                            background: '#15665E',
+                            background: 'var(--ion-color-primary, #15665E)',
                             display: 'flex', alignItems: 'center', gap: 8,
                           }}>
                             <span style={{
@@ -604,7 +604,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                               onChange={(e) => handleRenameTema(temaIdx, e.target.value)}
                               placeholder="Nombre del tema..."
                               style={{
-                                flex: 1, border: 'none', background: 'rgba(255,255,255,0.12)',
+                                flex: 1, border: 'none', background: 'rgba(255,255,255,0.15)',
                                 borderRadius: 6, padding: '4px 8px',
                                 fontSize: 13, fontWeight: 600, outline: 'none', minWidth: 0,
                                 color: '#fff',
@@ -669,14 +669,14 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                                     onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                                     onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.35')}
                                   >
-                                    <div style={{ flex: 1, height: 1, background: '#E5E7EB', borderTop: '1px dashed #CBD5E1' }} />
+                                    <div style={{ flex: 1, height: 1, borderTop: '1px dashed var(--ion-color-step-300, #CBD5E1)' }} />
                                     <span style={{
-                                      fontSize: 10, color: '#94A3B8', padding: '0 4px',
+                                      fontSize: 10, color: 'var(--ion-color-step-450, #94A3B8)', padding: '0 4px',
                                       userSelect: 'none', whiteSpace: 'nowrap',
                                     }}>
                                       cortar aqui
                                     </span>
-                                    <div style={{ flex: 1, height: 1, background: '#E5E7EB', borderTop: '1px dashed #CBD5E1' }} />
+                                    <div style={{ flex: 1, height: 1, borderTop: '1px dashed var(--ion-color-step-300, #CBD5E1)' }} />
                                   </div>
                                 )}
                               </div>
@@ -709,14 +709,14 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                             onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                             onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.45')}
                           >
-                            <div style={{ width: 28, height: 1, background: '#CBD5E1' }} />
+                            <div style={{ width: 28, height: 1, background: 'var(--ion-color-step-300, #CBD5E1)' }} />
                             <span style={{
-                              fontSize: 11, color: '#15665E', fontWeight: 600,
+                              fontSize: 11, color: 'var(--ion-color-primary, #15665E)', fontWeight: 600,
                               userSelect: 'none', display: 'flex', alignItems: 'center', gap: 3,
                             }}>
                               <span style={{ fontSize: 15, lineHeight: 1 }}>&#8597;</span> unir
                             </span>
-                            <div style={{ width: 28, height: 1, background: '#CBD5E1' }} />
+                            <div style={{ width: 28, height: 1, background: 'var(--ion-color-step-300, #CBD5E1)' }} />
                           </div>
                         )}
                       </div>
@@ -729,7 +729,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                       expand="block"
                       onClick={handleConfirmTemas}
                       disabled={validTemaCount === 0}
-                      style={{ '--border-radius': '10px', '--background': '#15665E', fontWeight: 600, marginBottom: 8 }}
+                      style={{ '--border-radius': '10px', '--background': 'var(--ion-color-primary, #15665E)', fontWeight: 600, marginBottom: 8 }}
                     >
                       <IonIcon icon={checkmarkCircleOutline} slot="start" />
                       Crear {validTemaCount} {validTemaCount === 1 ? 'tema' : 'temas'}
@@ -745,7 +745,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
               {/* Phase: confirming */}
               {temaPhase === 'confirming' && (
                 <div style={{ textAlign: 'center', padding: 24 }}>
-                  <IonSpinner name="crescent" style={{ color: '#15665E', width: 32, height: 32 }} />
+                  <IonSpinner name="crescent" style={{ color: 'var(--ion-color-primary, #15665E)', width: 32, height: 32 }} />
                   <div style={{ fontSize: 14, color: 'var(--ion-color-medium)', marginTop: 8 }}>Creando temas...</div>
                 </div>
               )}

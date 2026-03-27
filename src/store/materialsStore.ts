@@ -45,7 +45,7 @@ export const useMaterialsStore = create<MaterialsState>((set, get) => ({
   error: null,
 
   fetchStructure: async () => {
-    set({ loading: true, error: null });
+    if (!get().structure.length) set({ loading: true, error: null });
     try {
       const res = await materialsApi.getStructure();
       set({ structure: res.data.map(mapSubject), loading: false });

@@ -129,9 +129,7 @@ const ExercisesList: React.FC = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      for (const id of deleteTarget.ids) {
-        await deleteExercise(id);
-      }
+      await Promise.all(deleteTarget.ids.map((id) => deleteExercise(id)));
       await fetchExercises();
     } catch (err) {
       console.error('Failed to delete exercise:', err);

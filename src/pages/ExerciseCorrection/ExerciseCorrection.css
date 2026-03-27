@@ -53,16 +53,13 @@
 }
 
 .paper-preview-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100%;
-  padding: var(--space-md);
+  width: 100%;
+  height: 100%;
 }
 
 .paper-preview-img {
   max-width: 100%;
-  max-height: calc(100vh - 80px);
+  max-height: 100%;
   object-fit: contain;
   border-radius: var(--radius-sm);
 }
@@ -80,9 +77,8 @@
 /* Paper preview - PDF support */
 .paper-preview-pdf {
   width: 100%;
-  height: calc(100vh - 80px);
+  height: 100%;
   border: none;
-  border-radius: var(--radius-sm);
   background: white;
 }
 

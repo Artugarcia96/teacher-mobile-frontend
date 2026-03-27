@@ -769,7 +769,7 @@ const ExerciseBulkCorrection: React.FC = () => {
               </IonButtons>
             </IonToolbar>
           </IonHeader>
-          <IonContent className="paper-preview-content">
+          <IonContent className="paper-preview-content" scrollY={false}>
             {previewUrl && (
               <div className="paper-preview-container">
                 <img src={previewUrl} alt="Ejercicio" className="paper-preview-img" />

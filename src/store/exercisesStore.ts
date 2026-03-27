@@ -67,12 +67,16 @@ interface ExercisesState {
   deleteExercise: (id: string) => Promise<void>;
 }
 
-export const useExercisesStore = create<ExercisesState>((set) => ({
+export const useExercisesStore = create<ExercisesState>((set, get) => ({
   exercises: [],
   loading: false,
 
   fetchExercises: async (studentId) => {
-    set({ loading: true });
+    const cached = get().exercises;
+    const hasCachedForScope = studentId
+      ? cached.some((e) => e.studentId === studentId)
+      : cached.length > 0;
+    if (!hasCachedForScope) set({ loading: true });
     try {
       const res = await exercisesApi.list(studentId);
       const data = res.data.map(mapExercise);
