@@ -13,6 +13,13 @@
   }
 }
 
+.prepare-modal__inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 .prepare-modal__header {
   display: flex;
   align-items: center;
@@ -61,7 +68,8 @@
 .prepare-modal__content {
   padding: 0 var(--space-md) calc(var(--space-xl) + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
-  max-height: calc(100vh - 52px);
+  flex: 1;
+  min-height: 0;
   background: var(--ion-background-color, #fff);
   -webkit-overflow-scrolling: touch;
 }
@@ -69,7 +77,6 @@
 @media (min-width: 768px) {
   .prepare-modal__content {
     padding-top: var(--space-sm);
-    max-height: calc(85vh - 52px);
   }
 }
 

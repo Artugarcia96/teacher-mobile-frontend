@@ -341,6 +341,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onDismiss} className="prepare-modal">
+      <div className="prepare-modal__inner">
       <div className="prepare-modal__header">
         <div className="prepare-modal__title-row">
           <IonIcon icon={sparklesOutline} className="prepare-modal__icon" />
@@ -831,6 +832,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
             )}
           </div>
         )}
+      </div>
       </div>
     </IonModal>
   );

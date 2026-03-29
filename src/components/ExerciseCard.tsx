@@ -3,7 +3,7 @@ import { downloadOutline, documentTextOutline, checkmarkCircleOutline, trashOutl
 import { useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Exercise } from '../types';
-import { exercises as exercisesApi } from '../services/api';
+import { exercises as exercisesApi, authenticatedFetch } from '../services/api';
 import { useExercisesStore } from '../store/exercisesStore';
 import './ExerciseCard.css';
 
@@ -63,8 +63,7 @@ const ExerciseCard: React.FC<Props> = ({ exercise, studentName, onDelete, onRena
     const url = type === 'exercises'
       ? exercisesApi.downloadExercisesPdf(exercise.id)
       : exercisesApi.downloadSolutionsPdf(exercise.id);
-    const token = localStorage.getItem('access_token');
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();

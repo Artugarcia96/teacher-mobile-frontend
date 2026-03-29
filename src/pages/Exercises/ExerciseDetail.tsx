@@ -17,7 +17,7 @@ import { useExercisesStore } from '../../store/exercisesStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
-import api, { exercises as exercisesApi, exerciseCorrections as ecApi } from '../../services/api';
+import api, { exercises as exercisesApi, exerciseCorrections as ecApi, authenticatedFetch } from '../../services/api';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
 import ExerciseCorrectionPanel from '../../components/ExerciseCorrectionPanel';
 import EmptyState from '../../components/EmptyState';
@@ -284,8 +284,7 @@ const ExerciseDetail: React.FC = () => {
   const handleDownloadPaper = (paperUrl: string, studentName?: string) => {
     const fullUrl = getFullPaperUrl(paperUrl);
     if (!fullUrl) return;
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();

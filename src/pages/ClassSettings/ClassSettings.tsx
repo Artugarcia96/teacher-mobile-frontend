@@ -5,7 +5,7 @@ import {
   IonSelectOption, IonSpinner, IonAlert, IonItemSliding, IonItemOptions, IonItemOption,
   IonSegment, IonSegmentButton, IonCheckbox, IonSearchbar, IonProgressBar,
 } from '@ionic/react';
-import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline, warningOutline } from 'ionicons/icons';
+import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline, warningOutline, createOutline } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi } from '../../services/api';
 import { Lecture, ScheduleSlot, EducationLevel } from '../../types';
@@ -79,6 +79,46 @@ const ClassSettings: React.FC = () => {
 
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Inline editing for name & year
+  const [editingField, setEditingField] = useState<'name' | 'year' | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const startEditing = (field: 'name' | 'year') => {
+    setEditingField(field);
+    setEditValue(classData?.[field] || '');
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const saveField = async () => {
+    if (!editingField || !classData) return;
+    const trimmed = editValue.trim();
+    if (!trimmed || trimmed === classData[editingField]) {
+      cancelEditing();
+      return;
+    }
+    try {
+      await classesApi.update(classId, { [editingField]: trimmed });
+      setClassData((prev) => prev ? { ...prev, [editingField]: trimmed } : prev);
+      fetchClasses();
+    } catch (err) {
+      console.error(`Failed to update ${editingField}:`, err);
+    }
+    cancelEditing();
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveField();
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
 
   const [showLectureModal, setShowLectureModal] = useState(false);
   const [editingLecture, setEditingLecture] = useState<Lecture | null>(null);
@@ -546,13 +586,43 @@ const ClassSettings: React.FC = () => {
             <h2 className="settings-section__title">Información</h2>
           </div>
           <div className="settings-info-card">
-            <div className="settings-info-row">
+            <div className="settings-info-row settings-info-row--editable" onClick={() => editingField !== 'name' && startEditing('name')}>
               <span className="settings-info-label">Nombre</span>
-              <span className="settings-info-value">{classData?.name}</span>
+              {editingField === 'name' ? (
+                <input
+                  className="settings-info-inline-input"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={saveField}
+                  onKeyDown={handleEditKeyDown}
+                  autoFocus
+                  maxLength={100}
+                />
+              ) : (
+                <span className="settings-info-value settings-info-value--editable">
+                  {classData?.name}
+                  <IonIcon icon={createOutline} className="settings-info-edit-icon" />
+                </span>
+              )}
             </div>
-            <div className="settings-info-row">
+            <div className="settings-info-row settings-info-row--editable" onClick={() => editingField !== 'year' && startEditing('year')}>
               <span className="settings-info-label">Curso</span>
-              <span className="settings-info-value">{classData?.year}</span>
+              {editingField === 'year' ? (
+                <input
+                  className="settings-info-inline-input"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={saveField}
+                  onKeyDown={handleEditKeyDown}
+                  autoFocus
+                  maxLength={20}
+                />
+              ) : (
+                <span className="settings-info-value settings-info-value--editable">
+                  {classData?.year}
+                  <IonIcon icon={createOutline} className="settings-info-edit-icon" />
+                </span>
+              )}
             </div>
             <div className="settings-info-row settings-info-row--vertical">
               <span className="settings-info-label">Nivel educativo</span>

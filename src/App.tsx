@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import {
   IonApp, IonRouterOutlet, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel,
@@ -26,6 +26,7 @@ import AttendanceList from './pages/Attendance/AttendanceList';
 import Correction from './pages/Correction/Correction';
 import ExerciseCorrection from './pages/ExerciseCorrection/ExerciseCorrection';
 import ExerciseBulkCorrection from './pages/ExerciseCorrection/ExerciseBulkCorrection';
+import Guide from './pages/Guide/Guide';
 import PostClassCommentPrompt from './components/PostClassCommentPrompt';
 import FeedbackFab from './components/FeedbackFab';
 import BackgroundTasksFab from './components/BackgroundTasksFab';
@@ -74,6 +75,7 @@ const MainTabs: React.FC = () => {
                   {/* Main tabs */}
                   <Route exact path="/tabs/calendar" component={Calendar} />
                   <Route exact path="/tabs/classes" component={Classes} />
+                  <Route exact path="/tabs/guide" component={Guide} />
                   
                   {/* Class-specific routes */}
                   <Route exact path="/tabs/classes/:classId" component={GradeBook} />
@@ -171,36 +173,55 @@ const MainTabs: React.FC = () => {
           );
         };
 
-const App: React.FC = () => (
-  <IonApp>
-    <a href="#main" className="skip-nav">Saltar al contenido</a>
-    <IonReactRouter>
-      <IonSplitPane contentId="main" when="lg">
-        <SideMenu />
-        <IonRouterOutlet id="main">
-          <Route exact path="/login" component={Login} />
-          <PrivateRoute exact path="/correction/:examId" component={Correction} />
-          <PrivateRoute exact path="/exercise-correction/:exerciseId" component={ExerciseCorrection} />
-          <PrivateRoute exact path="/exercise-bulk-correction/:classId" component={ExerciseBulkCorrection} />
+const App: React.FC = () => {
+  const [ready, setReady] = useState(false);
 
-          <Route
-            path="/tabs"
-            render={() =>
-              auth.isLoggedIn() ? (
-                <MainTabs />
-              ) : (
-                <Redirect to="/login" />
-              )
-            }
-          />
+  useEffect(() => {
+    // On cold load, verify with the server whether the httpOnly cookie is valid.
+    auth.check().finally(() => setReady(true));
+  }, []);
 
-          <Route exact path="/">
-            <Redirect to={auth.isLoggedIn() ? '/tabs/calendar' : '/login'} />
-          </Route>
-        </IonRouterOutlet>
-      </IonSplitPane>
-    </IonReactRouter>
-  </IonApp>
-);
+  if (!ready) {
+    return (
+      <IonApp>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <IonSpinner name="crescent" />
+        </div>
+      </IonApp>
+    );
+  }
+
+  return (
+    <IonApp>
+      <a href="#main" className="skip-nav">Saltar al contenido</a>
+      <IonReactRouter>
+        <IonSplitPane contentId="main" when="lg">
+          <SideMenu />
+          <IonRouterOutlet id="main">
+            <Route exact path="/login" component={Login} />
+            <PrivateRoute exact path="/correction/:examId" component={Correction} />
+            <PrivateRoute exact path="/exercise-correction/:exerciseId" component={ExerciseCorrection} />
+            <PrivateRoute exact path="/exercise-bulk-correction/:classId" component={ExerciseBulkCorrection} />
+
+            <Route
+              path="/tabs"
+              render={() =>
+                auth.isLoggedIn() ? (
+                  <MainTabs />
+                ) : (
+                  <Redirect to="/login" />
+                )
+              }
+            />
+
+            <Route exact path="/">
+              <Redirect to={auth.isLoggedIn() ? '/tabs/calendar' : '/login'} />
+            </Route>
+          </IonRouterOutlet>
+        </IonSplitPane>
+      </IonReactRouter>
+    </IonApp>
+  );
+};
 
 export default App;

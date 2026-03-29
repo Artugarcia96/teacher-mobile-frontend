@@ -355,13 +355,23 @@ const GradeBook: React.FC = () => {
 
             {exams.length === 0 && students.length === 0 && (
               <div className="gb-empty-overview">
-                <EmptyState
-                  icon="🎓"
-                  title="Empieza a configurar tu clase"
-                  subtitle="Añade alumnos y crea exámenes para comenzar"
-                  actionLabel="Añadir alumnos"
-                  onAction={() => setShowAddModal(true)}
-                />
+                {(classSubjects[classId]?.length || 0) === 0 && !!classSubjectsLoaded[classId] ? (
+                  <EmptyState
+                    icon="🎓"
+                    title="Empieza a configurar tu clase"
+                    subtitle="Añade asignaturas, alumnos y crea exámenes para comenzar"
+                    actionLabel="Añadir asignatura"
+                    onAction={() => history.push(`/tabs/classes/${classId}/settings`)}
+                  />
+                ) : (
+                  <EmptyState
+                    icon="🎓"
+                    title="Empieza a configurar tu clase"
+                    subtitle="Añade alumnos y crea exámenes para comenzar"
+                    actionLabel="Añadir alumnos"
+                    onAction={() => setShowAddModal(true)}
+                  />
+                )}
               </div>
             )}
           </div>

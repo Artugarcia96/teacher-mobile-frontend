@@ -13,7 +13,7 @@ import { useParams, useHistory, useLocation } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
-import { corrections as correctionsApi, exams as examsApi } from '../../services/api';
+import { corrections as correctionsApi, exams as examsApi, authenticatedFetch } from '../../services/api';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
 import CorrectionPanel from '../../components/CorrectionPanel';
 import QuickCommentModal from '../../components/QuickCommentModal';
@@ -89,9 +89,8 @@ const Correction: React.FC = () => {
 
   const handleDownloadExam = () => {
     if (!exam) return;
-    const token = localStorage.getItem('access_token');
     const url = examsApi.downloadExamUrl(exam.id);
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => { if (!res.ok) throw new Error('Download failed'); return res.blob(); })
       .then((blob) => {
         const a = document.createElement('a');
@@ -107,9 +106,8 @@ const Correction: React.FC = () => {
 
   const handleDownloadSolutions = () => {
     if (!exam) return;
-    const token = localStorage.getItem('access_token');
     const url = examsApi.downloadSolutionsUrl(exam.id);
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => { if (!res.ok) throw new Error('Download failed'); return res.blob(); })
       .then((blob) => {
         const a = document.createElement('a');
@@ -127,8 +125,7 @@ const Correction: React.FC = () => {
     if (!paperUrl || !exam) return;
     const fullUrl = getFullPaperUrl(paperUrl);
     if (!fullUrl) return;
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then((res) => { if (!res.ok) throw new Error('Download failed'); return res.blob(); })
       .then((blob) => {
         const ext = paperUrl.toLowerCase().includes('.pdf') ? 'pdf' : 'jpg';
@@ -146,9 +143,8 @@ const Correction: React.FC = () => {
 
   const handleDownloadReport = (correctionId: string, studentName?: string) => {
     if (!exam) return;
-    const token = localStorage.getItem('access_token');
     const url = correctionsApi.downloadReportUrl(correctionId);
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => { if (!res.ok) throw new Error('Download failed'); return res.blob(); })
       .then((blob) => {
         const a = document.createElement('a');

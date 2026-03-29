@@ -15,7 +15,7 @@ import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
-import { exerciseCorrections as ecApi, batch } from '../../services/api';
+import { exerciseCorrections as ecApi, batch, authenticatedFetch } from '../../services/api';
 import { Exercise, BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import QRReviewTable from '../../components/QRReviewTable';
@@ -270,10 +270,7 @@ const ExerciseBulkCorrection: React.FC = () => {
 
   const fetchAuthenticatedImage = useCallback(async (url: string, correctionId: string) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authenticatedFetch(url);
       if (!res.ok) return;
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);

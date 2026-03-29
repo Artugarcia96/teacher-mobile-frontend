@@ -11,6 +11,7 @@ import {
   readerOutline,
   trendingDownOutline,
   addCircleOutline,
+  helpCircleOutline,
 } from 'ionicons/icons';
 import SepiaLogo from '../../components/SepiaLogo';
 import { avatarColor } from '../../utils/avatarColors';
@@ -356,6 +357,9 @@ const Calendar: React.FC = () => {
             <h1 className="cal-banner__greeting">{getGreeting()}</h1>
             <p className="cal-banner__date">{formatTodayDate()}</p>
           </div>
+          <button className="cal-banner__help" onClick={() => history.push('/tabs/guide')} aria-label="Guía de uso">
+            <IonIcon icon={helpCircleOutline} />
+          </button>
         </div>
 
         {/* Prepare Your Day Button */}
@@ -535,8 +539,7 @@ const Calendar: React.FC = () => {
                 {selectedDayEvents.length + groupedDayExams.length} {selectedDayEvents.length + groupedDayExams.length === 1 ? 'evento' : 'eventos'}
               </span>
               <button className="cal-section__add-btn" onClick={handleNewEvent}>
-                <IonIcon icon={addCircleOutline} />
-                <span>Añadir</span>
+                + Añadir evento
               </button>
             </div>
           </div>

@@ -13,7 +13,7 @@ import {
 import { Textbook, SuggestedTema } from '../types';
 import { useTextbooksStore } from '../store/textbooksStore';
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
-import { textbooks as textbooksApi } from '../services/api';
+import { textbooks as textbooksApi, authenticatedFetch } from '../services/api';
 
 interface TextbookDetailModalProps {
   isOpen: boolean;
@@ -110,8 +110,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
 
   const handleDownload = () => {
     const url = textbooksApi.getPdfUrl(textbook.id);
-    const token = localStorage.getItem('access_token');
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();
@@ -130,9 +129,8 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
 
   const handlePreview = async () => {
     const url = textbooksApi.getPdfUrl(textbook.id);
-    const token = localStorage.getItem('access_token');
     try {
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await authenticatedFetch(url);
       if (!res.ok) throw new Error('Preview failed');
       const blob = await res.blob();
       const blobUrl = window.URL.createObjectURL(blob);

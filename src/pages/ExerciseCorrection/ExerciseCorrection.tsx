@@ -9,7 +9,7 @@ import { useParams, useHistory } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
-import { exerciseCorrections as ecApi } from '../../services/api';
+import { exerciseCorrections as ecApi, authenticatedFetch } from '../../services/api';
 import { BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
@@ -430,8 +430,7 @@ const ExerciseCorrection: React.FC = () => {
     const fullUrl = getFullPaperUrl(paperUrl);
     if (!fullUrl) return;
 
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();

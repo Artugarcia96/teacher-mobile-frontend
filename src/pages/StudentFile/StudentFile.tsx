@@ -28,7 +28,7 @@ import GradeDonut from '../../components/charts/GradeDonut';
 import GradeTrendLine from '../../components/charts/GradeTrendLine';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { avatarColor } from '../../utils/avatarColors';
-import { students as studentsApi, exercises as exercisesApi } from '../../services/api';
+import { students as studentsApi, exercises as exercisesApi, authenticatedFetch } from '../../services/api';
 import './StudentFile.css';
 
 function formatDate(d: string) {
@@ -314,8 +314,7 @@ const StudentFile: React.FC = () => {
     const url = type === 'exercises'
       ? exercisesApi.downloadExercisesPdf(exerciseId)
       : exercisesApi.downloadSolutionsPdf(exerciseId);
-    const token = localStorage.getItem('access_token');
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => res.blob())
       .then((blob) => {
         const a = document.createElement('a');

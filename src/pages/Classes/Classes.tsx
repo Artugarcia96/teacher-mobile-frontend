@@ -5,7 +5,7 @@ import {
   IonButtons, IonIcon, IonSpinner, IonItemSliding, IonItemOptions, IonItemOption,
   IonAlert, IonBadge, IonToast, IonRefresher, IonRefresherContent, useIonViewWillEnter,
 } from '@ionic/react';
-import { addOutline, swapVerticalOutline, alertCircleOutline, chevronDownOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, settingsOutline } from 'ionicons/icons';
+import { addOutline, swapVerticalOutline, alertCircleOutline, chevronDownOutline, trashOutline, closeOutline, checkboxOutline, squareOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useClassesStore, DeletePreview } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
@@ -449,15 +449,18 @@ const Classes: React.FC = () => {
                           </div>
                         )}
                         {!selectionMode && subjects.length === 0 && !!classSubjectsLoaded[c.id] && (
-                          <span
-                            className="class-card__no-subjects"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              history.push(`/tabs/classes/${c.id}/settings`);
-                            }}
-                          >
-                            Sin asignaturas
-                          </span>
+                          <div className="class-card__subjects" style={{ marginTop: 6 }}>
+                            <span
+                              className="class-card__add-subject-chip"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                history.push(`/tabs/classes/${c.id}/settings`);
+                              }}
+                            >
+                              <IonIcon icon={addOutline} className="class-card__add-subject-icon" />
+                              Añadir asignatura
+                            </span>
+                          </div>
                         )}
                         {!selectionMode && subjects.length === 0 && !classSubjectsLoaded[c.id] && (
                           <div className="class-card__subjects">
@@ -495,11 +498,11 @@ const Classes: React.FC = () => {
                       <div className="class-card__subjects-list">
                         {subjects.length === 0 ? (
                           <div
-                            className="class-card__subject-row class-card__subject-row--empty"
+                            className="class-card__subject-row class-card__subject-row--empty-cta"
                             onClick={() => history.push(`/tabs/classes/${c.id}/settings`)}
                           >
-                            <span className="class-card__subject-name">Sin asignaturas</span>
-                            <IonIcon icon={settingsOutline} className="class-card__subject-settings-icon" />
+                            <IonIcon icon={addOutline} className="class-card__empty-cta-icon" />
+                            <span className="class-card__empty-cta-text">Configurar asignaturas</span>
                           </div>
                         ) : (
                           subjects.map((subj) => (

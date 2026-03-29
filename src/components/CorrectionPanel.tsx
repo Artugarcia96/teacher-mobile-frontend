@@ -13,7 +13,7 @@ import { useHistory } from 'react-router-dom';
 import { useExamsStore } from '../store/examsStore';
 import { useStudentsStore } from '../store/studentsStore';
 import { useCorrectionStore } from '../store/correctionStore';
-import { corrections as correctionsApi, batch } from '../services/api';
+import { corrections as correctionsApi, batch, authenticatedFetch } from '../services/api';
 import { BulkUploadResult } from '../types';
 import ScanCard from './ScanCard';
 import QRReviewTable from './QRReviewTable';
@@ -523,8 +523,7 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     if (!paperUrl || !exam) return;
     const fullUrl = getFullPaperUrl(paperUrl);
     if (!fullUrl) return;
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();
@@ -547,9 +546,8 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
 
   const handleDownloadReport = (correctionId: string, studentName?: string) => {
     if (!exam) return;
-    const token = localStorage.getItem('access_token');
     const url = correctionsApi.downloadReportUrl(correctionId);
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(url)
       .then((res) => { if (!res.ok) throw new Error('Download failed'); return res.blob(); })
       .then((blob) => {
         const a = document.createElement('a');

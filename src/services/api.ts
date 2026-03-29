@@ -9,50 +9,94 @@ const getBaseUrl = () => {
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// 401 → attempt silent refresh via httpOnly cookie, then retry
+let isRefreshing = false;
+let refreshQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
+
+const processQueue = (error: unknown) => {
+  refreshQueue.forEach(({ resolve, reject }) => (error ? reject(error) : resolve(undefined)));
+  refreshQueue = [];
+};
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        try {
-          const res = await axios.post(`${API_URL}/auth/refresh`, { refresh_token: refreshToken });
-          localStorage.setItem('access_token', res.data.access_token);
-          localStorage.setItem('refresh_token', res.data.refresh_token);
-          error.config.headers.Authorization = `Bearer ${res.data.access_token}`;
-          return api(error.config);
-        } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then(() => api(original));
+      }
+      original._retry = true;
+      isRefreshing = true;
+      try {
+        await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+        processQueue(null);
+        return api(original);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
     return Promise.reject(error);
   }
 );
 
+/**
+ * Authenticated fetch — uses httpOnly cookies automatically.
+ * Drop-in replacement for `fetch(url, { headers: { Authorization: ... } })`.
+ */
+export const authenticatedFetch = (url: string, init?: RequestInit): Promise<Response> =>
+  fetch(url, { ...init, credentials: 'include' });
+
+// Lightweight in-memory auth flag. httpOnly cookies are not readable from JS,
+// so we track "probably authenticated" here and let the server be authoritative.
+// On hard refresh the flag resets to false — the first API call that returns 401
+// will redirect to /login, which is the correct UX.
+let _authenticated = false;
+
 export const auth = {
-  login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
-  register: (email: string, password: string, name: string) =>
-    api.post('/auth/register', { email, password, name }),
-  logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+  login: async (email: string, password: string) => {
+    const res = await api.post('/auth/login', { email, password });
+    _authenticated = true;
+    return res;
   },
-  isLoggedIn: () => !!localStorage.getItem('access_token')
+  register: async (email: string, password: string, name: string) => {
+    const res = await api.post('/auth/register', { email, password, name });
+    _authenticated = true;
+    return res;
+  },
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // best-effort — cookies cleared server-side
+    }
+    _authenticated = false;
+  },
+  /** Synchronous check — true after login/register, false after logout or 401.
+   *  On cold page load, call `auth.check()` to verify with the server. */
+  isLoggedIn: () => _authenticated,
+  /** Async server-side verification. Updates the in-memory flag. */
+  check: async (): Promise<boolean> => {
+    try {
+      await api.get('/auth/me');
+      _authenticated = true;
+      return true;
+    } catch {
+      _authenticated = false;
+      return false;
+    }
+  },
+  me: () => api.get('/auth/me'),
 };
 
 export const classes = {

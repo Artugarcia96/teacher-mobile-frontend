@@ -44,6 +44,32 @@
   text-transform: capitalize;
 }
 
+.cal-banner__help {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: var(--space-sm);
+  transition: background 0.15s, color 0.15s;
+}
+
+.cal-banner__help:hover,
+.cal-banner__help:active {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.cal-banner__help ion-icon {
+  font-size: 20px;
+}
+
 /* ─── Section ─── */
 .cal-section {
   padding: var(--space-md) var(--space-lg);

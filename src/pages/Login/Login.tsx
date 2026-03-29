@@ -31,12 +31,12 @@ const Login: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = isRegister
-        ? await auth.register(email, password, name)
-        : await auth.login(email, password);
-      
-      localStorage.setItem('access_token', res.data.access_token);
-      localStorage.setItem('refresh_token', res.data.refresh_token);
+      if (isRegister) {
+        await auth.register(email, password, name);
+      } else {
+        await auth.login(email, password);
+      }
+      // Tokens are set as httpOnly cookies by the server — no localStorage
       history.replace('/tabs/calendar');
     } catch (err: any) {
       const detail = err.response?.data?.detail;

@@ -15,7 +15,7 @@ import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
 import { useClassesStore } from '../../store/classesStore';
-import api, { exams as examsApi, corrections as correctionsApi } from '../../services/api';
+import api, { exams as examsApi, corrections as correctionsApi, authenticatedFetch } from '../../services/api';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
 import CorrectionPanel from '../../components/CorrectionPanel';
@@ -177,10 +177,7 @@ const ExamDetail: React.FC = () => {
         digitalized: examsApi.downloadDigitalizedUrl(examId!),
       };
       const url = urlMap[type];
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authenticatedFetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -236,8 +233,7 @@ const ExamDetail: React.FC = () => {
     if (!paperUrl || !exam) return;
     const fullUrl = getFullPaperUrl(paperUrl);
     if (!fullUrl) return;
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();

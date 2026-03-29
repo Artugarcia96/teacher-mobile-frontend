@@ -11,7 +11,7 @@ import {
   closeOutline, chevronDownOutline, chevronForwardOutline,
   ellipsisHorizontal, folderOpenOutline,
 } from 'ionicons/icons';
-import { topics as topicsApi } from '../../services/api';
+import { topics as topicsApi, authenticatedFetch } from '../../services/api';
 
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
 import { useParams, useHistory } from 'react-router-dom';
@@ -158,8 +158,7 @@ const TopicDetail: React.FC = () => {
 
   const handleDownloadMaterial = (url: string, name: string) => {
     const fullUrl = topicsApi.getMaterialDownloadUrl(url);
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
       .then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); })
       .catch(() => {});
@@ -168,8 +167,7 @@ const TopicDetail: React.FC = () => {
   const handlePreviewMaterial = async (url: string) => {
     try {
       const fullUrl = topicsApi.getMaterialDownloadUrl(url);
-      const token = localStorage.getItem('access_token');
-      const r = await fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await authenticatedFetch(fullUrl);
       if (!r.ok) throw new Error();
       const b = await r.blob();
       setPreviewUrl(window.URL.createObjectURL(b) + '#.pdf');

@@ -12,7 +12,7 @@ import {
 import { useStudentsStore } from '../store/studentsStore';
 import { useExerciseCorrectionStore } from '../store/exerciseCorrectionStore';
 import { useExercisesStore } from '../store/exercisesStore';
-import { exerciseCorrections as ecApi, batch } from '../services/api';
+import { exerciseCorrections as ecApi, batch, authenticatedFetch } from '../services/api';
 import { BulkUploadResult } from '../types';
 import ScanCard from './ScanCard';
 import QRReviewTable from './QRReviewTable';
@@ -589,8 +589,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
     if (!paperUrl) return;
     const fullUrl = getFullPaperUrl(paperUrl);
     if (!fullUrl) return;
-    const token = localStorage.getItem('access_token');
-    fetch(fullUrl, { headers: { Authorization: `Bearer ${token}` } })
+    authenticatedFetch(fullUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Download failed');
         return res.blob();

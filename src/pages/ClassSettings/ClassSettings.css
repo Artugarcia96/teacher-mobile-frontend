@@ -74,6 +74,52 @@
   color: var(--ion-text-color);
 }
 
+/* Editable info rows */
+.settings-info-row--editable {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border-radius: var(--radius-sm);
+  margin: 0 calc(-1 * var(--space-xs));
+  padding-left: var(--space-xs);
+  padding-right: var(--space-xs);
+}
+
+.settings-info-row--editable:active {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.settings-info-value--editable {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.settings-info-edit-icon {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+  transition: opacity var(--transition-fast);
+}
+
+.settings-info-row--editable:hover .settings-info-edit-icon {
+  opacity: 0.8;
+}
+
+.settings-info-inline-input {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--ion-text-color);
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  border: 1.5px solid var(--ion-color-primary);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  outline: none;
+  font-family: inherit;
+  text-align: right;
+  width: 140px;
+  max-width: 60%;
+}
+
 /* Lectures */
 .settings-lectures {
   display: flex;
@@ -660,6 +706,16 @@
 
   .settings-info-row:not(:last-child) {
     border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .settings-info-row--editable:active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .settings-info-inline-input {
+    background: rgba(44, 158, 146, 0.1);
+    border-color: rgba(44, 158, 146, 0.5);
+    color: #fff;
   }
 
   .settings-empty {

@@ -1,0 +1,451 @@
+/* ═══════════════════════════════════════════
+   Guide Page — clean, spacious, readable
+   ═══════════════════════════════════════════ */
+
+.guide-content {
+  --padding-top: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-bottom: 100px;
+  --background: var(--color-bg, var(--ion-background-color));
+}
+
+/* ── Header ── */
+.guide-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--space-sm, 12px) var(--space-md, 16px);
+  padding-top: max(var(--space-sm, 12px), env(safe-area-inset-top));
+  padding-bottom: var(--space-md, 16px);
+  background: var(--ion-color-primary);
+  color: #fff;
+}
+
+.guide-header__back {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.guide-header__back:hover { background: rgba(255, 255, 255, 0.25); }
+.guide-header__back ion-icon { font-size: 20px; }
+
+.guide-header__text h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.guide-header__text p {
+  font-size: 0.82rem;
+  opacity: 0.8;
+  margin: 2px 0 0;
+}
+
+/* ── Body ── */
+.guide-body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 16px 80px;
+}
+
+/* ── Search ── */
+.guide-search {
+  --border-radius: 12px;
+  --box-shadow: none;
+  --background: var(--color-surface, var(--ion-item-background, #fff));
+  padding: 0 0 12px !important;
+}
+
+/* ── Accordion ── */
+.guide-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide-accordion ion-accordion {
+  border-radius: 14px !important;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, var(--ion-item-background, #fff));
+}
+
+.guide-accordion ion-accordion.accordion-expanded {
+  border-color: var(--ion-color-primary);
+  box-shadow: 0 2px 12px rgba(21, 102, 94, 0.08);
+}
+
+/* Header row */
+.guide-accordion__header {
+  --background: transparent;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --inner-padding-end: 0;
+  --min-height: 52px;
+}
+
+.guide-accordion__num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ion-color-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.guide-accordion__icon {
+  color: var(--ion-color-primary);
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.guide-accordion__title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* ── Section content ── */
+.guide-section {
+  padding: 8px 16px 24px;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--ion-text-color);
+  border-top: 1px solid var(--color-border, #e8ecf1);
+  overflow-x: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.guide-section h4 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ion-color-primary-shade, var(--ion-color-primary));
+  margin: 24px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border, #e8ecf1);
+}
+
+.guide-section h4:first-child {
+  margin-top: 12px;
+}
+
+.guide-section p {
+  margin: 0 0 10px;
+}
+
+.guide-section ul,
+.guide-section ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.guide-section li {
+  margin-bottom: 4px;
+}
+
+.guide-section li + li {
+  margin-top: 2px;
+}
+
+.guide-section strong {
+  font-weight: 600;
+}
+
+.guide-section kbd {
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.82em;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+/* ── Steps ── */
+.guide-steps {
+  counter-reset: gs;
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 10px 0 16px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guide-steps li {
+  counter-increment: gs;
+  padding: 8px 12px 8px 38px;
+  position: relative;
+  background: var(--color-surface-alt, rgba(0, 0, 0, 0.02));
+  border-radius: 10px;
+  margin: 0;
+}
+
+.guide-steps li::before {
+  content: counter(gs);
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  background: var(--ion-color-primary);
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+/* ── Tables ── */
+.guide-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 10px 0 16px;
+  font-size: 0.85rem;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.guide-table th,
+.guide-table td {
+  text-align: left;
+  padding: 10px 14px;
+}
+
+.guide-table th {
+  background: var(--ion-color-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.guide-table td {
+  border-top: 1px solid var(--color-border, #e8ecf1);
+}
+
+.guide-table tbody tr:nth-child(even) {
+  background: var(--color-surface-alt, rgba(0, 0, 0, 0.015));
+}
+
+/* ── Highlight card ── */
+.guide-highlight {
+  border-left: 3px solid var(--ion-color-secondary, #e87a1c);
+  background: rgba(232, 122, 28, 0.04);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+}
+
+.guide-highlight p:last-child,
+.guide-highlight ul:last-child,
+.guide-highlight ol:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Tip card ── */
+.guide-tip {
+  border-left: 3px solid var(--ion-color-success, #059669);
+  background: rgba(5, 150, 105, 0.04);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+}
+
+/* ── Workflow ── */
+.guide-workflow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 14px 0;
+}
+
+.guide-workflow > span:not(.guide-workflow__arrow) {
+  background: rgba(21, 102, 94, 0.06);
+  border: 1.5px solid var(--ion-color-primary);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+  white-space: nowrap;
+}
+
+.guide-workflow__arrow {
+  padding: 0 2px;
+  font-size: 1rem;
+  color: var(--ion-color-primary);
+  opacity: 0.5;
+}
+
+/* ── Color swatches ── */
+.guide-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 8px 0 14px;
+}
+
+.guide-swatch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+}
+
+.guide-swatch::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.guide-swatch--green::before { background: #059669; }
+.guide-swatch--yellow::before { background: #d97706; }
+.guide-swatch--red::before { background: #dc2626; }
+
+/* ── FAQ ── */
+.guide-faq {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border, #e8ecf1);
+}
+
+.guide-faq:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.guide-faq h4 {
+  border-bottom: none !important;
+  margin: 0 0 4px !important;
+  padding-bottom: 0 !important;
+  font-size: 0.9rem !important;
+  color: var(--ion-text-color) !important;
+}
+
+.guide-faq p {
+  color: var(--ion-color-medium, #64748b);
+  margin: 0 !important;
+  font-size: 0.86rem;
+}
+
+/* ── Empty state ── */
+.guide-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ion-color-medium, #94a3b8);
+}
+
+.guide-empty ion-icon {
+  font-size: 40px;
+  opacity: 0.35;
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.guide-empty p {
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+/* ── Table wrapper for mobile scroll ── */
+.guide-section .guide-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 10px -4px 16px;
+  padding: 0 4px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .guide-body { padding: 10px 10px 80px; }
+
+  .guide-workflow { flex-direction: column; gap: 4px; }
+  .guide-workflow__arrow { transform: rotate(90deg); }
+
+  .guide-table { min-width: 320px; }
+  .guide-table th,
+  .guide-table td { padding: 8px 10px; font-size: 0.8rem; }
+}
+
+@media (min-width: 768px) {
+  .guide-body { padding: 24px 24px 80px; }
+  .guide-section { padding: 4px 28px 28px; }
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+  .guide-accordion ion-accordion {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: var(--color-surface, var(--ion-item-background, #1c1c1e));
+  }
+
+  .guide-accordion ion-accordion.accordion-expanded {
+    border-color: var(--ion-color-primary);
+  }
+
+  .guide-section {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .guide-section h4 {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .guide-steps li {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .guide-highlight {
+    background: rgba(232, 122, 28, 0.06);
+  }
+
+  .guide-tip {
+    background: rgba(5, 150, 105, 0.06);
+  }
+
+  .guide-section kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .guide-table td {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .guide-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .guide-faq {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+}
