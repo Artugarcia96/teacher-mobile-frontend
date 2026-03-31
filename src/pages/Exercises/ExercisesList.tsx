@@ -55,6 +55,16 @@ const ExercisesList: React.FC = () => {
   const [classGroup, setClassGroup] = useState<ClassGroup | null>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
 
+  // Auto-open generate modal from calendar navigation (?generate=1)
+  useEffect(() => {
+    const params = new URLSearchParams(history.location.search);
+    if (params.get('generate') === '1') {
+      setShowGenerateModal(true);
+      // Clean up URL
+      history.replace(history.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
   const studentIds = useMemo(() => new Set(students.map(s => s.id)), [students]);
@@ -239,7 +249,7 @@ const ExercisesList: React.FC = () => {
                           {group.exerciseType === 'recovery' && (
                             <span className="exercises-list-card__type-badge exercises-list-card__type-badge--recovery">
                               <IonIcon icon={medkitOutline} />
-                              Recuperación
+                              Repaso
                             </span>
                           )}
                         </div>

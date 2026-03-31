@@ -40,7 +40,9 @@ api.interceptors.response.use(
         return api(original);
       } catch (refreshError) {
         processQueue(refreshError);
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -52,10 +54,20 @@ api.interceptors.response.use(
 
 /**
  * Authenticated fetch — uses httpOnly cookies automatically.
- * Drop-in replacement for `fetch(url, { headers: { Authorization: ... } })`.
+ * On 401, attempts a silent token refresh and retries once (mirrors the axios interceptor).
  */
-export const authenticatedFetch = (url: string, init?: RequestInit): Promise<Response> =>
-  fetch(url, { ...init, credentials: 'include' });
+export const authenticatedFetch = async (url: string, init?: RequestInit): Promise<Response> => {
+  const res = await fetch(url, { ...init, credentials: 'include' });
+  if (res.status === 401) {
+    try {
+      await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+    } catch {
+      return res;
+    }
+    return fetch(url, { ...init, credentials: 'include' });
+  }
+  return res;
+};
 
 // Lightweight in-memory auth flag. httpOnly cookies are not readable from JS,
 // so we track "probably authenticated" here and let the server be authoritative.
@@ -204,10 +216,11 @@ export const exams = {
   delete: (id: string) => api.delete(`/exams/${id}`),
   assign: (id: string) => api.post(`/exams/${id}/assign`),
   generate: (data: {
-    class_id?: string; lecture_id?: string; subject_id?: string; topic_ids: string[]; name: string; exam_date: string;
+    class_id?: string; lecture_id?: string; subject_id?: string; topic_ids?: string[]; name: string; exam_date: string;
     num_questions?: number; max_score?: number; difficulty?: string;
     question_types?: string[]; refinement_prompt?: string; is_personalized?: boolean;
     correction_deadline?: string; blank_pages_count?: number;
+    exam_type?: string; source_exam_id?: string;
   }) => api.post('/exams/generate', data),
   iterate: (id: string, data: { instruction: string; preserve_questions?: number[] }) => 
     api.post(`/exams/${id}/iterate`, data, { timeout: 120000 }),
@@ -622,10 +635,11 @@ export const academicConfig = {
   get: (classId: string) => api.get(`/academic-config/${classId}`),
   save: (data: {
     class_id?: string; year: string;
+    period_mode: 'trimester' | 'cuatrimester';
     trimester_1_start: string; trimester_1_end: string;
     trimester_2_start: string; trimester_2_end: string;
-    trimester_3_start: string; trimester_3_end: string;
-    recovery_start?: string; recovery_end?: string;
+    trimester_3_start?: string | null; trimester_3_end?: string | null;
+    recovery_start?: string | null; recovery_end?: string | null;
   }) => api.post('/academic-config', data),
   detectTrimester: (classId: string, date: string) =>
     api.get('/academic-config/detect-trimester', { params: { class_id: classId, date } }),
@@ -721,7 +735,62 @@ export const textbooks = {
     api.post(`/textbooks/${id}/suggest-temas`),
   createTemas: (id: string, data: { temas: { name: string; sections: number[]; trimester?: number }[] }) =>
     api.post(`/textbooks/${id}/create-temas`, data),
+  assignToPlanTopics: (id: string) =>
+    api.post<{ assigned: number; total_topics: number }>(`/textbooks/${id}/assign-to-plan-topics`),
   delete: (id: string) => api.delete(`/textbooks/${id}`),
+};
+
+export const coursePlans = {
+  detectTrimesters: (subjectId: string, classId: string) =>
+    api.get('/course-plans/detect-trimesters', { params: { subject_id: subjectId, class_id: classId } }),
+  list: (subjectId?: string, classId?: string) =>
+    api.get('/course-plans/', { params: { ...(subjectId ? { subject_id: subjectId } : {}), ...(classId ? { class_id: classId } : {}) } }),
+  get: (id: string) => api.get(`/course-plans/${id}`),
+  create: (data: {
+    subject_id: string;
+    class_id: string;
+    enfoque: string;
+    active_trimesters?: number[];
+    priority_notes?: string;
+    exams_per_trimester?: number;
+    review_sessions?: boolean;
+    exercises_frequency?: string;
+    buffer_sessions?: number;
+    guide_pdfs?: File[];
+  }) => {
+    const form = new FormData();
+    form.append('subject_id', data.subject_id);
+    form.append('class_id', data.class_id);
+    form.append('enfoque', data.enfoque);
+    if (data.active_trimesters) form.append('active_trimesters', JSON.stringify(data.active_trimesters));
+    if (data.priority_notes) form.append('priority_notes', data.priority_notes);
+    if (data.exams_per_trimester !== undefined) form.append('exams_per_trimester', String(data.exams_per_trimester));
+    if (data.review_sessions !== undefined) form.append('review_sessions', String(data.review_sessions));
+    if (data.exercises_frequency) form.append('exercises_frequency', data.exercises_frequency);
+    if (data.buffer_sessions !== undefined) form.append('buffer_sessions', String(data.buffer_sessions));
+    if (data.guide_pdfs) {
+      data.guide_pdfs.forEach((pdf) => form.append('guide_pdfs', pdf));
+    }
+    return api.post('/course-plans/create', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  generate: (id: string, data: {
+    topic_annotations?: { unit_index: number; topic_index: number; time_weight: number; skip: boolean; notes?: string; lock_trimester?: number }[];
+    priority_notes?: string;
+    exam_strategy?: { exams_per_trimester: number; review_sessions_before_exam: boolean; exercises_frequency: string };
+    buffer_sessions_per_trimester?: number;
+  }) => api.post(`/course-plans/${id}/generate`, data),
+  accept: (id: string, data?: { skip_exam_units?: string[] }) =>
+    api.post(`/course-plans/${id}/accept`, data || {}),
+  regenerate: (id: string, data: any) => api.post(`/course-plans/${id}/regenerate`, data),
+  adapt: (id: string, data: { notes?: string }) => api.post(`/course-plans/${id}/adapt`, data),
+  progress: (id: string) => api.get(`/course-plans/${id}/progress`),
+  generateContent: (id: string) =>
+    api.post(`/course-plans/${id}/generate-content`),
+  generateMaterial: (id: string, topicIds: string[]) =>
+    api.post(`/course-plans/${id}/generate-material`, topicIds),
+  delete: (id: string) => api.delete(`/course-plans/${id}`),
 };
 
 export default api;

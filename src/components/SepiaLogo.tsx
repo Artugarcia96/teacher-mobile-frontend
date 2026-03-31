@@ -4,7 +4,7 @@ interface SepiaLogoProps {
   size?: number;
   className?: string;
   showText?: boolean;
-  variant?: 'default' | 'white' | 'colored';
+  variant?: 'default' | 'white' | 'colored' | 'logo';
   responsive?: boolean;
 }
 

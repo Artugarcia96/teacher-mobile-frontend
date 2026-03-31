@@ -867,13 +867,13 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
                 onGradeChange={(g) => handleGradeChange(correction.id, g)}
                 onCommentsChange={(n) => handleCommentsChange(correction.id, n)}
                 onSave={() => handleSavePaper(correction.id)}
-                onProcessAI={() => handleProcessAI(correction.id)}
+                onProcessAI={!hasBatchRunning ? () => handleProcessAI(correction.id) : undefined}
                 onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
                 onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, student?.name) : undefined}
                 onDownloadReport={correction.aiProcessed ? () => handleDownloadReport(correction.id, student?.name) : undefined}
                 onDelete={() => handleDeleteCorrection(correction.id)}
                 saving={saving[correction.id]}
-                aiProcessing={aiProcessing[correction.id]}
+                aiProcessing={aiProcessing[correction.id] || hasBatchRunning}
                 aiError={aiErrors[correction.id]}
               />
             </div>
@@ -911,13 +911,13 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
                     onGradeChange={(g) => handleGradeChange(correction.id, g)}
                     onCommentsChange={(n) => handleCommentsChange(correction.id, n)}
                     onSave={() => handleSavePaper(correction.id)}
-                    onProcessAI={() => handleProcessAI(correction.id)}
+                    onProcessAI={!hasBatchRunning ? () => handleProcessAI(correction.id) : undefined}
                     onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
                     onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, student?.name) : undefined}
                     onDownloadReport={correction.aiProcessed ? () => handleDownloadReport(correction.id, student?.name) : undefined}
                     onDelete={() => handleDeleteCorrection(correction.id)}
                     saving={saving[correction.id]}
-                    aiProcessing={aiProcessing[correction.id]}
+                    aiProcessing={aiProcessing[correction.id] || hasBatchRunning}
                     aiError={aiErrors[correction.id]}
                   />
                 </div>

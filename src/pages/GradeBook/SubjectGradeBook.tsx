@@ -4,14 +4,15 @@ import {
   IonPage, IonContent, IonButtons, IonBackButton,
   IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonList, IonItem,
   IonSearchbar, IonItemSliding, IonItemOptions, IonItemOption,
-  IonSpinner, IonAlert, IonPopover, useIonViewWillEnter,
+  IonSpinner, IonAlert, IonPopover, IonProgressBar, useIonViewWillEnter,
 } from '@ionic/react';
 import {
   addOutline, downloadOutline, cloudUploadOutline, bookOutline, peopleOutline,
-  sparkles, settingsOutline, documentTextOutline, chevronForwardOutline,
+  sparkles, settingsOutline, documentTextOutline, chevronForwardOutline, createOutline,
   locationOutline, timeOutline, calendarOutline, chevronBackOutline,
   chatbubbleOutline, sendOutline, chevronDownOutline,
 } from 'ionicons/icons';
+import { parseEventNotes } from '../../utils/parseEventNotes';
 import { useParams, useHistory } from 'react-router-dom';
 import { useClassesStore } from '../../store/classesStore';
 import { useStudentsStore } from '../../store/studentsStore';
@@ -21,6 +22,7 @@ import { useExercisesStore } from '../../store/exercisesStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
 import { useCommentsStore } from '../../store/commentsStore';
 import { useCalendarStore, ClassBreakdown } from '../../store/calendarStore';
+import { useCoursePlanStore } from '../../store/coursePlanStore';
 import { calendar as calendarApi, preparation as prepApi } from '../../services/api';
 import { classes as classesApi, exams as examsApi, exercises as exercisesApi, subjects as subjectsApi } from '../../services/api';
 import { CalendarEvent, ClassGroup, ScheduleSlot, MentionedStudent } from '../../types';
@@ -130,6 +132,11 @@ const SubjectGradeBook: React.FC = () => {
   const fetchComments = useCommentsStore((s) => s.fetchComments);
   const createClassComment = useCommentsStore((s) => s.createClassComment);
 
+  const coursePlansData = useCoursePlanStore((s) => s.plans);
+  const fetchCoursePlans = useCoursePlanStore((s) => s.fetchPlans);
+  const planProgress = useCoursePlanStore((s) => s.progress);
+  const fetchPlanProgress = useCoursePlanStore((s) => s.fetchProgress);
+
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
   const studentIds = useMemo(() => new Set(students.map(s => s.id)), [students]);
@@ -170,6 +177,7 @@ const SubjectGradeBook: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [rosterSearch, setRosterSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [importAlert, setImportAlert] = useState<{ header: string; message: string } | null>(null);
   const [showBulkExerciseModal, setShowBulkExerciseModal] = useState(false);
   const [preselectedWeakAreas, setPreselectedWeakAreas] = useState<string[]>([]);
   const [detailedClassData, setDetailedClassData] = useState<ClassGroup | null>(null);
@@ -292,9 +300,18 @@ const SubjectGradeBook: React.FC = () => {
     fetchAllExerciseCorrections();
     fetchClassSubjects(classId);
     fetchComments({ class_id: classId, subject_id: subjectId, days: 90 });
-    // Load today's preparation for this subject via lightweight endpoint
     fetchSubjectPrep();
-  }, [classId, subjectId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails, fetchExercises, fetchClassSubjects, fetchComments, fetchSubjectPrep]);
+    fetchCoursePlans(subjectId, classId);
+  }, [classId, subjectId, fetchClasses, fetchStudents, fetchExams, fetchAllCorrections, fetchClassDetails, fetchExercises, fetchClassSubjects, fetchComments, fetchSubjectPrep, fetchCoursePlans]);
+
+  const activePlan = useMemo(
+    () => coursePlansData.find((p) => p.subjectId === subjectId && p.classId === classId && p.isActive && p.topicsCreated),
+    [coursePlansData, subjectId, classId]
+  );
+
+  useEffect(() => {
+    if (activePlan) fetchPlanProgress(activePlan.id);
+  }, [activePlan?.id]);
 
   useEffect(() => {
     fetchClassSubjects(classId);
@@ -344,9 +361,12 @@ const SubjectGradeBook: React.FC = () => {
     try {
       const count = await importStudentsToClass(classId, file);
       await fetchStudents(classId);
-      alert(`Importados ${count} alumnos`);
-    } catch (err) {
-      console.error('Failed to import:', err);
+      setImportAlert({ header: 'Importación completada', message: `Se importaron ${count} alumnos.` });
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || 'Error al importar el archivo.';
+      setImportAlert({ header: 'Error al importar', message: detail });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -498,7 +518,7 @@ const SubjectGradeBook: React.FC = () => {
           type="file"
           ref={fileInputRef}
           style={{ display: 'none' }}
-          accept=".csv"
+          accept=".csv,.txt"
           onChange={handleImportFile}
         />
 
@@ -510,6 +530,32 @@ const SubjectGradeBook: React.FC = () => {
               <div className="gb-day-insight">
                 <SubjectDayInsight breakdown={subjectBreakdown} />
               </div>
+            )}
+
+            {/* ── Course plan progress ── */}
+            {activePlan && planProgress && planProgress.totalTopics > 0 && (
+              <button className="gb-plan-progress" onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)}>
+                <div className="gb-plan-progress__header">
+                  <span className="gb-plan-progress__title">Progreso del curso</span>
+                  <span className={`gb-plan-progress__pace ${
+                    planProgress.sessionsAheadBehind > 0 ? 'gb-plan-progress__pace--ahead' :
+                    planProgress.sessionsAheadBehind < 0 ? 'gb-plan-progress__pace--behind' : ''
+                  }`}>
+                    {planProgress.sessionsAheadBehind > 0 ? '+' : ''}{planProgress.sessionsAheadBehind} ses.
+                  </span>
+                </div>
+                <IonProgressBar
+                  value={planProgress.taughtTopics / planProgress.totalTopics}
+                  color="primary"
+                  style={{ borderRadius: 4, marginBottom: 6 }}
+                />
+                <div className="gb-plan-progress__footer">
+                  <span>{planProgress.taughtTopics}/{planProgress.totalTopics} temas</span>
+                  {planProgress.currentTopic && (
+                    <span className="gb-plan-progress__current">Ahora: {planProgress.currentTopic}</span>
+                  )}
+                </div>
+              </button>
             )}
 
             {/* ── Subject Weekly Calendar ── */}
@@ -561,21 +607,63 @@ const SubjectGradeBook: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    {selectedDayEvents.map((ev) => (
+                    {selectedDayEvents.map((ev) => {
+                      const parsed = parseEventNotes(ev.notes);
+                      const timeStr = ev.startTime ? `${formatTime(ev.startTime)}${ev.endTime ? ' - ' + formatTime(ev.endTime) : ''}` : '';
+                      return (
                       <div
                         key={ev.id}
-                        className="gb-week-cal__event"
+                        className="gb-week-cal__card"
                         onClick={() => { setEditingEvent(ev); setShowEventEditor(true); }}
                       >
-                        <div className={`gb-week-cal__event-time gb-week-cal__event-time--${ev.eventType}`}>
-                          {formatTime(ev.startTime) || '—'}
+                        <div className="gb-week-cal__card-header">
+                          <span className="gb-week-cal__card-title">{ev.title}</span>
+                          {timeStr && <span className="gb-week-cal__card-time">{timeStr}</span>}
                         </div>
-                        <div className="gb-week-cal__event-content">
-                          <span className="gb-week-cal__event-title">{ev.title}</span>
+                        {parsed.focus && (
+                          <span className="gb-week-cal__card-focus">{parsed.focus}</span>
+                        )}
+                        {parsed.keyPoints.length > 0 && (
+                          <div className="gb-week-cal__card-tags">
+                            {parsed.keyPoints.slice(0, 3).map((kp, ki) => (
+                              <span key={ki} className="gb-week-cal__card-tag">{kp}</span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Action buttons */}
+                        <div className="gb-week-cal__card-actions">
+                          {ev.topicPdfUrl && (
+                            <button className="gb-week-cal__card-action" onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`${import.meta.env.VITE_API_URL || ''}/files${ev.topicPdfUrl}`, '_blank');
+                            }}>
+                              <IonIcon icon={bookOutline} /> Ver material
+                            </button>
+                          )}
+                          {parsed.isPlanEvent && (
+                            <button className="gb-week-cal__card-action" onClick={(e) => {
+                              e.stopPropagation();
+                              history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exercises?generate=1`);
+                            }}>
+                              <IonIcon icon={sparkles} /> Ejercicios
+                            </button>
+                          )}
+                          {ev.eventType === 'exam' && parsed.isPlanEvent && !ev.examId && (
+                            <button className="gb-week-cal__card-action" onClick={(e) => {
+                              e.stopPropagation();
+                              const params = new URLSearchParams();
+                              if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
+                              params.set('date', ev.date);
+                              params.set('name', ev.title);
+                              history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exams/new?${params}`);
+                            }}>
+                              <IonIcon icon={createOutline} /> Crear examen
+                            </button>
+                          )}
                         </div>
-                        <IonIcon icon={chevronForwardOutline} className="gb-week-cal__event-arrow" />
                       </div>
-                    ))}
+                      );
+                    })}
                     {selectedDayExams.map((exam) => (
                       <div
                         key={exam.id}
@@ -679,6 +767,7 @@ const SubjectGradeBook: React.FC = () => {
                 <span className="gb-nav-row__label">Temario</span>
                 <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
               </button>
+
 
               <button
                 className="gb-nav-row gb-nav-row--last"
@@ -872,6 +961,14 @@ const SubjectGradeBook: React.FC = () => {
           ]}
           onDidDismiss={() => setDeleteTarget(null)}
         />
+        <IonAlert
+          isOpen={!!importAlert}
+          header={importAlert?.header || ''}
+          message={importAlert?.message || ''}
+          buttons={['OK']}
+          onDidDismiss={() => setImportAlert(null)}
+        />
+
         <ExerciseGeneratorModal
           isOpen={showBulkExerciseModal}
           onDismiss={() => { setShowBulkExerciseModal(false); setPreselectedWeakAreas([]); }}

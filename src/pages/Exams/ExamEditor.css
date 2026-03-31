@@ -347,6 +347,76 @@
   margin-top: 1px;
 }
 
+/* ─── Blank pages stepper ─── */
+.blank-pages-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  margin-top: var(--space-sm);
+}
+
+.blank-pages-stepper__label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.blank-pages-stepper__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.blank-pages-stepper__btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--radius-full, 999px);
+  background: transparent;
+  color: var(--ion-color-primary);
+  font-size: 20px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.blank-pages-stepper__btn:active:not(:disabled) {
+  transform: scale(0.9);
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.blank-pages-stepper__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.blank-pages-stepper__value {
+  min-width: 32px;
+  text-align: center;
+  font-size: var(--font-size-lg, 18px);
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .blank-pages-stepper {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .blank-pages-stepper__btn {
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+}
+
 /* ─── Downloads section ─── */
 .exam-downloads {
   margin-top: var(--space-lg);
@@ -714,4 +784,135 @@
 .gen-materials-note ion-icon {
   font-size: 1rem;
   flex-shrink: 0;
+}
+
+/* ─── Exam type toggle (practice / recovery) ─── */
+.exam-editor-form .exgen__type-toggle {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.exam-editor-form .exgen__type-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1.5px solid rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--ion-color-medium);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.exam-editor-form .exgen__type-btn:active { transform: scale(0.98); }
+
+.exam-editor-form .exgen__type-btn--active {
+  border-color: var(--ion-color-primary);
+  background: rgba(var(--ion-color-primary-rgb), 0.05);
+  color: var(--ion-color-primary);
+}
+
+.exam-editor-form .exgen__type-btn--recovery.exgen__type-btn--active {
+  border-color: var(--ion-color-warning, #F59E0B);
+  background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.08);
+  color: var(--ion-color-warning, #F59E0B);
+}
+
+.exam-editor-form .exgen__type-btn ion-icon { font-size: 18px; }
+
+/* ─── Recovery source section ─── */
+.gen-recovery-source {
+  margin-top: var(--space-sm);
+}
+
+.gen-recovery-source__hint {
+  font-size: var(--font-size-xs);
+  color: var(--ion-color-medium);
+  margin: 0 0 var(--space-md);
+  line-height: 1.4;
+}
+
+/* ─── Recovery failing students ─── */
+.gen-recovery-students {
+  margin-top: var(--space-lg);
+}
+
+.gen-recovery-students__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--ion-color-danger);
+  margin-bottom: var(--space-sm);
+}
+
+.gen-recovery-students__label ion-icon {
+  font-size: 18px;
+}
+
+.gen-recovery-students__empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(var(--ion-color-success-rgb), 0.08);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--ion-color-success);
+}
+
+.gen-recovery-students__empty ion-icon {
+  font-size: 18px;
+}
+
+.gen-recovery-students__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.gen-recovery-student {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(var(--ion-color-danger-rgb), 0.04);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--ion-color-danger-rgb), 0.1);
+}
+
+.gen-recovery-student__name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+/* Dark theme overrides for recovery */
+@media (prefers-color-scheme: dark) {
+  .exam-editor-form .exgen__type-btn {
+    background: #1E1E24;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #A1A1AA;
+  }
+  .exam-editor-form .exgen__type-btn--active {
+    border-color: var(--ion-color-primary);
+    background: rgba(var(--ion-color-primary-rgb), 0.15);
+    color: var(--ion-color-primary);
+  }
+  .exam-editor-form .exgen__type-btn--recovery.exgen__type-btn--active {
+    border-color: var(--ion-color-warning, #F59E0B);
+    background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.12);
+    color: #FBBF24;
+  }
+  .gen-recovery-student {
+    background: rgba(var(--ion-color-danger-rgb), 0.08);
+    border-color: rgba(var(--ion-color-danger-rgb), 0.15);
+  }
 }

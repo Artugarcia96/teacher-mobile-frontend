@@ -19,6 +19,8 @@ import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
 import EmptyState from '../../components/EmptyState';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
+import { useAcademicConfigStore } from '../../store/academicConfigStore';
+import { getPeriodNumbers, getPeriodLabel } from '../../utils/periodConfig';
 import './TopicDetail.css';
 
 const TopicDetail: React.FC = () => {
@@ -42,6 +44,8 @@ const TopicDetail: React.FC = () => {
   const classSubjects = useClassesStore((s) => s.classSubjects);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
+  const periodMode = useAcademicConfigStore((s) => s.configs[classId])?.periodMode;
+  const fetchAcademicConfig = useAcademicConfigStore((s) => s.fetchConfig);
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false);
@@ -86,9 +90,9 @@ const TopicDetail: React.FC = () => {
 
   useEffect(() => {
     fetchTopic(topicId);
-    if (classId) fetchClassSubjects(classId);
+    if (classId) { fetchClassSubjects(classId); fetchAcademicConfig(classId); }
     return () => { clearCurrentTopic(); };
-  }, [topicId, classId, fetchTopic, fetchClassSubjects, clearCurrentTopic]);
+  }, [topicId, classId, fetchTopic, fetchClassSubjects, fetchAcademicConfig, clearCurrentTopic]);
 
   useEffect(() => {
     if (currentTopic) {
@@ -335,9 +339,9 @@ const TopicDetail: React.FC = () => {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
               <IonSelect value={editTrimester} onIonChange={(e) => setEditTrimester(e.detail.value)} interface="popover" placeholder="Trimestre" style={{ fontSize: 13, flex: 1 }}>
                 <IonSelectOption value="">Sin asignar</IonSelectOption>
-                <IonSelectOption value="1">T1</IonSelectOption>
-                <IonSelectOption value="2">T2</IonSelectOption>
-                <IonSelectOption value="3">T3</IonSelectOption>
+                {getPeriodNumbers(periodMode).map((t) => (
+                  <IonSelectOption key={t} value={String(t)}>{getPeriodLabel(periodMode, t)}</IonSelectOption>
+                ))}
               </IonSelect>
             </div>
             <div className="td-edit-option" onClick={() => setEditIncludeInGeneration(!editIncludeInGeneration)}>
@@ -351,7 +355,7 @@ const TopicDetail: React.FC = () => {
           <div className="topic-header">
             {currentTopic.description && <p>{currentTopic.description}</p>}
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-              {currentTopic.trimester && <IonBadge style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: `${accentColor}15`, color: accentColor }}>T{currentTopic.trimester}</IonBadge>}
+              {currentTopic.trimester && <IonBadge style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: `${accentColor}15`, color: accentColor }}>{getPeriodLabel(periodMode, currentTopic.trimester)}</IonBadge>}
               {!currentTopic.includeInGeneration && <IonBadge color="medium" style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999 }}>Excluido de generación</IonBadge>}
             </div>
           </div>

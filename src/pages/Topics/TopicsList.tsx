@@ -5,7 +5,6 @@ import {
   IonModal, IonSpinner, IonBadge, IonAlert, IonChip, IonProgressBar,
   IonItemSliding, IonItemOptions, IonItemOption, IonReorder, IonReorderGroup,
   IonSearchbar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonCheckbox,
-  IonRange,
 } from '@ionic/react';
 import {
   addOutline, documentTextOutline, cloudUploadOutline, closeCircleOutline,
@@ -16,14 +15,20 @@ import { useParams, useHistory } from 'react-router-dom';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useTextbooksStore } from '../../store/textbooksStore';
-import { subjects as subjectsApi, batch } from '../../services/api';
+import { useCoursePlanStore } from '../../store/coursePlanStore';
+import { subjects as subjectsApi } from '../../services/api';
 import { SubjectListItem, Textbook } from '../../types';
 import EmptyState from '../../components/EmptyState';
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
 import TextbookCard from '../../components/TextbookCard';
 import TextbookDetailModal from '../../components/TextbookDetailModal';
+import CoursePlanCard from '../../components/CoursePlanCard';
+import CoursePlanCreatorModal from '../../components/CoursePlanCreatorModal';
+import CoursePlanDetailModal from '../../components/CoursePlanDetailModal';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
+import { useAcademicConfigStore } from '../../store/academicConfigStore';
+import { getPeriodNumbers, getPeriodLabel, getPeriodFullLabel } from '../../utils/periodConfig';
 import '../../components/ContentCreatorModal.css';
 import './TopicsList.css';
 
@@ -75,26 +80,18 @@ const TopicsList: React.FC = () => {
   const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Content creation state
-  const [topicMode, setTopicMode] = useState<'manual' | 'generate'>('manual');
   const [selectedTextbook, setSelectedTextbook] = useState<Textbook | null>(null);
 
-  // Generate content form state
-  const [genTitle, setGenTitle] = useState('');
-  const [genEnfoque, setGenEnfoque] = useState<string>('teorico');
-  const [genNotas, setGenNotas] = useState('');
-  const [genGuidePdfs, setGenGuidePdfs] = useState<File[]>([]);
-  const [genTargetPages, setGenTargetPages] = useState(80);
-  const [genExercisesPerChapter, setGenExercisesPerChapter] = useState(15);
-  const [genExamplesPerSection, setGenExamplesPerSection] = useState(2);
-  const [genDepth, setGenDepth] = useState<number>(3);
-  const [genVisualDensity, setGenVisualDensity] = useState<string>('equilibrado');
-  const [generating, setGenerating] = useState(false);
-  const [genError, setGenError] = useState('');
-  const genFileInputRef = useRef<HTMLInputElement>(null);
-  const generateTextbook = useTextbooksStore((s) => s.generateTextbook);
+  // Course plan state
+  const { plans: coursePlans, fetchPlans: fetchCoursePlans, deletePlan } = useCoursePlanStore();
+  const [showCoursePlanCreator, setShowCoursePlanCreator] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [deletePlanTarget, setDeletePlanTarget] = useState<{ id: string; name: string } | null>(null);
+
   const { textbooks, fetchTextbooks } = useTextbooksStore();
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
+  const periodMode = useAcademicConfigStore((s) => s.configs[classId])?.periodMode;
+  const fetchAcademicConfig = useAcademicConfigStore((s) => s.fetchConfig);
 
   const activeSubject = useMemo(
     () => topicsBySubject.find((s) => s.subjectId === activeSubjectId),
@@ -136,8 +133,8 @@ const TopicsList: React.FC = () => {
   useEffect(() => {
     fetchClasses();
     fetchTopicsForClass(classId);
-    if (classId) fetchClassSubjects(classId);
-  }, [classId, fetchClasses, fetchTopicsForClass, fetchClassSubjects]);
+    if (classId) { fetchClassSubjects(classId); fetchAcademicConfig(classId); }
+  }, [classId, fetchClasses, fetchTopicsForClass, fetchClassSubjects, fetchAcademicConfig]);
 
   useEffect(() => {
     if (urlSubjectId) {
@@ -150,8 +147,9 @@ const TopicsList: React.FC = () => {
   useEffect(() => {
     if (activeSubjectId) {
       fetchTextbooks(activeSubjectId);
+      fetchCoursePlans(activeSubjectId, classId);
     }
-  }, [activeSubjectId, fetchTextbooks]);
+  }, [activeSubjectId, classId, fetchTextbooks, fetchCoursePlans]);
 
   const handleOpenSubjectModal = () => {
     setSelectedLinkIds([]);
@@ -251,77 +249,11 @@ const TopicsList: React.FC = () => {
 
   const handleTopicModalDismiss = () => {
     setShowTopicModal(false);
-    setTopicMode('manual');
     setNewName('');
     setNewDescription('');
     setNewTrimester('');
     setSelectedFiles([]);
     setUploadProgress('');
-    // Reset generate state
-    setGenTitle('');
-    setGenEnfoque('teorico');
-    setGenNotas('');
-    setGenGuidePdfs([]);
-    setGenTargetPages(80);
-    setGenExercisesPerChapter(15);
-    setGenExamplesPerSection(2);
-    setGenDepth(3);
-    setGenVisualDensity('equilibrado');
-    setGenerating(false);
-    setGenError('');
-  };
-
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setGenError('');
-    try {
-      const result = await generateTextbook({
-        subject_id: activeSubjectId,
-        class_id: classId,
-        title: genTitle.trim() || undefined,
-        enfoque: genEnfoque,
-        notas: genNotas.trim() || undefined,
-        target_pages: genTargetPages,
-        exercises_per_chapter: genExercisesPerChapter,
-        examples_per_section: genExamplesPerSection,
-        depth: genDepth,
-        visual_density: genVisualDensity,
-        guide_pdfs: genGuidePdfs.length > 0 ? genGuidePdfs : undefined,
-      });
-
-      const jobId = result.batchJobId;
-      const capturedSubjectId = activeSubjectId;
-      const capturedSubjectName = activeSubjectName;
-
-      addBackgroundTask({
-        type: 'textbook',
-        label: capturedSubjectName,
-        description: 'La IA estructura el temario por capítulos, redacta explicaciones con ejemplos y ejercicios, y genera el PDF.',
-        batchJobId: jobId,
-        expectedResultUrl: `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`,
-        execute: async () => {
-          const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-          let interval = 5000;
-          while (true) {
-            await sleep(interval);
-            const res = await batch.getJobProgress(jobId);
-            const status = res.data.status;
-            if (status === 'completed') break;
-            if (status === 'failed' || status === 'cancelled') {
-              throw new Error('Error generando contenido');
-            }
-            interval = Math.min(interval + 1000, 10000);
-          }
-          await fetchTextbooks(capturedSubjectId);
-          return `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`;
-        },
-      });
-
-      handleTopicModalDismiss();
-    } catch (err: any) {
-      setGenError(err.response?.data?.detail || 'Error al generar contenido');
-      setGenerating(false);
-    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -426,14 +358,58 @@ const TopicsList: React.FC = () => {
           />
         ) : (
           <>
+            {/* ─── Course plan section ─── */}
+            {activeSubjectId && (
+              <div className="topics-generated">
+                {coursePlans.filter((p) => p.subjectId === activeSubjectId && p.classId === classId).length > 0 ? (
+                  <>
+                    <div className="topics-generated__header">
+                      <IonIcon icon={sparklesOutline} className="topics-generated__icon" />
+                      <span className="topics-generated__title">Planificación del curso</span>
+                    </div>
+                    {coursePlans
+                      .filter((p) => p.subjectId === activeSubjectId && p.classId === classId)
+                      .map((plan) => (
+                        <CoursePlanCard
+                          key={plan.id}
+                          plan={plan}
+                          subjectName={activeSubjectName}
+                          onClick={() => {
+                            if (plan.status === 'completed') {
+                              setSelectedPlanId(plan.id);
+                            }
+                          }}
+                          onDelete={() => setDeletePlanTarget({
+                            id: plan.id,
+                            name: plan.title || `Planificación ${activeSubjectName}`,
+                          })}
+                        />
+                      ))
+                    }
+                  </>
+                ) : (
+                  <button
+                    className="cplan-card cplan-card--new"
+                    onClick={() => setShowCoursePlanCreator(true)}
+                  >
+                    <IonIcon icon={sparkles} className="cplan-card__icon" />
+                    <span className="cplan-card__title">Planificar curso con IA</span>
+                    <span className="cplan-card__new-desc">
+                      Sube la programación y genera un plan completo con fechas, exámenes y sesiones de repaso
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* ─── Pending textbooks (not yet split into temas) ─── */}
-            {activeSubjectId && textbooks.filter(tb => !tb.temasCreated).length > 0 && (
+            {activeSubjectId && textbooks.filter(tb => !tb.temasCreated && !tb.coursePlanId).length > 0 && (
               <div className="topics-generated">
                 <div className="topics-generated__header">
                   <IonIcon icon={sparklesOutline} className="topics-generated__icon" />
                   <span className="topics-generated__title">Contenido generado</span>
                 </div>
-                {textbooks.filter(tb => !tb.temasCreated).map((tb) => (
+                {textbooks.filter(tb => !tb.temasCreated && !tb.coursePlanId).map((tb) => (
                   <TextbookCard
                     key={tb.id}
                     textbook={tb}
@@ -452,13 +428,13 @@ const TopicsList: React.FC = () => {
                 >
                   Todos
                 </button>
-                {[1, 2, 3].filter((t) => availableTrimesters.has(t)).map((t) => (
+                {getPeriodNumbers(periodMode).filter((t) => availableTrimesters.has(t)).map((t) => (
                   <button
                     key={t}
                     className={`trimester-pill ${activeTrimester === String(t) ? 'trimester-pill--active' : ''}`}
                     onClick={() => { setActiveTrimester(String(t)); setSearch(''); }}
                   >
-                    T{t}
+                    {getPeriodLabel(periodMode, t)}
                   </button>
                 ))}
                 {availableTrimesters.has(0) && (
@@ -509,7 +485,7 @@ const TopicsList: React.FC = () => {
                           {((topic.trimester && activeTrimester === 'all') || topic.hasContent) && (
                             <div className="topic-item__tags">
                               {topic.trimester && activeTrimester === 'all' && (
-                                <span className="topic-item__trimester-tag">T{topic.trimester}</span>
+                                <span className="topic-item__trimester-tag">{getPeriodLabel(periodMode, topic.trimester)}</span>
                               )}
                               {topic.hasContent && (
                                 <span className={`topic-item__content-tag topic-item__content-tag--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'default'}`}>
@@ -558,6 +534,37 @@ const TopicsList: React.FC = () => {
           textbook={selectedTextbook}
         />
 
+        {/* Course plan creator modal */}
+        <CoursePlanCreatorModal
+          isOpen={showCoursePlanCreator}
+          onClose={() => { setShowCoursePlanCreator(false); }}
+          subjectId={activeSubjectId}
+          subjectName={activeSubjectName}
+          classId={classId}
+          educationLevel={classGroup?.educationLevel || 'secundaria'}
+
+          onPlanReady={() => {
+            fetchCoursePlans(activeSubjectId, classId);
+          }}
+        />
+
+        {/* Course plan detail modal */}
+        <CoursePlanDetailModal
+          isOpen={!!selectedPlanId}
+          onClose={() => {
+            setSelectedPlanId(null);
+            fetchCoursePlans(activeSubjectId, classId);
+            fetchTopicsForClass(classId);
+          }}
+          planId={selectedPlanId || ''}
+          subjectName={activeSubjectName}
+          periodMode={periodMode}
+          onAccept={() => {
+            fetchTopicsForClass(classId);
+            fetchCoursePlans(activeSubjectId, classId);
+          }}
+        />
+
         {/* Delete topic confirmation */}
         <IonAlert
           isOpen={!!deleteTarget}
@@ -568,6 +575,25 @@ const TopicsList: React.FC = () => {
             { text: 'Eliminar', role: 'destructive', handler: handleDeleteConfirm },
           ]}
           onDidDismiss={() => setDeleteTarget(null)}
+        />
+
+        {/* Delete plan confirmation */}
+        <IonAlert
+          isOpen={!!deletePlanTarget}
+          header="Eliminar planificación"
+          message={`¿Eliminar "${deletePlanTarget?.name}"?`}
+          buttons={[
+            { text: 'Cancelar', role: 'cancel', handler: () => setDeletePlanTarget(null) },
+            { text: 'Eliminar', role: 'destructive', handler: async () => {
+              if (deletePlanTarget) {
+                await deletePlan(deletePlanTarget.id);
+                fetchCoursePlans(activeSubjectId, classId);
+                fetchTopicsForClass(classId);
+              }
+              setDeletePlanTarget(null);
+            }},
+          ]}
+          onDidDismiss={() => setDeletePlanTarget(null)}
         />
 
         {/* Unlink subject confirmation */}
@@ -699,13 +725,7 @@ const TopicsList: React.FC = () => {
           <IonContent className="ion-padding" style={subjectThemeStyle(subjectColor)}>
             <div className="modal-sheet modal-sheet--scrollable" style={{ padding: 0 }}>
 
-            <IonSegment value={topicMode} onIonChange={(e) => setTopicMode(e.detail.value as 'manual' | 'generate')} className="ccm__mode-segment">
-              <IonSegmentButton value="manual"><IonLabel>Crear tema</IonLabel></IonSegmentButton>
-              <IonSegmentButton value="generate"><IonLabel>Generar con IA</IonLabel></IonSegmentButton>
-            </IonSegment>
-
-            {topicMode === 'manual' ? (
-              <div className="ccm">
+            <div className="ccm">
                 {/* Nombre */}
                 <div className="ccm__field">
                   <span className="ccm__enfoque-label">Nombre</span>
@@ -737,9 +757,7 @@ const TopicsList: React.FC = () => {
                   <div className="ccm__trimester-pills">
                     {[
                       { value: '', label: 'Sin asignar' },
-                      { value: '1', label: '1er trimestre' },
-                      { value: '2', label: '2º trimestre' },
-                      { value: '3', label: '3er trimestre' },
+                      ...getPeriodNumbers(periodMode).map((t) => ({ value: String(t), label: getPeriodFullLabel(periodMode, t) })),
                     ].map((opt) => (
                       <button
                         key={opt.value}
@@ -807,225 +825,6 @@ const TopicsList: React.FC = () => {
                   )}
                 </IonButton>
               </div>
-            ) : (
-              <div className="ccm">
-                {/* Title */}
-                <div className="ccm__field">
-                  <span className="ccm__enfoque-label">Título (opcional)</span>
-                  <IonItem lines="none" className="ccm__input">
-                    <IonInput
-                      value={genTitle}
-                      onIonInput={(e) => setGenTitle(e.detail.value ?? '')}
-                      placeholder="ej. Apuntes de álgebra"
-                    />
-                  </IonItem>
-                </div>
-
-                {/* Enfoque */}
-                <div className="ccm__field">
-                  <span className="ccm__enfoque-label">Enfoque del contenido</span>
-                  <div className="ccm__enfoque-pills">
-                    {[
-                      { value: 'teorico', label: 'Teórico', desc: 'Explicaciones y conceptos' },
-                      { value: 'practico', label: 'Práctico', desc: 'Ejercicios y problemas' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        className={`ccm__enfoque-pill${genEnfoque === opt.value ? ' ccm__enfoque-pill--active' : ''}`}
-                        onClick={() => setGenEnfoque(opt.value)}
-                        type="button"
-                      >
-                        <span className="ccm__enfoque-pill-label">{opt.label}</span>
-                        <span className="ccm__enfoque-pill-desc">{opt.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Depth + Visual density row */}
-                <div className="ccm__field">
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    {/* Depth level — compact range */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                        <span className="ccm__enfoque-label" style={{ margin: 0 }}>Profundidad</span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ion-color-primary)' }}>
-                          {({ 1: 'Sencillo', 2: 'Claro', 3: 'Estándar', 4: 'Avanzado', 5: 'Académico' } as Record<number, string>)[genDepth]}
-                        </span>
-                      </div>
-                      <IonRange
-                        min={1} max={5} step={1} snaps ticks
-                        value={genDepth}
-                        onIonInput={(e) => {
-                          const v = e.detail.value as number;
-                          setGenDepth(v);
-                          if (v <= 2) setGenVisualDensity('muy_visual');
-                          else if (v <= 3) setGenVisualDensity('equilibrado');
-                          else setGenVisualDensity('texto_denso');
-                        }}
-                        style={{ '--bar-height': '4px', padding: '0' }}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--ion-color-medium)', marginTop: -4 }}>
-                        <span>Infantil</span>
-                        <span>Máster</span>
-                      </div>
-                    </div>
-                    {/* Visual density — 3 compact pills */}
-                    <div style={{ flex: 1 }}>
-                      <span className="ccm__enfoque-label" style={{ marginBottom: 6, display: 'block' }}>Densidad visual</span>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {[
-                          { value: 'muy_visual', label: 'Visual', icon: '🖼️' },
-                          { value: 'equilibrado', label: 'Medio', icon: '⚖️' },
-                          { value: 'texto_denso', label: 'Texto', icon: '📝' },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            onClick={() => setGenVisualDensity(opt.value)}
-                            type="button"
-                            style={{
-                              flex: 1, border: genVisualDensity === opt.value ? '2px solid var(--ion-color-primary)' : '1.5px solid var(--ion-border-color, #e0e0e0)',
-                              borderRadius: 8, padding: '6px 2px', background: genVisualDensity === opt.value ? 'rgba(var(--ion-color-primary-rgb), 0.06)' : 'transparent',
-                              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                            }}
-                          >
-                            <span style={{ fontSize: 14 }}>{opt.icon}</span>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: genVisualDensity === opt.value ? 'var(--ion-color-primary)' : 'var(--ion-color-medium)' }}>{opt.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configuration */}
-                <div className="ccm__config">
-                  <span className="ccm__config-label">Configuración</span>
-
-                  <div className="ccm__config-item">
-                    <div className="ccm__config-item-label">
-                      <span>Páginas objetivo</span>
-                      <span className="ccm__config-item-value">{genTargetPages}</span>
-                    </div>
-                    <IonRange
-                      min={2} max={200} step={1}
-                      value={genTargetPages}
-                      onIonInput={(e) => setGenTargetPages(e.detail.value as number)}
-                    />
-                  </div>
-
-                  <div className="ccm__config-row">
-                    <div className="ccm__config-item">
-                      <div className="ccm__config-item-label">
-                        <span>Ejerc./cap.</span>
-                        <span className="ccm__config-item-value">{genExercisesPerChapter}</span>
-                      </div>
-                      <IonRange
-                        min={0} max={30} step={1}
-                        value={genExercisesPerChapter}
-                        onIonInput={(e) => setGenExercisesPerChapter(e.detail.value as number)}
-                      />
-                    </div>
-
-                    <div className="ccm__config-item">
-                      <div className="ccm__config-item-label">
-                        <span>Ejemplos/sec.</span>
-                        <span className="ccm__config-item-value">{genExamplesPerSection}</span>
-                      </div>
-                      <IonRange
-                        min={0} max={5} step={1}
-                        value={genExamplesPerSection}
-                        onIonInput={(e) => setGenExamplesPerSection(e.detail.value as number)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* PDF upload */}
-                <div className="ccm__upload">
-                  <span className="ccm__enfoque-label">PDFs de referencia (opcional)</span>
-                  <input
-                    type="file"
-                    ref={genFileInputRef}
-                    accept=".pdf"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      if (files.length > 0) setGenGuidePdfs((prev) => [...prev, ...files]);
-                      e.target.value = '';
-                    }}
-                  />
-                  <button
-                    className={`ccm__upload-btn ${genGuidePdfs.length > 0 ? 'ccm__upload-btn--has-file' : ''}`}
-                    onClick={() => genFileInputRef.current?.click()}
-                  >
-                    <IonIcon icon={genGuidePdfs.length > 0 ? checkmarkCircleOutline : cloudUploadOutline} />
-                    <span className="ccm__upload-name">
-                      {genGuidePdfs.length > 0 ? `${genGuidePdfs.length} archivo${genGuidePdfs.length > 1 ? 's' : ''}` : 'Subir PDFs guía'}
-                    </span>
-                  </button>
-                  {genGuidePdfs.length > 0 && (
-                    <div className="ccm__upload-files">
-                      {genGuidePdfs.map((file, idx) => (
-                        <div key={idx} className="ccm__upload-file-chip">
-                          <span className="ccm__upload-file-name">{file.name}</span>
-                          <button
-                            className="ccm__upload-file-remove"
-                            onClick={() => setGenGuidePdfs((prev) => prev.filter((_, i) => i !== idx))}
-                          >
-                            <IonIcon icon={closeCircleOutline} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes */}
-                <div className="ccm__notes">
-                  <span className="ccm__enfoque-label">Instrucciones adicionales (opcional)</span>
-                  <IonItem lines="none" className="ccm__notes-item">
-                    <IonTextarea
-                      value={genNotas}
-                      onIonInput={(e) => setGenNotas(e.detail.value ?? '')}
-                      placeholder="Ej: Mis alumnos tienen dificultades con..."
-                      rows={3}
-                      autoGrow
-                    />
-                  </IonItem>
-                </div>
-
-                {/* Error */}
-                {genError && (
-                  <div className="ccm__error">
-                    <IonIcon icon={closeCircleOutline} />
-                    {genError}
-                  </div>
-                )}
-
-                {/* Generate button */}
-                <IonButton
-                  expand="block"
-                  color="primary"
-                  onClick={handleGenerate}
-                  disabled={generating}
-                  className="ccm__generate"
-                >
-                  {generating ? (
-                    <>
-                      <IonSpinner name="crescent" style={{ marginRight: 8 }} />
-                      Generando...
-                    </>
-                  ) : (
-                    <>
-                      <IonIcon icon={sparkles} slot="start" />
-                      Generar contenido
-                    </>
-                  )}
-                </IonButton>
-              </div>
-            )}
           </div>
           </IonContent>
         </IonModal>

@@ -11,7 +11,11 @@ import {
   trendingUpOutline,
   locationOutline,
   chatbubbleOutline,
+  bookOutline,
+  createOutline,
+  calendarOutline,
 } from 'ionicons/icons';
+import { useHistory } from 'react-router-dom';
 import { ClassBreakdown } from '../store/calendarStore';
 import './SubjectDayInsight.css';
 
@@ -45,8 +49,16 @@ const Section: React.FC<{
   );
 };
 
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  introduction: 'Introducción', theory: 'Teoría', theory_practice: 'Teoría + Práctica',
+  practice: 'Práctica', deepening: 'Profundización', review: 'Repaso',
+};
+
 const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compact = false }) => {
   const [expanded, setExpanded] = useState(false);
+  const history = useHistory();
+  const ps = breakdown.plan_session;
+  const upe = breakdown.upcoming_plan_exam;
 
   const hasAlerts = breakdown.student_alerts && breakdown.student_alerts.length > 0;
   const hasHighlights = breakdown.positive_highlights && breakdown.positive_highlights.length > 0;
@@ -57,7 +69,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
   const hasGradeAlerts = breakdown.grade_alerts && breakdown.grade_alerts.length > 0;
   const hasRecentComments = breakdown.recent_comments && breakdown.recent_comments.length > 0;
 
-  const hasContent = hasAlerts || hasHighlights || hasTopics || hasSuggestions || hasWeakPoints || hasTalkingPoints || hasGradeAlerts || hasRecentComments;
+  const hasContent = hasAlerts || hasHighlights || hasTopics || hasSuggestions || hasWeakPoints || hasTalkingPoints || hasGradeAlerts || hasRecentComments || ps || upe;
   if (!hasContent) return null;
 
   return (
@@ -88,6 +100,52 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
       {expanded && (
         <div className="sdi__body">
+          {/* Plan session — today's planned class */}
+          {ps && (
+            <div className="sdi__plan-session">
+              <div className="sdi__plan-session-header">
+                <IonIcon icon={calendarOutline} />
+                <span className="sdi__plan-session-topic">{ps.topic_name}</span>
+                <span className="sdi__plan-session-type">{SESSION_TYPE_LABELS[ps.session_type] || ps.session_type}</span>
+              </div>
+              {ps.session_title && <div className="sdi__plan-session-title">{ps.session_title}</div>}
+              {ps.focus && <div className="sdi__plan-session-focus">{ps.focus}</div>}
+              {ps.key_points && ps.key_points.length > 0 && (
+                <div className="sdi__plan-session-tags">
+                  {ps.key_points.map((kp, i) => <span key={i} className="sdi__plan-tag">{kp}</span>)}
+                </div>
+              )}
+              {ps.topic_pdf_url && (
+                <button className="sdi__action-btn" onClick={() => window.open(`${import.meta.env.VITE_API_URL || ''}/files${ps.topic_pdf_url}`, '_blank')}>
+                  <IonIcon icon={bookOutline} /> Ver material
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Upcoming plan exam */}
+          {upe && (
+            <div className="sdi__upcoming-exam">
+              <div className="sdi__upcoming-exam-header">
+                <IonIcon icon={alertCircleOutline} />
+                <span>{upe.name}</span>
+                <span className="sdi__upcoming-exam-days">en {upe.days_until} {upe.days_until === 1 ? 'día' : 'días'}</span>
+              </div>
+              <div className="sdi__upcoming-exam-topics">{upe.topic_names.join(', ')}</div>
+              <div className="sdi__upcoming-exam-actions">
+                <button className="sdi__action-btn" onClick={() => {
+                  // Navigate to exam creation with pre-selected topics
+                  // We'd need topic IDs — for now navigate to the exams list
+                  if (breakdown.class_id && breakdown.subject_id) {
+                    history.push(`/tabs/classes/${breakdown.class_id}/subjects/${breakdown.subject_id}/exams/new?name=${encodeURIComponent(upe.name)}&date=${upe.date}`);
+                  }
+                }}>
+                  <IonIcon icon={createOutline} /> Crear examen con IA
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Topics to cover — open by default */}
           {hasTopics && (
             <Section icon={bulbOutline} label="Temas a reforzar">

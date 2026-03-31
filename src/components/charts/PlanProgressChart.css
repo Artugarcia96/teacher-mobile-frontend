@@ -1,0 +1,71 @@
+/* ─── PlanProgressChart ─── */
+
+.ppc {
+  margin-bottom: var(--space-lg);
+}
+
+.ppc__title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.ppc__bars {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-xl);
+  height: 120px;
+  align-items: flex-end;
+}
+
+.ppc__bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  max-width: 80px;
+}
+
+.ppc__bar-container {
+  position: relative;
+  width: 32px;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+  min-height: 20px;
+}
+
+.ppc__bar-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px 4px 0 0;
+}
+
+.ppc__bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ppc__bar-label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.ppc__bar-pct {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.ppc__bar-count {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+}

@@ -9,12 +9,13 @@ import {
   sparklesOutline,
   checkmarkCircleOutline,
   readerOutline,
-  trendingDownOutline,
-  addCircleOutline,
   helpCircleOutline,
+  bookOutline,
+  createOutline,
+  sparkles,
 } from 'ionicons/icons';
+import { parseEventNotes } from '../../utils/parseEventNotes';
 import SepiaLogo from '../../components/SepiaLogo';
-import { avatarColor } from '../../utils/avatarColors';
 import { useHistory } from 'react-router-dom';
 import { useClassesStore } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
@@ -557,49 +558,93 @@ const Calendar: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {selectedDayEvents.map((ev) => (
-                    <div key={ev.id} className="cal-agenda-item" onClick={() => handleEventClick(ev)}>
-                      <div className={`cal-agenda-item__time cal-agenda-item__time--${ev.eventType}`}>
-                        {formatTime(ev.startTime) || '—'}
-                        {ev.endTime && <span className="cal-agenda-item__endtime">{formatTime(ev.endTime)}</span>}
+                  {selectedDayEvents.map((ev) => {
+                    const parsed = parseEventNotes(ev.notes);
+                    const timeStr = ev.startTime ? `${formatTime(ev.startTime)}${ev.endTime ? ' - ' + formatTime(ev.endTime) : ''}` : '';
+                    return (
+                    <div key={ev.id} className={`cal-card cal-card--${ev.eventType}`} onClick={() => handleEventClick(ev)}>
+                      {/* Header: class + time */}
+                      <div className="cal-card__header">
+                        <span className="cal-card__class">
+                          {ev.className || ''}{ev.aula ? ` · ${ev.aula}` : ''}
+                        </span>
+                        {timeStr && <span className="cal-card__time">{timeStr}</span>}
                       </div>
-                      <div className="cal-agenda-item__content">
-                        <span className="cal-agenda-item__title">{ev.title}</span>
-                        {(ev.className || ev.aula) && (
-                          <span className="cal-agenda-item__class">
-                            {ev.className}{ev.aula ? ` · Aula ${ev.aula}` : ''}
-                          </span>
-                        )}
+
+                      {/* Session content */}
+                      <span className="cal-card__title">{ev.title}</span>
+                      {parsed.focus && <span className="cal-card__focus">{parsed.focus}</span>}
+                      {!parsed.isPlanEvent && ev.topicName && <span className="cal-card__topic">{ev.topicName}</span>}
+
+                      {parsed.keyPoints.length > 0 && (
+                        <div className="cal-card__tags">
+                          {parsed.keyPoints.slice(0, 4).map((kp, ki) => (
+                            <span key={ki} className="cal-card__tag">{kp}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Action buttons row */}
+                      <div className="cal-card__actions">
                         {ev.eventType === 'class_session' && ev.classId && (() => {
                           const taken = isAttendanceTaken(ev.classId!, ev.date, ev.subjectId);
-                          return taken ? (
+                          return (
                             <button
-                              className="cal-agenda-item__attendance-btn cal-agenda-item__attendance-btn--done"
+                              className={`cal-card__action ${taken ? 'cal-card__action--done' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setAttendanceData({ classId: ev.classId!, date: ev.date, eventId: ev.id, subjectId: ev.subjectId });
                               }}
                             >
-                              <IonIcon icon={checkmarkCircleOutline} />
-                              <span>Lista revisada</span>
-                            </button>
-                          ) : (
-                            <button
-                              className="cal-agenda-item__attendance-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAttendanceData({ classId: ev.classId!, date: ev.date, eventId: ev.id, subjectId: ev.subjectId });
-                              }}
-                            >
-                              <IonIcon icon={readerOutline} />
-                              <span>Pasar lista</span>
+                              <IonIcon icon={taken ? checkmarkCircleOutline : readerOutline} />
+                              <span>{taken ? 'Lista revisada' : 'Pasar lista'}</span>
                             </button>
                           );
                         })()}
+                        {ev.topicPdfUrl && (
+                          <button
+                            className="cal-card__action"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`${import.meta.env.VITE_API_URL || ''}/files${ev.topicPdfUrl}`, '_blank');
+                            }}
+                          >
+                            <IonIcon icon={bookOutline} />
+                            <span>Ver material</span>
+                          </button>
+                        )}
+                        {parsed.isPlanEvent && ev.classId && ev.subjectId && (
+                          <button
+                            className="cal-card__action"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              history.push(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exercises?generate=1`);
+                            }}
+                          >
+                            <IonIcon icon={sparkles} />
+                            <span>Ejercicios</span>
+                          </button>
+                        )}
+                        {ev.eventType === 'exam' && parsed.isPlanEvent && !ev.examId && (
+                          <button
+                            className="cal-card__action"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const params = new URLSearchParams();
+                              if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
+                              params.set('date', ev.date);
+                              params.set('name', ev.title);
+                              history.push(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exams/new?${params}`);
+                            }}
+                          >
+                            <IonIcon icon={createOutline} />
+                            <span>Crear examen</span>
+                          </button>
+                        )}
                       </div>
-                      <IonIcon icon={chevronForwardOutline} className="cal-agenda-item__arrow" />
                     </div>
-                  ))}
+                    );
+                  })}
 
                   {groupedDayExams.map((group) => {
                     const cls = classes.find((c) => c.id === group.classId);
@@ -628,37 +673,6 @@ const Calendar: React.FC = () => {
           )}
         </div>
 
-        {dashboardData && dashboardData.studentsAtRisk.length > 0 && (
-          <div className="cal-section">
-            <div className="cal-section__header">
-              <h2 className="cal-section__title">
-                <IonIcon icon={trendingDownOutline} /> Alumnos en riesgo
-              </h2>
-            </div>
-            <div className="cal-risk-list">
-              {dashboardData.studentsAtRisk.slice(0, 3).map((s) => (
-                <button
-                  key={s.studentId}
-                  className="cal-risk-item"
-                  onClick={() => {
-                    if (s.classId) history.push(`/tabs/classes/${s.classId}/students/${s.studentId}`);
-                  }}
-                >
-                  <div className={`cal-risk-item__grade cal-risk-item__grade--${s.riskLevel}`}>
-                    {s.avgGrade !== null ? s.avgGrade.toFixed(1) : '—'}
-                  </div>
-                  <div className="cal-risk-item__info">
-                    <span className="cal-risk-item__name">{s.studentName}</span>
-                    <span className="cal-risk-item__details">
-                      {s.className} · {s.factors.join(', ')}
-                    </span>
-                  </div>
-                  <IonIcon icon={chevronForwardOutline} className="cal-risk-item__arrow" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
       </IonContent>
 

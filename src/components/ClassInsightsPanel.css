@@ -26,16 +26,73 @@
 /* Empty */
 .cip--empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 16px;
-  color: var(--ion-color-medium);
-  font-size: 13px;
+  padding: 24px 20px 20px;
+  text-align: center;
 }
 
-.cip__empty-text {
+.cip__empty-bar {
+  width: 80%;
+  height: 6px;
+  background: var(--ion-color-light);
+  border-radius: 3px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.cip__empty-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ion-color-light-shade);
+  opacity: 0.5;
+}
+
+.cip__empty-title {
+  margin: 12px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ion-color-dark);
+}
+
+.cip__empty-desc {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  line-height: 1.4;
   color: var(--ion-color-medium);
+  max-width: 260px;
+}
+
+.cip__empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 20px;
+  background: var(--ion-color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.cip__empty-btn:active {
+  opacity: 0.8;
+}
+
+.cip__empty-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cip__empty-btn ion-icon {
+  font-size: 15px;
+}
+
+.cip__empty-btn ion-icon.spinning {
+  animation: cip-spin 1s linear infinite;
 }
 
 /* Header — stats row */

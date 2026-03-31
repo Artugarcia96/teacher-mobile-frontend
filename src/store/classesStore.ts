@@ -13,6 +13,7 @@ export interface DeletePreview {
     calendar_events: number;
     notes: number;
     exercises: number;
+    comments: number;
   };
 }
 

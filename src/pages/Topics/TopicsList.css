@@ -229,6 +229,32 @@
   color: var(--color-text-primary, #0f172a);
 }
 
+/* ── Plan progress card ── */
+.topics-progress-card {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 12px 14px; margin-top: 8px; border-radius: 10px;
+  border: 1px solid var(--ion-border-color, #e2e8f0);
+  background: var(--ion-card-background, #fff);
+  font: inherit;
+}
+.topics-progress-card__header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+}
+.topics-progress-card__title {
+  font-size: 13px; font-weight: 600; color: var(--color-text-primary, #0f172a);
+}
+.topics-progress-card__pace {
+  font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px;
+}
+.topics-progress-card__pace--ahead { background: rgba(5,150,105,0.1); color: #059669; }
+.topics-progress-card__pace--behind { background: rgba(239,68,68,0.1); color: #ef4444; }
+.topics-progress-card__footer {
+  display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-secondary, #64748b);
+}
+.topics-progress-card__current {
+  font-weight: 500; color: var(--ion-color-primary);
+}
+
 /* ─── Modal shared styles ─── */
 
 .topic-upload-section {

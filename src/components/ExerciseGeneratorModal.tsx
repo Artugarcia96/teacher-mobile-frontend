@@ -15,6 +15,8 @@ import { exercises as exercisesApi, batch, GroupedExercisePreview, subjects as s
 import { SubjectWithTopics, WeakArea } from '../types';
 
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
+import { useAcademicConfigStore } from '../store/academicConfigStore';
+import { getPeriodNumbers, getPeriodLabel } from '../utils/periodConfig';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { subjectThemeStyle } from '../utils/subjectTheme';
 import './ExerciseGeneratorModal.css';
@@ -140,6 +142,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     const subj = topicsBySubject.find((s) => s.subjectId === selectedSubjectId);
     return subj?.topics || [];
   }, [topicsBySubject, selectedSubjectId]);
+
+  const periodMode = useAcademicConfigStore((s) => s.configs[effectiveClassId])?.periodMode;
+  const fetchAcademicConfig = useAcademicConfigStore((s) => s.fetchConfig);
+  useEffect(() => { if (effectiveClassId) fetchAcademicConfig(effectiveClassId); }, [effectiveClassId, fetchAcademicConfig]);
 
   const exerciseTopicTrimesters = useMemo(() => {
     const trims = new Set(allSubjectTopicsForExercise.map((t) => (t as any).trimester || 0));
@@ -435,7 +441,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
           type: 'exercises',
           label: taskLabel,
           description: exerciseType === 'recovery'
-            ? 'La IA crea ejercicios de recuperación personalizados según las áreas débiles y genera el PDF.'
+            ? 'La IA crea ejercicios de repaso personalizados según las áreas débiles y genera el PDF.'
             : 'La IA crea ejercicios adaptados al nivel de los alumnos y genera el PDF con soluciones.',
           batchJobId: jobId,
           expectedResultUrl: capturedClassId ? `/tabs/classes/${capturedClassId}/exercises` : '/tabs/classes',
@@ -489,7 +495,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
       type: 'exercises',
       label: taskLabel,
       description: exerciseType === 'recovery'
-            ? 'La IA crea ejercicios de recuperación personalizados según las áreas débiles y genera el PDF.'
+            ? 'La IA crea ejercicios de repaso personalizados según las áreas débiles y genera el PDF.'
             : 'La IA crea ejercicios adaptados al nivel de los alumnos y genera el PDF con soluciones.',
       execute: async () => {
         const result = await generateExercises(genParams);
@@ -532,7 +538,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
     >
       <IonHeader>
         <IonToolbar style={toolbarStyle}>
-          <IonTitle>{exerciseType === 'recovery' ? 'Ejercicios de recuperación' : 'Generar ejercicios'}</IonTitle>
+          <IonTitle>{exerciseType === 'recovery' ? 'Ejercicios de repaso' : 'Generar ejercicios'}</IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={onDismiss} color={activeSubjectColor ? 'light' : undefined}>
               <IonIcon icon={closeOutline} />
@@ -575,7 +581,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             onClick={() => setExerciseType('recovery')}
           >
             <IonIcon icon={medkitOutline} />
-            <span>Recuperación</span>
+            <span>Repaso</span>
           </button>
         </div>
 
@@ -784,12 +790,12 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         className={`trimester-pill ${exerciseTrimesterFilter === 'all' ? 'trimester-pill--active' : ''}`}
                         onClick={() => setExerciseTrimesterFilter('all')}
                       >Todos</button>
-                      {[1, 2, 3].filter((t) => exerciseTopicTrimesters.has(t)).map((t) => (
+                      {getPeriodNumbers(periodMode).filter((t) => exerciseTopicTrimesters.has(t)).map((t) => (
                         <button
                           key={t}
                           className={`trimester-pill ${exerciseTrimesterFilter === String(t) ? 'trimester-pill--active' : ''}`}
                           onClick={() => setExerciseTrimesterFilter(String(t))}
-                        >T{t}</button>
+                        >{getPeriodLabel(periodMode, t)}</button>
                       ))}
                     </div>
                   )}
@@ -1102,8 +1108,8 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                   <IonItem lines="none" className="exgen__select exgen__select-half">
                     <IonLabel>Hojas resp.</IonLabel>
                     <IonSelect value={numBlankPages} onIonChange={(e) => setNumBlankPages(e.detail.value)} interface="popover">
-                      {[0, 1, 2, 3, 4, 5].map((n) => (
-                        <IonSelectOption key={n} value={n}>{n === 0 ? 'Ninguna' : n}</IonSelectOption>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
                       ))}
                     </IonSelect>
                   </IonItem>

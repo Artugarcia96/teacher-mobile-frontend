@@ -350,7 +350,7 @@ const ExerciseDetail: React.FC = () => {
                   {exercise.exerciseType === 'recovery' && (
                     <span className="exd-hero__type-badge">
                       <IonIcon icon={medkitOutline} />
-                      Recuperación
+                      Repaso
                     </span>
                   )}
                 </p>

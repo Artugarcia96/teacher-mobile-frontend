@@ -399,6 +399,33 @@
   flex-shrink: 0;
 }
 
+/* ── Plan progress widget ── */
+.gb-plan-progress {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 12px 14px; margin: 10px 0;
+  border-radius: 10px; border: 1px solid var(--ion-border-color, #e2e8f0);
+  background: var(--ion-card-background, #fff);
+  font: inherit; transition: background 0.1s;
+}
+.gb-plan-progress:active { background: rgba(15,23,42,0.03); }
+.gb-plan-progress__header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+}
+.gb-plan-progress__title {
+  font-size: 13px; font-weight: 600; color: var(--color-text-primary, #0f172a);
+}
+.gb-plan-progress__pace {
+  font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px;
+}
+.gb-plan-progress__pace--ahead { background: rgba(5,150,105,0.1); color: #059669; }
+.gb-plan-progress__pace--behind { background: rgba(239,68,68,0.1); color: #ef4444; }
+.gb-plan-progress__footer {
+  display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-secondary, #64748b);
+}
+.gb-plan-progress__current {
+  font-weight: 500; color: var(--ion-color-primary);
+}
+
 .gb-nav-section-title {
   padding: 8px 16px 4px;
   font-size: 11px;
@@ -793,7 +820,8 @@
 .gb-week-cal__events {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  padding: 0 2px;
 }
 
 .gb-week-cal__loading {
@@ -811,12 +839,14 @@
 
 .gb-week-cal__event {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--ion-background-color);
-  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--ion-card-background, #fff);
+  border: 1px solid rgba(15,23,42,0.06);
+  border-radius: 10px;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .gb-week-cal__event:active {
@@ -828,9 +858,8 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   color: var(--color-text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding-top: 1px;
+  flex-shrink: 0;
 }
 
 .gb-week-cal__event-time--class_session {
@@ -862,9 +891,9 @@
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--ion-text-color);
-  white-space: nowrap;
+  line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
   display: block;
 }
 
@@ -872,6 +901,78 @@
   font-size: 14px;
   color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+/* ── New card style for class calendar ── */
+.gb-week-cal__card {
+  display: flex; flex-direction: column;
+  padding: 8px 12px; border-radius: 10px;
+  background: var(--ion-card-background, #fff);
+  border: 1px solid rgba(15,23,42,0.06);
+  cursor: pointer; overflow: hidden;
+}
+.gb-week-cal__card:active { opacity: 0.85; }
+
+.gb-week-cal__card-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.gb-week-cal__card-title {
+  font-size: 12px; font-weight: 600; color: var(--ion-text-color);
+  line-height: 1.3; flex: 1; min-width: 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.gb-week-cal__card-time {
+  font-size: 10px; font-weight: 600; color: var(--ion-color-primary);
+  white-space: nowrap; flex-shrink: 0;
+}
+.gb-week-cal__card-focus {
+  font-size: 10px; color: var(--color-text-secondary); font-style: italic;
+  line-height: 1.3; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.gb-week-cal__card-tags {
+  display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px;
+}
+.gb-week-cal__card-tag {
+  font-size: 9px; padding: 1px 6px; border-radius: 100px;
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  color: var(--ion-color-primary); font-weight: 500;
+  white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Card action buttons ── */
+.gb-week-cal__card-actions {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+}
+.gb-week-cal__card-action {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; font-size: 11px; font-weight: 600;
+  color: var(--ion-color-primary); background: none;
+  border: 1.5px solid rgba(var(--ion-color-primary-rgb), 0.25);
+  border-radius: 6px; cursor: pointer; font-family: inherit;
+  transition: background 0.1s;
+}
+.gb-week-cal__card-action:active { background: rgba(var(--ion-color-primary-rgb), 0.06); }
+.gb-week-cal__card-action ion-icon { font-size: 13px; }
+
+/* ── Legacy styles (kept for non-plan events) ── */
+.gb-week-cal__event-focus {
+  font-size: 10px; color: var(--color-text-secondary); font-style: italic;
+  line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gb-week-cal__event-kp {
+  display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px;
+  max-width: 100%; overflow: hidden; max-height: 18px;
+}
+
+.gb-week-cal__event-kp-tag {
+  font-size: 8px; padding: 1px 5px; border-radius: 100px;
+  background: rgba(var(--ion-color-primary-rgb), 0.07);
+  color: var(--ion-color-primary); font-weight: 500;
+  white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis;
 }
 
 .gb-week-cal__exam-status {
@@ -1429,4 +1530,69 @@
 .gb-student-item:focus-visible {
   outline: 2px solid var(--ion-color-primary);
   outline-offset: 2px;
+}
+
+/* ── Academic calendar missing banner ── */
+.gb-cal-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.08);
+  color: #D97706;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.gb-cal-banner:active { background: rgba(245, 158, 11, 0.14); }
+.gb-cal-banner ion-icon:first-child { font-size: 18px; flex-shrink: 0; }
+.gb-cal-banner ion-icon:last-child { font-size: 14px; flex-shrink: 0; margin-left: auto; }
+.gb-cal-banner span { flex: 1; }
+
+@media (prefers-color-scheme: dark) {
+  .gb-cal-banner {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #FBBF24;
+  }
+}
+
+/* ── Course Plan Progress Card ── */
+.gb-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 16px 12px;
+  padding: 12px 16px;
+  background: var(--color-surface, #fff);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  cursor: pointer;
+  text-align: left;
+  width: calc(100% - 32px);
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.gb-progress-card:active { transform: scale(0.98); }
+.gb-progress-card__header { display: flex; align-items: center; gap: 8px; }
+.gb-progress-card__header ion-icon { font-size: 18px; color: var(--ion-color-primary); }
+.gb-progress-card__title { font-size: 13px; font-weight: 600; color: var(--ion-text-color); flex: 1; }
+.gb-progress-card__pace { font-size: 12px; font-weight: 700; }
+.gb-progress-card__pace--ahead { color: #059669; }
+.gb-progress-card__pace--behind { color: #DC2626; }
+.gb-progress-card ion-progress-bar { --border-radius: 4px; height: 6px; }
+.gb-progress-card__footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-secondary); }
+.gb-progress-card__current { font-weight: 500; color: var(--ion-color-primary); }
+
+@media (prefers-color-scheme: dark) {
+  .gb-progress-card { background: #16161A; border-color: rgba(255,255,255,0.08); }
 }

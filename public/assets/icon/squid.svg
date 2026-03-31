@@ -6,34 +6,40 @@
  preserveAspectRatio="xMidYMid meet">
 
 <defs>
-  <!-- Main body gradient - blue to teal -->
+  <!-- Main body gradient - vibrant sky blue -->
   <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#0ea5e9"/>
-    <stop offset="30%" stop-color="#06b6d4"/>
-    <stop offset="60%" stop-color="#0891b2"/>
-    <stop offset="100%" stop-color="#0f766e"/>
+    <stop offset="0%" stop-color="#29ABE2"/>
+    <stop offset="35%" stop-color="#1A9BD7"/>
+    <stop offset="70%" stop-color="#0D8ECB"/>
+    <stop offset="100%" stop-color="#0077B5"/>
   </linearGradient>
-  
-  <!-- Fins gradient - orange to yellow -->
+
+  <!-- Fins gradient - vivid orange to golden yellow -->
   <linearGradient id="finsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#f97316"/>
-    <stop offset="50%" stop-color="#f59e0b"/>
-    <stop offset="100%" stop-color="#eab308"/>
+    <stop offset="0%" stop-color="#E8751A"/>
+    <stop offset="45%" stop-color="#F59E0B"/>
+    <stop offset="100%" stop-color="#FBBF24"/>
   </linearGradient>
-  
-  <!-- Eye gradient - deep blue -->
+
+  <!-- Head accent gradient - orange to yellow (for the beak/crest) -->
+  <linearGradient id="headAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#F59E0B"/>
+    <stop offset="100%" stop-color="#FBBF24"/>
+  </linearGradient>
+
+  <!-- Eye gradient - deep blue with white center -->
   <radialGradient id="eyeGradient" cx="50%" cy="50%" r="50%">
     <stop offset="0%" stop-color="#ffffff"/>
-    <stop offset="30%" stop-color="#0ea5e9"/>
-    <stop offset="70%" stop-color="#1e40af"/>
-    <stop offset="100%" stop-color="#1e3a8a"/>
+    <stop offset="30%" stop-color="#29ABE2"/>
+    <stop offset="70%" stop-color="#0D5FA5"/>
+    <stop offset="100%" stop-color="#084B8A"/>
   </radialGradient>
-  
-  <!-- Tail gradient - purple to blue -->
+
+  <!-- Tail gradient - blue flow -->
   <linearGradient id="tailGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#8b5cf6"/>
-    <stop offset="50%" stop-color="#3b82f6"/>
-    <stop offset="100%" stop-color="#0ea5e9"/>
+    <stop offset="0%" stop-color="#0D8ECB"/>
+    <stop offset="50%" stop-color="#1A9BD7"/>
+    <stop offset="100%" stop-color="#29ABE2"/>
   </linearGradient>
 </defs>
 
@@ -76,9 +82,9 @@ fill="url(#bodyGradient)" stroke="none">
 150 -462 228 -750 440 -366 271 -622 416 -855 486 -123 37 -362 44 -500 15z"/>
 </g>
 
-<!-- Fins and tail with orange gradient overlay -->
+<!-- Fins/head with orange gradient - thicker stroke for visibility -->
 <g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)"
-fill="url(#finsGradient)" stroke="none" opacity="0.8">
+fill="url(#finsGradient)" stroke="url(#finsGradient)" stroke-width="120" stroke-linejoin="round">
 <path d="M7470 7580 c137 -30 273 -113 480 -292 257 -222 470 -360 670 -435 36 -14 144
 -46 240 -73 218 -60 272 -80 349 -130 130 -84 201 -180 187 -254 -17 -90 -81
 -136 -326 -236 -332 -135 -533 -255 -790 -471 -214 -179 -367 -275 -540 -338
@@ -89,15 +95,30 @@ fill="url(#finsGradient)" stroke="none" opacity="0.8">
 359 156 686 259 870 145 261 415 471 699 545 80 21 280 26 356 10z"/>
 </g>
 
-<!-- Eye with special gradient -->
+<!-- Orange beak/crest accent - prominent head marking -->
 <g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)"
-fill="url(#eyeGradient)" stroke="none">
-<circle cx="7007" cy="7094" r="100"/>
+fill="url(#headAccent)" stroke="none">
+<path d="M7350 7750 c80 -20 180 -65 310 -150 180 -120 350 -240 500 -340
+120 -80 220 -130 320 -160 60 -18 130 -35 160 -38
+l-40 80 c-80 150 -200 280 -370 390 -160 100 -340 170 -520 210
+-120 25 -260 30 -360 8z"/>
 </g>
 
-<!-- Additional tail elements with purple gradient -->
+<!-- Eye with special gradient - larger for visibility -->
 <g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)"
-fill="url(#tailGradient)" stroke="none" opacity="0.7">
+fill="url(#eyeGradient)" stroke="none">
+<circle cx="7007" cy="7094" r="140"/>
+</g>
+
+<!-- Eye orange ring accent -->
+<g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)"
+fill="none" stroke="#F59E0B" stroke-width="35">
+<circle cx="7007" cy="7094" r="165"/>
+</g>
+
+<!-- Additional tail elements with blue gradient -->
+<g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)"
+fill="url(#tailGradient)" stroke="none">
 <path d="M6468 6164 c-252 -655 -743
 -1065 -1613 -1347 -383 -125 -734 -185 -1162 -202 -271 -10 -662 23 -879 74
 l-74 17 309 0 c247 0 332 4 424 18 394 62 955 186 1317 293 587 172 934 372

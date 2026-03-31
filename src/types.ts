@@ -217,6 +217,10 @@ export interface Topic {
   pageCount?: number;
   hasContent: boolean;
   includeInGeneration: boolean;
+  // Course plan linkage
+  coursePlanId?: string;
+  scheduledDates?: string[];
+  sessionsNeeded?: number;
 }
 
 export interface TopicListItem {
@@ -322,6 +326,7 @@ export interface CalendarEvent {
   classId?: string;
   studentId?: string;
   examId?: string;
+  topicId?: string;
   title: string;
   date: string;
   startTime?: string;
@@ -336,6 +341,8 @@ export interface CalendarEvent {
   studentName?: string;
   examName?: string;
   examStatus?: string;
+  topicName?: string;
+  topicPdfUrl?: string;
   mentionedStudents?: MentionedStudent[];
 }
 
@@ -553,6 +560,152 @@ export interface TextbookChapter {
   estimated_pages?: number;
 }
 
+// ── Course Plan ─────────────────────────────────────────────────
+
+export interface ExamStrategy {
+  exams_per_trimester: number;
+  review_sessions_before_exam: boolean;
+  exercises_frequency: 'weekly' | 'biweekly' | 'per_unit';
+}
+
+export interface TopicAnnotation {
+  unit_index: number;
+  topic_index: number;
+  time_weight: number;
+  skip: boolean;
+  notes?: string;
+  lock_trimester?: number;
+}
+
+export interface CurriculumTopic {
+  title: string;
+  subtopics?: string[];
+  learning_objectives?: string[];
+  prerequisites?: string[];
+  estimated_complexity?: string;
+}
+
+export interface CurriculumUnit {
+  number: number;
+  title: string;
+  description?: string;
+  topics: CurriculumTopic[];
+}
+
+export interface Curriculum {
+  subject: string;
+  level: string;
+  units: CurriculumUnit[];
+  total_topics: number;
+}
+
+export interface PlanSession {
+  index: number;
+  title: string;
+  focus: string;
+  subtopics: string[];
+  objectives: string[];
+  key_points: string[];
+  session_type: 'introduction' | 'theory' | 'theory_practice' | 'practice' | 'deepening' | 'review';
+  date: string;
+}
+
+export interface PlanTopic {
+  name: string;
+  unit_index: number;
+  topic_index: number;
+  sessions_needed: number;
+  scheduled_dates: string[];
+  sessions?: PlanSession[];
+  learning_objectives?: string[];
+  key_concepts?: string[];
+  complexity?: string;
+  teacher_notes?: string;
+}
+
+export interface PlanUnit {
+  name: string;
+  unit_index: number;
+  topics: PlanTopic[];
+  review_session?: { date: string; type: string };
+  exam?: { date: string; type: string; name: string };
+  exercise_dates?: string[];
+}
+
+export interface PlanTrimester {
+  number: number;
+  start_date: string;
+  end_date: string;
+  units: PlanUnit[];
+  buffer_sessions?: string[];
+}
+
+export interface CoursePlanData {
+  title: string;
+  total_sessions: number;
+  sessions_per_week?: number;
+  trimesters: PlanTrimester[];
+}
+
+export interface CoursePlan {
+  id: string;
+  teacherId: string;
+  subjectId: string;
+  classId: string;
+  batchJobId?: string;
+  enfoque: string;
+  depth: number;
+  visualDensity: string;
+  activeTrimesters?: number[];
+  guidePdfUrls?: string[];
+  priorityNotes?: string;
+  examStrategy?: ExamStrategy;
+  bufferSessionsPerTrimester: number;
+  curriculum?: Curriculum;
+  topicAnnotations?: TopicAnnotation[];
+  coursePlan?: CoursePlanData;
+  stats?: {
+    generation_time_seconds?: number;
+    total_sessions?: number;
+    review_score?: number;
+    review_issues?: number;
+    review_critical_issues?: string[];
+    review_warnings?: string[];
+    review_suggestions?: string[];
+    review_summary?: string;
+  };
+  status: string; // pending | analyzing | generating | completed | failed
+  errorMessage?: string;
+  isActive: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface CoursePlanListItem {
+  id: string;
+  subjectId: string;
+  classId: string;
+  status: string;
+  isActive: boolean;
+  enfoque: string;
+  title?: string;
+  totalSessions?: number;
+  topicsCreated: boolean;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface CoursePlanProgress {
+  totalTopics: number;
+  taughtTopics: number;
+  currentTopic?: string;
+  sessionsElapsed: number;
+  sessionsTotal: number;
+  sessionsAheadBehind: number;
+  trimesterProgress: { trimester: number; planned: number; completed: number; pct: number }[];
+  upcoming: { name: string; dates: string[]; sessions: number; trimester: number }[];
+}
+
 export interface Textbook {
   id: string;
   subjectId: string;
@@ -581,6 +734,7 @@ export interface Textbook {
   createdAt: string;
   completedAt?: string;
   temasCreated?: boolean;
+  coursePlanId?: string;
   depth?: number;
   visualDensity?: string;
 }

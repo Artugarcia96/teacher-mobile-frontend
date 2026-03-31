@@ -1,18 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
   IonButton, IonIcon, IonList, IonItem, IonLabel, IonInput, IonModal, IonSelect,
   IonSelectOption, IonSpinner, IonAlert, IonItemSliding, IonItemOptions, IonItemOption,
   IonSegment, IonSegmentButton, IonCheckbox, IonSearchbar, IonProgressBar,
 } from '@ionic/react';
-import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline, warningOutline, createOutline } from 'ionicons/icons';
+import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline, warningOutline, createOutline, cloudUploadOutline } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
-import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi } from '../../services/api';
+import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi, academicConfig as academicConfigApi } from '../../services/api';
 import { Lecture, ScheduleSlot, EducationLevel } from '../../types';
 import { useClassesStore, DeletePreview } from '../../store/classesStore';
 import { useStudentsStore, StudentPoolEntry } from '../../store/studentsStore';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { PALETTE_COLORS } from '../../utils/avatarColors';
+import { useAcademicConfigStore, AcademicConfigData } from '../../store/academicConfigStore';
+import { getPeriodFullLabel } from '../../utils/periodConfig';
+import type { PeriodMode } from '../../utils/periodConfig';
 import './ClassSettings.css';
 
 const WEEK_DAYS = [
@@ -76,6 +79,7 @@ const ClassSettings: React.FC = () => {
   const { classId } = useParams<{ classId: string }>();
   const history = useHistory();
   const isDesktop = useIsDesktop();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,6 +140,7 @@ const ClassSettings: React.FC = () => {
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const deleteClassPermanently = useClassesStore((s) => s.deleteClassPermanently);
   const getDeletePreview = useClassesStore((s) => s.getDeletePreview);
+  const importStudentsToClass = useClassesStore((s) => s.importStudents);
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -165,12 +170,27 @@ const ClassSettings: React.FC = () => {
   const [studentsSaving, setStudentsSaving] = useState(false);
   const [studentsProgress, setStudentsProgress] = useState('');
   const [removeStudentTarget, setRemoveStudentTarget] = useState<{ id: string; name: string } | null>(null);
+  const [importAlert, setImportAlert] = useState<{ header: string; message: string; color?: string } | null>(null);
 
   // Delete class
   const [showDeleteClassModal, setShowDeleteClassModal] = useState(false);
   const [deleteClassPreview, setDeleteClassPreview] = useState<DeletePreview | null>(null);
   const [loadingDeletePreview, setLoadingDeletePreview] = useState(false);
   const [deletingClass, setDeletingClass] = useState(false);
+
+  // Academic calendar
+  const acStore = useAcademicConfigStore();
+  const [calPeriodMode, setCalPeriodMode] = useState<PeriodMode>('trimester');
+  const [calDates, setCalDates] = useState<Record<string, string>>({});
+  const [calSaving, setCalSaving] = useState(false);
+  const [calLoaded, setCalLoaded] = useState(false);
+
+  const calComplete = (() => {
+    const t1ok = !!(calDates.t1_start && calDates.t1_end);
+    const t2ok = !!(calDates.t2_start && calDates.t2_end);
+    if (calPeriodMode === 'cuatrimester') return t1ok && t2ok;
+    return t1ok && t2ok && !!(calDates.t3_start && calDates.t3_end);
+  })();
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
@@ -227,6 +247,39 @@ const ClassSettings: React.FC = () => {
     loadClass();
   }, [classId]);
 
+  // Load academic calendar (wait for classData to have year for pre-fill)
+  useEffect(() => {
+    if (!classId || !classData) return;
+    academicConfigApi.get(classId).then((res) => {
+      const d = res.data;
+      setCalPeriodMode(d.period_mode || 'trimester');
+      setCalDates({
+        t1_start: d.trimester_1_start || '',
+        t1_end: d.trimester_1_end || '',
+        t2_start: d.trimester_2_start || '',
+        t2_end: d.trimester_2_end || '',
+        t3_start: d.trimester_3_start || '',
+        t3_end: d.trimester_3_end || '',
+      });
+      setCalLoaded(true);
+    }).catch(() => {
+      // No config yet — pre-fill with typical trimester dates AND auto-save
+      const yearStr = classData?.year || '';
+      const yearMatch = yearStr.match(/(\d{4})/);
+      const y1 = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+      const y2 = y1 + 1;
+      const defaults = {
+        t1_start: `${y1}-09-01`, t1_end: `${y1}-12-31`,
+        t2_start: `${y2}-01-07`, t2_end: `${y2}-03-31`,
+        t3_start: `${y2}-04-01`, t3_end: `${y2}-07-15`,
+      };
+      setCalDates(defaults);
+      setCalLoaded(true);
+      // Auto-save the defaults so they persist
+      saveCalendar('trimester', defaults);
+    });
+  }, [classId, classData]);
+
   useEffect(() => {
     if (classId) fetchStudents(classId);
   }, [classId, fetchStudents]);
@@ -257,6 +310,66 @@ const ClassSettings: React.FC = () => {
   useEffect(() => {
     loadAulas();
   }, [classId]);
+
+  const saveCalendar = async (mode: PeriodMode, dates: Record<string, string>) => {
+    if (!classData) return;
+    const t1ok = dates.t1_start && dates.t1_end;
+    const t2ok = dates.t2_start && dates.t2_end;
+    const t3ok = mode === 'trimester' ? dates.t3_start && dates.t3_end : true;
+    if (!t1ok || !t2ok || !t3ok) return; // incomplete — don't save yet
+    setCalSaving(true);
+    try {
+      await academicConfigApi.save({
+        class_id: classId,
+        year: classData.year,
+        period_mode: mode,
+        trimester_1_start: dates.t1_start,
+        trimester_1_end: dates.t1_end,
+        trimester_2_start: dates.t2_start,
+        trimester_2_end: dates.t2_end,
+        trimester_3_start: mode === 'trimester' ? dates.t3_start : null,
+        trimester_3_end: mode === 'trimester' ? dates.t3_end : null,
+      });
+      // Update store cache
+      acStore.setConfig(classId, null); // invalidate so next fetch gets fresh data
+    } catch (err) {
+      console.error('Failed to save calendar:', err);
+    } finally {
+      setCalSaving(false);
+    }
+  };
+
+  const handleCalDateChange = (key: string, value: string) => {
+    const next = { ...calDates, [key]: value };
+    setCalDates(next);
+    saveCalendar(calPeriodMode, next);
+  };
+
+  const handleCalModeChange = (mode: PeriodMode) => {
+    setCalPeriodMode(mode);
+    // Pre-fill with typical dates based on academic year
+    const yearStr = classData?.year || '';
+    const yearMatch = yearStr.match(/(\d{4})/);
+    const y1 = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+    const y2 = y1 + 1;
+
+    let next: Record<string, string>;
+    if (mode === 'trimester') {
+      next = {
+        t1_start: `${y1}-09-01`, t1_end: `${y1}-12-31`,
+        t2_start: `${y2}-01-07`, t2_end: `${y2}-03-31`,
+        t3_start: `${y2}-04-01`, t3_end: `${y2}-07-15`,
+      };
+    } else {
+      next = {
+        t1_start: `${y1}-09-01`, t1_end: `${y2}-02-01`,
+        t2_start: `${y2}-02-02`, t2_end: `${y2}-06-01`,
+        t3_start: '', t3_end: '',
+      };
+    }
+    setCalDates(next);
+    saveCalendar(mode, next);
+  };
 
   useEffect(() => {
     if (showAddStudents && addStudentsTab === 'existing' && classId) {
@@ -506,6 +619,27 @@ const ClassSettings: React.FC = () => {
     }
   };
 
+  const handleImportClick = () => fileInputRef.current?.click();
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStudentsSaving(true);
+    setStudentsProgress('Importando alumnos...');
+    try {
+      const count = await importStudentsToClass(classId, file);
+      await fetchStudents(classId);
+      setImportAlert({ header: 'Importación completada', message: `Se importaron ${count} alumnos.` });
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || 'Error al importar el archivo.';
+      setImportAlert({ header: 'Error al importar', message: detail, color: 'danger' });
+    } finally {
+      setStudentsSaving(false);
+      setStudentsProgress('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleRemoveStudentFromClass = async () => {
     if (!removeStudentTarget) return;
     try {
@@ -652,6 +786,61 @@ const ClassSettings: React.FC = () => {
           </div>
         </div>
 
+        {/* Academic Calendar */}
+        <div className="settings-section">
+          <div className="settings-section__header">
+            <h2 className="settings-section__title">Calendario académico</h2>
+            {calSaving && <IonSpinner name="crescent" style={{ width: 16, height: 16 }} />}
+          </div>
+          {!calLoaded ? (
+            <div style={{ textAlign: 'center', padding: 16 }}><IonSpinner name="crescent" /></div>
+          ) : (
+            <div className="settings-info-card">
+              {/* Period mode selector */}
+              <div className="settings-info-row settings-info-row--vertical">
+                <span className="settings-info-label">Tipo de periodo</span>
+                <div className="education-level-chips">
+                  <button type="button"
+                    className={`education-level-chip ${calPeriodMode === 'trimester' ? 'education-level-chip--active' : ''}`}
+                    onClick={() => handleCalModeChange('trimester')}>
+                    <span className="education-level-chip__label">3 Trimestres</span>
+                    <span className="education-level-chip__ages">Sep–Jun</span>
+                  </button>
+                  <button type="button"
+                    className={`education-level-chip ${calPeriodMode === 'cuatrimester' ? 'education-level-chip--active' : ''}`}
+                    onClick={() => handleCalModeChange('cuatrimester')}>
+                    <span className="education-level-chip__label">2 Cuatrimestres</span>
+                    <span className="education-level-chip__ages">Sep–Jun</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Date pickers per period */}
+              {(calPeriodMode === 'trimester' ? [1, 2, 3] : [1, 2]).map((n) => (
+                <div key={n} className="settings-info-row settings-info-row--vertical cal-period-row">
+                  <span className="settings-info-label">{getPeriodFullLabel(calPeriodMode, n)}</span>
+                  <div className="cal-date-pair">
+                    <input type="date" className="cal-date-input"
+                      value={calDates[`t${n}_start`] || ''}
+                      onChange={(e) => handleCalDateChange(`t${n}_start`, e.target.value)}
+                    />
+                    <span className="cal-date-sep">→</span>
+                    <input type="date" className="cal-date-input"
+                      value={calDates[`t${n}_end`] || ''}
+                      onChange={(e) => handleCalDateChange(`t${n}_end`, e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+
+            </div>
+          )}
+        </div>
+
+
+        {/* Lectures — hidden until calendar is complete */}
+        {(!calLoaded || calComplete) && (
+        <>
         {/* Lectures */}
         <div className="settings-section">
           <div className="settings-section__header">
@@ -823,6 +1012,29 @@ const ClassSettings: React.FC = () => {
                         >
                           {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${validNewNames.length || ''} alumnos`}
                         </IonButton>
+
+                        <div className="settings-csv-divider">
+                          <span>o importar desde archivo</span>
+                        </div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          style={{ display: 'none' }}
+                          accept=".csv,.txt"
+                          onChange={handleImportFile}
+                        />
+                        <IonButton
+                          expand="block"
+                          fill="outline"
+                          onClick={handleImportClick}
+                          disabled={studentsSaving}
+                        >
+                          <IonIcon icon={cloudUploadOutline} slot="start" />
+                          Importar CSV
+                        </IonButton>
+                        <p className="settings-csv-hint">
+                          Un nombre por línea, sin encabezado. Máximo 50 alumnos.
+                        </p>
                       </div>
                     )}
 
@@ -924,12 +1136,15 @@ const ClassSettings: React.FC = () => {
             </>
           )}
         </div>
+        </>
+        )}
         {/* Class Actions */}
         <div className="settings-actions">
           <IonButton
             expand="block"
             onClick={() => history.push(`/tabs/classes/${classId}`)}
             className="settings-actions__save"
+            disabled={calLoaded && !calComplete}
           >
             Guardar clase
           </IonButton>
@@ -1193,6 +1408,15 @@ const ClassSettings: React.FC = () => {
           { text: 'Quitar', role: 'destructive', handler: handleRemoveStudentFromClass }
         ]}
         onDidDismiss={() => setRemoveStudentTarget(null)}
+      />
+
+      {/* Import CSV feedback */}
+      <IonAlert
+        isOpen={!!importAlert}
+        header={importAlert?.header || ''}
+        message={importAlert?.message || ''}
+        buttons={['OK']}
+        onDidDismiss={() => setImportAlert(null)}
       />
     </IonPage>
   );

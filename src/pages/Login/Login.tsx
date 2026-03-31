@@ -59,7 +59,7 @@ const Login: React.FC = () => {
         <div className="login-container">
           <div className="login-brand">
             <div className="login-icon-wrap">
-              <SepiaLogo size={80} className="login-logo" variant="colored" />
+              <SepiaLogo size={80} className="login-logo" variant="logo" />
             </div>
             <h1 className="login-title">SEPIA Education</h1>
             <p className="login-subtitle">Tu asistente educativo inteligente</p>

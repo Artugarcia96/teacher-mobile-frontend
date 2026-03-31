@@ -87,10 +87,10 @@ const MainTabs: React.FC = () => {
                   <Route
                     exact
                     path="/tabs/classes/:classId/exams/:examId"
-                    render={(props) =>
-                      props.match.params.examId === 'new'
-                        ? <ExamEditor {...props} />
-                        : <ExamDetail {...props} />
+                    render={({ match }) =>
+                      match.params.examId === 'new'
+                        ? <ExamEditor />
+                        : <ExamDetail />
                     }
                   />
                   <Route exact path="/tabs/classes/:classId/exercises" component={ExercisesList} />
@@ -105,10 +105,10 @@ const MainTabs: React.FC = () => {
                   <Route
                     exact
                     path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId"
-                    render={(props) =>
-                      props.match.params.examId === 'new'
-                        ? <ExamEditor {...props} />
-                        : <ExamDetail {...props} />
+                    render={({ match }) =>
+                      match.params.examId === 'new'
+                        ? <ExamEditor />
+                        : <ExamDetail />
                     }
                   />
                   <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exercises" component={ExercisesList} />
@@ -116,12 +116,12 @@ const MainTabs: React.FC = () => {
                   <Route exact path="/tabs/classes/:classId/subjects/:subjectId/attendance" component={AttendanceList} />
 
                   {/* Trimester summary & report comments */}
-                  <Route exact path="/tabs/classes/:classId/trimester-summary" render={(props) => <Suspense fallback={<IonSpinner />}><TrimesterSummary {...props} /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/trimester-summary" render={(props) => <Suspense fallback={<IonSpinner />}><TrimesterSummary {...props} /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/reports" render={(props) => <Suspense fallback={<IonSpinner />}><ClassReport {...props} /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/reports" render={(props) => <Suspense fallback={<IonSpinner />}><ClassReport {...props} /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/report-comments" render={(props) => <Suspense fallback={<IonSpinner />}><ReportComments {...props} /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/report-comments" render={(props) => <Suspense fallback={<IonSpinner />}><ReportComments {...props} /></Suspense>} />
+                  <Route exact path="/tabs/classes/:classId/trimester-summary" render={() => <Suspense fallback={<IonSpinner />}><TrimesterSummary /></Suspense>} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/trimester-summary" render={() => <Suspense fallback={<IonSpinner />}><TrimesterSummary /></Suspense>} />
+                  <Route exact path="/tabs/classes/:classId/reports" render={() => <Suspense fallback={<IonSpinner />}><ClassReport /></Suspense>} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/reports" render={() => <Suspense fallback={<IonSpinner />}><ClassReport /></Suspense>} />
+                  <Route exact path="/tabs/classes/:classId/report-comments" render={() => <Suspense fallback={<IonSpinner />}><ReportComments /></Suspense>} />
+                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/report-comments" render={() => <Suspense fallback={<IonSpinner />}><ReportComments /></Suspense>} />
 
                   {/* Subject-scoped exam editor (edit existing exam with color context) */}
                   <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId/edit" component={ExamEditor} />

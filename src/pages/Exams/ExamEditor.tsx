@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
   IonButton, IonItem, IonLabel, IonInput, IonSelect, IonSelectOption, IonIcon,
-  IonSpinner, IonToggle, IonCheckbox, IonTextarea, IonBadge, IonSegment, IonSegmentButton,
+  IonSpinner, IonCheckbox, IonTextarea, IonBadge, IonSegment, IonSegmentButton,
   IonAlert, IonChip, IonList, IonAccordion, IonAccordionGroup,
 } from '@ionic/react';
 import {
   cloudUploadOutline, documentOutline, checkmarkCircleOutline, sparklesOutline,
   downloadOutline, documentTextOutline, trashOutline, refreshOutline, timeOutline,
   createOutline, chevronForwardOutline, informationCircleOutline,
+  barbellOutline, medkitOutline, alertCircleOutline,
 } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
@@ -16,10 +17,12 @@ import { useClassesStore } from '../../store/classesStore';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
 import api, { exams as examsApi, classes as classesApi, subjects as subjectsApi, corrections as correctionsApi, batch } from '../../services/api';
-import { Lecture, ExamIterationHistoryItem, SubjectWithTopics } from '../../types';
+import { Lecture, ExamIterationHistoryItem, SubjectWithTopics, Exam } from '../../types';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import ClassSubjectPicker from '../../components/ClassSubjectPicker';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
+import { useAcademicConfigStore } from '../../store/academicConfigStore';
+import { getPeriodNumbers, getPeriodLabel } from '../../utils/periodConfig';
 import './ExamEditor.css';
 
 const ExamEditor: React.FC = () => {
@@ -27,6 +30,12 @@ const ExamEditor: React.FC = () => {
   const history = useHistory();
   // isNew if examId is 'new' OR undefined (when coming from /tabs/classes/:classId/exams/new route)
   const isNew = examId === 'new' || examId === undefined;
+
+  // Query params from calendar: ?topicIds=id1,id2&date=2026-04-05
+  const queryParams = useMemo(() => new URLSearchParams(history.location.search), [history.location.search]);
+  const qTopicIds = useMemo(() => queryParams.get('topicIds')?.split(',').filter(Boolean) || [], [queryParams]);
+  const qDate = queryParams.get('date');
+  const qName = queryParams.get('name');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allClasses = useClassesStore((s) => s.classes);
@@ -72,8 +81,8 @@ const ExamEditor: React.FC = () => {
   // Upload mode (supports multiple files for multi-page handwritten exams)
   const [files, setFiles] = useState<File[]>([]);
 
-  // Shared personalization
-  const [isPersonalized, setIsPersonalized] = useState(false);
+  // Personalization is always on
+  const isPersonalized = true;
 
   // Delete confirmation
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -90,11 +99,23 @@ const ExamEditor: React.FC = () => {
 
   // Phase 4: Deadline and iteration
   const [correctionDeadline, setCorrectionDeadline] = useState('');
-  const [blankPagesCount, setBlankPagesCount] = useState(0);
+  const [blankPagesCount, setBlankPagesCount] = useState(1);
   const [iterationInstruction, setIterationInstruction] = useState('');
   const [iterating, setIterating] = useState(false);
   const [iterationError, setIterationError] = useState('');
   const iterateExam = useExamsStore((s) => s.iterateExam);
+
+  // Recovery exam mode
+  const [examType, setExamType] = useState<'practice' | 'recovery'>('practice');
+  const [sourceExamId, setSourceExamId] = useState('');
+  const [failingStudents, setFailingStudents] = useState<{ id: string; name: string; grade: number }[]>([]);
+  const [loadingFailingStudents, setLoadingFailingStudents] = useState(false);
+
+  // Corrected exams for recovery source selection
+  const correctedExams = useMemo(
+    () => allExams.filter((e) => e.status === 'corrected' && e.classId === classId),
+    [allExams, classId]
+  );
 
   // Fetch lectures when class changes
   const fetchLectures = useCallback(async (cId: string) => {
@@ -121,6 +142,10 @@ const ExamEditor: React.FC = () => {
     const subj = topicsBySubject.find((s) => s.subjectId === selectedSubjectId);
     return subj?.topics || [];
   }, [topicsBySubject, selectedSubjectId]);
+
+  const periodMode = useAcademicConfigStore((s) => s.configs[classId])?.periodMode;
+  const fetchAcademicConfig = useAcademicConfigStore((s) => s.fetchConfig);
+  useEffect(() => { if (classId) fetchAcademicConfig(classId); }, [classId, fetchAcademicConfig]);
 
   const topicTrimesters = useMemo(() => {
     const trims = new Set(allSubjectTopics.map((t) => (t as any).trimester || 0));
@@ -205,14 +230,20 @@ const ExamEditor: React.FC = () => {
       setLectureId(exam.lectureId || '');
       setDate(exam.date);
       setMaxScore(exam.maxScore);
-      setIsPersonalized(exam.isPersonalized || false);
       setCorrectionDeadline(exam.correctionDeadline || '');
-      setBlankPagesCount(exam.blankPagesCount || 0);
+      setBlankPagesCount(exam.blankPagesCount || 1);
     } else if (isNew) {
       if (urlClassId) setClassId(urlClassId);
       if (urlSubjectId) setSelectedSubjectId(urlSubjectId);
+      // From calendar: auto-set generate mode, date, name, and pre-select topics
+      if (qTopicIds.length > 0) {
+        setMode('generate');
+        setSelectedTopicIds(qTopicIds);
+      }
+      if (qDate) setDate(qDate);
+      if (qName) setName(qName);
     }
-  }, [exam, isNew, urlClassId, urlSubjectId]);
+  }, [exam, isNew, urlClassId, urlSubjectId, qTopicIds, qDate, qName]);
 
   // Auto-set correction deadline to 7 days after exam date if not set,
   // and reset it if the exam date moves past the current deadline
@@ -231,6 +262,45 @@ const ExamEditor: React.FC = () => {
       }
     }
   }, [date, isNew, correctionDeadline]);
+
+  // Fetch failing students when source exam changes (recovery mode)
+  useEffect(() => {
+    if (!sourceExamId || examType !== 'recovery') {
+      setFailingStudents([]);
+      return;
+    }
+    setLoadingFailingStudents(true);
+    correctionsApi.list(sourceExamId)
+      .then((res) => {
+        const sourceExam = allExams.find((e) => e.id === sourceExamId);
+        const passThreshold = (sourceExam?.maxScore ?? 10) * 0.5;
+        const failing = (res.data as any[])
+          .filter((c: any) => c.grade !== null && c.grade !== undefined && c.grade < passThreshold)
+          .map((c: any) => ({ id: c.student_id, name: c.student_name || 'Alumno', grade: c.grade }));
+        setFailingStudents(failing);
+      })
+      .catch(() => setFailingStudents([]))
+      .finally(() => setLoadingFailingStudents(false));
+  }, [sourceExamId, examType, allExams]);
+
+  // Auto-set name and topics when source exam changes in recovery mode
+  useEffect(() => {
+    if (examType === 'recovery' && sourceExamId) {
+      const sourceExam = allExams.find((e) => e.id === sourceExamId);
+      if (sourceExam) {
+        if (!name.trim()) setName(`Recuperación - ${sourceExam.name}`);
+        if (sourceExam.subjectId) setSelectedSubjectId(sourceExam.subjectId);
+      }
+    }
+  }, [sourceExamId, examType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset recovery state when switching exam type
+  useEffect(() => {
+    if (examType === 'practice') {
+      setSourceExamId('');
+      setFailingStudents([]);
+    }
+  }, [examType]);
 
   useEffect(() => {
     if (classId) {
@@ -268,7 +338,10 @@ const ExamEditor: React.FC = () => {
     if (!urlSubjectId) {
       setSelectedSubjectId('');
     }
-    setSelectedTopicIds([]);
+    // Preserve pre-selected topics from calendar query params
+    if (qTopicIds.length === 0) {
+      setSelectedTopicIds([]);
+    }
     setTopicTrimesterFilter('all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId]);
@@ -312,7 +385,7 @@ const ExamEditor: React.FC = () => {
         date,
         maxScore,
         isPersonalized,
-        blankPagesCount: isPersonalized ? blankPagesCount : 0,
+        blankPagesCount: blankPagesCount,
       };
 
       addBackgroundTask({
@@ -320,13 +393,27 @@ const ExamEditor: React.FC = () => {
         label: taskName,
         description: 'La IA recorta cada examen por alumno y analiza las respuestas para preparar la corrección.',
         execute: async () => {
-          // 1. Create exam with file upload (supports multiple images)
-          const examId = await addExam(examData, taskFiles.length === 1 ? taskFiles[0] : taskFiles);
+          // 1. Create exam with file upload (returns immediately, AI analysis runs in background)
+          const { id: examId, batchJobId: analysisJobId } = await addExam(examData, taskFiles.length === 1 ? taskFiles[0] : taskFiles);
 
-          // 2. Assign exam (creates corrections for each student)
+          // 2. Wait for upload analysis (extract questions, solve, generate PDFs, personalize)
+          if (analysisJobId) {
+            let done = false;
+            while (!done) {
+              await new Promise((r) => setTimeout(r, 3000));
+              const progressRes = await batch.getJobProgress(analysisJobId);
+              const status = progressRes.data.status;
+              if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+                done = true;
+                if (status === 'failed') throw new Error('El análisis del examen falló');
+              }
+            }
+          }
+
+          // 3. Assign exam (creates corrections for each student)
           await assignExam(examId);
 
-          // 3. Fetch corrections and start batch AI correction
+          // 4. Fetch corrections and start batch AI correction
           const corrRes = await correctionsApi.list(examId);
           const correctionIds = (corrRes.data as any[])
             .filter((c: any) => c.paper_url && !c.ai_processed)
@@ -336,7 +423,7 @@ const ExamEditor: React.FC = () => {
             const batchRes = await batch.startBatchCorrection(examId, correctionIds);
             const jobId = batchRes.data.id;
 
-            // 4. Poll until batch job completes
+            // 5. Poll until batch correction completes
             let done = false;
             while (!done) {
               await new Promise((r) => setTimeout(r, 3000));
@@ -367,7 +454,7 @@ const ExamEditor: React.FC = () => {
     setSaving(true);
     try {
       if (isNew) {
-        const id = await addExam({
+        const { id } = await addExam({
           name: name.trim(),
           classId: classId || undefined,
           lectureId: lectureId || undefined,
@@ -375,7 +462,7 @@ const ExamEditor: React.FC = () => {
           date,
           maxScore,
           isPersonalized,
-          blankPagesCount: isPersonalized ? blankPagesCount : 0,
+          blankPagesCount: blankPagesCount,
         });
         history.replace(`/tabs/exams/${id}`);
       } else if (exam) {
@@ -428,14 +515,18 @@ const ExamEditor: React.FC = () => {
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
 
   const handleGenerate = () => {
-    if (!name.trim() || selectedTopicIds.length === 0) return;
+    const isRecovery = examType === 'recovery';
+    // For recovery: source exam is required, topics are optional
+    if (!name.trim()) return;
+    if (!isRecovery && selectedTopicIds.length === 0) return;
+    if (isRecovery && !sourceExamId) return;
 
     const taskName = name.trim();
-    const genData = {
+    const genData: Record<string, any> = {
       class_id: classId || undefined,
       lecture_id: lectureId || undefined,
       subject_id: selectedSubjectId || undefined,
-      topic_ids: [...selectedTopicIds],
+      topic_ids: selectedTopicIds.length > 0 ? [...selectedTopicIds] : undefined,
       name: taskName,
       exam_date: date,
       num_questions: numQuestions,
@@ -445,14 +536,20 @@ const ExamEditor: React.FC = () => {
       is_personalized: isPersonalized,
       correction_deadline: correctionDeadline || undefined,
       blank_pages_count: blankPagesCount,
+      ...(isRecovery ? {
+        exam_type: 'recovery',
+        source_exam_id: sourceExamId,
+      } : {}),
     };
 
     // Call generate synchronously (fast — just creates DB records + batch job)
-    generateExam(genData).then(({ id: examId, batchJobId: jobId }) => {
+    generateExam(genData as any).then(({ id: examId, batchJobId: jobId }) => {
       addBackgroundTask({
         type: 'exam',
         label: taskName,
-        description: 'La IA genera preguntas a partir de los temas seleccionados y compone el examen en PDF.',
+        description: isRecovery
+          ? 'La IA genera un examen de recuperación reformulando las preguntas del examen original.'
+          : 'La IA genera preguntas a partir de los temas seleccionados y compone el examen en PDF.',
         batchJobId: jobId,
         expectedResultUrl: `/tabs/exams/${examId}`,
         execute: async () => {
@@ -477,7 +574,14 @@ const ExamEditor: React.FC = () => {
   const handleStartCorrection = async () => {
     if (exam) {
       if (exam.status === 'uploaded') await assignExam(exam.id);
-      history.push(`/correction/${exam.id}`);
+      // Navigate to ExamDetail (which includes corrections section)
+      if (urlClassId && urlSubjectId) {
+        history.push(`/tabs/classes/${urlClassId}/subjects/${urlSubjectId}/exams/${exam.id}`);
+      } else if (urlClassId) {
+        history.push(`/tabs/classes/${urlClassId}/exams/${exam.id}`);
+      } else {
+        history.push(`/correction/${exam.id}`);
+      }
     }
   };
 
@@ -576,6 +680,26 @@ const ExamEditor: React.FC = () => {
             )}
           </div>
 
+          {/* ─── EXAM TYPE TOGGLE (both modes, new exams only) ─── */}
+          {isNew && (
+            <div className="exgen__type-toggle">
+              <button
+                className={`exgen__type-btn ${examType === 'practice' ? 'exgen__type-btn--active' : ''}`}
+                onClick={() => setExamType('practice')}
+              >
+                <IonIcon icon={barbellOutline} />
+                <span>Evaluación</span>
+              </button>
+              <button
+                className={`exgen__type-btn exgen__type-btn--recovery ${examType === 'recovery' ? 'exgen__type-btn--active' : ''}`}
+                onClick={() => setExamType('recovery')}
+              >
+                <IonIcon icon={medkitOutline} />
+                <span>Recuperación</span>
+              </button>
+            </div>
+          )}
+
           {/* ─── UPLOAD MODE (existing + editing) ─── */}
           {(mode === 'upload' || !isNew) && (
             <>
@@ -626,8 +750,66 @@ const ExamEditor: React.FC = () => {
                 />
               </div>
 
-              {/* Topics selection - only for selected subject */}
-              {selectedSubjectId && (
+              {/* Recovery: Source exam selector */}
+              {examType === 'recovery' && classId && (
+                <div className="gen-recovery-source">
+                  <span className="gen-config__label">Examen de origen</span>
+                  <p className="gen-recovery-source__hint">
+                    Selecciona el examen corregido del que quieres generar la recuperación. Se generará un examen similar con preguntas reformuladas.
+                  </p>
+                  {correctedExams.length === 0 ? (
+                    <div className="gen-topics__empty">
+                      <p>No hay exámenes corregidos con IA en esta clase.</p>
+                    </div>
+                  ) : (
+                    <div className="gen-topics__list">
+                      {correctedExams.map((e) => (
+                        <div
+                          key={e.id}
+                          className={`gen-topic-chip ${sourceExamId === e.id ? 'gen-topic-chip--active' : ''}`}
+                          onClick={() => setSourceExamId(sourceExamId === e.id ? '' : e.id)}
+                        >
+                          <IonCheckbox checked={sourceExamId === e.id} className="gen-topic-chip__check" />
+                          <span className="gen-topic-chip__name">{e.name}</span>
+                          <IonBadge color="medium">{new Date(e.date).toLocaleDateString('es-ES')}</IonBadge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Failing students list */}
+                  {sourceExamId && (
+                    <div className="gen-recovery-students">
+                      {loadingFailingStudents ? (
+                        <div className="gen-topics__loading"><IonSpinner name="crescent" /></div>
+                      ) : failingStudents.length === 0 ? (
+                        <div className="gen-recovery-students__empty">
+                          <IonIcon icon={checkmarkCircleOutline} />
+                          <span>Todos los alumnos han aprobado este examen.</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="gen-recovery-students__label">
+                            <IonIcon icon={alertCircleOutline} />
+                            {failingStudents.length} alumno{failingStudents.length !== 1 ? 's' : ''} no ha{failingStudents.length !== 1 ? 'n' : ''} aprobado
+                          </span>
+                          <div className="gen-recovery-students__list">
+                            {failingStudents.map((s) => (
+                              <div key={s.id} className="gen-recovery-student">
+                                <span className="gen-recovery-student__name">{s.name}</span>
+                                <IonBadge color="danger">{s.grade} / {allExams.find((e) => e.id === sourceExamId)?.maxScore ?? 10}</IonBadge>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Topics selection - only for practice exams */}
+              {selectedSubjectId && examType !== 'recovery' && (
                 <div className="gen-topics">
                   <span className="gen-topics__label">
                     Temas del examen
@@ -642,12 +824,12 @@ const ExamEditor: React.FC = () => {
                         className={`trimester-pill ${topicTrimesterFilter === 'all' ? 'trimester-pill--active' : ''}`}
                         onClick={() => setTopicTrimesterFilter('all')}
                       >Todos</button>
-                      {[1, 2, 3].filter((t) => topicTrimesters.has(t)).map((t) => (
+                      {getPeriodNumbers(periodMode).filter((t) => topicTrimesters.has(t)).map((t) => (
                         <button
                           key={t}
                           className={`trimester-pill ${topicTrimesterFilter === String(t) ? 'trimester-pill--active' : ''}`}
                           onClick={() => setTopicTrimesterFilter(String(t))}
-                        >T{t}</button>
+                        >{getPeriodLabel(periodMode, t)}</button>
                       ))}
                     </div>
                   )}
@@ -843,6 +1025,63 @@ const ExamEditor: React.FC = () => {
                 </div>
               )}
 
+              {/* Recovery: Source exam selector (upload mode) */}
+              {examType === 'recovery' && classId && (
+                <div className="gen-recovery-source" style={{ marginTop: 'var(--space-md)' }}>
+                  <span className="gen-config__label">Examen de origen</span>
+                  <p className="gen-recovery-source__hint">
+                    Selecciona el examen corregido para el que subes la recuperación.
+                  </p>
+                  {correctedExams.length === 0 ? (
+                    <div className="gen-topics__empty">
+                      <p>No hay exámenes corregidos en esta clase.</p>
+                    </div>
+                  ) : (
+                    <div className="gen-topics__list">
+                      {correctedExams.map((e) => (
+                        <div
+                          key={e.id}
+                          className={`gen-topic-chip ${sourceExamId === e.id ? 'gen-topic-chip--active' : ''}`}
+                          onClick={() => setSourceExamId(sourceExamId === e.id ? '' : e.id)}
+                        >
+                          <IonCheckbox checked={sourceExamId === e.id} className="gen-topic-chip__check" />
+                          <span className="gen-topic-chip__name">{e.name}</span>
+                          <IonBadge color="medium">{new Date(e.date).toLocaleDateString('es-ES')}</IonBadge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {sourceExamId && (
+                    <div className="gen-recovery-students">
+                      {loadingFailingStudents ? (
+                        <div className="gen-topics__loading"><IonSpinner name="crescent" /></div>
+                      ) : failingStudents.length === 0 ? (
+                        <div className="gen-recovery-students__empty">
+                          <IonIcon icon={checkmarkCircleOutline} />
+                          <span>Todos los alumnos han aprobado este examen.</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="gen-recovery-students__label">
+                            <IonIcon icon={alertCircleOutline} />
+                            {failingStudents.length} alumno{failingStudents.length !== 1 ? 's' : ''} no ha{failingStudents.length !== 1 ? 'n' : ''} aprobado
+                          </span>
+                          <div className="gen-recovery-students__list">
+                            {failingStudents.map((s) => (
+                              <div key={s.id} className="gen-recovery-student">
+                                <span className="gen-recovery-student__name">{s.name}</span>
+                                <IonBadge color="danger">{s.grade} / {allExams.find((ex) => ex.id === sourceExamId)?.maxScore ?? 10}</IonBadge>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="form-row">
                 <IonItem lines="none" className="form-item form-item-half">
                   <IonInput
@@ -867,44 +1106,76 @@ const ExamEditor: React.FC = () => {
                   />
                 </IonItem>
               </div>
+
+              {/* Correction deadline */}
+              <IonItem lines="none" className="form-item">
+                <IonInput
+                  type="date"
+                  value={correctionDeadline}
+                  min={date}
+                  onIonInput={(e) => setCorrectionDeadline(e.detail.value ?? '')}
+                  label="Fecha límite de corrección"
+                  labelPlacement="stacked"
+                />
+              </IonItem>
+
+              {/* Instructions */}
+              <button
+                type="button"
+                className="exgen__instructions-toggle"
+                onClick={() => setShowInstructions(v => !v)}
+              >
+                <IonIcon icon={chevronForwardOutline} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
+                <span>Comentarios para la digitalización</span>
+                {!showInstructions && refinement && <IonBadge color="primary" className="exgen__instructions-dot">1</IonBadge>}
+              </button>
+              {showInstructions && (
+                <IonItem lines="none" className="form-item">
+                  <IonTextarea
+                    value={refinement}
+                    onIonInput={(e) => setRefinement(e.detail.value ?? '')}
+                    placeholder="Ej: Añadir un ejercicio extra de fracciones, cambiar el ejercicio 3..."
+                    rows={3}
+                    autoGrow
+                  />
+                </IonItem>
+              )}
             </div>
           )}
 
 
-          {/* ─── PERSONALIZATION (both modes, new exams only) ─── */}
+          {/* ─── BLANK PAGES (both modes, new exams only) ─── */}
           {isNew && classId && (
             <div className="gen-personalize">
-              <IonItem lines="none" className="gen-personalize__toggle">
-                <IonLabel>
-                  <h3>Personalizar por alumno</h3>
-                  <p>Cada copia lleva el código del alumno impreso para detección automática al corregir</p>
-                </IonLabel>
-                <IonToggle
-                  checked={isPersonalized}
-                  onIonChange={(e) => setIsPersonalized(e.detail.checked)}
-                  slot="end"
-                />
-              </IonItem>
-              {isPersonalized && selectedClass && (
-                <>
-                  <div className="gen-personalize__info">
-                    <IonIcon icon={sparklesOutline} />
-                    <span>
-                      Se generará 1 copia por alumno ({selectedClass.studentCount} alumnos) con su código impreso.
-                      Al corregir con subida masiva, la IA detectará los códigos automáticamente.
-                    </span>
-                  </div>
-                  <IonItem lines="none" className="form-item">
-                    <IonLabel position="stacked">Hojas en blanco por alumno</IonLabel>
-                    <IonSelect value={blankPagesCount} onIonChange={(e) => setBlankPagesCount(e.detail.value)} interface="popover">
-                      <IonSelectOption value={0}>Ninguna</IonSelectOption>
-                      <IonSelectOption value={1}>1 hoja</IonSelectOption>
-                      <IonSelectOption value={2}>2 hojas</IonSelectOption>
-                      <IonSelectOption value={3}>3 hojas</IonSelectOption>
-                    </IonSelect>
-                  </IonItem>
-                </>
+              {selectedClass && (
+                <div className="gen-personalize__info">
+                  <IonIcon icon={sparklesOutline} />
+                  <span>
+                    Se generará 1 copia por alumno ({selectedClass.studentCount} alumnos) con su código impreso.
+                    Al corregir con subida masiva, la IA detectará los códigos automáticamente.
+                  </span>
+                </div>
               )}
+              <div className="blank-pages-stepper">
+                <span className="blank-pages-stepper__label">Hojas en blanco por alumno</span>
+                <div className="blank-pages-stepper__controls">
+                  <button
+                    className="blank-pages-stepper__btn"
+                    onClick={() => setBlankPagesCount(Math.max(1, blankPagesCount - 1))}
+                    disabled={blankPagesCount <= 1}
+                  >
+                    &minus;
+                  </button>
+                  <span className="blank-pages-stepper__value">{blankPagesCount}</span>
+                  <button
+                    className="blank-pages-stepper__btn"
+                    onClick={() => setBlankPagesCount(Math.min(10, blankPagesCount + 1))}
+                    disabled={blankPagesCount >= 10}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1118,10 +1389,14 @@ const ExamEditor: React.FC = () => {
               <IonButton
                 expand="block"
                 onClick={handleGenerate}
-                disabled={!name.trim() || selectedTopicIds.length === 0}
+                disabled={
+                  !name.trim() ||
+                  (examType === 'recovery' ? !sourceExamId : selectedTopicIds.length === 0)
+                }
                 className="save-btn gen-btn"
               >
-                <IonIcon icon={sparklesOutline} slot="start" /> Generar examen
+                <IonIcon icon={sparklesOutline} slot="start" />
+                {examType === 'recovery' ? 'Generar recuperación' : 'Generar examen'}
               </IonButton>
           )}
 

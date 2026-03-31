@@ -73,6 +73,8 @@ function startBatchPolling(
     ? existingSteps[existingSteps.length - 1].label
     : '';
   let hadError = false;
+  let lastProgressChange = Date.now();
+  let lastProgressKey = '';
 
   const pushStepIfNew = (label: string) => {
     if (!label || label === lastStepLabel) return;
@@ -124,6 +126,26 @@ function startBatchPolling(
           const itemName = data.current_item_name;
           const processed = data.processed_items;
           const total = data.total_items;
+
+          // Stale detection: if progress hasn't changed in 3 minutes,
+          // the background task likely died (e.g. server restart).
+          const progressKey = `${status}:${processed}:${itemName}`;
+          if (progressKey !== lastProgressKey) {
+            lastProgressKey = progressKey;
+            lastProgressChange = Date.now();
+          } else if (Date.now() - lastProgressChange > 3 * 60 * 1000) {
+            console.warn(`[BackgroundTask] Batch ${taskId} stale for 3min, marking as error`);
+            activePolling.delete(taskId);
+            pollNudges.delete(taskId);
+            set((s) => ({
+              tasks: s.tasks.map((t) =>
+                t.id === taskId
+                  ? { ...t, status: 'error' as const, error: 'El proceso parece haberse detenido. Inténtalo de nuevo.', completedAt: Date.now() }
+                  : t
+              ),
+            }));
+            return;
+          }
 
           // Always update counters so the pill shows live progress.
           // Show the *active* item in the count (processed + 1 while an item is running)
@@ -290,8 +312,13 @@ export const useBackgroundTasksStore = create<BackgroundTasksState>()(
       },
 
       dismissTask: (id) => {
+        const task = get().tasks.find((t) => t.id === id);
         activePolling.delete(id);
         pollNudges.delete(id);
+        // Cancel server-side batch job if still running
+        if (task?.batchJobId && task.status === 'running') {
+          batch.cancelJob(task.batchJobId).catch(() => {});
+        }
         set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
       },
 

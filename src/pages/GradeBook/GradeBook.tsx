@@ -3,7 +3,7 @@ import {
   IonPage, IonContent, IonButtons, IonBackButton,
   IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonList, IonItem,
   IonSearchbar, IonItemSliding, IonItemOptions, IonItemOption,
-  IonSpinner, IonAlert, IonModal, useIonViewWillEnter,
+  IonSpinner, IonAlert, IonModal, IonProgressBar, useIonViewWillEnter,
 } from '@ionic/react';
 import {
   addOutline, cloudUploadOutline, bookOutline, peopleOutline,
@@ -26,8 +26,11 @@ import ClassInsightsPanel from '../../components/ClassInsightsPanel';
 import SubjectCard from '../../components/SubjectCard';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { avatarColor } from '../../utils/avatarColors';
+import { useAcademicConfigStore } from '../../store/academicConfigStore';
 import { SkeletonSubjectCard } from '../../components/SkeletonLoaders';
 import QuickCommentModal from '../../components/QuickCommentModal';
+import { useCoursePlanStore } from '../../store/coursePlanStore';
+import CoursePlanDetailModal from '../../components/CoursePlanDetailModal';
 import './GradeBook.css';
 
 const GradeBook: React.FC = () => {
@@ -50,11 +53,19 @@ const GradeBook: React.FC = () => {
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
   const studentsLoading = useStudentsStore((s) => s.loading);
 
+  const acConfig = useAcademicConfigStore((s) => s.configs[classId]);
+  const fetchAcConfig = useAcademicConfigStore((s) => s.fetchConfig);
+
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
 
   const allExercises = useExercisesStore((s) => s.exercises);
   const fetchExercises = useExercisesStore((s) => s.fetchExercises);
+
+  const coursePlansData = useCoursePlanStore((s) => s.plans);
+  const fetchCoursePlans = useCoursePlanStore((s) => s.fetchPlans);
+  const planProgress = useCoursePlanStore((s) => s.progress);
+  const fetchPlanProgress = useCoursePlanStore((s) => s.fetchProgress);
 
 
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
@@ -76,6 +87,8 @@ const GradeBook: React.FC = () => {
   const [loadingDeletePreview, setLoadingDeletePreview] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [commentTarget, setCommentTarget] = useState<{ id: string; name: string } | null>(null);
+  const [importAlert, setImportAlert] = useState<{ header: string; message: string } | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const classGroup = detailedClassData || basicClassGroup;
 
@@ -96,10 +109,12 @@ const GradeBook: React.FC = () => {
     fetchClassDetails();
     fetchExercises();
     fetchClassSubjects(classId);
-  }, [classId, fetchClasses, fetchStudents, fetchExams, fetchClassDetails, fetchExercises, fetchClassSubjects]);
+    fetchCoursePlans(undefined, classId);
+  }, [classId, fetchClasses, fetchStudents, fetchExams, fetchClassDetails, fetchExercises, fetchClassSubjects, fetchCoursePlans]);
 
   useIonViewWillEnter(() => {
     fetchClassDetails();
+    fetchAcConfig(classId);
     if (fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
       fetchClassSubjects(classId);
       fetchRegistry.register(`classSubjects-${classId}`);
@@ -124,9 +139,12 @@ const GradeBook: React.FC = () => {
     try {
       const count = await importStudentsToClass(classId, file);
       await fetchStudents(classId);
-      alert(`Importados ${count} alumnos`);
-    } catch (err) {
-      console.error('Failed to import:', err);
+      setImportAlert({ header: 'Importación completada', message: `Se importaron ${count} alumnos.` });
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || 'Error al importar el archivo.';
+      setImportAlert({ header: 'Error al importar', message: detail });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -162,6 +180,14 @@ const GradeBook: React.FC = () => {
     s.name.toLowerCase().includes(rosterSearch.toLowerCase())
   );
 
+  const activePlan = useMemo(
+    () => coursePlansData.find((p) => p.classId === classId && p.isActive && p.topicsCreated),
+    [coursePlansData, classId]
+  );
+
+  useEffect(() => {
+    if (activePlan) fetchPlanProgress(activePlan.id);
+  }, [activePlan?.id]);
 
   if (!classGroup) {
     return (
@@ -204,6 +230,15 @@ const GradeBook: React.FC = () => {
           </div>
         </div>
 
+        {/* Academic calendar missing banner */}
+        {acConfig === null && (
+          <button className="gb-cal-banner" onClick={() => history.push(`/tabs/classes/${classId}/settings`)}>
+            <IonIcon icon={calendarOutline} />
+            <span>Configura el calendario académico para poder hacer la planificación inteligente</span>
+            <IonIcon icon={chevronForwardOutline} />
+          </button>
+        )}
+
         {/* Tabs */}
         <div className="gb-tabs-wrapper">
           <IonSegment
@@ -220,7 +255,7 @@ const GradeBook: React.FC = () => {
           type="file"
           ref={fileInputRef}
           style={{ display: 'none' }}
-          accept=".csv"
+          accept=".csv,.txt"
           onChange={handleImportFile}
         />
 
@@ -252,6 +287,7 @@ const GradeBook: React.FC = () => {
                 })}
               </div>
             )}
+
 
             {/* Class Insights — cross-subject student alerts */}
             {(classSubjects[classId]?.length || 0) > 0 && students.length > 0 && (
@@ -446,6 +482,14 @@ const GradeBook: React.FC = () => {
           ]}
           onDidDismiss={() => setDeleteTarget(null)}
         />
+        <IonAlert
+          isOpen={!!importAlert}
+          header={importAlert?.header || ''}
+          message={importAlert?.message || ''}
+          buttons={['OK']}
+          onDidDismiss={() => setImportAlert(null)}
+        />
+
         <ExerciseGeneratorModal
           isOpen={showBulkExerciseModal}
           onDismiss={() => { setShowBulkExerciseModal(false); setPreselectedWeakAreas([]); }}
@@ -459,6 +503,13 @@ const GradeBook: React.FC = () => {
           studentId={commentTarget?.id || ''}
           studentName={commentTarget?.name || ''}
           onDismiss={() => setCommentTarget(null)}
+        />
+
+        <CoursePlanDetailModal
+          isOpen={!!selectedPlanId}
+          onClose={() => { setSelectedPlanId(null); fetchCoursePlans(undefined, classId); }}
+          planId={selectedPlanId || ''}
+          subjectName=""
         />
 
         {/* Delete Class Modal */}

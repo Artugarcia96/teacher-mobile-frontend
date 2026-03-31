@@ -23,11 +23,30 @@ function mapEvent(e: any): CalendarEvent {
     studentName: e.student_name,
     examName: e.exam_name,
     examStatus: e.exam_status,
+    topicId: e.topic_id || undefined,
+    topicName: e.topic_name || undefined,
+    topicPdfUrl: e.topic_pdf_url || undefined,
     mentionedStudents: e.mentioned_students || undefined,
   };
 }
 
 export type CalendarView = 'week' | 'month';
+
+export interface PlanSession {
+  topic_name: string;
+  session_title: string;
+  session_type: string;
+  key_points: string[];
+  focus: string;
+  topic_pdf_url?: string | null;
+}
+
+export interface UpcomingPlanExam {
+  name: string;
+  date: string;
+  days_until: number;
+  topic_names: string[];
+}
 
 export interface ClassBreakdown {
   class_id: string;
@@ -46,6 +65,8 @@ export interface ClassBreakdown {
   exercises_today?: { type: string; student: string; exercise: string }[];
   recent_comments?: string[];
   grade_alerts?: { student_name: string; class_name: string; avg_grade: number; trend?: string; issue: string }[];
+  plan_session?: PlanSession;
+  upcoming_plan_exam?: UpcomingPlanExam;
 }
 
 export interface PreparedDay {

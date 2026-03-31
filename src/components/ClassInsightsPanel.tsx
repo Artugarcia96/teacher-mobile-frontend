@@ -103,11 +103,25 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
   if (!hasData) {
     return (
       <div className="cip cip--empty">
-        <span className="cip__empty-text">Sin datos de análisis</span>
-        <IonButton fill="clear" size="small" onClick={handleRefresh} disabled={refreshing}>
-          <IonIcon icon={refreshOutline} slot="start" className={refreshing ? 'spinning' : ''} />
-          Actualizar
-        </IonButton>
+        <div className="cip__empty-bar">
+          <div className="cip__empty-bar-fill" style={{ width: '35%' }} />
+        </div>
+        <div className="cip__empty-bar">
+          <div className="cip__empty-bar-fill" style={{ width: '60%' }} />
+        </div>
+        <div className="cip__empty-bar">
+          <div className="cip__empty-bar-fill" style={{ width: '20%' }} />
+        </div>
+        <p className="cip__empty-title">Sin datos de análisis</p>
+        <p className="cip__empty-desc">Califica exámenes o ejercicios para ver estadísticas y tendencias de la clase</p>
+        <button
+          className="cip__empty-btn"
+          onClick={handleRefresh}
+          disabled={refreshing}
+        >
+          <IonIcon icon={refreshOutline} className={refreshing ? 'spinning' : ''} />
+          {refreshing ? 'Actualizando...' : 'Actualizar'}
+        </button>
       </div>
     );
   }

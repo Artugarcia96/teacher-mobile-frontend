@@ -1,3 +1,14 @@
+# ── Dev stage (hot-reload with Vite) ─────────────────────────────────────────
+FROM node:20-slim AS dev
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+EXPOSE 5173
+
+# ── Production build ─────────────────────────────────────────────────────────
 FROM node:20-slim AS build
 
 WORKDIR /app

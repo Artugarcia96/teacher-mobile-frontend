@@ -6,7 +6,7 @@ interface GenerateExamParams {
   class_id?: string;
   lecture_id?: string;
   subject_id?: string;
-  topic_ids: string[];
+  topic_ids?: string[];
   name: string;
   exam_date: string;
   num_questions?: number;
@@ -17,6 +17,8 @@ interface GenerateExamParams {
   is_personalized?: boolean;
   correction_deadline?: string;
   blank_pages_count?: number;
+  exam_type?: string;
+  source_exam_id?: string;
 }
 
 interface IterateExamParams {
@@ -28,7 +30,7 @@ interface ExamsState {
   exams: Exam[];
   loading: boolean;
   fetchExams: (classId?: string, subjectId?: string) => Promise<void>;
-  addExam: (data: { name: string; classId?: string; lectureId?: string; subjectId?: string; date: string; maxScore: number; isPersonalized?: boolean; correctionDeadline?: string; blankPagesCount?: number }, files?: File | File[]) => Promise<string>;
+  addExam: (data: { name: string; classId?: string; lectureId?: string; subjectId?: string; date: string; maxScore: number; isPersonalized?: boolean; correctionDeadline?: string; blankPagesCount?: number }, files?: File | File[]) => Promise<{ id: string; batchJobId: string }>;
   generateExam: (data: GenerateExamParams) => Promise<{ id: string; batchJobId: string }>;
   updateExam: (id: string, data: Partial<Exam>) => Promise<void>;
   iterateExam: (id: string, data: IterateExamParams) => Promise<Exam>;
@@ -113,11 +115,11 @@ export const useExamsStore = create<ExamsState>((set, get) => ({
       deadlineStatus: res.data.deadline_status,
     };
     set((s) => ({ exams: [...s.exams, newExam] }));
-    return res.data.id;
+    return { id: res.data.id, batchJobId: res.data.batch_job_id || '' };
   },
 
   generateExam: async (data) => {
-    const res = await examsApi.generate(data);
+    const res = await examsApi.generate(data as any);
     const newExam: Exam = {
       id: res.data.id,
       name: res.data.name,

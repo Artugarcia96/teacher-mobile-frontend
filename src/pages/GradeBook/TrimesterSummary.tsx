@@ -7,6 +7,8 @@ import { downloadOutline, chevronForwardOutline } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { classes as classesApi } from '../../services/api';
 import { TrimesterSummaryRow } from '../../types';
+import { useAcademicConfigStore } from '../../store/academicConfigStore';
+import { getPeriodNumbers, getPeriodLabel, getPeriodNoun } from '../../utils/periodConfig';
 import './TrimesterSummary.css';
 
 const TrimesterSummary: React.FC = () => {
@@ -15,6 +17,9 @@ const TrimesterSummary: React.FC = () => {
   const [rows, setRows] = useState<TrimesterSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [className, setClassName] = useState('');
+  const periodMode = useAcademicConfigStore(s => s.configs[classId])?.periodMode;
+  const fetchConfig = useAcademicConfigStore(s => s.fetchConfig);
+  const periodNumbers = useMemo(() => getPeriodNumbers(periodMode), [periodMode]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -40,8 +45,8 @@ const TrimesterSummary: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, [classId, subjectId]);
-  useIonViewWillEnter(() => { fetchData(); });
+  useEffect(() => { fetchData(); fetchConfig(classId); }, [classId, subjectId]);
+  useIonViewWillEnter(() => { fetchData(); fetchConfig(classId); });
 
   const handleRefresh = async (e: any) => {
     await fetchData();
@@ -63,13 +68,17 @@ const TrimesterSummary: React.FC = () => {
     }
   };
 
+  const avgByPeriod = (r: TrimesterSummaryRow, n: number): number | null => {
+    if (n === 1) return r.t1Avg;
+    if (n === 2) return r.t2Avg;
+    return r.t3Avg;
+  };
+
   const handleExport = () => {
-    const header = ['Alumno', 'T1', 'T2', 'T3', 'Final', 'Estado'];
+    const header = ['Alumno', ...periodNumbers.map(n => getPeriodLabel(periodMode, n)), 'Final', 'Estado'];
     const csvRows = rows.map(r => [
       r.studentName,
-      r.t1Avg !== null ? r.t1Avg.toFixed(1) : '',
-      r.t2Avg !== null ? r.t2Avg.toFixed(1) : '',
-      r.t3Avg !== null ? r.t3Avg.toFixed(1) : '',
+      ...periodNumbers.map(n => { const v = avgByPeriod(r, n); return v !== null ? v.toFixed(1) : ''; }),
       r.finalAvg !== null ? r.finalAvg.toFixed(1) : '',
       riskLabel(r.riskStatus),
     ]);
@@ -79,7 +88,7 @@ const TrimesterSummary: React.FC = () => {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `resumen_trimestral_${className}.csv`;
+    a.download = `resumen_${getPeriodNoun(periodMode)}_${className}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -97,7 +106,7 @@ const TrimesterSummary: React.FC = () => {
             <IonButtons>
               <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
             </IonButtons>
-            <h1 className="ts-header__title">Resumen trimestral</h1>
+            <h1 className="ts-header__title">Resumen {periodMode === 'cuatrimester' ? 'cuatrimestral' : 'trimestral'}</h1>
             <IonButton fill="clear" size="small" onClick={handleExport}>
               <IonIcon icon={downloadOutline} slot="icon-only" />
             </IonButton>
@@ -119,9 +128,9 @@ const TrimesterSummary: React.FC = () => {
               <thead>
                 <tr>
                   <th className="ts-th ts-th--name">Alumno</th>
-                  <th className="ts-th">T1</th>
-                  <th className="ts-th">T2</th>
-                  <th className="ts-th">T3</th>
+                  {periodNumbers.map(n => (
+                    <th key={n} className="ts-th">{getPeriodLabel(periodMode, n)}</th>
+                  ))}
                   <th className="ts-th ts-th--final">Final</th>
                   <th className="ts-th">Estado</th>
                 </tr>
@@ -135,15 +144,14 @@ const TrimesterSummary: React.FC = () => {
                     onClick={() => history.push(`/tabs/classes/${classId}/students/${r.studentId}`)}
                   >
                     <td className="ts-cell ts-cell--name">{r.studentName}</td>
-                    <td className={`ts-cell ${gradeClass(r.t1Avg)}`}>
-                      {r.t1Avg !== null ? r.t1Avg.toFixed(1) : '—'}
-                    </td>
-                    <td className={`ts-cell ${gradeClass(r.t2Avg)}`}>
-                      {r.t2Avg !== null ? r.t2Avg.toFixed(1) : '—'}
-                    </td>
-                    <td className={`ts-cell ${gradeClass(r.t3Avg)}`}>
-                      {r.t3Avg !== null ? r.t3Avg.toFixed(1) : '—'}
-                    </td>
+                    {periodNumbers.map(n => {
+                      const val = avgByPeriod(r, n);
+                      return (
+                        <td key={n} className={`ts-cell ${gradeClass(val)}`}>
+                          {val !== null ? val.toFixed(1) : '—'}
+                        </td>
+                      );
+                    })}
                     <td className={`ts-cell ts-cell--final ${gradeClass(r.finalAvg)}`}>
                       {r.finalAvg !== null ? r.finalAvg.toFixed(1) : '—'}
                     </td>

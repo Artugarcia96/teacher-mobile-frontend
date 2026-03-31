@@ -3,7 +3,8 @@ import {
   IonModal, IonButton, IonSelect, IonSelectOption, IonItem, IonLabel,
   IonInput, IonSpinner, IonIcon,
 } from '@ionic/react';
-import { arrowForwardOutline, personOutline, addOutline } from 'ionicons/icons';
+import { arrowForwardOutline, personOutline, addOutline, bookOutline, createOutline, sparkles } from 'ionicons/icons';
+import { parseEventNotes } from '../utils/parseEventNotes';
 import { useHistory } from 'react-router-dom';
 import { CalendarEvent, MentionedStudent } from '../types';
 import { useClassesStore } from '../store/classesStore';
@@ -210,12 +211,52 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
         </h2>
 
         {/* Quick actions for existing events */}
-        {existingEvent && isClassSession && (
+        {existingEvent && (isClassSession || existingEvent.eventType === 'exam') && (
           <div className="ev-editor__quick-actions">
-            <button className="ev-editor__quick-btn" onClick={handleGoToSubject}>
-              <IonIcon icon={arrowForwardOutline} />
-              Ir a la asignatura
-            </button>
+            {isClassSession && (
+              <button className="ev-editor__quick-btn" onClick={handleGoToSubject}>
+                <IonIcon icon={arrowForwardOutline} />
+                Ir a la asignatura
+              </button>
+            )}
+            {existingEvent.topicPdfUrl && (
+              <button className="ev-editor__quick-btn ev-editor__quick-btn--accent" onClick={() => {
+                window.open(`${import.meta.env.VITE_API_URL || ''}/files${existingEvent.topicPdfUrl}`, '_blank');
+              }}>
+                <IonIcon icon={bookOutline} />
+                Ver material
+              </button>
+            )}
+            {isClassSession && existingEvent.subjectId && (() => {
+              const parsed = parseEventNotes(existingEvent.notes);
+              if (!parsed.isPlanEvent) return null;
+              return (
+                <button className="ev-editor__quick-btn ev-editor__quick-btn--accent" onClick={() => {
+                  onDismiss();
+                  history.push(`/tabs/classes/${existingEvent.classId}/subjects/${existingEvent.subjectId}/exercises?generate=1`);
+                }}>
+                  <IonIcon icon={sparkles} />
+                  Ejercicios
+                </button>
+              );
+            })()}
+            {existingEvent.eventType === 'exam' && !existingEvent.examId && (() => {
+              const parsed = parseEventNotes(existingEvent.notes);
+              if (!parsed.isPlanEvent) return null;
+              return (
+                <button className="ev-editor__quick-btn ev-editor__quick-btn--accent" onClick={() => {
+                  onDismiss();
+                  const params = new URLSearchParams();
+                  if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
+                  params.set('date', existingEvent.date);
+                  params.set('name', existingEvent.title);
+                  history.push(`/tabs/classes/${existingEvent.classId}/subjects/${existingEvent.subjectId}/exams/new?${params}`);
+                }}>
+                  <IonIcon icon={createOutline} />
+                  Crear examen con IA
+                </button>
+              );
+            })()}
           </div>
         )}
 
@@ -308,11 +349,32 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
 
             {(eventObservations.length > 0 || existingEvent.notes) && (
               <div className="ev-editor__obs-list">
-                {existingEvent.notes && (
-                  <div className="ev-editor__obs-item">
-                    <span className="ev-editor__obs-text">{existingEvent.notes}</span>
-                  </div>
-                )}
+                {existingEvent.notes && (() => {
+                  const parsed = parseEventNotes(existingEvent.notes);
+                  return parsed.isPlanEvent ? (
+                    <div className="ev-editor__plan-info">
+                      {parsed.focus && <p className="ev-editor__plan-focus">{parsed.focus}</p>}
+                      {parsed.keyPoints.length > 0 && (
+                        <div className="ev-editor__plan-kp">
+                          <span className="ev-editor__plan-kp-label">Puntos clave</span>
+                          {parsed.keyPoints.map((kp, i) => (
+                            <span key={i} className="ev-editor__plan-kp-tag">{kp}</span>
+                          ))}
+                        </div>
+                      )}
+                      {parsed.contents.length > 0 && (
+                        <div className="ev-editor__plan-contents">
+                          <span className="ev-editor__plan-kp-label">Contenidos</span>
+                          <span className="ev-editor__plan-contents-text">{parsed.contents.join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="ev-editor__obs-item">
+                      <span className="ev-editor__obs-text">{existingEvent.notes}</span>
+                    </div>
+                  );
+                })()}
                 {eventObservations.map((obs) => (
                   <div key={obs.id} className="ev-editor__obs-item">
                     <span className="ev-editor__obs-text">{obs.text}</span>

@@ -24,6 +24,8 @@ import {
   bulbOutline,
   trophyOutline,
   chatbubbleOutline,
+  createOutline,
+  barbellOutline,
 } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { useCalendarStore } from '../store/calendarStore';
@@ -93,59 +95,55 @@ function toDateStr(d: Date): string {
 
 // ── Priority triage types ──
 interface TriageBucket {
-  urgent: { icon: string; text: string; detail?: string }[];
-  pending: { icon: string; text: string; detail?: string }[];
-  positive: { icon: string; text: string; detail?: string }[];
+  urgent: { text: string; detail?: string }[];
+  pending: { text: string; detail?: string }[];
+  positive: { text: string; detail?: string }[];
 }
 
 function buildTriage(prep: any): TriageBucket {
   const triage: TriageBucket = { urgent: [], pending: [], positive: [] };
   if (!prep) return triage;
 
-  // Urgent: overdue/urgent deadlines, declining students, exams today
   const deadlines = prep.upcoming_deadlines || [];
   for (const dl of deadlines) {
     if (dl.days_until === 0) {
-      triage.urgent.push({ icon: '🔴', text: `${dl.name} — ${dl.class_name}`, detail: 'Hoy' });
+      triage.urgent.push({ text: `${dl.name} — ${dl.class_name}`, detail: 'Hoy' });
     } else if (dl.days_until === 1) {
-      triage.urgent.push({ icon: '⚠️', text: `${dl.name} — ${dl.class_name}`, detail: 'Mañana' });
+      triage.urgent.push({ text: `${dl.name} — ${dl.class_name}`, detail: 'Mañana' });
     }
   }
 
   const gradeAlerts = prep.grade_alerts || [];
   for (const alert of gradeAlerts) {
     if (alert.trend === 'declining') {
-      triage.urgent.push({ icon: '📉', text: `${alert.student_name} bajando (${alert.avg_grade?.toFixed(1)})`, detail: alert.class_name });
+      triage.urgent.push({ text: `${alert.student_name} bajando (${alert.avg_grade?.toFixed(1)})`, detail: alert.class_name });
     }
   }
 
-  // Pending: corrections, exercises, upcoming deadlines
   const tasks = prep.pending_tasks || [];
   for (const task of tasks) {
     if (task.count > 0) {
-      triage.pending.push({ icon: '📋', text: task.description });
+      triage.pending.push({ text: task.description });
     }
   }
   for (const dl of deadlines) {
     if (dl.days_until > 1 && dl.days_until <= 3) {
-      triage.pending.push({ icon: '📅', text: `${dl.name} — ${dl.class_name}`, detail: `En ${dl.days_until} días` });
+      triage.pending.push({ text: `${dl.name} — ${dl.class_name}`, detail: `En ${dl.days_until} días` });
     }
   }
 
-  // Positive: improving students, highlights
   const breakdowns = prep.class_breakdowns || [];
   for (const cls of breakdowns) {
     for (const h of (cls.positive_highlights || [])) {
-      triage.positive.push({ icon: '⭐', text: `${h.name}: ${h.achievement}`, detail: cls.class_name });
+      triage.positive.push({ text: `${h.name}: ${h.achievement}`, detail: cls.class_name });
     }
   }
   for (const alert of gradeAlerts) {
     if (alert.trend === 'improving') {
-      triage.positive.push({ icon: '📈', text: `${alert.student_name} mejorando (${alert.avg_grade?.toFixed(1)})`, detail: alert.class_name });
+      triage.positive.push({ text: `${alert.student_name} mejorando (${alert.avg_grade?.toFixed(1)})`, detail: alert.class_name });
     }
   }
 
-  // Cap each bucket at 4
   triage.urgent = triage.urgent.slice(0, 4);
   triage.pending = triage.pending.slice(0, 4);
   triage.positive = triage.positive.slice(0, 4);
@@ -158,7 +156,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
   const [focusTopics, setFocusTopics] = useState('');
   const [showFocusInput, setShowFocusInput] = useState(false);
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
-  const [eventsExpanded, setEventsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoGenerateTriggered, setAutoGenerateTriggered] = useState(false);
   const history = useHistory();
@@ -172,7 +169,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
   const events = useCalendarStore((s) => s.events);
   const fetchEvents = useCalendarStore((s) => s.fetchEvents);
 
-  // Sync activeDate when the prop changes (e.g. modal re-opened)
   useEffect(() => { setActiveDate(date); }, [date]);
 
   const shiftDate = useCallback((days: number) => {
@@ -195,16 +191,11 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     return dayEvents.filter((e) => e.eventType !== 'class_session');
   }, [dayEvents]);
 
-  const classSessions = useMemo(() => {
-    return dayEvents.filter((e) => e.eventType === 'class_session');
-  }, [dayEvents]);
-
   // Load preparation and events when modal opens or date changes
   useEffect(() => {
     if (isOpen) {
       setError(null);
       setExpandedClasses(new Set());
-      setEventsExpanded(false);
       setShowFocusInput(false);
       clearPreparation();
       getPreparation(activeDate);
@@ -220,7 +211,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
       !currentPreparation &&
       !error &&
       !autoGenerateTriggered &&
-      activeDate === toDateStr(new Date()) // only auto-generate for today
+      activeDate === toDateStr(new Date())
     ) {
       const timer = setTimeout(() => {
         const store = useCalendarStore.getState();
@@ -284,6 +275,12 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     history.push(path);
   }, [onDismiss, history]);
 
+  /** Build the base path for routing: /tabs/classes/{classId}[/subjects/{subjectId}] */
+  const classBasePath = useCallback((classId: string, subjectId?: string | null) => {
+    if (subjectId) return `/tabs/classes/${classId}/subjects/${subjectId}`;
+    return `/tabs/classes/${classId}`;
+  }, []);
+
   /** Merge grade_alerts into class_breakdowns, sort chronologically */
   const enrichedBreakdowns = useMemo(() => {
     if (!currentPreparation?.class_breakdowns) return [];
@@ -302,7 +299,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
       grade_alerts: alertsByClass[cls.class_name] || [],
     }));
 
-    // Sort by start_time (chronological timeline)
     breakdowns.sort((a: any, b: any) => {
       const ta = a.start_time || '99:99';
       const tb = b.start_time || '99:99';
@@ -312,11 +308,10 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
     return breakdowns;
   }, [currentPreparation, activeDate]);
 
-  /** Unified timeline: class breakdowns + other events (tutoring, custom) sorted by time */
+  /** Unified timeline: class breakdowns + other events sorted by time */
   const timelineItems = useMemo(() => {
     const items: any[] = [...enrichedBreakdowns];
 
-    // Add other events (tutoring, custom) as timeline items
     for (const ev of otherEvents) {
       items.push({
         _type: 'event' as const,
@@ -325,7 +320,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
       });
     }
 
-    // Sort everything chronologically
     items.sort((a, b) => {
       const ta = a.start_time || '99:99';
       const tb = b.start_time || '99:99';
@@ -344,7 +338,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
       <div className="prepare-modal__inner">
       <div className="prepare-modal__header">
         <div className="prepare-modal__title-row">
-          <IonIcon icon={sparklesOutline} className="prepare-modal__icon" />
           <h2 className="prepare-modal__title">Prepara tu día</h2>
         </div>
         <button className="prepare-modal__close" onClick={onDismiss}>
@@ -388,15 +381,20 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
           )}
         </div>
 
-        {/* Loading State */}
-        {preparationLoading && (
+        {/* Loading State — only show AI animation for today */}
+        {preparationLoading && isToday && (
           <PrepareLoadingAnimation />
+        )}
+        {preparationLoading && !isToday && (
+          <div className="prepare-modal__loading-simple">
+            <div className="prepare-modal__loading-simple-spinner" />
+            <p>Cargando preparación...</p>
+          </div>
         )}
 
         {/* Error State */}
         {error && !preparationLoading && (
           <div className="prepare-modal__error">
-            <IonIcon icon={alertCircleOutline} />
             <p>{error}</p>
             <button className="prepare-modal__btn" onClick={handleGenerate}>
               Reintentar
@@ -404,7 +402,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
           </div>
         )}
 
-        {/* Empty state — no preparation exists, show generate button */}
+        {/* Empty state — no preparation exists */}
         {!currentPreparation && !preparationLoading && !error && (
           <div className="prepare-modal__empty">
             <p className="prepare-modal__empty-text">
@@ -438,13 +436,57 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
           </div>
         )}
 
-        {/* Timeline: always show if there are items (events appear even before AI generation) */}
+        {/* ═══ Main content when preparation is loaded ═══ */}
+        {currentPreparation && !preparationLoading && (
+          <div className="prepare-modal__result">
+
+            {/* Summary bullets */}
+            {currentPreparation.summary && (
+              <div className="prepare-modal__summary-card">
+                {currentPreparation.summary.split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
+                  <p key={i} className="prepare-modal__summary-line">{line.replace(/^[•\-–]\s*/, '')}</p>
+                ))}
+              </div>
+            )}
+
+            {/* Priority triage */}
+            {hasTriageContent && (
+              <div className="prepare-modal__triage">
+                {triage.urgent.length > 0 && (
+                  <div className="prepare-modal__triage-row prepare-modal__triage-row--urgent">
+                    <span className="prepare-modal__triage-label">URGENTE</span>
+                    <div className="prepare-modal__triage-items">
+                      {triage.urgent.map((item, i) => (
+                        <div key={i} className="prepare-modal__triage-item">
+                          <span>{item.text}</span>
+                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {triage.positive.length > 0 && (
+                  <div className="prepare-modal__triage-row prepare-modal__triage-row--positive">
+                    <span className="prepare-modal__triage-label">POSITIVO</span>
+                    <div className="prepare-modal__triage-items">
+                      {triage.positive.map((item, i) => (
+                        <div key={i} className="prepare-modal__triage-item">
+                          <span>{item.text}</span>
+                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Timeline: classes + events */}
         {!preparationLoading && timelineItems.length > 0 && !error && (
           <div className="prepare-modal__section">
-            <h3 className="prepare-modal__section-title">
-              <IonIcon icon={timeOutline} />
-              Tu jornada
-            </h3>
+            <h3 className="prepare-modal__section-title">TU JORNADA</h3>
             <div className="prepare-modal__timeline">
               {timelineItems.map((item: any, idx: number) => {
 
@@ -466,7 +508,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                       <div className={`prepare-modal__timeline-card prepare-modal__timeline-card--event prepare-modal__timeline-card--${ev.eventType}`}>
                         <div className="prepare-modal__timeline-event-body">
                           <div className="prepare-modal__timeline-event-header">
-                            <IonIcon icon={ev.eventType === 'tutoring' ? peopleOutline : calendarOutline} />
                             <span className="prepare-modal__class-name">{ev.title}</span>
                             {ev.eventType === 'tutoring' && (
                               <span className="prepare-modal__event-badge">Tutoría</span>
@@ -474,7 +515,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                           </div>
                           {(ev.startTime || ev.endTime) && (
                             <div className="prepare-modal__event-time">
-                              <IonIcon icon={timeOutline} />
                               <span>
                                 {ev.startTime && ev.startTime}
                                 {ev.startTime && ev.endTime && ' — '}
@@ -511,7 +551,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                 const classKey = `${cls.class_id || cls.class_name}_${cls.subject_id || cls.subject || idx}`;
                 const isExpanded = expandedClasses.has(classKey);
                 const alertCount = (cls.student_alerts?.length || 0) + (cls.grade_alerts?.length || 0);
-                const hasExercises = cls.exercises_today && cls.exercises_today.length > 0;
 
                 return (
                   <div key={classKey} className="prepare-modal__timeline-item">
@@ -533,27 +572,19 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                       >
                         <div className="prepare-modal__timeline-card-info">
                           <div className="prepare-modal__class-title-row">
-                            {cls.class_id ? (
-                              <span
-                                className="prepare-modal__class-name prepare-modal__link"
-                                onClick={(e) => { e.stopPropagation(); navigateTo(`/tabs/classes/${cls.class_id}`); }}
-                              >
-                                {cls.class_name}
-                              </span>
-                            ) : (
-                              <span className="prepare-modal__class-name">{cls.class_name}</span>
-                            )}
+                            <span
+                              className="prepare-modal__class-name prepare-modal__link"
+                              onClick={(e) => { e.stopPropagation(); if (cls.class_id) navigateTo(`/tabs/classes/${cls.class_id}`); }}
+                            >
+                              {cls.class_name}
+                            </span>
                             {cls.subject && (
-                              <span className="prepare-modal__class-subject">
-                                <IonIcon icon={bookOutline} />
-                                {cls.subject}
-                              </span>
+                              <span className="prepare-modal__class-subject">{cls.subject}</span>
                             )}
                           </div>
                           <div className="prepare-modal__class-badges">
                             {cls.aula && (
                               <span className="prepare-modal__badge">
-                                <IonIcon icon={locationOutline} />
                                 {cls.aula}
                               </span>
                             )}
@@ -564,17 +595,11 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                             )}
                             {alertCount > 0 && (
                               <span className="prepare-modal__badge prepare-modal__badge--warning">
-                                <IonIcon icon={alertCircleOutline} />
-                                {alertCount}
-                              </span>
-                            )}
-                            {hasExercises && (
-                              <span className="prepare-modal__badge prepare-modal__badge--info">
-                                <IonIcon icon={documentTextOutline} />
-                                Ejercicios
+                                {alertCount} {alertCount === 1 ? 'alerta' : 'alertas'}
                               </span>
                             )}
                           </div>
+                          {/* Peek at student alerts when collapsed */}
                           {!isExpanded && cls.student_alerts && cls.student_alerts.length > 0 && (
                             <div className="prepare-modal__timeline-peek">
                               {cls.student_alerts.slice(0, 2).map((a: any, i: number) => (
@@ -590,9 +615,65 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
 
                       {isExpanded && (
                         <div className="prepare-modal__class-details">
+                          {/* Plan session */}
+                          {cls.plan_session && (
+                            <div className="prepare-modal__detail prepare-modal__detail--plan">
+                              <strong>Sesión planificada</strong>
+                              <div className="prepare-modal__plan-content">
+                                <span className="prepare-modal__plan-topic">{cls.plan_session.topic_name}</span>
+                                {cls.plan_session.session_title && <span className="prepare-modal__plan-subtitle">{cls.plan_session.session_title}</span>}
+                                {cls.plan_session.focus && <span className="prepare-modal__plan-focus">{cls.plan_session.focus}</span>}
+                                {cls.plan_session.key_points && cls.plan_session.key_points.length > 0 && (
+                                  <div className="prepare-modal__tags">
+                                    {cls.plan_session.key_points.map((kp: string, i: number) => (
+                                      <span key={i} className="prepare-modal__tag">{kp}</span>
+                                    ))}
+                                  </div>
+                                )}
+                                {cls.plan_session.topic_pdf_url && (
+                                  <button
+                                    className="prepare-modal__action-btn"
+                                    onClick={() => window.open(`${import.meta.env.VITE_API_URL || ''}/files${cls.plan_session.topic_pdf_url}`, '_blank')}
+                                  >
+                                    Ver material
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Upcoming plan exam */}
+                          {cls.upcoming_plan_exam && (
+                            <div className="prepare-modal__detail prepare-modal__detail--exam-alert">
+                              <strong>Examen próximo</strong>
+                              <div className="prepare-modal__exam-alert-content">
+                                <div className="prepare-modal__exam-alert-header">
+                                  <span>{cls.upcoming_plan_exam.name}</span>
+                                  <span className="prepare-modal__exam-alert-days">
+                                    en {cls.upcoming_plan_exam.days_until} {cls.upcoming_plan_exam.days_until === 1 ? 'día' : 'días'}
+                                  </span>
+                                </div>
+                                <span className="prepare-modal__exam-alert-topics">{cls.upcoming_plan_exam.topic_names.join(', ')}</span>
+                                {cls.class_id && (
+                                  <button
+                                    className="prepare-modal__action-btn prepare-modal__action-btn--primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const base = classBasePath(cls.class_id, cls.subject_id);
+                                      navigateTo(`${base}/exams/new?name=${encodeURIComponent(cls.upcoming_plan_exam.name)}&date=${cls.upcoming_plan_exam.date}`);
+                                    }}
+                                  >
+                                    <IonIcon icon={createOutline} /> Crear examen con IA
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Topics to cover */}
                           {cls.topics_to_cover && cls.topics_to_cover.length > 0 && (
                             <div className="prepare-modal__detail">
-                              <strong><IonIcon icon={bulbOutline} />Temas a reforzar</strong>
+                              <strong>Temas a reforzar</strong>
                               <ul>
                                 {cls.topics_to_cover.map((topic: string, i: number) => (
                                   <li key={i}>{topic}</li>
@@ -600,9 +681,11 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
+
+                          {/* Student alerts */}
                           {cls.student_alerts && cls.student_alerts.length > 0 && (
                             <div className="prepare-modal__detail prepare-modal__detail--alert">
-                              <strong><IonIcon icon={alertCircleOutline} />Alumnos a atender</strong>
+                              <strong>Alumnos a atender</strong>
                               <ul>
                                 {cls.student_alerts.map((alert: any, i: number) => (
                                   <li key={i}>
@@ -616,9 +699,11 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
+
+                          {/* Grade alerts */}
                           {cls.grade_alerts && cls.grade_alerts.length > 0 && (
                             <div className="prepare-modal__detail prepare-modal__detail--grade-alert">
-                              <strong><IonIcon icon={alertCircleOutline} />Alertas de rendimiento</strong>
+                              <strong>Alertas de rendimiento</strong>
                               <div className="prepare-modal__grade-alerts">
                                 {cls.grade_alerts.map((alert: any, i: number) => (
                                   <div key={i} className="prepare-modal__grade-alert-item">
@@ -642,18 +727,22 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </div>
                             </div>
                           )}
+
+                          {/* Exercises today */}
                           {cls.exercises_today && cls.exercises_today.length > 0 && (
                             <div className="prepare-modal__detail">
-                              <strong><IonIcon icon={documentTextOutline} />Ejercicios hoy</strong>
+                              <strong>Ejercicios hoy</strong>
                               <ul>
                                 {cls.exercises_today.map((ex: any, i: number) => (
                                   <li key={i}>
-                                    {ex.type === 'deliver' ? '📤 Entregar' : '📥 Recoger'} — {ex.student}: {ex.exercise}
+                                    {ex.type === 'deliver' ? 'Entregar' : 'Recoger'} — {ex.student}: {ex.exercise}
                                   </li>
                                 ))}
                               </ul>
                             </div>
                           )}
+
+                          {/* Weak points */}
                           {cls.class_weak_points && cls.class_weak_points.length > 0 && (
                             <div className="prepare-modal__detail">
                               <strong>Puntos débiles</strong>
@@ -664,9 +753,11 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </div>
                             </div>
                           )}
+
+                          {/* Positive highlights */}
                           {cls.positive_highlights && cls.positive_highlights.length > 0 && (
                             <div className="prepare-modal__detail prepare-modal__detail--positive">
-                              <strong><IonIcon icon={trophyOutline} />Destacados</strong>
+                              <strong>Destacados</strong>
                               <ul>
                                 {cls.positive_highlights.map((h: any, i: number) => (
                                   <li key={i}>
@@ -677,6 +768,8 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
+
+                          {/* Suggestions */}
                           {cls.suggestions && cls.suggestions.length > 0 && (
                             <div className="prepare-modal__detail">
                               <strong>Sugerencias</strong>
@@ -687,14 +780,49 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                               </ul>
                             </div>
                           )}
+
+                          {/* Recent comments */}
                           {cls.recent_comments && cls.recent_comments.length > 0 && (
                             <div className="prepare-modal__detail">
-                              <strong><IonIcon icon={chatbubbleOutline} />Comentarios recientes</strong>
+                              <strong>Comentarios recientes</strong>
                               <ul>
                                 {cls.recent_comments.map((comment: string, i: number) => (
                                   <li key={i}>{comment}</li>
                                 ))}
                               </ul>
+                            </div>
+                          )}
+
+                          {/* ═══ Quick action buttons ═══ */}
+                          {cls.class_id && (
+                            <div className="prepare-modal__class-actions">
+                              <button
+                                className="prepare-modal__action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateTo(`${classBasePath(cls.class_id, cls.subject_id)}/topics`);
+                                }}
+                              >
+                                <IonIcon icon={bookOutline} /> Temario
+                              </button>
+                              <button
+                                className="prepare-modal__action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateTo(`${classBasePath(cls.class_id, cls.subject_id)}/exams/new`);
+                                }}
+                              >
+                                <IonIcon icon={createOutline} /> Crear examen
+                              </button>
+                              <button
+                                className="prepare-modal__action-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateTo(`${classBasePath(cls.class_id, cls.subject_id)}/exercises`);
+                                }}
+                              >
+                                <IonIcon icon={barbellOutline} /> Ejercicios
+                              </button>
                             </div>
                           )}
                         </div>
@@ -707,113 +835,50 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
           </div>
         )}
 
-        {/* Preparation Content */}
-        {currentPreparation && !preparationLoading && (
-          <div className="prepare-modal__result">
-            {/* Summary — rendered as bullet list */}
-            {currentPreparation.summary && (
-              <ul className="prepare-modal__summary-bullets">
-                {currentPreparation.summary.split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
-                  <li key={i}>{line.replace(/^[•\-–]\s*/, '')}</li>
-                ))}
-              </ul>
-            )}
-
-            {/* Priority triage — lightweight, no icons */}
-            {hasTriageContent && (
-              <div className="prepare-modal__triage">
-                {triage.urgent.length > 0 && (
-                  <div className="prepare-modal__triage-row prepare-modal__triage-row--urgent">
-                    <span className="prepare-modal__triage-label">Urgente</span>
-                    <div className="prepare-modal__triage-items">
-                      {triage.urgent.map((item, i) => (
-                        <span key={i} className="prepare-modal__triage-item">
-                          {item.text}
-                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
-                        </span>
-                      ))}
-                    </div>
+        {/* Upcoming Deadlines */}
+        {currentPreparation && !preparationLoading && currentPreparation.upcoming_deadlines && currentPreparation.upcoming_deadlines.length > 0 && (
+          <div className="prepare-modal__section">
+            <h3 className="prepare-modal__section-title">PRÓXIMOS PLAZOS</h3>
+            <div className="prepare-modal__deadlines">
+              {currentPreparation.upcoming_deadlines.map((deadline: any, i: number) => (
+                <div key={i} className="prepare-modal__deadline">
+                  <div className="prepare-modal__deadline-info">
+                    <span className="prepare-modal__deadline-name">{deadline.name}</span>
+                    <span className="prepare-modal__deadline-class">{deadline.class_name}</span>
                   </div>
-                )}
-                {triage.pending.length > 0 && (
-                  <div className="prepare-modal__triage-row prepare-modal__triage-row--pending">
-                    <span className="prepare-modal__triage-label">Pendiente</span>
-                    <div className="prepare-modal__triage-items">
-                      {triage.pending.map((item, i) => (
-                        <span key={i} className="prepare-modal__triage-item">
-                          {item.text}
-                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {triage.positive.length > 0 && (
-                  <div className="prepare-modal__triage-row prepare-modal__triage-row--positive">
-                    <span className="prepare-modal__triage-label">Positivo</span>
-                    <div className="prepare-modal__triage-items">
-                      {triage.positive.map((item, i) => (
-                        <span key={i} className="prepare-modal__triage-item">
-                          {item.text}
-                          {item.detail && <span className="prepare-modal__triage-meta">{item.detail}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Upcoming Deadlines */}
-            {currentPreparation.upcoming_deadlines && currentPreparation.upcoming_deadlines.length > 0 && (
-              <div className="prepare-modal__section">
-                <h3 className="prepare-modal__section-title">
-                  <IonIcon icon={calendarOutline} />
-                  Próximos plazos
-                </h3>
-                <div className="prepare-modal__deadlines">
-                  {currentPreparation.upcoming_deadlines.map((deadline: any, i: number) => (
-                    <div key={i} className="prepare-modal__deadline">
-                      <div className="prepare-modal__deadline-info">
-                        <span className="prepare-modal__deadline-name">{deadline.name}</span>
-                        <span className="prepare-modal__deadline-class">{deadline.class_name}</span>
-                      </div>
-                      <span className="prepare-modal__deadline-days">
-                        {deadline.days_until === 0 ? 'Hoy' :
-                         deadline.days_until === 1 ? 'Mañana' :
-                         `En ${deadline.days_until} días`}
-                      </span>
-                    </div>
-                  ))}
+                  <span className="prepare-modal__deadline-days">
+                    {deadline.days_until === 0 ? 'Hoy' :
+                     deadline.days_until === 1 ? 'Mañana' :
+                     `En ${deadline.days_until} días`}
+                  </span>
                 </div>
-              </div>
-            )}
-
-            {/* Pending Tasks */}
-            {currentPreparation.pending_tasks && currentPreparation.pending_tasks.length > 0 && (
-              <div className="prepare-modal__section">
-                <h3 className="prepare-modal__section-title">
-                  <IonIcon icon={checkmarkCircleOutline} />
-                  Tareas pendientes
-                </h3>
-                <div className="prepare-modal__tasks">
-                  {currentPreparation.pending_tasks.map((task: any, i: number) => (
-                    <div key={i} className="prepare-modal__task">
-                      <span className="prepare-modal__task-count">{task.count}</span>
-                      <span className="prepare-modal__task-desc">{task.description}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Regenerate Button */}
-            <div className="prepare-modal__footer">
-              <button className="prepare-modal__regenerate" onClick={handleRegenerate}>
-                <IonIcon icon={refreshOutline} />
-                Regenerar con otros temas
-              </button>
+              ))}
             </div>
+          </div>
+        )}
+
+        {/* Pending Tasks */}
+        {currentPreparation && !preparationLoading && currentPreparation.pending_tasks && currentPreparation.pending_tasks.length > 0 && (
+          <div className="prepare-modal__section">
+            <h3 className="prepare-modal__section-title">TAREAS PENDIENTES</h3>
+            <div className="prepare-modal__tasks">
+              {currentPreparation.pending_tasks.map((task: any, i: number) => (
+                <div key={i} className="prepare-modal__task">
+                  <span className="prepare-modal__task-count">{task.count}</span>
+                  <span className="prepare-modal__task-desc">{task.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Regenerate */}
+        {currentPreparation && !preparationLoading && (
+          <div className="prepare-modal__footer">
+            <button className="prepare-modal__regenerate" onClick={handleRegenerate}>
+              <IonIcon icon={refreshOutline} />
+              Regenerar con otros temas
+            </button>
 
             {showFocusInput && (
               <div className="prepare-modal__regenerate-form" ref={regenerateFormRef}>
@@ -825,7 +890,6 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                   className="prepare-modal__focus-input"
                 />
                 <button className="prepare-modal__btn" onClick={handleGenerate}>
-                  <IonIcon icon={sparklesOutline} />
                   Regenerar
                 </button>
               </div>

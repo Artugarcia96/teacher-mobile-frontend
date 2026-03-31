@@ -2,6 +2,7 @@ import { IonIcon } from '@ionic/react';
 import { chevronForwardOutline, checkboxOutline, squareOutline, readerOutline, checkmarkCircleOutline } from 'ionicons/icons';
 import { CalendarEvent, Exam } from '../types';
 import { avatarColor as colorFromName } from '../utils/avatarColors';
+import { getEventNoteSummary } from '../utils/parseEventNotes';
 import './EventCard.css';
 
 interface CalendarEventCardProps {
@@ -52,16 +53,19 @@ export const CalendarEventCard: React.FC<CalendarEventCardProps> = ({
           <span className="ev-card__title">{event.title}</span>
           {!selectable && <IonIcon icon={chevronForwardOutline} className="ev-card__arrow" />}
         </div>
-        {(event.startTime || event.notes) && (
-          <div className="ev-card__bottom">
-            {event.startTime && (
-              <span className="ev-card__time">
-                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
-              </span>
-            )}
-            {event.notes && <span className="ev-card__notes">{event.notes}</span>}
-          </div>
-        )}
+        {(event.startTime || event.notes) && (() => {
+          const summary = getEventNoteSummary(event.notes);
+          return (
+            <div className="ev-card__bottom">
+              {event.startTime && (
+                <span className="ev-card__time">
+                  {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
+                </span>
+              )}
+              {summary && <span className="ev-card__notes">{summary}</span>}
+            </div>
+          );
+        })()}
         {!selectable && event.eventType === 'class_session' && event.classId && onTakeAttendance && (
           <button
             className={`ev-card__attendance-btn ${attendanceTaken ? 'ev-card__attendance-btn--done' : ''}`}
