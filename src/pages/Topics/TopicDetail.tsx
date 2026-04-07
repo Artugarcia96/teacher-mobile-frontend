@@ -351,15 +351,44 @@ const TopicDetail: React.FC = () => {
               <span>Incluir en generación de ejercicios y exámenes</span>
             </div>
           </div>
-        ) : (currentTopic.description || currentTopic.trimester || !currentTopic.includeInGeneration) ? (
+        ) : (
           <div className="topic-header">
             {currentTopic.description && <p>{currentTopic.description}</p>}
-            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-              {currentTopic.trimester && <IonBadge style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: `${accentColor}15`, color: accentColor }}>{getPeriodLabel(periodMode, currentTopic.trimester)}</IonBadge>}
-              {!currentTopic.includeInGeneration && <IonBadge color="medium" style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999 }}>Excluido de generación</IonBadge>}
+            <div className="td-info-strip">
+              {/* Status pills */}
+              <button
+                className={`td-status-pill td-status-pill--${currentTopic.status}`}
+                onClick={async () => {
+                  const next = currentTopic.status === 'draft' ? 'ready' : currentTopic.status === 'ready' ? 'taught' : 'draft';
+                  try { await updateTopic(topicId, {}); await topicsApi.updateStatus(topicId, next); await fetchTopic(topicId); } catch {}
+                }}
+              >
+                {currentTopic.status === 'taught' ? '✓ Impartido' : currentTopic.status === 'ready' ? '● Listo' : '○ Borrador'}
+              </button>
+              {currentTopic.trimester && (
+                <span className="td-info-badge" style={{ background: `${accentColor}12`, color: accentColor }}>
+                  {getPeriodLabel(periodMode, currentTopic.trimester)}
+                </span>
+              )}
+              {!currentTopic.includeInGeneration && (
+                <span className="td-info-badge td-info-badge--muted">Excluido</span>
+              )}
             </div>
+            {/* Scheduled dates from plan */}
+            {currentTopic.scheduledDates && currentTopic.scheduledDates.length > 0 && (
+              <div className="td-schedule">
+                <span className="td-schedule-label">Sesiones programadas</span>
+                <div className="td-schedule-dates">
+                  {currentTopic.scheduledDates.map((d, i) => {
+                    const [,m,day] = d.split('-');
+                    const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+                    return <span key={i} className="td-schedule-chip">{parseInt(day)} {MONTHS[parseInt(m)-1]}</span>;
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        ) : null}
+        )}
 
         {/* ═══ ACTION BAR ═══ */}
         <div className="td-action-bar">

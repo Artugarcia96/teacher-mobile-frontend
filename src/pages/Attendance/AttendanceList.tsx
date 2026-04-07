@@ -13,6 +13,7 @@ import {
 import { useParams, useHistory } from 'react-router-dom';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useClassesStore } from '../../store/classesStore';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import { classes as classesApi, subjects as subjectsApi } from '../../services/api';
 import { ClassGroup, AttendanceRecord } from '../../types';
 import GradeDonut from '../../components/charts/GradeDonut';
@@ -85,7 +86,10 @@ const AttendanceList: React.FC = () => {
     fetchClasses();
     fetchClassDetails();
     fetchSubjectName();
-    if (classId) fetchClassSubjects(classId);
+    if (classId && fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
+      fetchClassSubjects(classId);
+      fetchRegistry.register(`classSubjects-${classId}`);
+    }
 
     const effectiveSubject = subjectId || (subjectFilter !== 'all' ? subjectFilter : undefined);
     fetchSummary(classId, effectiveSubject);

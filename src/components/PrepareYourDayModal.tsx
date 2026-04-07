@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { IonModal, IonIcon, IonTextarea } from '@ionic/react';
+import { IonModal, IonIcon, IonTextarea, IonHeader, IonToolbar, IonContent, IonButtons, IonButton, IonTitle } from '@ionic/react';
 import {
   closeOutline,
   sparklesOutline,
@@ -335,17 +335,18 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
 
   return (
     <IonModal isOpen={isOpen} onDidDismiss={onDismiss} className="prepare-modal">
-      <div className="prepare-modal__inner">
-      <div className="prepare-modal__header">
-        <div className="prepare-modal__title-row">
-          <h2 className="prepare-modal__title">Prepara tu día</h2>
-        </div>
-        <button className="prepare-modal__close" onClick={onDismiss}>
-          <IonIcon icon={closeOutline} />
-        </button>
-      </div>
+      <IonHeader className="prepare-modal__header">
+        <IonToolbar color="primary" className="prepare-modal__toolbar">
+          <IonTitle className="prepare-modal__title">Prepara tu día</IonTitle>
+          <IonButtons slot="end">
+            <IonButton onClick={onDismiss} className="prepare-modal__close">
+              <IonIcon icon={closeOutline} slot="icon-only" />
+            </IonButton>
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
 
-      <div className="prepare-modal__content">
+      <IonContent className="prepare-modal__content">
         {/* Date navigator */}
         <div className="prepare-modal__date-nav">
           <button className="prepare-modal__date-nav-btn" onClick={() => shiftDate(-1)} aria-label="Día anterior">
@@ -896,8 +897,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
             )}
           </div>
         )}
-      </div>
-      </div>
+      </IonContent>
     </IonModal>
   );
 };

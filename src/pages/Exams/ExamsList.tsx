@@ -13,6 +13,7 @@ import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
 import { useClassesStore } from '../../store/classesStore';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import { classes as classesApi, subjects as subjectsApi } from '../../services/api';
 import { ClassGroup, Exam } from '../../types';
 import EmptyState from '../../components/EmptyState';
@@ -54,6 +55,7 @@ const ExamsList: React.FC = () => {
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
   const classSubjects = useClassesStore((s) => s.classSubjects);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
+  const classSubjectsLoaded = useClassesStore((s) => s.classSubjectsLoaded);
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'uploaded' | 'assigned' | 'corrected'>('all');
   const [lectureFilter, setLectureFilter] = useState<string>('all');
@@ -92,7 +94,10 @@ const ExamsList: React.FC = () => {
     fetchAllCorrections();
     fetchClassDetails();
     fetchSubjectName();
-    if (classId) fetchClassSubjects(classId);
+    if (classId && fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
+      fetchClassSubjects(classId);
+      fetchRegistry.register(`classSubjects-${classId}`);
+    }
   }, [classId, subjectId, fetchClasses, fetchExams, fetchStudents, fetchAllCorrections, fetchClassDetails, fetchSubjectName, fetchClassSubjects]);
 
   // Refresh exam data when returning to this screen (e.g. after correcting)

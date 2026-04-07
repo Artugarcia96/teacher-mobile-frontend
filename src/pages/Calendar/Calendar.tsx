@@ -561,27 +561,44 @@ const Calendar: React.FC = () => {
                   {selectedDayEvents.map((ev) => {
                     const parsed = parseEventNotes(ev.notes);
                     const timeStr = ev.startTime ? `${formatTime(ev.startTime)}${ev.endTime ? ' - ' + formatTime(ev.endTime) : ''}` : '';
+                    const isUnplanned = ev.eventType === 'class_session' && !parsed.isPlanEvent && !parsed.focus;
+                    const lecturePart = ev.title.includes(' — ') ? ev.title.split(' — ').slice(1).join(' — ') : '';
+                    // Show subject in prefix only when title doesn't already start with it (avoids "RG · RG — ...")
+                    const subjectInPrefix = ev.classSubject && !ev.title.startsWith(ev.classSubject) ? ` · ${ev.classSubject}` : '';
+                    // For unplanned: skip lecturePart if it equals the subject name (avoids "RG — RG")
+                    const showLecture = lecturePart && lecturePart !== ev.classSubject;
                     return (
-                    <div key={ev.id} className={`cal-card cal-card--${ev.eventType}`} onClick={() => handleEventClick(ev)}>
-                      {/* Header: class + time */}
-                      <div className="cal-card__header">
-                        <span className="cal-card__class">
-                          {ev.className || ''}{ev.aula ? ` · ${ev.aula}` : ''}
-                        </span>
-                        {timeStr && <span className="cal-card__time">{timeStr}</span>}
-                      </div>
-
-                      {/* Session content */}
-                      <span className="cal-card__title">{ev.title}</span>
-                      {parsed.focus && <span className="cal-card__focus">{parsed.focus}</span>}
-                      {!parsed.isPlanEvent && ev.topicName && <span className="cal-card__topic">{ev.topicName}</span>}
-
-                      {parsed.keyPoints.length > 0 && (
-                        <div className="cal-card__tags">
-                          {parsed.keyPoints.slice(0, 4).map((kp, ki) => (
-                            <span key={ki} className="cal-card__tag">{kp}</span>
-                          ))}
+                    <div key={ev.id} className={`cal-card cal-card--${ev.eventType} ${isUnplanned ? 'cal-card--unplanned' : ''}`} onClick={() => handleEventClick(ev)}>
+                      {isUnplanned ? (
+                        <div className="cal-card__preview">
+                          <span className="cal-card__preview-info">
+                            {ev.className || ''}{ev.aula ? ` · ${ev.aula}` : ''}{subjectInPrefix}{showLecture ? ` — ${lecturePart}` : ''}
+                          </span>
+                          {timeStr && <span className="cal-card__time">{timeStr}</span>}
                         </div>
+                      ) : (
+                        <>
+                          {/* Header: class + time */}
+                          <div className="cal-card__header">
+                            <span className="cal-card__class">
+                              {ev.className || ''}{ev.aula ? ` · ${ev.aula}` : ''}{subjectInPrefix}
+                            </span>
+                            {timeStr && <span className="cal-card__time">{timeStr}</span>}
+                          </div>
+
+                          {/* Session content */}
+                          <span className="cal-card__title">{ev.title}</span>
+                          {parsed.focus && <span className="cal-card__focus">{parsed.focus}</span>}
+                          {!parsed.isPlanEvent && ev.topicName && <span className="cal-card__topic">{ev.topicName}</span>}
+
+                          {parsed.keyPoints.length > 0 && (
+                            <div className="cal-card__tags">
+                              {parsed.keyPoints.slice(0, 4).map((kp, ki) => (
+                                <span key={ki} className="cal-card__tag">{kp}</span>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {/* Action buttons row */}
@@ -618,7 +635,10 @@ const Calendar: React.FC = () => {
                             className="cal-card__action"
                             onClick={(e) => {
                               e.stopPropagation();
-                              history.push(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exercises?generate=1`);
+                              const params = new URLSearchParams({ generate: '1' });
+                              if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
+                              if (ev.title) params.set('name', ev.title);
+                              history.push(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exercises?${params}`);
                             }}
                           >
                             <IonIcon icon={sparkles} />

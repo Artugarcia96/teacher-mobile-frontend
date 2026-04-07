@@ -543,6 +543,12 @@
   max-height: 100%;
 }
 
+@media (min-width: 768px) {
+  .modal-sheet--scrollable {
+    max-height: 85vh;
+  }
+}
+
 .modal-sheet__title {
   font-size: var(--font-size-xl);
   font-weight: 700;
@@ -819,8 +825,6 @@
 }
 
 /* ─── Academic Calendar ─── */
-.cal-period-row { gap: 4px; }
-
 .cal-date-pair {
   display: flex;
   align-items: center;
@@ -842,10 +846,204 @@
 
 .cal-date-input:focus { border-color: var(--ion-color-primary); }
 
+.cal-date-input--compact {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
 .cal-date-sep {
   font-size: 14px;
   color: var(--color-text-tertiary);
   flex-shrink: 0;
+}
+
+/* Period mode toggle (compact) */
+.cal-mode-toggle {
+  display: flex;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: var(--space-md);
+}
+
+.cal-mode-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cal-mode-btn--active {
+  background: var(--ion-card-background, #fff);
+  color: var(--ion-color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Compact period rows */
+.cal-periods-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-period-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-period-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+  min-width: 24px;
+  flex-shrink: 0;
+}
+
+/* Empty text (simple, no box) */
+.settings-empty-text {
+  color: #94A3B8;
+  font-size: var(--font-size-sm);
+  margin: 0;
+  padding: var(--space-md) 0;
+}
+
+/* ─── Students compact ─── */
+.students-add-card {
+  margin-bottom: var(--space-md);
+}
+
+.students-add-new-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.student-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.student-input-compact {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid rgba(15, 23, 42, 0.10);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ion-text-color);
+  background: var(--color-surface, #fff);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.student-input-compact:focus {
+  border-color: var(--ion-color-primary);
+}
+
+.student-input-compact::placeholder {
+  color: #94A3B8;
+}
+
+.student-input-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--ion-color-danger);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.student-input-remove:active {
+  background: rgba(var(--ion-color-danger-rgb), 0.1);
+}
+
+.students-add-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.students-add-more,
+.students-import-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+  cursor: pointer;
+}
+
+.students-add-more:active,
+.students-import-link:active {
+  opacity: 0.7;
+}
+
+.students-import-link {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+/* Existing students compact */
+.students-add-existing-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.students-existing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.student-existing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.student-existing-row:active {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.student-existing-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 14px;
+}
+
+.student-existing-classes {
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
 .cal-warning {
@@ -892,6 +1090,21 @@
     border-color: rgba(255, 255, 255, 0.10);
     color: #fff;
     color-scheme: dark;
+  }
+  .student-input-compact {
+    background: #16161A;
+    border-color: rgba(255, 255, 255, 0.10);
+    color: #fff;
+  }
+  .cal-mode-toggle {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .cal-mode-btn--active {
+    background: #16161A;
+    color: #5EEAD4;
+  }
+  .student-existing-row:active {
+    background: rgba(255, 255, 255, 0.06);
   }
   .cal-warning {
     background: rgba(245, 158, 11, 0.12);

@@ -17,6 +17,7 @@ import { useExercisesStore } from '../../store/exercisesStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import api, { exercises as exercisesApi, exerciseCorrections as ecApi, authenticatedFetch } from '../../services/api';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
 import ExerciseCorrectionPanel from '../../components/ExerciseCorrectionPanel';
@@ -160,7 +161,10 @@ const ExerciseDetail: React.FC = () => {
     fetchClasses();
     fetchExercises();
     fetchStudents(classId);
-    if (classId) fetchClassSubjects(classId);
+    if (classId && fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
+      fetchClassSubjects(classId);
+      fetchRegistry.register(`classSubjects-${classId}`);
+    }
     // Fetch corrections for all sibling exercises
     if (exerciseId) {
       fetchCorrections(exerciseId);

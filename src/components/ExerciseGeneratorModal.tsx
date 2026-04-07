@@ -30,12 +30,15 @@ interface Props {
   classId?: string;
   preselectedExamId?: string;
   preselectedSubjectId?: string;
+  preselectedTopicIds?: string[];
+  preselectedName?: string;
   subjectColor?: string;
 }
 
 const ExerciseGeneratorModal: React.FC<Props> = ({
   isOpen, onDismiss, studentId, studentName, weakAreas,
-  classId: preClassId, preselectedExamId, preselectedSubjectId, subjectColor,
+  classId: preClassId, preselectedExamId, preselectedSubjectId,
+  preselectedTopicIds, preselectedName, subjectColor,
 }) => {
   const multiMode = !studentId;
   const isDesktop = useIsDesktop();
@@ -354,6 +357,17 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
       setExerciseType('practice');
     }
   }, [isOpen]);
+
+  // Pre-fill name and topics from calendar navigation
+  useEffect(() => {
+    if (isOpen && preselectedTopicIds && preselectedTopicIds.length > 0) {
+      setSelectedTopicIds(preselectedTopicIds);
+      setSourceType('topic');
+    }
+    if (isOpen && preselectedName) {
+      setExerciseName(preselectedName);
+    }
+  }, [isOpen, preselectedTopicIds, preselectedName]);
 
   const toggleExam = (id: string) => {
     setSelectedExamIds((prev) =>

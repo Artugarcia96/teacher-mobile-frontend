@@ -3,9 +3,9 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
   IonButton, IonIcon, IonList, IonItem, IonLabel, IonInput, IonModal, IonSelect,
   IonSelectOption, IonSpinner, IonAlert, IonItemSliding, IonItemOptions, IonItemOption,
-  IonSegment, IonSegmentButton, IonCheckbox, IonSearchbar, IonProgressBar,
+  IonCheckbox, IonSearchbar, IonProgressBar,
 } from '@ionic/react';
-import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, personAddOutline, chevronDownOutline, chevronUpOutline, warningOutline, createOutline, cloudUploadOutline } from 'ionicons/icons';
+import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, warningOutline, createOutline, cloudUploadOutline } from 'ionicons/icons';
 import { useParams, useHistory } from 'react-router-dom';
 import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi, academicConfig as academicConfigApi } from '../../services/api';
 import { Lecture, ScheduleSlot, EducationLevel } from '../../types';
@@ -14,7 +14,7 @@ import { useStudentsStore, StudentPoolEntry } from '../../store/studentsStore';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { PALETTE_COLORS } from '../../utils/avatarColors';
 import { useAcademicConfigStore, AcademicConfigData } from '../../store/academicConfigStore';
-import { getPeriodFullLabel } from '../../utils/periodConfig';
+import { getPeriodFullLabel, getPeriodLabel } from '../../utils/periodConfig';
 import type { PeriodMode } from '../../utils/periodConfig';
 import './ClassSettings.css';
 
@@ -67,6 +67,20 @@ const EDUCATION_LEVELS: [EducationLevel, string, string][] = [
   ['universidad', 'Universidad', '18+'],
 ];
 
+function parseYearDates(yearStr: string): { from: string; to: string } {
+  const full = yearStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+  if (full) return { from: `${full[3]}-${full[2]}-${full[1]}`, to: `${full[6]}-${full[5]}-${full[4]}` };
+  const yy = yearStr.match(/(\d{4})\s*-\s*(\d{4})/);
+  if (yy) return { from: `${yy[1]}-09-01`, to: `${yy[2]}-06-30` };
+  const y = new Date().getFullYear();
+  return { from: `${y}-09-01`, to: `${y + 1}-06-30` };
+}
+
+function formatYearLabel(from: string, to: string): string {
+  const f = (d: string) => { const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}`; };
+  return `${f(from)} - ${f(to)}`;
+}
+
 interface ClassDetail {
   id: string;
   name: string;
@@ -84,11 +98,14 @@ const ClassSettings: React.FC = () => {
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Inline editing for name & year
-  const [editingField, setEditingField] = useState<'name' | 'year' | null>(null);
+  // Inline editing for name
+  const [editingField, setEditingField] = useState<'name' | null>(null);
   const [editValue, setEditValue] = useState('');
+  // Year date inputs
+  const [yearFromDate, setYearFromDate] = useState('');
+  const [yearToDate, setYearToDate] = useState('');
 
-  const startEditing = (field: 'name' | 'year') => {
+  const startEditing = (field: 'name') => {
     setEditingField(field);
     setEditValue(classData?.[field] || '');
   };
@@ -246,6 +263,29 @@ const ClassSettings: React.FC = () => {
   useEffect(() => {
     loadClass();
   }, [classId]);
+
+  // Init year date inputs from classData
+  useEffect(() => {
+    if (!classData?.year) return;
+    const { from, to } = parseYearDates(classData.year);
+    setYearFromDate(from);
+    setYearToDate(to);
+  }, [classData?.year]);
+
+  const handleYearDateChange = async (field: 'from' | 'to', value: string) => {
+    const newFrom = field === 'from' ? value : yearFromDate;
+    const newTo = field === 'to' ? value : yearToDate;
+    if (field === 'from') setYearFromDate(value); else setYearToDate(value);
+    if (!newFrom || !newTo) return;
+    const newYear = formatYearLabel(newFrom, newTo);
+    try {
+      await classesApi.update(classId, { year: newYear });
+      setClassData((prev) => prev ? { ...prev, year: newYear } : prev);
+      fetchClasses();
+    } catch (err) {
+      console.error('Failed to update year:', err);
+    }
+  };
 
   // Load academic calendar (wait for classData to have year for pre-fill)
   useEffect(() => {
@@ -739,24 +779,19 @@ const ClassSettings: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="settings-info-row settings-info-row--editable" onClick={() => editingField !== 'year' && startEditing('year')}>
-              <span className="settings-info-label">Curso</span>
-              {editingField === 'year' ? (
-                <input
-                  className="settings-info-inline-input"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={saveField}
-                  onKeyDown={handleEditKeyDown}
-                  autoFocus
-                  maxLength={20}
+            <div className="settings-info-row settings-info-row--vertical">
+              <span className="settings-info-label">Curso escolar</span>
+              <div className="cal-date-pair">
+                <input type="date" className="cal-date-input"
+                  value={yearFromDate}
+                  onChange={(e) => handleYearDateChange('from', e.target.value)}
                 />
-              ) : (
-                <span className="settings-info-value settings-info-value--editable">
-                  {classData?.year}
-                  <IonIcon icon={createOutline} className="settings-info-edit-icon" />
-                </span>
-              )}
+                <span className="cal-date-sep">→</span>
+                <input type="date" className="cal-date-input"
+                  value={yearToDate}
+                  onChange={(e) => handleYearDateChange('to', e.target.value)}
+                />
+              </div>
             </div>
             <div className="settings-info-row settings-info-row--vertical">
               <span className="settings-info-label">Nivel educativo</span>
@@ -789,50 +824,42 @@ const ClassSettings: React.FC = () => {
         {/* Academic Calendar */}
         <div className="settings-section">
           <div className="settings-section__header">
-            <h2 className="settings-section__title">Calendario académico</h2>
+            <h2 className="settings-section__title">Periodos</h2>
             {calSaving && <IonSpinner name="crescent" style={{ width: 16, height: 16 }} />}
           </div>
           {!calLoaded ? (
             <div style={{ textAlign: 'center', padding: 16 }}><IonSpinner name="crescent" /></div>
           ) : (
             <div className="settings-info-card">
-              {/* Period mode selector */}
-              <div className="settings-info-row settings-info-row--vertical">
-                <span className="settings-info-label">Tipo de periodo</span>
-                <div className="education-level-chips">
-                  <button type="button"
-                    className={`education-level-chip ${calPeriodMode === 'trimester' ? 'education-level-chip--active' : ''}`}
-                    onClick={() => handleCalModeChange('trimester')}>
-                    <span className="education-level-chip__label">3 Trimestres</span>
-                    <span className="education-level-chip__ages">Sep–Jun</span>
-                  </button>
-                  <button type="button"
-                    className={`education-level-chip ${calPeriodMode === 'cuatrimester' ? 'education-level-chip--active' : ''}`}
-                    onClick={() => handleCalModeChange('cuatrimester')}>
-                    <span className="education-level-chip__label">2 Cuatrimestres</span>
-                    <span className="education-level-chip__ages">Sep–Jun</span>
-                  </button>
-                </div>
+              <div className="cal-mode-toggle">
+                <button type="button"
+                  className={`cal-mode-btn ${calPeriodMode === 'trimester' ? 'cal-mode-btn--active' : ''}`}
+                  onClick={() => handleCalModeChange('trimester')}>
+                  Trimestres
+                </button>
+                <button type="button"
+                  className={`cal-mode-btn ${calPeriodMode === 'cuatrimester' ? 'cal-mode-btn--active' : ''}`}
+                  onClick={() => handleCalModeChange('cuatrimester')}>
+                  Cuatrimestres
+                </button>
               </div>
 
-              {/* Date pickers per period */}
-              {(calPeriodMode === 'trimester' ? [1, 2, 3] : [1, 2]).map((n) => (
-                <div key={n} className="settings-info-row settings-info-row--vertical cal-period-row">
-                  <span className="settings-info-label">{getPeriodFullLabel(calPeriodMode, n)}</span>
-                  <div className="cal-date-pair">
-                    <input type="date" className="cal-date-input"
+              <div className="cal-periods-compact">
+                {(calPeriodMode === 'trimester' ? [1, 2, 3] : [1, 2]).map((n) => (
+                  <div key={n} className="cal-period-compact">
+                    <span className="cal-period-label">{getPeriodLabel(calPeriodMode, n)}</span>
+                    <input type="date" className="cal-date-input cal-date-input--compact"
                       value={calDates[`t${n}_start`] || ''}
                       onChange={(e) => handleCalDateChange(`t${n}_start`, e.target.value)}
                     />
                     <span className="cal-date-sep">→</span>
-                    <input type="date" className="cal-date-input"
+                    <input type="date" className="cal-date-input cal-date-input--compact"
                       value={calDates[`t${n}_end`] || ''}
                       onChange={(e) => handleCalDateChange(`t${n}_end`, e.target.value)}
                     />
                   </div>
-                </div>
-              ))}
-
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -930,184 +957,159 @@ const ClassSettings: React.FC = () => {
               })}
             </div>
           ) : (
-            <div className="settings-empty">
-              <p>No hay asignaturas configuradas</p>
-              <IonButton fill="outline" size="small" onClick={openNewLecture}>
-                <IonIcon icon={addOutline} slot="start" />
-                Añadir asignatura
-              </IonButton>
-            </div>
+            <p className="settings-empty-text">No hay asignaturas configuradas</p>
           )}
         </div>
 
-        {/* Students - configure inline */}
+        {/* Students */}
         <div className="settings-section">
           <div className="settings-section__header">
             <h2 className="settings-section__title">Alumnos</h2>
-            <span className="settings-section__count">{students.length}</span>
+            <div className="settings-section__actions">
+              <span className="settings-section__count">{students.length}</span>
+              <IonButton fill="clear" size="small" onClick={() => setShowAddStudents((v) => !v)}>
+                <IonIcon icon={showAddStudents ? closeOutline : addOutline} slot="start" />
+                {showAddStudents ? 'Cerrar' : 'Añadir'}
+              </IonButton>
+            </div>
           </div>
 
           {studentsLoading ? (
             <div className="settings-students-loading"><IonSpinner color="primary" /></div>
           ) : (
             <>
-              <div className="settings-add-students-block">
-                <button
-                  type="button"
-                  className="settings-add-students-toggle"
-                  onClick={() => setShowAddStudents((v) => !v)}
-                >
-                  <IonIcon icon={addOutline} />
-                  <span>Añadir alumnos</span>
-                  <IonIcon icon={showAddStudents ? chevronUpOutline : chevronDownOutline} />
-                </button>
+              {showAddStudents && (
+                <div className="settings-info-card students-add-card">
+                  {studentsSaving && (
+                    <div className="settings-add-students-progress">
+                      <IonProgressBar type="indeterminate" />
+                      <span>{studentsProgress}</span>
+                    </div>
+                  )}
 
-                {showAddStudents && (
-                  <div className="settings-add-students-form">
-                    {studentsSaving && (
-                      <div className="settings-add-students-progress">
-                        <IonProgressBar type="indeterminate" />
-                        <span>{studentsProgress}</span>
-                      </div>
-                    )}
-
-                    <IonSegment value={addStudentsTab} onIonChange={(e) => setAddStudentsTab(e.detail.value as 'new' | 'existing')}>
-                      <IonSegmentButton value="new">
-                        <IonLabel>Nuevos</IonLabel>
-                      </IonSegmentButton>
-                      <IonSegmentButton value="existing">
-                        <IonLabel>Existentes</IonLabel>
-                      </IonSegmentButton>
-                    </IonSegment>
-
-                    {addStudentsTab === 'new' && (
-                      <div className="settings-add-new">
-                        <p className="settings-add-hint">
-                          Introduce los nombres de los nuevos alumnos para {classData?.name}
-                        </p>
-                        <IonList className="settings-add-input-list">
-                          {studentInputs.map((value, index) => (
-                            <IonItem key={index}>
-                              <IonInput
-                                value={value}
-                                placeholder={`Nombre del alumno ${index + 1}`}
-                                onIonInput={(e) => handleStudentInputChange(index, e.detail.value ?? '')}
-                              />
-                              {studentInputs.length > 1 && (
-                                <IonButton fill="clear" slot="end" onClick={() => handleRemoveStudentRow(index)}>
-                                  <IonIcon icon={trashOutline} color="danger" />
-                                </IonButton>
-                              )}
-                            </IonItem>
-                          ))}
-                        </IonList>
-                        <IonButton fill="clear" expand="block" onClick={handleAddStudentRow}>
-                          <IonIcon icon={addOutline} slot="start" />
-                          Añadir otro
-                        </IonButton>
-                        <IonButton
-                          expand="block"
-                          onClick={handleAddNewStudents}
-                          disabled={studentsSaving || validNewNames.length === 0}
-                        >
-                          {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${validNewNames.length || ''} alumnos`}
-                        </IonButton>
-
-                        <div className="settings-csv-divider">
-                          <span>o importar desde archivo</span>
-                        </div>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          style={{ display: 'none' }}
-                          accept=".csv,.txt"
-                          onChange={handleImportFile}
-                        />
-                        <IonButton
-                          expand="block"
-                          fill="outline"
-                          onClick={handleImportClick}
-                          disabled={studentsSaving}
-                        >
-                          <IonIcon icon={cloudUploadOutline} slot="start" />
-                          Importar CSV
-                        </IonButton>
-                        <p className="settings-csv-hint">
-                          Un nombre por línea, sin encabezado. Máximo 50 alumnos.
-                        </p>
-                      </div>
-                    )}
-
-                    {addStudentsTab === 'existing' && (
-                      <div className="settings-add-existing">
-                        {availableStudents.length === 0 && !poolLoading ? (
-                          <div className="settings-add-empty">
-                            <IonIcon icon={personAddOutline} />
-                            <p>No hay alumnos de otras clases para añadir.</p>
-                          </div>
-                        ) : (
-                          <>
-                            <IonSearchbar
-                              value={addSearch}
-                              onIonInput={(e) => setAddSearch(e.detail.value ?? '')}
-                              placeholder="Buscar alumnos..."
-                              className="settings-add-search"
-                            />
-                            {uniqueClassesForFilter.length > 0 && (
-                              <IonSelect
-                                value={addClassFilter}
-                                onIonChange={(e) => setAddClassFilter(e.detail.value)}
-                                interface="popover"
-                                placeholder="Todas las clases"
-                                className="settings-add-class-filter"
-                              >
-                                <IonSelectOption value="">Todas las clases</IonSelectOption>
-                                {uniqueClassesForFilter.map((c) => (
-                                  <IonSelectOption key={c.class_id} value={c.class_id}>{c.class_name}</IonSelectOption>
-                                ))}
-                              </IonSelect>
-                            )}
-                            {poolLoading ? (
-                              <div className="settings-add-loading"><IonSpinner /></div>
-                            ) : (
-                              <>
-                                <div className="settings-add-select-all">
-                                  <IonCheckbox
-                                    checked={selectedStudentIds.size === filteredAvailableStudents.length && filteredAvailableStudents.length > 0}
-                                    indeterminate={selectedStudentIds.size > 0 && selectedStudentIds.size < filteredAvailableStudents.length}
-                                    onIonChange={toggleAllAddStudents}
-                                  />
-                                  <span>Seleccionar todos ({filteredAvailableStudents.length})</span>
-                                </div>
-                                <IonList className="settings-add-existing-list">
-                                  {filteredAvailableStudents.map((st) => (
-                                    <IonItem key={st.id} button onClick={() => toggleAddStudent(st.id)}>
-                                      <IonCheckbox slot="start" checked={selectedStudentIds.has(st.id)} />
-                                      <IonLabel>
-                                        <h2>{st.name}</h2>
-                                        {st.classes.length > 0 && (
-                                          <p>En: {st.classes.map((c) => c.class_name).join(', ')}</p>
-                                        )}
-                                      </IonLabel>
-                                    </IonItem>
-                                  ))}
-                                </IonList>
-                                <IonButton
-                                  expand="block"
-                                  onClick={handleAddExistingStudents}
-                                  disabled={studentsSaving || selectedStudentIds.size === 0}
-                                >
-                                  {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${selectedStudentIds.size || ''} seleccionados`}
-                                </IonButton>
-                              </>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
+                  <div className="cal-mode-toggle">
+                    <button type="button"
+                      className={`cal-mode-btn ${addStudentsTab === 'new' ? 'cal-mode-btn--active' : ''}`}
+                      onClick={() => setAddStudentsTab('new')}>
+                      Nuevos
+                    </button>
+                    <button type="button"
+                      className={`cal-mode-btn ${addStudentsTab === 'existing' ? 'cal-mode-btn--active' : ''}`}
+                      onClick={() => setAddStudentsTab('existing')}>
+                      Existentes
+                    </button>
                   </div>
-                )}
-              </div>
+
+                  {addStudentsTab === 'new' && (
+                    <div className="students-add-new-compact">
+                      {studentInputs.map((value, index) => (
+                        <div key={index} className="student-input-row">
+                          <input
+                            className="student-input-compact"
+                            value={value}
+                            placeholder={`Alumno ${index + 1}`}
+                            onChange={(e) => handleStudentInputChange(index, e.target.value)}
+                          />
+                          {studentInputs.length > 1 && (
+                            <button type="button" className="student-input-remove" onClick={() => handleRemoveStudentRow(index)}>
+                              <IonIcon icon={closeOutline} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="students-add-actions">
+                        <button type="button" className="students-add-more" onClick={handleAddStudentRow}>
+                          <IonIcon icon={addOutline} /> Otro
+                        </button>
+                        <button type="button" className="students-import-link" onClick={handleImportClick}>
+                          <IonIcon icon={cloudUploadOutline} /> CSV
+                        </button>
+                      </div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        accept=".csv,.txt"
+                        onChange={handleImportFile}
+                      />
+                      <IonButton
+                        expand="block"
+                        size="small"
+                        onClick={handleAddNewStudents}
+                        disabled={studentsSaving || validNewNames.length === 0}
+                      >
+                        {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${validNewNames.length || ''} alumnos`}
+                      </IonButton>
+                    </div>
+                  )}
+
+                  {addStudentsTab === 'existing' && (
+                    <div className="students-add-existing-compact">
+                      {availableStudents.length === 0 && !poolLoading ? (
+                        <p className="settings-empty-text">No hay alumnos de otras clases disponibles.</p>
+                      ) : (
+                        <>
+                          <IonSearchbar
+                            value={addSearch}
+                            onIonInput={(e) => setAddSearch(e.detail.value ?? '')}
+                            placeholder="Buscar..."
+                            className="settings-add-search"
+                          />
+                          {uniqueClassesForFilter.length > 0 && (
+                            <IonSelect
+                              value={addClassFilter}
+                              onIonChange={(e) => setAddClassFilter(e.detail.value)}
+                              interface="popover"
+                              placeholder="Todas las clases"
+                              className="settings-add-class-filter"
+                            >
+                              <IonSelectOption value="">Todas las clases</IonSelectOption>
+                              {uniqueClassesForFilter.map((c) => (
+                                <IonSelectOption key={c.class_id} value={c.class_id}>{c.class_name}</IonSelectOption>
+                              ))}
+                            </IonSelect>
+                          )}
+                          {poolLoading ? (
+                            <div className="settings-add-loading"><IonSpinner /></div>
+                          ) : (
+                            <>
+                              <div className="settings-add-select-all">
+                                <IonCheckbox
+                                  checked={selectedStudentIds.size === filteredAvailableStudents.length && filteredAvailableStudents.length > 0}
+                                  indeterminate={selectedStudentIds.size > 0 && selectedStudentIds.size < filteredAvailableStudents.length}
+                                  onIonChange={toggleAllAddStudents}
+                                />
+                                <span>Todos ({filteredAvailableStudents.length})</span>
+                              </div>
+                              <div className="students-existing-list">
+                                {filteredAvailableStudents.map((st) => (
+                                  <div key={st.id} className="student-existing-row" onClick={() => toggleAddStudent(st.id)}>
+                                    <IonCheckbox checked={selectedStudentIds.has(st.id)} />
+                                    <div className="student-existing-info">
+                                      <span>{st.name}</span>
+                                      {st.classes.length > 0 && (
+                                        <span className="student-existing-classes">{st.classes.map((c) => c.class_name).join(', ')}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <IonButton
+                                expand="block"
+                                size="small"
+                                onClick={handleAddExistingStudents}
+                                disabled={studentsSaving || selectedStudentIds.size === 0}
+                              >
+                                {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${selectedStudentIds.size} seleccionados`}
+                              </IonButton>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {students.length > 0 ? (
                 <div className="settings-students-list">
@@ -1256,6 +1258,7 @@ const ClassSettings: React.FC = () => {
                 <div className="subject-name-suggestions__list">
                   {classSubjectsList
                     .filter(s => !lectureName || s.name.toLowerCase().includes(lectureName.toLowerCase()))
+                    .filter((s, i, arr) => arr.findIndex(x => x.name.toLowerCase() === s.name.toLowerCase()) === i)
                     .slice(0, 5)
                     .map(s => (
                       <button

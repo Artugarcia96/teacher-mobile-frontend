@@ -640,7 +640,7 @@ export const academicConfig = {
     trimester_2_start: string; trimester_2_end: string;
     trimester_3_start?: string | null; trimester_3_end?: string | null;
     recovery_start?: string | null; recovery_end?: string | null;
-  }) => api.post('/academic-config', data),
+  }) => api.post('/academic-config/', data),
   detectTrimester: (classId: string, date: string) =>
     api.get('/academic-config/detect-trimester', { params: { class_id: classId, date } }),
 };
@@ -781,7 +781,7 @@ export const coursePlans = {
     exam_strategy?: { exams_per_trimester: number; review_sessions_before_exam: boolean; exercises_frequency: string };
     buffer_sessions_per_trimester?: number;
   }) => api.post(`/course-plans/${id}/generate`, data),
-  accept: (id: string, data?: { skip_exam_units?: string[] }) =>
+  accept: (id: string, data?: { skip_exam_units?: string[]; extra_exams?: { name: string; date: string }[] }) =>
     api.post(`/course-plans/${id}/accept`, data || {}),
   regenerate: (id: string, data: any) => api.post(`/course-plans/${id}/regenerate`, data),
   adapt: (id: string, data: { notes?: string }) => api.post(`/course-plans/${id}/adapt`, data),

@@ -62,7 +62,7 @@ interface CoursePlanState {
   fetchPlans: (subjectId?: string, classId?: string) => Promise<void>;
   fetchPlan: (id: string) => Promise<CoursePlan>;
   createPlan: (data: Parameters<typeof coursePlans.create>[0]) => Promise<{ id: string; batchJobId: string }>;
-  acceptPlan: (id: string, options?: { skip_exam_units?: string[] }) => Promise<{ topics_created: number; events_created: number }>;
+  acceptPlan: (id: string, options?: { skip_exam_units?: string[]; extra_exams?: { name: string; date: string }[] }) => Promise<{ topics_created: number; events_created: number }>;
   generateContent: (id: string) => Promise<{ textbook_id: string; batch_job_id: string }>;
   regeneratePlan: (id: string, data: any) => Promise<{ id: string; batchJobId: string }>;
   adaptPlan: (id: string, notes?: string) => Promise<{ id: string; batchJobId: string }>;

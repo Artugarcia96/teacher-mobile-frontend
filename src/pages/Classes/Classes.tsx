@@ -140,7 +140,10 @@ const Classes: React.FC = () => {
     }
   };
 
-  const yearLabel = `${yearFrom.slice(0, 4)}-${yearTo.slice(0, 4)}`;
+  const yearLabel = (() => {
+    const fmtDate = (d: string) => { const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}`; };
+    return `${fmtDate(yearFrom)} - ${fmtDate(yearTo)}`;
+  })();
 
   const resetModal = () => {
     setNewName('');
@@ -229,9 +232,14 @@ const Classes: React.FC = () => {
     setSelectedIds(new Set());
   };
 
+  // Bulk delete confirmation state
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<string[] | null>(null);
+  const [bulkDeletePreviews, setBulkDeletePreviews] = useState<Record<string, DeletePreview>>({});
+  const [loadingBulkPreview, setLoadingBulkPreview] = useState(false);
+
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    
+
     if (selectedIds.size === 1) {
       // Single class deletion - use existing flow
       const firstId = Array.from(selectedIds)[0];
@@ -240,36 +248,47 @@ const Classes: React.FC = () => {
         handleStartDelete(classToDelete.id, classToDelete.name);
       }
     } else {
-      // Multiple classes deletion - use bulk delete endpoint
-      setDeleting(true);
-      
+      // Multiple classes — show confirmation with previews
+      const ids = Array.from(selectedIds);
+      setBulkDeleteTarget(ids);
+      setLoadingBulkPreview(true);
       try {
-        const result = await bulkDeleteClasses(Array.from(selectedIds));
-        
-        // Refresh dependent stores after deletion
-        await Promise.all([
-          fetchClasses(),
-          fetchExams(),
-        ]);
-        
-        // Show result feedback
-        if (result.errors.length === 0) {
-          setToastMessage(`${result.deleted} ${result.deleted === 1 ? 'clase eliminada' : 'clases eliminadas'} correctamente`);
-          setToastColor('success');
-        } else {
-          setToastMessage(`${result.deleted} clases eliminadas, ${result.errors.length} fallaron`);
-          setToastColor('warning');
-          console.warn('Delete errors:', result.errors);
-        }
-      } catch (err) {
-        console.error('Bulk delete failed:', err);
-        setToastMessage('Error al eliminar las clases');
-        setToastColor('danger');
+        const previews: Record<string, DeletePreview> = {};
+        await Promise.all(ids.map(async (id) => {
+          try {
+            previews[id] = await getDeletePreview(id);
+          } catch {}
+        }));
+        setBulkDeletePreviews(previews);
       } finally {
-        setDeleting(false);
-        setSelectionMode(false);
-        setSelectedIds(new Set());
+        setLoadingBulkPreview(false);
       }
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (!bulkDeleteTarget) return;
+    setDeleting(true);
+    try {
+      const result = await bulkDeleteClasses(bulkDeleteTarget);
+      await Promise.all([fetchClasses(), fetchExams()]);
+      if (result.errors.length === 0) {
+        setToastMessage(`${result.deleted} ${result.deleted === 1 ? 'clase eliminada' : 'clases eliminadas'} correctamente`);
+        setToastColor('success');
+      } else {
+        setToastMessage(`${result.deleted} eliminadas, ${result.errors.length} fallaron`);
+        setToastColor('warning');
+      }
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+      setToastMessage('Error al eliminar las clases');
+      setToastColor('danger');
+    } finally {
+      setDeleting(false);
+      setBulkDeleteTarget(null);
+      setBulkDeletePreviews({});
+      setSelectionMode(false);
+      setSelectedIds(new Set());
     }
   };
 
@@ -604,6 +623,67 @@ const Classes: React.FC = () => {
                 disabled={loadingPreview || deleting}
               >
                 {deleting ? <IonSpinner name="crescent" /> : 'Eliminar permanentemente'}
+              </IonButton>
+            </div>
+          </div>
+        </IonModal>
+
+        {/* Bulk delete confirmation modal */}
+        <IonModal
+          isOpen={!!bulkDeleteTarget}
+          onDidDismiss={() => { setBulkDeleteTarget(null); setBulkDeletePreviews({}); }}
+          initialBreakpoint={isDesktop ? 1 : 0.6}
+          breakpoints={isDesktop ? [0, 1] : [0, 0.6, 0.85]}
+        >
+          <div className="modal-sheet">
+            <h2 className="modal-sheet__title">Eliminar {bulkDeleteTarget?.length} clases</h2>
+            <p className="modal-sheet__subtitle">
+              ¿Seguro que quieres eliminar estas clases?
+            </p>
+
+            {loadingBulkPreview ? (
+              <div className="delete-preview-loading">
+                <IonSpinner color="primary" />
+                <span>Calculando elementos...</span>
+              </div>
+            ) : (
+              <div className="delete-preview">
+                <p className="delete-preview__warning">
+                  Se eliminarán permanentemente:
+                </p>
+                <ul className="delete-preview__list">
+                  {bulkDeleteTarget?.map(id => {
+                    const c = classes.find(cl => cl.id === id);
+                    const p = bulkDeletePreviews[id];
+                    const details: string[] = [];
+                    if (p?.counts.students) details.push(`${p.counts.students} alumno${p.counts.students !== 1 ? 's' : ''}`);
+                    if (p?.counts.lectures) details.push(`${p.counts.lectures} asignatura${p.counts.lectures !== 1 ? 's' : ''}`);
+                    if (p?.counts.exams) details.push(`${p.counts.exams} examen${p.counts.exams !== 1 ? 'es' : ''}`);
+                    return (
+                      <li key={id}>
+                        <strong>{c?.name || id}</strong>
+                        {details.length > 0 && <span> — {details.join(', ')}</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="delete-preview__note">
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            )}
+
+            <div className="delete-modal-buttons">
+              <IonButton expand="block" fill="outline" onClick={() => { setBulkDeleteTarget(null); setBulkDeletePreviews({}); }}>
+                Cancelar
+              </IonButton>
+              <IonButton
+                expand="block"
+                color="danger"
+                onClick={handleBulkDeleteConfirm}
+                disabled={loadingBulkPreview || deleting}
+              >
+                {deleting ? <IonSpinner name="crescent" /> : `Eliminar ${bulkDeleteTarget?.length} clases`}
               </IonButton>
             </div>
           </div>

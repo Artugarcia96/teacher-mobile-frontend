@@ -59,7 +59,7 @@ const Login: React.FC = () => {
         <div className="login-container">
           <div className="login-brand">
             <div className="login-icon-wrap">
-              <SepiaLogo size={80} className="login-logo" variant="logo" />
+              <SepiaLogo size={52} className="login-logo" variant="colored" />
             </div>
             <h1 className="login-title">SEPIA Education</h1>
             <p className="login-subtitle">Tu asistente educativo inteligente</p>
@@ -79,6 +79,7 @@ const Login: React.FC = () => {
                   type="text"
                   label="Nombre"
                   labelPlacement="floating"
+                  fill="outline"
                   value={name}
                   onIonInput={(e) => setName(e.detail.value || '')}
                   onKeyDown={handleKeyDown}
@@ -90,6 +91,7 @@ const Login: React.FC = () => {
                 type="email"
                 label="Correo electrónico"
                 labelPlacement="floating"
+                fill="outline"
                 value={email}
                 onIonInput={(e) => setEmail(e.detail.value || '')}
                 onKeyDown={handleKeyDown}
@@ -100,6 +102,7 @@ const Login: React.FC = () => {
                 type="password"
                 label="Contraseña"
                 labelPlacement="floating"
+                fill="outline"
                 value={password}
                 onIonInput={(e) => setPassword(e.detail.value || '')}
                 onKeyDown={handleKeyDown}
@@ -120,6 +123,10 @@ const Login: React.FC = () => {
                 </button>
               )}
 
+              <div className="login-divider">
+                <span>{isRegister ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}</span>
+              </div>
+
               <button
                 type="button"
                 className="login-toggle"
@@ -131,10 +138,14 @@ const Login: React.FC = () => {
                   setError('');
                 }}
               >
-                {isRegister ? '¿Ya tienes cuenta? Iniciar sesión' : '¿No tienes cuenta? Registrarse'}
+                {isRegister ? 'Iniciar sesión' : 'Registrarse'}
               </button>
             </IonCardContent>
           </IonCard>
+
+          <div className="login-footer">
+            <p>Plataforma educativa impulsada por IA</p>
+          </div>
         </div>
       </IonContent>
     </IonPage>

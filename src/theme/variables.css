@@ -592,6 +592,11 @@ ion-segment-button:not(.segment-button-checked):hover {
     --border-radius: var(--radius-xl);
   }
 
+  ion-modal:not(.modal-fullscreen) .ion-page {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Relax touch targets for mouse */
   ion-chip {
     min-height: 36px;
@@ -834,6 +839,11 @@ ion-segment-button:focus-visible {
 /* ─── Modal Sheet Pattern ─── */
 .modal-sheet {
   padding: var(--space-2xl) var(--space-xl);
+}
+
+.modal-sheet--scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-sheet__title {

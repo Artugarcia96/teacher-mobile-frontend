@@ -11,6 +11,7 @@ import { useParams, useHistory } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import { classes as classesApi } from '../../services/api';
 import { ClassGroup, Exercise } from '../../types';
 import EmptyState from '../../components/EmptyState';
@@ -54,11 +55,15 @@ const ExercisesList: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; ids: string[] } | null>(null);
   const [classGroup, setClassGroup] = useState<ClassGroup | null>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [calendarTopicIds, setCalendarTopicIds] = useState<string[]>([]);
+  const [calendarName, setCalendarName] = useState('');
 
   // Auto-open generate modal from calendar navigation (?generate=1)
   useEffect(() => {
     const params = new URLSearchParams(history.location.search);
     if (params.get('generate') === '1') {
+      setCalendarTopicIds(params.get('topicIds')?.split(',').filter(Boolean) || []);
+      setCalendarName(params.get('name') || '');
       setShowGenerateModal(true);
       // Clean up URL
       history.replace(history.location.pathname);
@@ -92,7 +97,10 @@ const ExercisesList: React.FC = () => {
     fetchStudents(classId);
     fetchExercises();
     fetchClassDetails();
-    if (classId) fetchClassSubjects(classId);
+    if (classId && fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
+      fetchClassSubjects(classId);
+      fetchRegistry.register(`classSubjects-${classId}`);
+    }
   }, [classId, subjectId, fetchClasses, fetchStudents, fetchExercises, fetchClassDetails, fetchClassSubjects]);
 
   // Group exercises by name
@@ -324,10 +332,14 @@ const ExercisesList: React.FC = () => {
           isOpen={showGenerateModal}
           onDismiss={() => {
             setShowGenerateModal(false);
+            setCalendarTopicIds([]);
+            setCalendarName('');
             fetchExercises();
           }}
           classId={classId}
           preselectedSubjectId={subjectId}
+          preselectedTopicIds={calendarTopicIds}
+          preselectedName={calendarName}
           subjectColor={subjectColor}
         />
       </IonContent>

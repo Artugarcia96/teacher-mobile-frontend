@@ -46,8 +46,9 @@ export const useAcademicConfigStore = create<AcademicConfigState>((set, get) => 
   loading: {},
 
   fetchConfig: async (classId: string) => {
-    // Return cached if available
-    if (classId in get().configs) return get().configs[classId];
+    // Return cached if available (only if it's a real config, not null)
+    const cached = get().configs[classId];
+    if (cached) return cached;
 
     set((s) => ({ loading: { ...s.loading, [classId]: true } }));
     try {
@@ -69,6 +70,14 @@ export const useAcademicConfigStore = create<AcademicConfigState>((set, get) => 
   },
 
   setConfig: (classId, config) => {
-    set((s) => ({ configs: { ...s.configs, [classId]: config } }));
+    if (config === null) {
+      // Remove from cache so next fetchConfig re-fetches from server
+      set((s) => {
+        const { [classId]: _, ...rest } = s.configs;
+        return { configs: rest };
+      });
+    } else {
+      set((s) => ({ configs: { ...s.configs, [classId]: config } }));
+    }
   },
 }));

@@ -400,31 +400,53 @@
 }
 
 /* ── Plan progress widget ── */
-.gb-plan-progress {
-  display: block; width: 100%; text-align: left; cursor: pointer;
-  padding: 12px 14px; margin: 10px 0;
-  border-radius: 10px; border: 1px solid var(--ion-border-color, #e2e8f0);
+/* ── Rich course progress card (shared .tpc) ── */
+.gb-overview .tpc {
+  width: 100%;
+  padding: 14px 16px;
+  margin: 10px 0;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid rgba(15, 23, 42, 0.06);
   background: var(--ion-card-background, #fff);
-  font: inherit; transition: background 0.1s;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow 0.15s;
 }
-.gb-plan-progress:active { background: rgba(15,23,42,0.03); }
-.gb-plan-progress__header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+.gb-overview .tpc:active { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06); }
+.gb-overview .tpc__row1 {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
 }
-.gb-plan-progress__title {
-  font-size: 13px; font-weight: 600; color: var(--color-text-primary, #0f172a);
+.gb-overview .tpc__pct {
+  font-size: 20px; font-weight: 800; color: var(--ion-color-primary); line-height: 1;
 }
-.gb-plan-progress__pace {
-  font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px;
+.gb-overview .tpc__title {
+  flex: 1; font-size: 13px; font-weight: 500; color: var(--color-text-secondary, #64748b);
 }
-.gb-plan-progress__pace--ahead { background: rgba(5,150,105,0.1); color: #059669; }
-.gb-plan-progress__pace--behind { background: rgba(239,68,68,0.1); color: #ef4444; }
-.gb-plan-progress__footer {
-  display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-secondary, #64748b);
+.gb-overview .tpc__bar {
+  height: 6px; border-radius: 3px; background: rgba(var(--ion-color-primary-rgb), 0.1); overflow: hidden;
 }
-.gb-plan-progress__current {
-  font-weight: 500; color: var(--ion-color-primary);
+.gb-overview .tpc__bar-fill {
+  height: 100%; border-radius: 3px; background: var(--ion-color-primary); transition: width 0.4s ease;
 }
+.gb-overview .tpc__tri-row {
+  display: flex; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 0 2px;
+}
+.gb-overview .tpc__tri { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.gb-overview .tpc__tri-sep { color: var(--color-text-tertiary, #cbd5e1); margin: 0 4px; font-weight: 400; }
+.gb-overview .tpc__footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(15, 23, 42, 0.05);
+}
+.gb-overview .tpc__current {
+  font-size: 12px; font-weight: 500; color: var(--color-text-secondary, #64748b);
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gb-overview .tpc__pace {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; flex-shrink: 0;
+}
+.gb-overview .tpc__pace--ahead { background: rgba(5, 150, 105, 0.08); color: #059669; }
+.gb-overview .tpc__pace--behind { background: rgba(239, 68, 68, 0.08); color: #ef4444; }
 
 .gb-nav-section-title {
   padding: 8px 16px 4px;
@@ -955,6 +977,22 @@
 .gb-week-cal__card-action:active { background: rgba(var(--ion-color-primary-rgb), 0.06); }
 .gb-week-cal__card-action ion-icon { font-size: 13px; }
 
+/* Unplanned session — faded preview */
+.gb-week-cal__card--unplanned {
+  background: rgba(15, 23, 42, 0.015);
+  border-style: dashed;
+  border-color: rgba(15, 23, 42, 0.08);
+}
+.gb-week-cal__card-preview {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.gb-week-cal__card-preview-info {
+  font-size: 11px; font-weight: 500;
+  color: var(--color-text-secondary);
+  opacity: 0.65;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ── Legacy styles (kept for non-plan events) ── */
 .gb-week-cal__event-focus {
   font-size: 10px; color: var(--color-text-secondary); font-style: italic;
@@ -1192,6 +1230,11 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @media (prefers-color-scheme: dark) {
+  .gb-week-cal__card--unplanned {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
   .gb-hero {
     background: #0D4A44;
   }

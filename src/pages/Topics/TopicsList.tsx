@@ -14,6 +14,7 @@ import {
 import { useParams, useHistory } from 'react-router-dom';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
+import { fetchRegistry } from '../../store/fetchRegistry';
 import { useTextbooksStore } from '../../store/textbooksStore';
 import { useCoursePlanStore } from '../../store/coursePlanStore';
 import { subjects as subjectsApi } from '../../services/api';
@@ -83,7 +84,7 @@ const TopicsList: React.FC = () => {
   const [selectedTextbook, setSelectedTextbook] = useState<Textbook | null>(null);
 
   // Course plan state
-  const { plans: coursePlans, fetchPlans: fetchCoursePlans, deletePlan } = useCoursePlanStore();
+  const { plans: coursePlans, fetchPlans: fetchCoursePlans, deletePlan, fetchProgress: fetchPlanProgress } = useCoursePlanStore();
   const [showCoursePlanCreator, setShowCoursePlanCreator] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [deletePlanTarget, setDeletePlanTarget] = useState<{ id: string; name: string } | null>(null);
@@ -131,9 +132,15 @@ const TopicsList: React.FC = () => {
   }, [sourceClassSubjects, classSubjects]);
 
   useEffect(() => {
+    const load = async () => {
+      if (classId && fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
+        await fetchClassSubjects(classId);
+        fetchRegistry.register(`classSubjects-${classId}`);
+      }
+    };
     fetchClasses();
     fetchTopicsForClass(classId);
-    if (classId) { fetchClassSubjects(classId); fetchAcademicConfig(classId); }
+    if (classId) { load(); fetchAcademicConfig(classId); }
   }, [classId, fetchClasses, fetchTopicsForClass, fetchClassSubjects, fetchAcademicConfig]);
 
   useEffect(() => {
@@ -150,6 +157,16 @@ const TopicsList: React.FC = () => {
       fetchCoursePlans(activeSubjectId, classId);
     }
   }, [activeSubjectId, classId, fetchTextbooks, fetchCoursePlans]);
+
+  // Find the accepted plan for current subject+class and fetch its progress
+  const acceptedPlan = useMemo(
+    () => coursePlans.find((p) => p.subjectId === activeSubjectId && p.classId === classId && p.topicsCreated),
+    [coursePlans, activeSubjectId, classId]
+  );
+
+  useEffect(() => {
+    if (acceptedPlan) fetchPlanProgress(acceptedPlan.id).catch(() => null);
+  }, [acceptedPlan?.id]);
 
   const handleOpenSubjectModal = () => {
     setSelectedLinkIds([]);
@@ -358,47 +375,97 @@ const TopicsList: React.FC = () => {
           />
         ) : (
           <>
-            {/* ─── Course plan section ─── */}
-            {activeSubjectId && (
-              <div className="topics-generated">
-                {coursePlans.filter((p) => p.subjectId === activeSubjectId && p.classId === classId).length > 0 ? (
-                  <>
-                    <div className="topics-generated__header">
-                      <IonIcon icon={sparklesOutline} className="topics-generated__icon" />
-                      <span className="topics-generated__title">Planificación del curso</span>
+            {/* ─── Empty state: unified onboarding when no topics ─── */}
+            {activeSubjectId && (activeSubject?.topics.length || 0) === 0 && coursePlans.filter((p) => p.subjectId === activeSubjectId && p.classId === classId).length === 0 && textbooks.filter(tb => !tb.temasCreated).length === 0 && (
+              <div className="topics-onboarding">
+                <div className="topics-onboarding__hero">
+                  <button className="topics-onboarding__plan" onClick={() => setShowCoursePlanCreator(true)}>
+                    <IonIcon icon={sparkles} className="topics-onboarding__plan-icon" />
+                    <div className="topics-onboarding__plan-text">
+                      <span className="topics-onboarding__plan-title">Planificar curso con IA</span>
+                      <span className="topics-onboarding__plan-desc">
+                        Sube la programación y genera automáticamente temas, fechas, exámenes y contenido
+                      </span>
                     </div>
-                    {coursePlans
-                      .filter((p) => p.subjectId === activeSubjectId && p.classId === classId)
-                      .map((plan) => (
-                        <CoursePlanCard
-                          key={plan.id}
-                          plan={plan}
-                          subjectName={activeSubjectName}
-                          onClick={() => {
-                            if (plan.status === 'completed') {
-                              setSelectedPlanId(plan.id);
-                            }
-                          }}
-                          onDelete={() => setDeletePlanTarget({
-                            id: plan.id,
-                            name: plan.title || `Planificación ${activeSubjectName}`,
-                          })}
-                        />
-                      ))
-                    }
-                  </>
-                ) : (
-                  <button
-                    className="cplan-card cplan-card--new"
-                    onClick={() => setShowCoursePlanCreator(true)}
-                  >
-                    <IonIcon icon={sparkles} className="cplan-card__icon" />
-                    <span className="cplan-card__title">Planificar curso con IA</span>
-                    <span className="cplan-card__new-desc">
-                      Sube la programación y genera un plan completo con fechas, exámenes y sesiones de repaso
-                    </span>
                   </button>
-                )}
+                  <div className="topics-onboarding__divider">
+                    <span>o añade temas manualmente</span>
+                  </div>
+                  <button className="topics-onboarding__manual" onClick={() => setShowTopicModal(true)}>
+                    <IonIcon icon={addOutline} />
+                    <span>Nuevo tema</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Plan in progress (not yet accepted, no topics yet) ─── */}
+            {activeSubjectId && (activeSubject?.topics.length || 0) === 0 && coursePlans.filter((p) => p.subjectId === activeSubjectId && p.classId === classId).length > 0 && (
+              <div className="topics-onboarding">
+                <div className="topics-onboarding__hero">
+                  {coursePlans
+                    .filter((p) => p.subjectId === activeSubjectId && p.classId === classId)
+                    .map((plan) => {
+                      const isProcessing = plan.status === 'analyzing' || plan.status === 'generating';
+                      return (
+                        <div key={plan.id} className="topics-plan-status"
+                          onClick={() => { if (plan.status === 'completed') setSelectedPlanId(plan.id); }}
+                          role={plan.status === 'completed' ? 'button' : undefined}
+                        >
+                          <div className="topics-plan-status__row">
+                            <IonIcon icon={sparkles} className="topics-plan-status__icon" />
+                            <div className="topics-plan-status__info">
+                              <span className="topics-plan-status__title">{plan.title || `Planificación ${activeSubjectName}`}</span>
+                              <span className="topics-plan-status__label">
+                                {isProcessing ? (
+                                  <><IonSpinner name="crescent" style={{ width: 12, height: 12 }} /> {plan.status === 'analyzing' ? 'Analizando currículo...' : 'Generando plan...'}</>
+                                ) : plan.status === 'completed' ? (
+                                  'Planificación lista — toca para revisar'
+                                ) : plan.status === 'failed' ? (
+                                  'Error al generar'
+                                ) : 'Pendiente'}
+                              </span>
+                            </div>
+                            {!isProcessing && (
+                              <button className="topics-plan-status__delete" onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletePlanTarget({ id: plan.id, name: plan.title || `Planificación ${activeSubjectName}` });
+                              }}>
+                                <IonIcon icon={trashOutline} />
+                              </button>
+                            )}
+                          </div>
+                          {isProcessing && <IonProgressBar type="indeterminate" color="primary" style={{ height: 3, borderRadius: 2, marginTop: 8 }} />}
+                        </div>
+                      );
+                    })
+                  }
+                  <div className="topics-onboarding__divider">
+                    <span>mientras tanto</span>
+                  </div>
+                  <button className="topics-onboarding__manual" onClick={() => setShowTopicModal(true)}>
+                    <IonIcon icon={addOutline} />
+                    <span>Añadir tema manualmente</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ─── When topics exist: pending plan controls ─── */}
+            {activeSubjectId && (activeSubject?.topics.length || 0) > 0 && coursePlans.filter((p) => p.subjectId === activeSubjectId && p.classId === classId && !p.topicsCreated).length > 0 && (
+              <div className="topics-generated">
+                {coursePlans
+                  .filter((p) => p.subjectId === activeSubjectId && p.classId === classId && !p.topicsCreated)
+                  .map((plan) => (
+                    <CoursePlanCard
+                      key={plan.id}
+                      plan={plan}
+                      subjectName={activeSubjectName}
+                      onClick={() => { if (plan.status === 'completed') setSelectedPlanId(plan.id); }}
+                      onDelete={() => setDeletePlanTarget({ id: plan.id, name: plan.title || `Planificación ${activeSubjectName}` })}
+                    />
+                  ))
+                }
               </div>
             )}
 
@@ -456,15 +523,7 @@ const TopicsList: React.FC = () => {
                 className="topics-search"
               />
             )}
-            {activeTopics.length === 0 && !search && activeTrimester === 'all' && textbooks.filter(tb => !tb.temasCreated).length === 0 ? (
-              <EmptyState
-                icon="📄"
-                title={`Sin temas en ${activeSubjectName}`}
-                subtitle="Añade temas y sube materiales para esta asignatura"
-                actionLabel="Nuevo tema"
-                onAction={() => setShowTopicModal(true)}
-              />
-            ) : activeTopics.length === 0 && (search || activeTrimester !== 'all') ? (
+            {activeTopics.length === 0 && (search || activeTrimester !== 'all') ? (
               <EmptyState icon="🔍" title="Sin resultados" subtitle={search ? "No hay temas que coincidan" : "No hay temas en este trimestre"} />
             ) : activeTopics.length > 0 ? (
               <IonList className="topics-list">
@@ -477,23 +536,23 @@ const TopicsList: React.FC = () => {
                         className="topic-item card-item"
                       >
                         <div className="topic-item__left" slot="start">
-                          <div className="topic-item__number">{idx + 1}</div>
+                          <div className={`topic-item__number topic-item__number--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'draft'}`}>
+                            {topic.status === 'taught' ? '✓' : idx + 1}
+                          </div>
                         </div>
                         <IonLabel className="topic-item__body">
                           <h3 className="topic-item__name">{topic.name}</h3>
                           {topic.description && <p className="topic-item__desc">{topic.description}</p>}
-                          {((topic.trimester && activeTrimester === 'all') || topic.hasContent) && (
-                            <div className="topic-item__tags">
-                              {topic.trimester && activeTrimester === 'all' && (
-                                <span className="topic-item__trimester-tag">{getPeriodLabel(periodMode, topic.trimester)}</span>
-                              )}
-                              {topic.hasContent && (
-                                <span className={`topic-item__content-tag topic-item__content-tag--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'default'}`}>
-                                  {topic.pageCount ? `${topic.pageCount}p` : 'IA'}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <div className="topic-item__tags">
+                            {topic.trimester && activeTrimester === 'all' && (
+                              <span className="topic-item__trimester-tag">{getPeriodLabel(periodMode, topic.trimester)}</span>
+                            )}
+                            {topic.hasContent && (
+                              <span className={`topic-item__content-tag topic-item__content-tag--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'default'}`}>
+                                {topic.pageCount ? `${topic.pageCount}p` : 'Material'}
+                              </span>
+                            )}
+                          </div>
                         </IonLabel>
                         <div className="topic-item__right" slot="end">
                           {topic.materialCount > 0 && (
@@ -587,8 +646,11 @@ const TopicsList: React.FC = () => {
             { text: 'Eliminar', role: 'destructive', handler: async () => {
               if (deletePlanTarget) {
                 await deletePlan(deletePlanTarget.id);
-                fetchCoursePlans(activeSubjectId, classId);
-                fetchTopicsForClass(classId);
+                await Promise.all([
+                  fetchCoursePlans(activeSubjectId, classId),
+                  fetchTopicsForClass(classId),
+                  fetchClassSubjects(classId),
+                ]);
               }
               setDeletePlanTarget(null);
             }},

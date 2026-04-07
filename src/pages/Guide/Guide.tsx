@@ -10,7 +10,7 @@ import {
   documentTextOutline, checkmarkDoneOutline, createOutline,
   clipboardOutline, peopleOutline, statsChartOutline, sparklesOutline,
   syncOutline, chatbubblesOutline, mapOutline, helpCircleOutline,
-  arrowBackOutline,
+  arrowBackOutline, readerOutline,
 } from 'ionicons/icons';
 import './Guide.css';
 
@@ -333,16 +333,13 @@ const sections: Section[] = [
           <li>Orden personalizable arrastrando y soltando.</li>
         </ul>
 
-        <h4>Crear un tema</h4>
-        <ol className="guide-steps">
-          <li>Ve a la clase &rarr; <strong>Temas</strong>.</li>
-          <li>Selecciona la asignatura en el selector superior.</li>
-          <li>Pulsa <strong>+ Nuevo Tema</strong>.</li>
-          <li>Introduce nombre y descripcion.</li>
-          <li>Asigna un trimestre.</li>
-          <li>Opcionalmente sube materiales (PDF, imagenes, documentos).</li>
-          <li>Pulsa <strong>Guardar</strong>.</li>
-        </ol>
+        <h4>Crear temas</h4>
+        <p>Hay tres formas de crear temas:</p>
+        <ul>
+          <li><strong>Manualmente</strong>: pulsa <strong>+ Nuevo Tema</strong>, introduce nombre, descripcion, trimestre y materiales opcionales.</li>
+          <li><strong>Desde un libro de texto</strong>: si has generado un libro con IA, pulsa <strong>&laquo;Sugerir Temas&raquo;</strong> para crear temas a partir de la estructura de capitulos.</li>
+          <li><strong>Desde una planificacion</strong>: al aceptar una planificacion de curso se crean automaticamente los temas con fechas y sesiones programadas. Consulta la seccion &laquo;Planificacion del curso&raquo;.</li>
+        </ul>
 
         <h4>Gestion de materiales</h4>
         <ul>
@@ -363,6 +360,82 @@ const sections: Section[] = [
     ),
   },
   /* 9 */
+  {
+    id: 'course-plan',
+    title: 'Planificacion del curso',
+    icon: readerOutline,
+    keywords: ['planificacion', 'programacion', 'planificar', 'curso', 'calendario', 'sesiones', 'trimestre', 'curriculo', 'progreso', 'repaso', 'margen'],
+    content: (
+      <>
+        <p>SEPIA puede generar una planificacion completa del curso a partir de la programacion oficial (PDF). La IA analiza el curriculo, distribuye los temas en sesiones reales segun los horarios configurados y programa examenes, repasos y entregas de ejercicios.</p>
+
+        <h4>Acceso</h4>
+        <p>La planificacion se crea y gestiona desde la vista de <strong>Temas</strong> de una asignatura. Si aun no hay temas creados, aparece un boton destacado <strong>&laquo;Planificar curso con IA&raquo;</strong>. Tambien puedes acceder desde la vista de asignatura en el libro de calificaciones, donde se muestra el progreso de la planificacion activa.</p>
+
+        <h4>Crear una planificacion</h4>
+        <ol className="guide-steps">
+          <li>Ve a la clase &rarr; <strong>Temas</strong> &rarr; pulsa <strong>&laquo;Planificar curso con IA&raquo;</strong>.</li>
+          <li>Sube uno o varios PDFs con la programacion del curso (temario oficial).</li>
+          <li>Selecciona los trimestres activos. SEPIA detecta automaticamente cuantas sesiones hay en cada trimestre segun los horarios configurados.</li>
+          <li>Configura las opciones:
+            <ul>
+              <li><strong>Repaso antes de examenes</strong>: incluye sesiones de repaso previas a cada examen.</li>
+              <li><strong>Margen por trimestre</strong>: sesiones de reserva para imprevistos (0 a 5).</li>
+              <li><strong>Notas para la IA</strong>: instrucciones opcionales, por ejemplo &laquo;dedicar mas tiempo a fracciones&raquo; o &laquo;saltar combinatoria&raquo;.</li>
+            </ul>
+          </li>
+          <li>Pulsa <strong>&laquo;Generar planificacion&raquo;</strong>. La tarea se ejecuta en segundo plano.</li>
+        </ol>
+
+        <h4>Revisar la planificacion generada</h4>
+        <p>Cuando la planificacion esta lista, pulsa la tarjeta para abrirla. La vista de linea temporal muestra:</p>
+        <ul>
+          <li><strong>Selector de trimestre</strong> con fechas de inicio y fin.</li>
+          <li><strong>Sesiones por mes</strong>: barras de distribucion con el numero de sesiones y examenes previstos en cada mes.</li>
+          <li><strong>Unidades y temas</strong>: cada unidad muestra sus temas con el numero de sesiones asignadas.</li>
+          <li><strong>Sesiones individuales</strong>: al expandir un tema se ven las sesiones con su tipo (Intro, Teoria, T+Pract, Practica, Profund., Repaso), titulo y fecha.</li>
+          <li><strong>Eventos del plan</strong>: entregas de ejercicios, sesiones de repaso, examenes de unidad, examenes finales de trimestre y sesiones de margen.</li>
+        </ul>
+
+        <h4>Editar antes de aceptar</h4>
+        <div className="guide-highlight">
+          <p>Puedes ajustar la planificacion antes de aceptarla:</p>
+          <ul>
+            <li><strong>Ajustar sesiones</strong>: usa los controles +/- para aumentar o reducir las sesiones dedicadas a un tema.</li>
+            <li><strong>Mover temas de trimestre</strong>: pulsa el boton del trimestre destino para reubicar un tema.</li>
+            <li><strong>Editar contenido de sesiones</strong>: toca una sesion para editar su titulo, enfoque y puntos clave.</li>
+            <li><strong>Regenerar</strong>: tras hacer cambios, pulsa <strong>&laquo;Regenerar plan&raquo;</strong> para que la IA recalcule las fechas con tus ajustes.</li>
+          </ul>
+        </div>
+
+        <h4>Aceptar la planificacion</h4>
+        <ol className="guide-steps">
+          <li>Pulsa <strong>&laquo;Revisar y aceptar&raquo;</strong>.</li>
+          <li>Revisa el resumen: numero de temas, sesiones y examenes.</li>
+          <li>Opcionalmente activa <strong>&laquo;Generar material para cada tema&raquo;</strong> para que la IA cree automaticamente contenido teorico con PDF.</li>
+          <li>Revisa los examenes del plan y desmarca los que no quieras crear.</li>
+          <li>Opcionalmente anade examenes adicionales con <strong>&laquo;+ Anadir examen propio&raquo;</strong>.</li>
+          <li>Pulsa <strong>&laquo;Aceptar planificacion&raquo;</strong> (o <strong>&laquo;Aceptar y generar material&raquo;</strong> si activaste la generacion de contenido).</li>
+        </ol>
+        <p>Al aceptar, SEPIA crea automaticamente los temas y los eventos en el calendario.</p>
+
+        <h4>Seguimiento de progreso</h4>
+        <p>Una vez aceptada, la planificacion muestra una pestana de <strong>Progreso</strong> con:</p>
+        <ul>
+          <li><strong>Anillo de completitud</strong>: porcentaje de temas impartidos sobre el total.</li>
+          <li><strong>Ritmo</strong>: sesiones de adelanto o retraso respecto al plan. Verde si vas adelantado, rojo si vas retrasado.</li>
+          <li><strong>Progreso por trimestre</strong>: temas completados vs. planificados en cada periodo.</li>
+          <li><strong>Tema actual y proximos</strong>: el tema en curso y los siguientes con sus fechas.</li>
+        </ul>
+        <p>SEPIA marca automaticamente los temas como impartidos cuando pasan todas sus fechas programadas.</p>
+
+        <div className="guide-tip">
+          <strong>Widget en el libro de calificaciones</strong> &mdash; en la vista de asignatura del libro de calificaciones aparece un widget compacto con el progreso de la planificacion activa: porcentaje, tema actual, ritmo y desglose por trimestre. Pulsa sobre el para ir a los temas.
+        </div>
+      </>
+    ),
+  },
+  /* 10 */
   {
     id: 'exams',
     title: 'Gestion de examenes',
@@ -417,7 +490,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 10 */
+  /* 11 */
   {
     id: 'correction',
     title: 'Correccion de examenes',
@@ -484,7 +557,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 11 */
+  /* 12 */
   {
     id: 'exercises',
     title: 'Ejercicios personalizados',
@@ -540,7 +613,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 12 */
+  /* 13 */
   {
     id: 'exercise-correction',
     title: 'Correccion de ejercicios',
@@ -572,7 +645,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 13 */
+  /* 14 */
   {
     id: 'attendance',
     title: 'Asistencia',
@@ -608,7 +681,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 14 */
+  /* 15 */
   {
     id: 'reports',
     title: 'Informes y analiticas',
@@ -647,7 +720,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 15 */
+  /* 16 */
   {
     id: 'ai',
     title: 'Generacion de contenido con IA',
@@ -662,6 +735,7 @@ const sections: Section[] = [
           <li><strong>Vision e imagen</strong> &mdash; analiza imagenes de examenes manuscritos, extrae texto, reconoce codigos de alumno e identifica respuestas.</li>
           <li><strong>Generacion de examenes</strong> &mdash; crea examenes completos a partir de temas, con preguntas variadas y clave de soluciones.</li>
           <li><strong>Ejercicios adaptativos</strong> &mdash; genera ejercicios personalizados por areas debiles, ajustables en dificultad y cantidad.</li>
+          <li><strong>Planificacion del curso</strong> &mdash; analiza la programacion oficial en PDF y genera una planificacion completa con sesiones, examenes, repasos y seguimiento de progreso.</li>
           <li><strong>Libros de texto</strong> &mdash; crea libros completos con capitulos, secciones, ejercicios y soluciones.</li>
           <li><strong>Analisis inteligente</strong> &mdash; insights de clase, evaluacion de riesgo, tendencias y el resumen diario &laquo;Prepara tu dia&raquo;.</li>
           <li><strong>Comentarios automaticos</strong> &mdash; genera comentarios para informes trimestrales adaptados al rendimiento de cada alumno.</li>
@@ -683,7 +757,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 16 */
+  /* 17 */
   {
     id: 'background-tasks',
     title: 'Tareas en segundo plano',
@@ -714,7 +788,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 17 */
+  /* 18 */
   {
     id: 'comments',
     title: 'Comentarios y comunicacion',
@@ -751,7 +825,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 18 */
+  /* 19 */
   {
     id: 'workflows',
     title: 'Flujos de trabajo completos',
@@ -764,8 +838,7 @@ const sections: Section[] = [
           <li><strong>Crear la clase</strong>: nombre, nivel y curso academico.</li>
           <li><strong>Anadir asignaturas</strong>: vincula todas las materias que impartes y configura sus horarios.</li>
           <li><strong>Importar alumnos</strong>: sube la lista en bloque o anadilos uno a uno.</li>
-          <li><strong>Crear temas</strong>: organiza el contenido por asignatura y trimestre.</li>
-          <li>Opcionalmente genera un libro de texto con IA y crea temas a partir de el.</li>
+          <li><strong>Planificar el curso</strong>: sube la programacion oficial y genera automaticamente temas, sesiones con fechas, examenes y repasos. Tambien puedes crear temas manualmente o desde un libro de texto generado con IA.</li>
         </ol>
 
         <h4>Ciclo completo de evaluacion</h4>
@@ -813,7 +886,7 @@ const sections: Section[] = [
       </>
     ),
   },
-  /* 19 */
+  /* 20 */
   {
     id: 'faq',
     title: 'Preguntas frecuentes',

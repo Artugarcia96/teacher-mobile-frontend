@@ -44,6 +44,8 @@ interface BackgroundTasksState {
     expectedResultUrl?: string;
     /** Initial steps to show immediately */
     initialSteps?: string[];
+    /** Called when the batch job completes successfully */
+    onComplete?: () => void;
   }) => string;
   /** Update steps externally (for batch job polling) */
   pushStep: (taskId: string, label: string) => void;
@@ -63,7 +65,8 @@ function startBatchPolling(
   batchJobId: string,
   expectedResultUrl: string | undefined,
   set: (fn: (s: BackgroundTasksState) => Partial<BackgroundTasksState>) => void,
-  existingSteps?: TaskStep[]
+  existingSteps?: TaskStep[],
+  onComplete?: () => void,
 ) {
   if (activePolling.has(taskId)) return;
   activePolling.add(taskId);
@@ -182,6 +185,7 @@ function startBatchPolling(
               return { ...t, status: 'completed' as const, resultUrl: expectedResultUrl, completedAt: Date.now(), steps: finalSteps };
             }),
           }));
+          try { onComplete?.(); } catch { /* */ }
           return;
         }
         if (status === 'failed' || status === 'cancelled') {
@@ -225,7 +229,7 @@ export const useBackgroundTasksStore = create<BackgroundTasksState>()(
     (set, get) => ({
       tasks: [],
 
-      addTask: ({ type, label, description, execute, batchJobId, expectedResultUrl, initialSteps }) => {
+      addTask: ({ type, label, description, execute, batchJobId, expectedResultUrl, initialSteps, onComplete }) => {
         const id = `bg-${nextId++}-${Date.now()}`;
         const steps: TaskStep[] = (initialSteps || []).map((s, i) => ({
           label: s,
@@ -263,7 +267,7 @@ export const useBackgroundTasksStore = create<BackgroundTasksState>()(
         };
 
         if (batchJobId) {
-          startBatchPolling(id, batchJobId, expectedResultUrl, set);
+          startBatchPolling(id, batchJobId, expectedResultUrl, set, undefined, onComplete);
           execute(onStep).catch(() => {});
         } else {
           execute(onStep)

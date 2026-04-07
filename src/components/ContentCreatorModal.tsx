@@ -6,6 +6,8 @@ import {
 import { sparkles, cloudUploadOutline, checkmarkCircleOutline, documentTextOutline, closeCircleOutline } from 'ionicons/icons';
 import { useTextbooksStore } from '../store/textbooksStore';
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
+import { useClassesStore } from '../store/classesStore';
+import { useTopicsStore } from '../store/topicsStore';
 import { batch } from '../services/api';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import './ContentCreatorModal.css';
@@ -98,6 +100,11 @@ const ContentCreatorModal: React.FC<ContentCreatorModalProps> = ({
         description: 'La IA estructura el temario por capítulos, redacta explicaciones con ejemplos y ejercicios, y genera el PDF.',
         batchJobId: jobId,
         expectedResultUrl: `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`,
+        onComplete: () => {
+          fetchTextbooks(capturedSubjectId);
+          useClassesStore.getState().fetchClassSubjects(classId);
+          useTopicsStore.getState().fetchTopicsForClass(classId);
+        },
         execute: async () => {
           const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
           let interval = 5000;
