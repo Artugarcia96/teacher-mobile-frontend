@@ -1,10 +1,10 @@
-import { checkmarkCircle, closeCircle, alertCircle, helpCircle } from 'ionicons/icons';
+import { CheckCircle, XCircle, AlertCircle, HelpCircle } from 'lucide-react';
 
 export const questionStatusConfig = {
-  correct: { icon: checkmarkCircle, color: 'success', label: 'Correcto', symbol: '✓' },
-  partial: { icon: alertCircle, color: 'warning', label: 'Parcial', symbol: '~' },
-  incorrect: { icon: closeCircle, color: 'danger', label: 'Incorrecto', symbol: '✗' },
-  blank: { icon: helpCircle, color: 'medium', label: 'Sin respuesta', symbol: '—' },
+  correct: { icon: CheckCircle, color: 'success', label: 'Correcto', symbol: '✓' },
+  partial: { icon: AlertCircle, color: 'warning', label: 'Parcial', symbol: '~' },
+  incorrect: { icon: XCircle, color: 'danger', label: 'Incorrecto', symbol: '✗' },
+  blank: { icon: HelpCircle, color: 'medium', label: 'Sin respuesta', symbol: '—' },
 } as const;
 
 export const chartColors = {

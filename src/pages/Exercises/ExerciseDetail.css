@@ -1,8 +1,5 @@
 .exd-content {
-  --padding-top: 0;
-  --padding-start: 0;
-  --padding-end: 0;
-  --padding-bottom: 100px;
+  padding-bottom: 100px;
 }
 
 .exd-loading {
@@ -44,7 +41,7 @@
   gap: var(--space-sm);
 }
 
-.exd-hero__nav ion-buttons {
+.exd-hero__nav buttons {
   margin: 0;
   flex-shrink: 0;
 }
@@ -90,7 +87,7 @@
   white-space: nowrap;
 }
 
-.exd-hero__type-badge ion-icon {
+.exd-hero__type-badge svg {
   font-size: 11px;
 }
 
@@ -106,7 +103,7 @@
   --padding-end: 8px;
 }
 
-.exd-hero__action-btn ion-icon {
+.exd-hero__action-btn svg {
   font-size: 20px;
 }
 
@@ -142,7 +139,7 @@
 .exd-ribbon__value {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -150,7 +147,7 @@
 
 .exd-ribbon__icon {
   font-size: 14px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .exd-ribbon__label {
@@ -189,7 +186,7 @@
   gap: 8px;
 }
 
-.exd-areas-list ion-chip {
+.exd-areas-list span {
   font-size: 0.8rem;
 }
 
@@ -228,7 +225,7 @@
   flex-shrink: 0;
 }
 
-.exd-stat-icon ion-icon {
+.exd-stat-icon svg {
   font-size: 1.1rem;
 }
 
@@ -238,8 +235,8 @@
 }
 
 .exd-stat-icon--primary {
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  color: var(--ion-color-primary);
+  background: rgba(21, 102, 94, 0.1);
+  color: var(--color-primary);
 }
 
 .exd-stat-icon--warning {
@@ -255,7 +252,7 @@
 .exd-stat-value {
   font-size: var(--font-size-xl);
   font-weight: 800;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   line-height: 1;
   letter-spacing: -0.02em;
 }
@@ -288,7 +285,7 @@
   margin-bottom: var(--space-sm);
 }
 
-.exd-progress-section ion-progress-bar {
+.exd-progress-section div {
   height: 6px;
   border-radius: var(--radius-sm);
   --background: var(--color-border);
@@ -331,14 +328,14 @@
   font-weight: 500;
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
-  background: rgba(var(--ion-color-warning-rgb), 0.10);
-  color: var(--ion-color-warning-shade);
+  background: rgba(217, 119, 6, 0.10);
+  color: #BF6905;
 }
 
 .exd-weak-count {
   font-size: 10px;
   font-weight: 700;
-  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  background: rgba(217, 119, 6, 0.15);
   border-radius: var(--radius-full);
   padding: 0 5px;
 }
@@ -408,14 +405,14 @@
 
 .exd-doc-icon {
   font-size: 18px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
 .exd-doc-name {
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -438,7 +435,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: transparent;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   padding: 0;
@@ -446,8 +443,8 @@
 }
 
 .exd-doc-btn:active {
-  background: rgba(var(--ion-color-primary-rgb), 0.12);
-  color: var(--ion-color-primary);
+  background: rgba(21, 102, 94, 0.12);
+  color: var(--color-primary);
 }
 
 .exd-doc-btn:disabled {
@@ -455,7 +452,7 @@
   cursor: default;
 }
 
-.exd-doc-btn ion-icon {
+.exd-doc-btn svg {
   font-size: 18px;
 }
 
@@ -465,7 +462,7 @@
   gap: var(--space-sm);
 }
 
-.exd-actions-row ion-button {
+.exd-actions-row button {
   --border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
 }
@@ -506,7 +503,7 @@
 }
 
 .exd-corrections-section .correction-review-list {
-  background: var(--ion-card-background, #ffffff);
+  background: var(--color-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   overflow: hidden;
@@ -550,7 +547,7 @@
 .exd-correction-name {
   font-weight: 600;
   font-size: var(--font-size-base);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   margin: 0;
 }
 
@@ -648,7 +645,7 @@
   margin-bottom: 16px;
 }
 
-.exd-quick-options ion-chip {
+.exd-quick-options span {
   font-size: 0.8rem;
   cursor: pointer;
 }
@@ -687,7 +684,7 @@
   }
 
   .exd-ribbon {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
@@ -696,27 +693,27 @@
   }
 
   .exd-performance {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .exd-stat-card {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .exd-progress-section {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .exd-correction-item {
-    --background: #16161A !important;
+    --background: var(--color-surface) !important;
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .exd-correction-item::part(native) {
-    background: #16161A !important;
+    background: var(--color-surface) !important;
   }
 
   .exd-correction-arrow {
@@ -724,12 +721,12 @@
   }
 
   .exd-corrections-section .correction-review-list {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.06);
   }
 
   .exd-doc-list {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
@@ -792,7 +789,7 @@
   margin-top: var(--space-lg);
 }
 
-.exd-iteration-history ion-item {
+.exd-iteration-history div {
   --background: transparent;
   --padding-start: 0;
   --padding-end: 0;
@@ -825,7 +822,7 @@
 
 .exd-history-label {
   font-size: var(--font-size-xs);
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
@@ -836,7 +833,7 @@
 
 .exd-history-instruction {
   font-size: var(--font-size-sm);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   margin: 0 0 var(--space-xs);
   font-style: italic;
 }

@@ -3,7 +3,7 @@
   bottom: calc(80px + env(safe-area-inset-bottom));
   left: var(--space-md);
   right: var(--space-md);
-  background: var(--ion-card-background);
+  background: var(--color-card);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
   z-index: 1000;
@@ -40,9 +40,9 @@
   flex-shrink: 0;
 }
 
-.post-class-prompt__icon ion-icon {
+.post-class-prompt__icon svg {
   font-size: 20px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .post-class-prompt__title-area {
@@ -53,13 +53,13 @@
 .post-class-prompt__title {
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   margin: 0;
 }
 
 .post-class-prompt__class {
   font-size: var(--font-size-sm);
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   margin: 2px 0 0;
   font-weight: 500;
 }
@@ -83,22 +83,12 @@
   background: rgba(0, 0, 0, 0.05);
 }
 
-.post-class-prompt__close ion-icon {
+.post-class-prompt__close svg {
   font-size: 22px;
 }
 
 .post-class-prompt__body {
   padding: 0 var(--space-md);
-}
-
-.post-class-prompt__input {
-  --background: rgba(0, 0, 0, 0.03);
-  --border-radius: var(--radius-md);
-  --padding-start: var(--space-md);
-  --padding-end: var(--space-md);
-  --padding-top: var(--space-sm);
-  --padding-bottom: var(--space-sm);
-  font-size: var(--font-size-sm);
 }
 
 .post-class-prompt__footer {
@@ -132,7 +122,7 @@
   justify-content: center;
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   border: none;
   border-radius: var(--radius-md);
   color: #ffffff;
@@ -146,11 +136,11 @@
   opacity: 0.5;
 }
 
-.post-class-prompt__save ion-icon {
+.post-class-prompt__save svg {
   font-size: 18px;
 }
 
-.post-class-prompt__save ion-spinner {
+.post-class-prompt__save svg {
   width: 18px;
   height: 18px;
 }
@@ -159,10 +149,6 @@
 @media (prefers-color-scheme: dark) {
   .post-class-prompt {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  }
-
-  .post-class-prompt__input {
-    --background: rgba(255, 255, 255, 0.05);
   }
 
   .post-class-prompt__skip {

@@ -1,6 +1,5 @@
 import { useMemo, useState, useCallback, useRef } from 'react';
-import { IonIcon, IonSegment, IonSegmentButton, IonLabel } from '@ionic/react';
-import { chevronDownOutline, chevronUpOutline, createOutline, checkmarkOutline, closeOutline } from 'ionicons/icons';
+import { Check, ChevronDown, ChevronUp, Pencil, X } from 'lucide-react';
 import { Student, Exam, Exercise, ExerciseCorrectionResult } from '../types';
 import { useCorrectionStore } from '../store/correctionStore';
 import { hapticLight } from '../utils/haptics';
@@ -296,15 +295,11 @@ const GradeTable: React.FC<Props> = ({
 
       {/* ── View mode tabs ── */}
       <div className="gt-view-tabs">
-        <IonSegment
-          value={viewMode}
-          onIonChange={(e) => { setViewMode(e.detail.value as ViewMode); setExpandedStudent(null); cancelEditWeights(); }}
-          className="gt-segment"
-        >
-          <IonSegmentButton value="summary"><IonLabel>Resumen</IonLabel></IonSegmentButton>
-          {hasExams && <IonSegmentButton value="exams"><IonLabel>Exámenes</IonLabel></IonSegmentButton>}
-          {hasExercises && <IonSegmentButton value="exercises"><IonLabel>Ejercicios</IonLabel></IonSegmentButton>}
-        </IonSegment>
+        <div className="flex rounded-lg bg-muted p-1 gt-segment">
+          <button onClick={() => { setViewMode('summary'); setExpandedStudent(null); cancelEditWeights(); }} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'summary' ? 'bg-background shadow-sm' : ''}`}><span>Resumen</span></button>
+          {hasExams && <button onClick={() => { setViewMode('exams'); setExpandedStudent(null); cancelEditWeights(); }} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'exams' ? 'bg-background shadow-sm' : ''}`}><span>Exámenes</span></button>}
+          {hasExercises && <button onClick={() => { setViewMode('exercises'); setExpandedStudent(null); cancelEditWeights(); }} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'exercises' ? 'bg-background shadow-sm' : ''}`}><span>Ejercicios</span></button>}
+        </div>
       </div>
 
       {/* ── Class average bar ── */}
@@ -368,7 +363,7 @@ const GradeTable: React.FC<Props> = ({
                       {overall !== null ? overall.toFixed(1) : '—'}
                     </span>
                   </div>
-                  <IonIcon icon={isExpanded ? chevronUpOutline : chevronDownOutline} className="gt-expand-icon" />
+                  {/* icon: isExpanded ? chevronUpOutline : chevronDownOutline */}
                 </div>
 
                 {isExpanded && (
@@ -447,20 +442,20 @@ const GradeTable: React.FC<Props> = ({
                 <span className="gt-weight-panel-title">Ponderación</span>
                 {!isEditingExamWeights ? (
                   <button className="gt-weight-edit-btn" onClick={() => startEditWeights('exam')}>
-                    <IonIcon icon={createOutline} />
+                    <Pencil size={18} />
                     <span>Editar</span>
                   </button>
                 ) : (
                   <div className="gt-weight-edit-actions">
                     <button className="gt-weight-cancel-btn" onClick={cancelEditWeights}>
-                      <IonIcon icon={closeOutline} />
+                      <X size={18} />
                     </button>
                     <button
                       className={`gt-weight-save-btn ${editIsValid ? '' : 'gt-weight-save-btn--disabled'}`}
                       onClick={saveWeights}
                       disabled={!editIsValid || savingWeights}
                     >
-                      <IonIcon icon={checkmarkOutline} />
+                      <Check size={18} />
                       <span>Guardar</span>
                     </button>
                   </div>
@@ -589,20 +584,20 @@ const GradeTable: React.FC<Props> = ({
                 <span className="gt-weight-panel-title">Ponderación</span>
                 {!isEditingExerciseWeights ? (
                   <button className="gt-weight-edit-btn" onClick={() => startEditWeights('exercise')}>
-                    <IonIcon icon={createOutline} />
+                    <Pencil size={18} />
                     <span>Editar</span>
                   </button>
                 ) : (
                   <div className="gt-weight-edit-actions">
                     <button className="gt-weight-cancel-btn" onClick={cancelEditWeights}>
-                      <IonIcon icon={closeOutline} />
+                      <X size={18} />
                     </button>
                     <button
                       className={`gt-weight-save-btn ${editIsValid ? '' : 'gt-weight-save-btn--disabled'}`}
                       onClick={saveWeights}
                       disabled={!editIsValid || savingWeights}
                     >
-                      <IonIcon icon={checkmarkOutline} />
+                      <Check size={18} />
                       <span>Guardar</span>
                     </button>
                   </div>

@@ -62,7 +62,7 @@
 .ppc__bar-pct {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .ppc__bar-count {

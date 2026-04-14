@@ -1,21 +1,9 @@
 import { useState } from 'react';
-import { IonIcon } from '@ionic/react';
 import {
-  sparklesOutline,
-  chevronDownOutline,
-  chevronUpOutline,
-  alertCircleOutline,
-  trophyOutline,
-  bulbOutline,
-  trendingDownOutline,
-  trendingUpOutline,
-  locationOutline,
-  chatbubbleOutline,
-  bookOutline,
-  createOutline,
-  calendarOutline,
-} from 'ionicons/icons';
-import { useHistory } from 'react-router-dom';
+  Sparkles, ChevronDown, ChevronUp, AlertCircle, Trophy, Lightbulb,
+  TrendingDown, TrendingUp, MapPin, MessageCircle, BookOpen, Pencil, Calendar,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ClassBreakdown } from '../store/calendarStore';
 import './SubjectDayInsight.css';
 
@@ -26,12 +14,12 @@ interface SubjectDayInsightProps {
 
 /** Collapsible section within the insight card */
 const Section: React.FC<{
-  icon?: string;
+  icon?: React.FC<{ size?: number; className?: string }>;
   label: string;
   defaultOpen?: boolean;
   variant?: 'alert' | 'grade-alert' | 'positive' | '';
   children: React.ReactNode;
-}> = ({ icon, label, defaultOpen = false, variant = '', children }) => {
+}> = ({ icon: IconComp, label, defaultOpen = false, variant = '', children }) => {
   const [open, setOpen] = useState(defaultOpen);
   const cls = variant ? `sdi__section sdi__section--${variant}` : 'sdi__section';
 
@@ -39,10 +27,10 @@ const Section: React.FC<{
     <div className={cls}>
       <button className="sdi__section-toggle" onClick={() => setOpen(!open)}>
         <div className="sdi__section-header">
-          {icon && <IonIcon icon={icon} />}
+          {IconComp && <IconComp size={15} />}
           <span>{label}</span>
         </div>
-        <IonIcon icon={open ? chevronUpOutline : chevronDownOutline} className="sdi__section-chevron" />
+        {open ? <ChevronUp size={14} className="sdi__section-chevron" /> : <ChevronDown size={14} className="sdi__section-chevron" />}
       </button>
       {open && <div className="sdi__section-body">{children}</div>}
     </div>
@@ -56,7 +44,7 @@ const SESSION_TYPE_LABELS: Record<string, string> = {
 
 const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compact = false }) => {
   const [expanded, setExpanded] = useState(false);
-  const history = useHistory();
+  const navigate = useNavigate();
   const ps = breakdown.plan_session;
   const upe = breakdown.upcoming_plan_exam;
 
@@ -77,7 +65,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
       <button className="sdi__header" onClick={() => setExpanded(!expanded)}>
         <div className="sdi__header-left">
           <div className="sdi__icon">
-            <IonIcon icon={sparklesOutline} />
+            <Sparkles size={compact ? 15 : 18} className="text-white" />
           </div>
           <div className="sdi__header-text">
             <span className="sdi__title">Preparación del día</span>
@@ -89,13 +77,13 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
                 {breakdown.start_time && `Clase a las ${breakdown.start_time}`}
                 {breakdown.start_time && breakdown.aula && ' · '}
                 {breakdown.aula && (
-                  <><IonIcon icon={locationOutline} className="sdi__subtitle-icon" />{breakdown.aula}</>
+                  <><MapPin size={11} className="sdi__subtitle-icon inline" />{breakdown.aula}</>
                 )}
               </span>
             )}
           </div>
         </div>
-        <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="sdi__chevron" />
+        {expanded ? <ChevronUp size={18} className="sdi__chevron" /> : <ChevronDown size={18} className="sdi__chevron" />}
       </button>
 
       {expanded && (
@@ -104,7 +92,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
           {ps && (
             <div className="sdi__plan-session">
               <div className="sdi__plan-session-header">
-                <IonIcon icon={calendarOutline} />
+                <Calendar size={16} />
                 <span className="sdi__plan-session-topic">{ps.topic_name}</span>
                 <span className="sdi__plan-session-type">{SESSION_TYPE_LABELS[ps.session_type] || ps.session_type}</span>
               </div>
@@ -117,7 +105,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
               )}
               {ps.topic_pdf_url && (
                 <button className="sdi__action-btn" onClick={() => window.open(`${import.meta.env.VITE_API_URL || ''}/files${ps.topic_pdf_url}`, '_blank')}>
-                  <IonIcon icon={bookOutline} /> Ver material
+                  <BookOpen size={14} /> Ver material
                 </button>
               )}
             </div>
@@ -127,7 +115,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
           {upe && (
             <div className="sdi__upcoming-exam">
               <div className="sdi__upcoming-exam-header">
-                <IonIcon icon={alertCircleOutline} />
+                <AlertCircle size={16} />
                 <span>{upe.name}</span>
                 <span className="sdi__upcoming-exam-days">en {upe.days_until} {upe.days_until === 1 ? 'día' : 'días'}</span>
               </div>
@@ -137,10 +125,10 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
                   // Navigate to exam creation with pre-selected topics
                   // We'd need topic IDs — for now navigate to the exams list
                   if (breakdown.class_id && breakdown.subject_id) {
-                    history.push(`/tabs/classes/${breakdown.class_id}/subjects/${breakdown.subject_id}/exams/new?name=${encodeURIComponent(upe.name)}&date=${upe.date}`);
+                    navigate(`/tabs/classes/${breakdown.class_id}/subjects/${breakdown.subject_id}/exams/new?name=${encodeURIComponent(upe.name)}&date=${upe.date}`);
                   }
                 }}>
-                  <IonIcon icon={createOutline} /> Crear examen con IA
+                  <Pencil size={14} /> Crear examen con IA
                 </button>
               </div>
             </div>
@@ -148,7 +136,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
           {/* Topics to cover — open by default */}
           {hasTopics && (
-            <Section icon={bulbOutline} label="Temas a reforzar">
+            <Section icon={Lightbulb} label="Temas a reforzar">
               <ul className="sdi__list">
                 {breakdown.topics_to_cover!.map((topic, i) => (
                   <li key={i}>{topic}</li>
@@ -159,7 +147,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
           {/* Student alerts */}
           {hasAlerts && (
-            <Section icon={alertCircleOutline} label="Alumnos que atender" variant="alert">
+            <Section icon={AlertCircle} label="Alumnos que atender" variant="alert">
               <div className="sdi__alerts">
                 {breakdown.student_alerts!.map((alert, i) => (
                   <div key={i} className="sdi__alert-item">
@@ -176,7 +164,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
           {/* Grade alerts */}
           {hasGradeAlerts && (
-            <Section icon={alertCircleOutline} label="Alertas de rendimiento" variant="grade-alert">
+            <Section icon={AlertCircle} label="Alertas de rendimiento" variant="grade-alert">
               <div className="sdi__grade-alerts">
                 {breakdown.grade_alerts!.map((alert, i) => (
                   <div key={i} className="sdi__grade-alert-item">
@@ -188,10 +176,9 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
                         </span>
                       )}
                       {alert.trend && alert.trend !== 'stable' && (
-                        <IonIcon
-                          icon={alert.trend === 'improving' ? trendingUpOutline : trendingDownOutline}
-                          className={`sdi__trend-icon sdi__trend-icon--${alert.trend}`}
-                        />
+                        alert.trend === 'improving'
+                          ? <TrendingUp size={14} className="sdi__trend-icon sdi__trend-icon--improving" />
+                          : <TrendingDown size={14} className="sdi__trend-icon sdi__trend-icon--declining" />
                       )}
                     </div>
                     <span className="sdi__alert-issue">{alert.issue}</span>
@@ -203,7 +190,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
           {/* Positive highlights */}
           {hasHighlights && (
-            <Section icon={trophyOutline} label="Destacados" variant="positive">
+            <Section icon={Trophy} label="Destacados" variant="positive">
               <div className="sdi__highlights">
                 {breakdown.positive_highlights!.map((h, i) => (
                   <div key={i} className="sdi__highlight-item">
@@ -250,7 +237,7 @@ const SubjectDayInsight: React.FC<SubjectDayInsightProps> = ({ breakdown, compac
 
           {/* Recent comments */}
           {hasRecentComments && (
-            <Section icon={chatbubbleOutline} label="Comentarios recientes">
+            <Section icon={MessageCircle} label="Comentarios recientes">
               <ul className="sdi__list">
                 {breakdown.recent_comments!.map((comment, i) => (
                   <li key={i}>{comment}</li>

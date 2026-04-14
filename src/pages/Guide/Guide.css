@@ -2,23 +2,15 @@
    Guide Page — clean, spacious, readable
    ═══════════════════════════════════════════ */
 
-.guide-content {
-  --padding-top: 0;
-  --padding-start: 0;
-  --padding-end: 0;
-  --padding-bottom: 100px;
-  --background: var(--color-bg, var(--ion-background-color));
-}
-
 /* ── Header ── */
 .guide-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: var(--space-sm, 12px) var(--space-md, 16px);
-  padding-top: max(var(--space-sm, 12px), env(safe-area-inset-top));
-  padding-bottom: var(--space-md, 16px);
-  background: var(--ion-color-primary);
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: 16px;
+  background: hsl(var(--primary));
   color: #fff;
 }
 
@@ -38,7 +30,6 @@
 }
 
 .guide-header__back:hover { background: rgba(255, 255, 255, 0.25); }
-.guide-header__back ion-icon { font-size: 20px; }
 
 .guide-header__text h1 {
   font-size: 1.25rem;
@@ -60,14 +51,6 @@
   padding: 16px 16px 80px;
 }
 
-/* ── Search ── */
-.guide-search {
-  --border-radius: 12px;
-  --box-shadow: none;
-  --background: var(--color-surface, var(--ion-item-background, #fff));
-  padding: 0 0 12px !important;
-}
-
 /* ── Accordion ── */
 .guide-accordion {
   display: flex;
@@ -75,32 +58,29 @@
   gap: 6px;
 }
 
-.guide-accordion ion-accordion {
+.guide-accordion-item {
   border-radius: 14px !important;
   overflow: hidden;
-  border: 1px solid var(--color-border, #e2e8f0);
-  background: var(--color-surface, var(--ion-item-background, #fff));
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
 }
 
-.guide-accordion ion-accordion.accordion-expanded {
-  border-color: var(--ion-color-primary);
+.guide-accordion-item[data-state="open"] {
+  border-color: hsl(var(--primary));
   box-shadow: 0 2px 12px rgba(21, 102, 94, 0.08);
 }
 
 /* Header row */
 .guide-accordion__header {
-  --background: transparent;
-  --padding-start: 14px;
-  --padding-end: 14px;
-  --inner-padding-end: 0;
-  --min-height: 52px;
+  padding: 14px;
+  min-height: 52px;
 }
 
 .guide-accordion__num {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--ion-color-primary);
+  background: hsl(var(--primary));
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
@@ -108,14 +88,11 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-right: 10px;
 }
 
 .guide-accordion__icon {
-  color: var(--ion-color-primary);
-  font-size: 20px;
+  color: hsl(var(--primary));
   flex-shrink: 0;
-  margin-right: 10px;
 }
 
 .guide-accordion__title {
@@ -128,8 +105,8 @@
   padding: 8px 16px 24px;
   font-size: 0.88rem;
   line-height: 1.7;
-  color: var(--ion-text-color);
-  border-top: 1px solid var(--color-border, #e8ecf1);
+  color: hsl(var(--foreground));
+  border-top: 1px solid hsl(var(--border));
   overflow-x: hidden;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -138,10 +115,10 @@
 .guide-section h4 {
   font-size: 0.92rem;
   font-weight: 700;
-  color: var(--ion-color-primary-shade, var(--ion-color-primary));
+  color: hsl(var(--primary));
   margin: 24px 0 8px;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--color-border, #e8ecf1);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .guide-section h4:first-child {
@@ -171,8 +148,8 @@
 }
 
 .guide-section kbd {
-  background: rgba(0, 0, 0, 0.06);
-  border: 1px solid var(--color-border, #ddd);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 0.82em;
@@ -195,7 +172,7 @@
   counter-increment: gs;
   padding: 8px 12px 8px 38px;
   position: relative;
-  background: var(--color-surface-alt, rgba(0, 0, 0, 0.02));
+  background: hsl(var(--muted) / 0.5);
   border-radius: 10px;
   margin: 0;
 }
@@ -205,7 +182,7 @@
   position: absolute;
   left: 10px;
   top: 10px;
-  background: var(--ion-color-primary);
+  background: hsl(var(--primary));
   color: #fff;
   width: 22px;
   height: 22px;
@@ -227,7 +204,7 @@
   font-size: 0.85rem;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid hsl(var(--border));
 }
 
 .guide-table th,
@@ -237,7 +214,7 @@
 }
 
 .guide-table th {
-  background: var(--ion-color-primary);
+  background: hsl(var(--primary));
   color: #fff;
   font-weight: 600;
   font-size: 0.78rem;
@@ -246,16 +223,16 @@
 }
 
 .guide-table td {
-  border-top: 1px solid var(--color-border, #e8ecf1);
+  border-top: 1px solid hsl(var(--border));
 }
 
 .guide-table tbody tr:nth-child(even) {
-  background: var(--color-surface-alt, rgba(0, 0, 0, 0.015));
+  background: hsl(var(--muted) / 0.3);
 }
 
 /* ── Highlight card ── */
 .guide-highlight {
-  border-left: 3px solid var(--ion-color-secondary, #e87a1c);
+  border-left: 3px solid #e87a1c;
   background: rgba(232, 122, 28, 0.04);
   border-radius: 0 10px 10px 0;
   padding: 14px 16px;
@@ -270,7 +247,7 @@
 
 /* ── Tip card ── */
 .guide-tip {
-  border-left: 3px solid var(--ion-color-success, #059669);
+  border-left: 3px solid #059669;
   background: rgba(5, 150, 105, 0.04);
   border-radius: 0 10px 10px 0;
   padding: 14px 16px;
@@ -288,20 +265,20 @@
 }
 
 .guide-workflow > span:not(.guide-workflow__arrow) {
-  background: rgba(21, 102, 94, 0.06);
-  border: 1.5px solid var(--ion-color-primary);
+  background: hsl(var(--primary) / 0.06);
+  border: 1.5px solid hsl(var(--primary));
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--ion-color-primary);
+  color: hsl(var(--primary));
   white-space: nowrap;
 }
 
 .guide-workflow__arrow {
   padding: 0 2px;
   font-size: 1rem;
-  color: var(--ion-color-primary);
+  color: hsl(var(--primary));
   opacity: 0.5;
 }
 
@@ -335,7 +312,7 @@
 /* ── FAQ ── */
 .guide-faq {
   padding: 12px 0;
-  border-bottom: 1px solid var(--color-border, #e8ecf1);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .guide-faq:last-child {
@@ -348,11 +325,11 @@
   margin: 0 0 4px !important;
   padding-bottom: 0 !important;
   font-size: 0.9rem !important;
-  color: var(--ion-text-color) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .guide-faq p {
-  color: var(--ion-color-medium, #64748b);
+  color: hsl(var(--muted-foreground));
   margin: 0 !important;
   font-size: 0.86rem;
 }
@@ -361,14 +338,7 @@
 .guide-empty {
   text-align: center;
   padding: 60px 20px;
-  color: var(--ion-color-medium, #94a3b8);
-}
-
-.guide-empty ion-icon {
-  font-size: 40px;
-  opacity: 0.35;
-  display: block;
-  margin: 0 auto 12px;
+  color: hsl(var(--muted-foreground));
 }
 
 .guide-empty p {
@@ -402,50 +372,47 @@
 }
 
 /* ── Dark mode ── */
-@media (prefers-color-scheme: dark) {
-  .guide-accordion ion-accordion {
-    border-color: rgba(255, 255, 255, 0.08);
-    background: var(--color-surface, var(--ion-item-background, #1c1c1e));
-  }
+.dark .guide-accordion-item {
+  border-color: rgba(255, 255, 255, 0.08);
+}
 
-  .guide-accordion ion-accordion.accordion-expanded {
-    border-color: var(--ion-color-primary);
-  }
+.dark .guide-accordion-item[data-state="open"] {
+  border-color: hsl(var(--primary));
+}
 
-  .guide-section {
-    border-top-color: rgba(255, 255, 255, 0.06);
-  }
+.dark .guide-section {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
 
-  .guide-section h4 {
-    border-bottom-color: rgba(255, 255, 255, 0.06);
-  }
+.dark .guide-section h4 {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
 
-  .guide-steps li {
-    background: rgba(255, 255, 255, 0.04);
-  }
+.dark .guide-steps li {
+  background: rgba(255, 255, 255, 0.04);
+}
 
-  .guide-highlight {
-    background: rgba(232, 122, 28, 0.06);
-  }
+.dark .guide-highlight {
+  background: rgba(232, 122, 28, 0.06);
+}
 
-  .guide-tip {
-    background: rgba(5, 150, 105, 0.06);
-  }
+.dark .guide-tip {
+  background: rgba(5, 150, 105, 0.06);
+}
 
-  .guide-section kbd {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+.dark .guide-section kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
 
-  .guide-table td {
-    border-top-color: rgba(255, 255, 255, 0.06);
-  }
+.dark .guide-table td {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
 
-  .guide-table tbody tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.02);
-  }
+.dark .guide-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
 
-  .guide-faq {
-    border-bottom-color: rgba(255, 255, 255, 0.06);
-  }
+.dark .guide-faq {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }

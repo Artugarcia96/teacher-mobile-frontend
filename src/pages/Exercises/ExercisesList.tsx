@@ -1,13 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import {
-  IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonSpinner, IonAlert, IonSegment, IonSegmentButton, IonLabel,
-} from '@ionic/react';
-import {
-  sparkles, chevronForwardOutline, trashOutline,
-  checkmarkCircleOutline, peopleOutline, addOutline, medkitOutline
-} from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+import { Plus, Trash2, ChevronRight, CheckCircle, Users, Cross, ArrowLeft } from 'lucide-react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
@@ -17,6 +10,10 @@ import { ClassGroup, Exercise } from '../../types';
 import EmptyState from '../../components/EmptyState';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
+import Spinner from '@/components/shared/Spinner';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import './ExercisesList.css';
 
 const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
@@ -35,8 +32,8 @@ interface ExerciseGroup {
 }
 
 const ExercisesList: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId?: string }>();
-  const history = useHistory();
+  const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
+  const navigate = useNavigate();
 
   const allExercises = useExercisesStore((s) => s.exercises);
   const fetchExercises = useExercisesStore((s) => s.fetchExercises);
@@ -58,15 +55,17 @@ const ExercisesList: React.FC = () => {
   const [calendarTopicIds, setCalendarTopicIds] = useState<string[]>([]);
   const [calendarName, setCalendarName] = useState('');
 
+  const location = useLocation();
+
   // Auto-open generate modal from calendar navigation (?generate=1)
   useEffect(() => {
-    const params = new URLSearchParams(history.location.search);
+    const params = new URLSearchParams(location.search);
     if (params.get('generate') === '1') {
       setCalendarTopicIds(params.get('topicIds')?.split(',').filter(Boolean) || []);
       setCalendarName(params.get('name') || '');
       setShowGenerateModal(true);
       // Clean up URL
-      history.replace(history.location.pathname);
+      navigate(location.pathname, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -169,60 +168,59 @@ const ExercisesList: React.FC = () => {
   ).size;
   const basePath = subjectId
     ? `/tabs/classes/${classId}/subjects/${subjectId}`
-    : `/tabs/classes/${classId}`;
+    : '/tabs/classes';
 
   return (
-    <IonPage>
-      <IonContent className="exercises-list-content" scrollY style={subjectThemeStyle(subjectColor)}>
-        {/* Hero Header */}
-        <div className="exercises-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
-          <div className="exercises-list-hero__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={basePath} text="" color="light" />
-            </IonButtons>
-            <div className="exercises-list-hero__center">
-              <h1 className="exercises-list-hero__title">Ejercicios</h1>
-              <p className="exercises-list-hero__subtitle">
-                {subjectName ? `${displayClass?.name} — ${subjectName}` : displayClass?.name}{aulaLabel ? ` · ${aulaLabel}` : ''}
-              </p>
-            </div>
-            <IonButton
-              fill="clear"
-              size="small"
-              onClick={() => setShowGenerateModal(true)}
-              className="exercises-list-hero__add-btn"
+    <div className="flex flex-col h-full min-h-0" style={subjectThemeStyle(subjectColor)}>
+      {/* Hero Header */}
+      <div className="exercises-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
+        <div className="exercises-list-hero__nav">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(basePath)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/20 transition-colors"
             >
-              <IonIcon icon={addOutline} slot="icon-only" />
-            </IonButton>
+              <ArrowLeft size={20} className="text-white" />
+            </button>
           </div>
-        </div>
-
-        {/* Compact Filters */}
-        <div className="exercises-list-filters">
-          <IonSegment
-            value={statusFilter}
-            onIonChange={(e) => setStatusFilter(e.detail.value as any)}
-            className="exercises-list-segment"
+          <div className="exercises-list-hero__center">
+            <h1 className="exercises-list-hero__title">Ejercicios</h1>
+            <p className="exercises-list-hero__subtitle">
+              {subjectName ? `${displayClass?.name} — ${subjectName}` : displayClass?.name}{aulaLabel ? ` · ${aulaLabel}` : ''}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowGenerateModal(true)}
+            className="text-white/90 hover:bg-white/20 hover:text-white"
           >
-            <IonSegmentButton value="all">
-              <IonLabel>Todos ({exercises.length})</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="pending">
-              <IonLabel>Pendientes ({pendingCount})</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="corrected">
-              <IonLabel>Corregidos ({correctedCount})</IonLabel>
-            </IonSegmentButton>
-          </IonSegment>
+            <Plus size={22} />
+          </Button>
         </div>
+      </div>
 
-        {/* Action Toolbar removed - use + button in header */}
+      {/* Compact Filters */}
+      <div className="exercises-list-filters">
+        <Tabs
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as any)}
+          className="w-full"
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="all" className="flex-1">Todos ({exercises.length})</TabsTrigger>
+            <TabsTrigger value="pending" className="flex-1">Pendientes ({pendingCount})</TabsTrigger>
+            <TabsTrigger value="corrected" className="flex-1">Corregidos ({correctedCount})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-        {/* Exercises List */}
+      {/* Exercises List */}
+      <div className="flex-1 overflow-y-auto">
         <div className="exercises-list-container">
           {exercisesLoading ? (
             <div className="exercises-list-loading">
-              <IonSpinner color="primary" />
+              <Spinner />
             </div>
           ) : filteredGroups.length === 0 ? (
             <EmptyState
@@ -246,7 +244,7 @@ const ExercisesList: React.FC = () => {
                     className="exercises-list-card"
                     onClick={() => {
                       if (firstExercise) {
-                        history.push(`${basePath}/exercises/${firstExercise.id}`);
+                        navigate(`${basePath}/exercises/${firstExercise.id}`);
                       }
                     }}
                   >
@@ -256,7 +254,7 @@ const ExercisesList: React.FC = () => {
                           <h3 className="exercises-list-card__name">{group.name}</h3>
                           {group.exerciseType === 'recovery' && (
                             <span className="exercises-list-card__type-badge exercises-list-card__type-badge--recovery">
-                              <IonIcon icon={medkitOutline} />
+                              <Cross size={12} />
                               Repaso
                             </span>
                           )}
@@ -279,7 +277,7 @@ const ExercisesList: React.FC = () => {
                         </span>
                         {group.totalCount > 1 && (
                           <span className="exercises-list-card__count">
-                            <IonIcon icon={peopleOutline} />
+                            <Users size={12} />
                             {group.totalCount} alumnos
                           </span>
                         )}
@@ -287,7 +285,7 @@ const ExercisesList: React.FC = () => {
 
                       <div className="exercises-list-card__footer">
                         <span className="exercises-list-card__progress">
-                          <IonIcon icon={checkmarkCircleOutline} />
+                          <CheckCircle size={12} className="text-emerald-600" />
                           {group.correctedCount}/{group.totalCount} corregidos
                         </span>
                       </div>
@@ -304,9 +302,9 @@ const ExercisesList: React.FC = () => {
                           });
                         }}
                       >
-                        <IonIcon icon={trashOutline} />
+                        <Trash2 size={16} />
                       </button>
-                      <IonIcon icon={chevronForwardOutline} className="exercises-list-card__arrow" />
+                      <ChevronRight size={18} className="text-muted-foreground" />
                     </div>
                   </div>
                 );
@@ -314,36 +312,36 @@ const ExercisesList: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Delete Alert */}
-        <IonAlert
-          isOpen={!!deleteTarget}
-          onDidDismiss={() => setDeleteTarget(null)}
-          header="Eliminar ejercicios"
-          message={`¿Eliminar todos los ejercicios "${deleteTarget?.name}" (${deleteTarget?.ids.length})? Esta acción no se puede deshacer.`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Eliminar', role: 'destructive', handler: handleDelete }
-          ]}
-        />
+      {/* Delete Alert */}
+      <AlertConfirm
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        header="Eliminar ejercicios"
+        message={`¿Eliminar todos los ejercicios "${deleteTarget?.name}" (${deleteTarget?.ids.length})? Esta acción no se puede deshacer.`}
+        cancelText="Cancelar"
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
 
-        {/* Generate Modal */}
-        <ExerciseGeneratorModal
-          isOpen={showGenerateModal}
-          onDismiss={() => {
-            setShowGenerateModal(false);
-            setCalendarTopicIds([]);
-            setCalendarName('');
-            fetchExercises();
-          }}
-          classId={classId}
-          preselectedSubjectId={subjectId}
-          preselectedTopicIds={calendarTopicIds}
-          preselectedName={calendarName}
-          subjectColor={subjectColor}
-        />
-      </IonContent>
-    </IonPage>
+      {/* Generate Modal */}
+      <ExerciseGeneratorModal
+        isOpen={showGenerateModal}
+        onDismiss={() => {
+          setShowGenerateModal(false);
+          setCalendarTopicIds([]);
+          setCalendarName('');
+          fetchExercises();
+        }}
+        classId={classId}
+        preselectedSubjectId={subjectId}
+        preselectedTopicIds={calendarTopicIds}
+        preselectedName={calendarName}
+        subjectColor={subjectColor}
+      />
+    </div>
   );
 };
 

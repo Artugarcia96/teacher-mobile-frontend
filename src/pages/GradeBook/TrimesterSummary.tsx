@@ -1,19 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonSpinner, IonRefresher, IonRefresherContent, useIonViewWillEnter,
-} from '@ionic/react';
-import { downloadOutline, chevronForwardOutline } from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+import { Download, ChevronRight } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { classes as classesApi } from '../../services/api';
 import { TrimesterSummaryRow } from '../../types';
 import { useAcademicConfigStore } from '../../store/academicConfigStore';
 import { getPeriodNumbers, getPeriodLabel, getPeriodNoun } from '../../utils/periodConfig';
+import PageShell from '@/components/shared/PageShell';
+import { Button } from '@/components/ui/button';
+import Spinner from '@/components/shared/Spinner';
 import './TrimesterSummary.css';
 
 const TrimesterSummary: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId?: string }>();
-  const history = useHistory();
+  const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
+  const navigate = useNavigate();
   const [rows, setRows] = useState<TrimesterSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [className, setClassName] = useState('');
@@ -46,12 +45,6 @@ const TrimesterSummary: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); fetchConfig(classId); }, [classId, subjectId]);
-  useIonViewWillEnter(() => { fetchData(); fetchConfig(classId); });
-
-  const handleRefresh = async (e: any) => {
-    await fetchData();
-    e.detail.complete();
-  };
 
   const gradeClass = (val: number | null) => {
     if (val === null) return '';
@@ -95,96 +88,87 @@ const TrimesterSummary: React.FC = () => {
   };
 
   return (
-    <IonPage>
-      <IonContent className="ts-content" scrollY>
-        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-          <IonRefresherContent />
-        </IonRefresher>
+    <PageShell
+      title={`Resumen ${periodMode === 'cuatrimester' ? 'cuatrimestral' : 'trimestral'}`}
+      backHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}` : '/tabs/classes'}
+      headerActions={
+        <Button variant="ghost" size="sm" onClick={handleExport}>
+          <Download size={18} />
+        </Button>
+      }
+    >
+      {className && <p className="ts-header__subtitle">{className}</p>}
 
-        <div className="ts-header">
-          <div className="ts-header__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
-            </IonButtons>
-            <h1 className="ts-header__title">Resumen {periodMode === 'cuatrimester' ? 'cuatrimestral' : 'trimestral'}</h1>
-            <IonButton fill="clear" size="small" onClick={handleExport}>
-              <IonIcon icon={downloadOutline} slot="icon-only" />
-            </IonButton>
-          </div>
-          {className && <p className="ts-header__subtitle">{className}</p>}
+      {loading ? (
+        <div className="ts-loading"><Spinner /></div>
+      ) : rows.length === 0 ? (
+        <div className="ts-empty">
+          <span className="ts-empty__icon">📊</span>
+          <span className="ts-empty__text">No hay datos suficientes</span>
+          <span className="ts-empty__sub">Necesitas al menos un examen corregido</span>
         </div>
-
-        {loading ? (
-          <div className="ts-loading"><IonSpinner color="primary" /></div>
-        ) : rows.length === 0 ? (
-          <div className="ts-empty">
-            <span className="ts-empty__icon">📊</span>
-            <span className="ts-empty__text">No hay datos suficientes</span>
-            <span className="ts-empty__sub">Necesitas al menos un examen corregido</span>
-          </div>
-        ) : (
-          <div className="ts-table-wrapper">
-            <table className="ts-table">
-              <thead>
-                <tr>
-                  <th className="ts-th ts-th--name">Alumno</th>
-                  {periodNumbers.map(n => (
-                    <th key={n} className="ts-th">{getPeriodLabel(periodMode, n)}</th>
-                  ))}
-                  <th className="ts-th ts-th--final">Final</th>
-                  <th className="ts-th">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr
-                    key={r.studentId}
-                    className="ts-row pressable"
-                    style={{ animationDelay: `${i * 30}ms` }}
-                    onClick={() => history.push(`/tabs/classes/${classId}/students/${r.studentId}`)}
-                  >
-                    <td className="ts-cell ts-cell--name">{r.studentName}</td>
-                    {periodNumbers.map(n => {
-                      const val = avgByPeriod(r, n);
-                      return (
-                        <td key={n} className={`ts-cell ${gradeClass(val)}`}>
-                          {val !== null ? val.toFixed(1) : '—'}
-                        </td>
-                      );
-                    })}
-                    <td className={`ts-cell ts-cell--final ${gradeClass(r.finalAvg)}`}>
-                      {r.finalAvg !== null ? r.finalAvg.toFixed(1) : '—'}
-                    </td>
-                    <td className="ts-cell">
-                      <span className={`ts-risk ts-risk--${r.riskStatus}`}>
-                        {riskLabel(r.riskStatus)}
-                      </span>
-                    </td>
-                  </tr>
+      ) : (
+        <div className="ts-table-wrapper">
+          <table className="ts-table">
+            <thead>
+              <tr>
+                <th className="ts-th ts-th--name">Alumno</th>
+                {periodNumbers.map(n => (
+                  <th key={n} className="ts-th">{getPeriodLabel(periodMode, n)}</th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                <th className="ts-th ts-th--final">Final</th>
+                <th className="ts-th">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr
+                  key={r.studentId}
+                  className="ts-row pressable"
+                  style={{ animationDelay: `${i * 30}ms` }}
+                  onClick={() => navigate(`/tabs/classes/${classId}/students/${r.studentId}`)}
+                >
+                  <td className="ts-cell ts-cell--name">{r.studentName}</td>
+                  {periodNumbers.map(n => {
+                    const val = avgByPeriod(r, n);
+                    return (
+                      <td key={n} className={`ts-cell ${gradeClass(val)}`}>
+                        {val !== null ? val.toFixed(1) : '—'}
+                      </td>
+                    );
+                  })}
+                  <td className={`ts-cell ts-cell--final ${gradeClass(r.finalAvg)}`}>
+                    {r.finalAvg !== null ? r.finalAvg.toFixed(1) : '—'}
+                  </td>
+                  <td className="ts-cell">
+                    <span className={`ts-risk ts-risk--${r.riskStatus}`}>
+                      {riskLabel(r.riskStatus)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-        {/* Link to generate report comments */}
-        {rows.length > 0 && (
-          <div className="ts-actions">
-            <button
-              className="ts-report-btn pressable"
-              onClick={() => history.push(
-                subjectId
-                  ? `/tabs/classes/${classId}/subjects/${subjectId}/report-comments`
-                  : `/tabs/classes/${classId}/report-comments`
-              )}
-            >
-              <span>Generar comentarios del boletín</span>
-              <IonIcon icon={chevronForwardOutline} />
-            </button>
-          </div>
-        )}
-      </IonContent>
-    </IonPage>
+      {/* Link to generate report comments */}
+      {rows.length > 0 && (
+        <div className="ts-actions">
+          <button
+            className="ts-report-btn pressable"
+            onClick={() => navigate(
+              subjectId
+                ? `/tabs/classes/${classId}/subjects/${subjectId}/report-comments`
+                : `/tabs/classes/${classId}/report-comments`
+            )}
+          >
+            <span>Generar comentarios del boletín</span>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+    </PageShell>
   );
 };
 

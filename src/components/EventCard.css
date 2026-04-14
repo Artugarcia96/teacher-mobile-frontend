@@ -15,8 +15,8 @@
 }
 
 .ev-card--selected {
-  border-color: var(--ion-color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(21, 102, 94, 0.15);
 }
 
 .ev-card--cancelled {
@@ -31,7 +31,6 @@
   display: flex;
   align-items: center;
   padding: 0 var(--space-md) 0 var(--space-lg);
-  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -56,14 +55,13 @@
 .ev-card__title {
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ev-card__arrow {
-  font-size: 16px;
   color: var(--color-text-muted);
   flex-shrink: 0;
 }
@@ -148,10 +146,6 @@
   background: rgba(21, 102, 94, 0.08);
 }
 
-.ev-card__attendance-btn ion-icon {
-  font-size: 14px;
-}
-
 .ev-card__attendance-btn--done {
   color: #059669;
   border-color: #059669;
@@ -195,7 +189,7 @@
   }
 
   .ev-card--selected {
-    border-color: var(--ion-color-primary);
+    border-color: var(--color-primary);
   }
 
   .ev-card__arrow { color: #52525B; }
@@ -206,6 +200,6 @@
 }
 
 .ev-card:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

@@ -61,8 +61,8 @@ const WeakAreasRadar: React.FC<Props> = ({ areas, maxCount, size = 180, showLabe
   const labelOffset = 14;
 
   return (
-    <div className="war" style={{ width: size, height: size }}>
-      <svg viewBox={`0 0 ${size} ${size}`} className="war__svg">
+    <div className="war" style={{ width: size, height: size }} role="figure" aria-label={`Áreas débiles: ${sorted.map(a => `${a.area} (${a.count})`).join(', ')}`}>
+      <svg viewBox={`0 0 ${size} ${size}`} className="war__svg" aria-hidden="true">
         {/* Guide rings */}
         {guidePolygons.map((points, i) => (
           <polygon

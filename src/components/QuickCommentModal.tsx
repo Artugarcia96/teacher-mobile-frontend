@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import {
-  IonModal, IonButton, IonSpinner,
-} from '@ionic/react';
+import { Button } from '@/components/ui/button';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
 import { MentionedStudent } from '../types';
 import { useStudentsStore } from '../store/studentsStore';
 import { useIsDesktop } from '../hooks/useIsDesktop';
@@ -44,12 +44,10 @@ const QuickCommentModal: React.FC<Props> = ({ isOpen, studentId, studentName, on
   };
 
   return (
-    <IonModal
-      isOpen={isOpen}
-      onDidDismiss={handleDismiss}
-      initialBreakpoint={isDesktop ? 1 : 0.4}
-      breakpoints={isDesktop ? [0, 1] : [0, 0.4, 0.6]}
-      className="quick-comment-modal"
+    <Modal
+      open={isOpen}
+      onClose={handleDismiss}
+      sheetHeight="sm"
     >
       <div className="qc-sheet">
         <h3 className="qc-sheet__title">Comentario sobre {studentName}</h3>
@@ -63,15 +61,15 @@ const QuickCommentModal: React.FC<Props> = ({ isOpen, studentId, studentName, on
           helperText="Usa @ para mencionar otros alumnos"
         />
         <div className="qc-sheet__actions">
-          <IonButton size="small" fill="outline" onClick={handleDismiss}>
+          <Button size="sm" variant="outline" onClick={handleDismiss}>
             Cancelar
-          </IonButton>
-          <IonButton size="small" onClick={handleSave} disabled={saving || !text.trim()}>
-            {saving ? <IonSpinner name="crescent" /> : 'Guardar'}
-          </IonButton>
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !text.trim()}>
+            {saving ? <Spinner size={16} /> : 'Guardar'}
+          </Button>
         </div>
       </div>
-    </IonModal>
+    </Modal>
   );
 };
 

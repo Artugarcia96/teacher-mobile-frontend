@@ -1,27 +1,29 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
-  IonIcon, IonProgressBar, IonBadge,
-  IonSpinner, IonSelect, IonSelectOption, IonChip, IonModal,
-  IonSearchbar, IonList, IonItem, IonLabel,
-} from '@ionic/react';
-import {
-  closeOutline, cloudUploadOutline, checkmarkCircleOutline, checkmarkOutline,
-  warningOutline, helpOutline, sparkles, arrowBackOutline,
-  peopleOutline, chevronForwardOutline, documentTextOutline,
-} from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+  X, Upload, CheckCircle, Check,
+  AlertTriangle, HelpCircle, Sparkles, ArrowLeft,
+  Users, ChevronRight, FileText,
+} from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
 import { exerciseCorrections as ecApi, batch, authenticatedFetch } from '../../services/api';
+import { getFullPaperUrl } from '../../utils/examUrls';
 import { Exercise, BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import QRReviewTable from '../../components/QRReviewTable';
 
 import EmptyState from '../../components/EmptyState';
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
+import PageShell from '@/components/shared/PageShell';
+import Modal from '@/components/shared/Modal';
+import Searchbar from '@/components/shared/Searchbar';
+import Spinner from '@/components/shared/Spinner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import './ExerciseBulkCorrection.css';
 
 type Step = 'select' | 'upload' | 'review' | 'correct';
@@ -34,8 +36,8 @@ interface ExerciseGroup {
 }
 
 const ExerciseBulkCorrection: React.FC = () => {
-  const { classId } = useParams<{ classId: string }>();
-  const history = useHistory();
+  const { classId } = useParams() as { classId: string };
+  const navigate = useNavigate();
   const bulkInputRef = useRef<HTMLInputElement>(null);
 
   const allExercises = useExercisesStore((s) => s.exercises);
@@ -257,16 +259,6 @@ const ExerciseBulkCorrection: React.FC = () => {
     setConfirmingReview(false);
   };
 
-  const getFullPaperUrl = useCallback((paperUrl?: string) => {
-    if (!paperUrl) return null;
-    if (paperUrl.startsWith('http')) return paperUrl;
-    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    baseUrl = baseUrl.replace(/\/+$/, '');
-    if (paperUrl.startsWith('/uploads/')) {
-      return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
-    }
-    return `${baseUrl}${paperUrl}`;
-  }, []);
 
   const fetchAuthenticatedImage = useCallback(async (url: string, correctionId: string) => {
     try {
@@ -284,12 +276,12 @@ const ExerciseBulkCorrection: React.FC = () => {
   // Load thumbnails when entering review step
   useEffect(() => {
     if (step !== 'review' || !bulkResult) return;
-    
+
     const allItems = [
       ...bulkResult.autoMatched.map((m) => m.correctionId),
       ...bulkResult.needsReview.map((r) => r.correctionId),
     ];
-    
+
     allItems.forEach((correctionId) => {
       if (thumbBlobUrls[correctionId]) return; // Already loaded
       const correction = groupCorrections.find((c) => c.id === correctionId);
@@ -372,7 +364,7 @@ const ExerciseBulkCorrection: React.FC = () => {
     const capturedGroup = selectedGroup;
     addBackgroundTask({
       type: 'exercises',
-      label: `Corrección: ${label}`,
+      label: `Correccion: ${label}`,
       description: 'La IA revisa los ejercicios de cada alumno y genera comentarios detallados.',
       batchJobId: jobId,
       expectedResultUrl: `/exercise-bulk-correction/${capturedClassId}`,
@@ -385,7 +377,7 @@ const ExerciseBulkCorrection: React.FC = () => {
           const status = res.data.status;
           if (status === 'completed') break;
           if (status === 'failed' || status === 'cancelled') {
-            throw new Error('Error en la corrección');
+            throw new Error('Error en la correccion');
           }
           interval = Math.min(interval + 500, 8000);
         }
@@ -421,7 +413,7 @@ const ExerciseBulkCorrection: React.FC = () => {
       for (const ex of selectedGroup.exercises) {
         await finishCorrection(ex.id);
       }
-      history.goBack();
+      navigate(-1);
     } catch (err) {
       console.error('Failed to finish:', err);
     }
@@ -449,31 +441,37 @@ const ExerciseBulkCorrection: React.FC = () => {
     if (step === 'correct') setStep('upload');
     else if (step === 'review') setStep('upload');
     else if (step === 'upload') { setSelectedGroup(null); setStep('select'); }
-    else history.goBack();
+    else navigate(-1);
   };
 
   return (
-    <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={step === 'select' ? () => history.goBack() : handleBack}>
-              <IonIcon icon={step === 'select' ? closeOutline : arrowBackOutline} />
-            </IonButton>
-          </IonButtons>
-          <IonTitle>{stepTitle()}</IonTitle>
+    <PageShell
+      title={stepTitle()}
+      headerActions={
+        <div className="flex items-center gap-2">
           {step === 'correct' && (
-            <IonButtons slot="end">
-              <IonBadge color={progress >= 1 ? 'success' : 'primary'} className="ebc-progress-badge">
-                {savedCount}/{totalPapers}
-              </IonBadge>
-            </IonButtons>
+            <Badge variant={progress >= 1 ? 'default' : 'secondary'} className={progress >= 1 ? 'bg-green-600 text-white' : ''}>
+              {savedCount}/{totalPapers}
+            </Badge>
           )}
-        </IonToolbar>
-        {step === 'correct' && <IonProgressBar value={progress} color={progress >= 1 ? 'success' : 'primary'} />}
-      </IonHeader>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={step === 'select' ? () => navigate(-1) : handleBack}
+          >
+            {step === 'select' ? <X size={18} /> : <ArrowLeft size={18} />}
+          </Button>
+        </div>
+      }
+      noPadding
+    >
+      {step === 'correct' && (
+        <div className="px-4 pt-1">
+          <Progress value={progress * 100} className={`h-1.5 ${progress >= 1 ? '[&>div]:bg-green-600' : ''}`} />
+        </div>
+      )}
 
-      <IonContent className="ebc-content">
+      <div className="ebc-content">
         <input
           type="file"
           ref={bulkInputRef}
@@ -489,58 +487,55 @@ const ExerciseBulkCorrection: React.FC = () => {
             <div className="ebc-select-header">
               <h2 className="ebc-select-title">Selecciona el ejercicio a corregir</h2>
               <p className="ebc-select-subtitle">
-                {classGroup?.name} — {groupedExercises.length} grupo{groupedExercises.length !== 1 ? 's' : ''} de ejercicios
+                {classGroup?.name} -- {groupedExercises.length} grupo{groupedExercises.length !== 1 ? 's' : ''} de ejercicios
               </p>
             </div>
 
-            <IonSearchbar
+            <Searchbar
               value={searchText}
-              onIonInput={(e) => setSearchText(e.detail.value || '')}
+              onChange={setSearchText}
               placeholder="Buscar ejercicio..."
-              className="ebc-search"
-              debounce={200}
+              className="mb-3"
             />
 
             {filteredGroups.length === 0 ? (
               <EmptyState
                 icon="📚"
                 title="Sin ejercicios"
-                subtitle={searchText ? 'No se encontraron ejercicios con ese nombre' : 'Genera ejercicios primero desde la página de ejercicios'}
+                subtitle={searchText ? 'No se encontraron ejercicios con ese nombre' : 'Genera ejercicios primero desde la pagina de ejercicios'}
               />
             ) : (
-              <IonList className="ebc-group-list">
+              <div className="ebc-group-list">
                 {filteredGroups.map((group) => {
                   const isPending = group.correctedCount < group.studentCount;
                   return (
-                    <IonItem
+                    <div
                       key={group.name}
-                      button
-                      onClick={() => handleSelectGroup(group)}
                       className="ebc-group-item"
-                      detail={false}
+                      onClick={() => handleSelectGroup(group)}
                     >
-                      <div className="ebc-group-icon" slot="start">
-                        <IonIcon icon={documentTextOutline} />
+                      <div className="ebc-group-icon">
+                        <FileText size={20} />
                       </div>
-                      <IonLabel>
+                      <div className="flex-1 min-w-0">
                         <h3 className="ebc-group-name">{group.name}</h3>
                         <p className="ebc-group-meta">
-                          <IonIcon icon={peopleOutline} />
+                          <Users size={12} />
                           {group.studentCount} alumno{group.studentCount !== 1 ? 's' : ''}
-                          {' · '}
+                          {' \u00b7 '}
                           {group.correctedCount}/{group.studentCount} corregidos
                         </p>
-                      </IonLabel>
-                      <div slot="end" className="ebc-group-end">
-                        <IonBadge color={isPending ? 'warning' : 'success'}>
-                          {isPending ? 'Pendiente' : 'Completo'}
-                        </IonBadge>
-                        <IonIcon icon={chevronForwardOutline} className="ebc-group-arrow" />
                       </div>
-                    </IonItem>
+                      <div className="ebc-group-end">
+                        <Badge variant={isPending ? 'outline' : 'default'} className={isPending ? 'text-amber-600 border-amber-300' : 'bg-green-600 text-white'}>
+                          {isPending ? 'Pendiente' : 'Completo'}
+                        </Badge>
+                        <ChevronRight size={16} className="ebc-group-arrow" />
+                      </div>
+                    </div>
                   );
                 })}
-              </IonList>
+              </div>
             )}
           </div>
         )}
@@ -552,7 +547,7 @@ const ExerciseBulkCorrection: React.FC = () => {
               <h2 className="ebc-upload-title">{selectedGroup.name}</h2>
               <p className="ebc-upload-subtitle">
                 {selectedGroup.studentCount} alumno{selectedGroup.studentCount !== 1 ? 's' : ''}
-                {' · '}
+                {' \u00b7 '}
                 {selectedGroup.correctedCount} corregido{selectedGroup.correctedCount !== 1 ? 's' : ''}
               </p>
             </div>
@@ -560,15 +555,15 @@ const ExerciseBulkCorrection: React.FC = () => {
             <div className="ebc-upload-area" onClick={handleBulkUploadClick}>
               {bulkUploading ? (
                 <div className="ebc-upload-loading">
-                  <IonSpinner name="crescent" />
+                  <Spinner />
                   <span>Subiendo y detectando alumnos...</span>
                 </div>
               ) : (
                 <>
-                  <IonIcon icon={cloudUploadOutline} className="ebc-upload-icon" />
+                  <Upload size={48} className="ebc-upload-icon" />
                   <h3>Subir correcciones</h3>
                   <p>Sube fotos o PDFs de las hojas completadas por los alumnos.</p>
-                  <p className="ebc-upload-hint">Los códigos QR se detectarán automáticamente.</p>
+                  <p className="ebc-upload-hint">Los codigos QR se detectaran automaticamente.</p>
                 </>
               )}
             </div>
@@ -576,15 +571,15 @@ const ExerciseBulkCorrection: React.FC = () => {
             {groupCorrections.length > 0 && (
               <div className="ebc-existing-corrections">
                 <p className="ebc-existing-label">
-                  Ya hay {groupCorrections.length} corrección{groupCorrections.length !== 1 ? 'es' : ''} cargada{groupCorrections.length !== 1 ? 's' : ''}.
+                  Ya hay {groupCorrections.length} correccion{groupCorrections.length !== 1 ? 'es' : ''} cargada{groupCorrections.length !== 1 ? 's' : ''}.
                 </p>
-                <IonButton
-                  fill="outline"
-                  size="small"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setStep('correct')}
                 >
                   Ver correcciones existentes
-                </IonButton>
+                </Button>
               </div>
             )}
           </div>
@@ -609,21 +604,21 @@ const ExerciseBulkCorrection: React.FC = () => {
           return (
             <div className="bulk-review-section">
               <div className="bulk-review-stats">
-                <IonChip color="success">
-                  <IonIcon icon={checkmarkOutline} />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                  <Check size={14} />
                   {bulkResult.autoMatched.length} detectados
-                </IonChip>
+                </span>
                 {bulkResult.needsReview.length > 0 && (
-                  <IonChip color="warning">
-                    <IonIcon icon={warningOutline} />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                    <AlertTriangle size={14} />
                     {bulkResult.needsReview.length} pendientes
-                  </IonChip>
+                  </span>
                 )}
                 {bulkResult.studentsWithoutPapers.length > 0 && (
-                  <IonChip color="medium">
-                    <IonIcon icon={helpOutline} />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                    <HelpCircle size={14} />
                     {bulkResult.studentsWithoutPapers.length} sin ejercicio
-                  </IonChip>
+                  </span>
                 )}
               </div>
 
@@ -651,25 +646,23 @@ const ExerciseBulkCorrection: React.FC = () => {
               <div className="bulk-review-actions">
                 {bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId]) && (
                   <p className="bulk-review-pending-hint">
-                    <IonIcon icon={warningOutline} /> Asigna todos los ejercicios pendientes para analizar con IA
+                    <AlertTriangle size={16} /> Asigna todos los ejercicios pendientes para analizar con IA
                   </p>
                 )}
-                <IonButton
-                  expand="block"
+                <Button
+                  className="w-full bulk-review-confirm-btn"
                   onClick={handleConfirmReviewAssignments}
                   disabled={confirmingReview || bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId])}
-                  className="bulk-review-confirm-btn"
                 >
                   {confirmingReview ? (
-                    <><IonSpinner name="crescent" /> Asignando y analizando...</>
+                    <><Spinner size={18} /> Asignando y analizando...</>
                   ) : (
-                    <><IonIcon icon={sparkles} slot="start" /> Confirmar y analizar con IA</>
+                    <><Sparkles size={16} /> Confirmar y analizar con IA</>
                   )}
-                </IonButton>
-                <IonButton
-                  expand="block"
-                  fill="clear"
-                  color="medium"
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="ghost"
                   onClick={() => {
                     setBulkResult(null);
                     setReviewAssignments({});
@@ -677,8 +670,8 @@ const ExerciseBulkCorrection: React.FC = () => {
                   }}
                   disabled={confirmingReview}
                 >
-                  Omitir análisis IA
-                </IonButton>
+                  Omitir analisis IA
+                </Button>
               </div>
             </div>
           );
@@ -688,27 +681,25 @@ const ExerciseBulkCorrection: React.FC = () => {
         {step === 'correct' && selectedGroup && (
           <>
             <div className="ebc-correct-toolbar">
-              <IonButton size="small" fill="outline" color="secondary" onClick={handleBulkUploadClick} disabled={bulkUploading}>
-                {bulkUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={cloudUploadOutline} slot="start" /> Subir más</>}
-              </IonButton>
+              <Button size="sm" variant="outline" onClick={handleBulkUploadClick} disabled={bulkUploading}>
+                {bulkUploading ? <Spinner size={16} /> : <><Upload size={14} /> Subir mas</>}
+              </Button>
 
               {unprocessedCount > 1 && (
-                <IonButton
-                  size="small"
-                  fill="solid"
-                  color="tertiary"
+                <Button
+                  size="sm"
                   onClick={handleBatchProcessAll}
                   disabled={groupCorrections.some(c => c.paperUrl && !c.studentId)}
                   title={groupCorrections.some(c => c.paperUrl && !c.studentId) ? 'Asigna todos los ejercicios a un alumno primero' : undefined}
                 >
-                  <IonIcon icon={sparkles} slot="start" /> Analizar todo ({unprocessedCount})
-                </IonButton>
+                  <Sparkles size={14} /> Analizar todo ({unprocessedCount})
+                </Button>
               )}
 
               {groupCorrections.length > 0 && (
-                <IonButton size="small" color="success" onClick={handleFinishAll}>
-                  <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar
-                </IonButton>
+                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={handleFinishAll}>
+                  <CheckCircle size={14} /> Finalizar
+                </Button>
               )}
             </div>
 
@@ -755,27 +746,22 @@ const ExerciseBulkCorrection: React.FC = () => {
         )}
 
         {/* Paper preview modal */}
-        <IonModal isOpen={!!previewUrl} onDidDismiss={() => setPreviewUrl(null)} className="paper-preview-modal">
-          <IonHeader>
-            <IonToolbar>
-              <IonTitle>Vista previa</IonTitle>
-              <IonButtons slot="end">
-                <IonButton onClick={() => setPreviewUrl(null)}>
-                  <IonIcon icon={closeOutline} />
-                </IonButton>
-              </IonButtons>
-            </IonToolbar>
-          </IonHeader>
-          <IonContent className="paper-preview-content" scrollY={false}>
+        <Modal
+          open={!!previewUrl}
+          onClose={() => setPreviewUrl(null)}
+          title="Vista previa"
+          sheetHeight="full"
+        >
+          <div className="paper-preview-content">
             {previewUrl && (
               <div className="paper-preview-container">
                 <img src={previewUrl} alt="Ejercicio" className="paper-preview-img" />
               </div>
             )}
-          </IonContent>
-        </IonModal>
-      </IonContent>
-    </IonPage>
+          </div>
+        </Modal>
+      </div>
+    </PageShell>
   );
 };
 

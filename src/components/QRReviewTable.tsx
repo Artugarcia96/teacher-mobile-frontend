@@ -1,6 +1,6 @@
-import { IonSelect, IonSelectOption, IonBadge, IonIcon, IonSpinner } from '@ionic/react';
-import { checkmarkCircle, warningOutline, expandOutline, documentOutline, downloadOutline, trashOutline } from 'ionicons/icons';
 import './QRReviewTable.css';
+import { AlertTriangle, CheckCircle, Download, File, Maximize2, Trash2 } from 'lucide-react';
+import Spinner from '@/components/shared/Spinner';
 
 export interface QRReviewItem {
   correctionId: string;
@@ -92,13 +92,13 @@ const QRReviewTable: React.FC<Props> = ({
                 {thumbUrl || (isImage && paperUrl) ? (
                   <img src={thumbUrl || paperUrl} alt={`${itemLabel} ${idx + 1}`} />
                 ) : thumbsLoading ? (
-                  <IonSpinner name="crescent" className="qrt__thumb-spinner" />
+                  <Spinner size={16} />
                 ) : (
-                  <IonIcon icon={documentOutline} className="qrt__thumb-icon" />
+                  <File size={18} className="qrt__thumb-icon" />
                 )}
                 {(thumbUrl || paperUrl) && onPreview && (
                   <div className="qrt__thumb-overlay">
-                    <IonIcon icon={expandOutline} />
+                    <Maximize2 size={18} />
                   </div>
                 )}
               </div>
@@ -111,34 +111,32 @@ const QRReviewTable: React.FC<Props> = ({
                     <span className="qrt__code">{item.detectedCode}</span>
                   )}
                   {item.isAutoMatched ? (
-                    <IonBadge color="success" className="qrt__badge">
-                      <IonIcon icon={checkmarkCircle} />
+                    <span color="success" className="qrt__badge">
+                      <CheckCircle size={18} />
                       Auto
-                    </IonBadge>
+                    </span>
                   ) : (
                     <span className="qrt__reason">
-                      <IonIcon icon={warningOutline} />
+                      <AlertTriangle size={18} />
                       {getReasonText(item.reason)}
                     </span>
                   )}
                 </div>
 
-                <IonSelect
-                  interface="popover"
-                  placeholder="Seleccionar alumno"
+                <select
                   value={assigned}
-                  onIonChange={(e) => onAssign(item.correctionId, e.detail.value)}
+                  onChange={(e) => onAssign(item.correctionId, e.target.value)}
                   className="qrt__select"
                 >
                   {students
                     .filter((s) => !assignedStudentIds.has(s.id) || assigned === s.id)
                     .map((s) => (
-                      <IonSelectOption key={`${item.correctionId}-${s.id}`} value={s.id}>
+                      <option key={`${item.correctionId}-${s.id}`} value={s.id}>
                         {s.name} {s.studentId ? `(${s.studentId})` : ''}
-                      </IonSelectOption>
+                      </option>
                     ))}
-                  <IonSelectOption key={`${item.correctionId}-none`} value="">— Sin asignar —</IonSelectOption>
-                </IonSelect>
+                  <option key={`${item.correctionId}-none`} value="">— Sin asignar —</option>
+                </select>
               </div>
 
               {/* Action buttons */}
@@ -150,7 +148,7 @@ const QRReviewTable: React.FC<Props> = ({
                     title="Descargar"
                     type="button"
                   >
-                    <IonIcon icon={downloadOutline} />
+                    <Download size={18} />
                   </button>
                 )}
                 {onDelete && (
@@ -160,7 +158,7 @@ const QRReviewTable: React.FC<Props> = ({
                     title="Eliminar examen"
                     type="button"
                   >
-                    <IonIcon icon={trashOutline} />
+                    <Trash2 size={18} />
                   </button>
                 )}
               </div>

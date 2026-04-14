@@ -2,11 +2,8 @@
    EXAMS LIST PAGE - Clean, compact design
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.exams-list-content {
-  --padding-top: 0;
-  --padding-start: 0;
-  --padding-end: 0;
-  --padding-bottom: 100px;
+.exams-list-scroll {
+  padding-bottom: 100px;
 }
 
 .exams-list-loading {
@@ -36,11 +33,6 @@
   gap: var(--space-sm);
 }
 
-.exams-list-hero__nav ion-buttons {
-  margin: 0;
-  flex-shrink: 0;
-}
-
 .exams-list-hero__center {
   flex: 1;
   text-align: center;
@@ -63,16 +55,6 @@
   font-weight: 500;
 }
 
-.exams-list-hero__add-btn {
-  --color: rgba(255, 255, 255, 0.9);
-  --padding-start: 8px;
-  --padding-end: 8px;
-}
-
-.exams-list-hero__add-btn ion-icon {
-  font-size: 22px;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    FILTERS - Compact design
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -84,36 +66,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-}
-
-.exams-list-segment {
-  margin: 0;
-  width: 100%;
-  --background: var(--ion-color-light);
-}
-
-.exams-list-segment ion-segment-button {
-  --padding-start: 8px;
-  --padding-end: 8px;
-  --padding-top: 6px;
-  --padding-bottom: 6px;
-  min-height: 32px;
-}
-
-.exams-list-segment ion-segment-button ion-label {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  margin: 0;
-}
-
-.exams-list-lecture-select {
-  --padding-start: var(--space-sm);
-  --padding-end: var(--space-sm);
-  font-size: var(--font-size-sm);
-  background: var(--ion-color-light);
-  border-radius: var(--radius-md);
-  min-height: 36px;
-  width: 100%;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -165,7 +117,7 @@
   margin: 0;
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--foreground, var(--color-foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -196,8 +148,8 @@
 .exams-list-card__lecture {
   font-size: 10px;
   font-weight: 500;
-  color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
 }
@@ -216,8 +168,7 @@
   color: var(--color-text-tertiary);
 }
 
-.exams-list-card__progress ion-icon {
-  font-size: 12px;
+.exams-list-card__progress svg {
   color: #059669;
 }
 
@@ -227,10 +178,6 @@
   gap: 4px;
   font-size: var(--font-size-xs);
   font-weight: 500;
-}
-
-.exams-list-card__deadline ion-icon {
-  font-size: 12px;
 }
 
 .exams-list-card__actions {
@@ -263,12 +210,7 @@
   background: rgba(220, 38, 38, 0.15);
 }
 
-.exams-list-card__delete ion-icon {
-  font-size: 16px;
-}
-
 .exams-list-card__arrow {
-  font-size: 18px;
   color: var(--color-text-muted);
 }
 
@@ -282,25 +224,17 @@
   }
 
   .exams-list-filters {
-    background: #16161A;
+    background: var(--color-surface);
     border-bottom-color: rgba(255, 255, 255, 0.08);
   }
 
-  .exams-list-segment {
-    --background: rgba(255, 255, 255, 0.05);
-  }
-
-  .exams-list-lecture-select {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
   .exams-list-card {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .exams-list-card:hover {
-    background: #1E1E24;
+    background: var(--color-surface-hover);
     border-color: rgba(255, 255, 255, 0.12);
   }
 
@@ -370,11 +304,56 @@
   }
 
   .exams-list-card:hover {
-    border-color: var(--ion-color-primary);
+    border-color: hsl(var(--primary));
   }
 }
 
 .exams-list-card:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
+  outline: 2px solid hsl(var(--primary));
   outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXAM FILTER BAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.exams-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exams-filter-select {
+  width: auto !important;
+  min-width: 0;
+  height: 32px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  gap: 6px !important;
+  padding: 0 10px !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.exams-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: rgba(var(--color-primary-rgb, 21, 102, 94), 0.1);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.exams-filter-summary {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted-foreground);
+  white-space: nowrap;
+  margin-left: auto;
 }

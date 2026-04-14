@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { IonIcon, IonButton, IonInput, IonSpinner } from '@ionic/react';
-import { chevronDownOutline, chevronUpOutline, expandOutline, documentTextOutline, warningOutline, downloadOutline, pencilOutline, checkmarkOutline, closeOutline, alertCircleOutline, chatbubbleOutline } from 'ionicons/icons';
+import { AlertCircle, AlertTriangle, Check, ChevronDown, ChevronUp, Download, FileText, Maximize2, MessageCircle, Pencil, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import Spinner from '@/components/shared/Spinner';
 import { AIAnalysis } from '../types';
 import { questionStatusConfig } from '../utils/statusConfig';
 import { QuestionStatusBar } from './charts';
@@ -54,7 +56,7 @@ const ReviewQuestionGrid: React.FC<{ questions: AIAnalysis['questions'] }> = ({ 
         return (
           <div key={q.id} className={`rv-row__q rv-row__q--${q.status}`}>
             <div className="rv-row__q-head">
-              <IonIcon icon={cfg.icon} color={cfg.color} />
+              {/* icon: cfg.icon */}
               <span className="rv-row__q-id">P{q.id}</span>
               <span className={`rv-row__q-badge rv-row__q-badge--${q.status}`}>{cfg.label}</span>
             </div>
@@ -120,7 +122,7 @@ const CorrectionReviewCard: React.FC<Props> = ({
           )}
           {!expanded && noGrade && !aiProcessed && !(aiAnalysis && totalQuestions > 0) && (
             <span className="rv-row__pending-hint">
-              <IonIcon icon={warningOutline} /> Pendiente de corrección
+              <AlertTriangle size={18} /> Pendiente de corrección
             </span>
           )}
           {!expanded && !noGrade && (!aiAnalysis || totalQuestions === 0) && weakAreas && weakAreas.length > 0 && (
@@ -135,25 +137,17 @@ const CorrectionReviewCard: React.FC<Props> = ({
           )}
           {isEditingGrade ? (
             <div className="rv-row__grade-edit" onClick={(e) => e.stopPropagation()}>
-              <IonInput
-                type="number"
-                min={0}
-                max={maxScore}
-                value={editedGrade ?? ''}
-                placeholder="—"
-                onIonInput={(e) => {
-                  const val = parseFloat(e.detail.value ?? '');
+              <Input type="number" value={editedGrade ?? ''} onChange={(e) => {
+                  const val = parseFloat(e.target.value);
                   if (!isNaN(val)) setEditedGrade(val);
-                }}
-                className="rv-row__grade-input"
-              />
+                }} placeholder="—" className="rv-row__grade-input" min={0} max={maxScore} />
               <span className="rv-row__grade-max">/{maxScore}</span>
-              <IonButton fill="clear" size="small" onClick={handleGradeSave} disabled={savingGrade}>
-                {savingGrade ? <IonSpinner name="crescent" /> : <IonIcon icon={checkmarkOutline} color="success" />}
-              </IonButton>
-              <IonButton fill="clear" size="small" onClick={handleGradeCancel}>
-                <IonIcon icon={closeOutline} color="medium" />
-              </IonButton>
+              <Button variant="ghost" size="sm" onClick={handleGradeSave} disabled={savingGrade}>
+                {savingGrade ? <Spinner size={18} /> : <Check size={18} />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleGradeCancel}>
+                <X size={18} />
+              </Button>
             </div>
           ) : (
             <div className="rv-row__grade-display" onClick={(e) => { e.stopPropagation(); if (onGradeChange) setIsEditingGrade(true); }}>
@@ -161,12 +155,12 @@ const CorrectionReviewCard: React.FC<Props> = ({
                 {grade !== null ? grade : '—'}<span className="rv-row__grade-max">/{maxScore}</span>
               </span>
               {onGradeChange && (
-                <IonIcon icon={pencilOutline} className="rv-row__edit-icon" />
+                <Pencil size={18} className="rv-row__edit-icon" />
               )}
             </div>
           )}
           {hasContent && (
-            <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="rv-row__chevron" />
+            null
           )}
         </div>
       </button>
@@ -179,31 +173,31 @@ const CorrectionReviewCard: React.FC<Props> = ({
               <div className="rv-row__thumb" onClick={onPreviewPaper}>
                 <img src={paperUrl} alt="Examen" />
                 <div className="rv-row__thumb-overlay">
-                  <IonIcon icon={expandOutline} />
+                  <Maximize2 size={18} />
                 </div>
               </div>
             )}
             {showPdfLink && (
               <div className="rv-row__pdf-actions">
                 <button className="rv-row__pdf-link" onClick={onPreviewPaper} type="button">
-                  <IonIcon icon={documentTextOutline} />
+                  <FileText size={18} />
                   <span>Ver</span>
                 </button>
                 {onDownloadPaper && (
                   <button className="rv-row__pdf-link rv-row__pdf-link--download" onClick={onDownloadPaper} type="button">
-                    <IonIcon icon={downloadOutline} />
+                    <Download size={18} />
                   </button>
                 )}
                 {onDownloadReport && aiProcessed && (
                   <button className="rv-row__pdf-link rv-row__pdf-link--download" onClick={onDownloadReport} type="button" title="Descargar informe">
-                    <IonIcon icon={documentTextOutline} />
+                    <FileText size={18} />
                   </button>
                 )}
               </div>
             )}
             {showThumb && onDownloadPaper && (
               <button className="rv-row__download-btn" onClick={onDownloadPaper} type="button">
-                <IonIcon icon={downloadOutline} />
+                <Download size={18} />
               </button>
             )}
 
@@ -214,7 +208,7 @@ const CorrectionReviewCard: React.FC<Props> = ({
 
               {noGrade && !aiProcessed && totalQuestions === 0 && (
                 <div className="rv-row__no-ai-msg">
-                  <IonIcon icon={warningOutline} color="warning" />
+                  <AlertTriangle size={18} />
                   <span>Sin analizar — cambia a modo "Editar" para procesar con IA</span>
                 </div>
               )}
@@ -230,7 +224,7 @@ const CorrectionReviewCard: React.FC<Props> = ({
           {weakAreas && weakAreas.length > 0 && (
             <div className="rv-row__weak-section">
               <span className="rv-row__weak-label">
-                <IonIcon icon={alertCircleOutline} /> Áreas débiles
+                <AlertCircle size={18} /> Áreas débiles
               </span>
               <div className="rv-row__weak-tags">
                 {weakAreas.map((area, idx) => (
@@ -259,7 +253,7 @@ const CorrectionReviewCard: React.FC<Props> = ({
           {/* Add comment action */}
           {onAddComment && (
             <button className="rv-row__comment-btn" onClick={(e) => { e.stopPropagation(); onAddComment(); }}>
-              <IonIcon icon={chatbubbleOutline} />
+              <MessageCircle size={18} />
               <span>Añadir comentario</span>
             </button>
           )}

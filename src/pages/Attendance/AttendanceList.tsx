@@ -1,16 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import {
-  IonPage, IonContent, IonButtons, IonBackButton,
-  IonSpinner, IonSegment, IonSegmentButton, IonLabel,
-  IonSelect, IonSelectOption, IonIcon, IonSearchbar,
-  IonActionSheet,
-} from '@ionic/react';
-import {
-  chevronForwardOutline, chevronDownOutline,
-  documentTextOutline, cloudUploadOutline,
-  eyeOutline, trashOutline, chatbubbleOutline,
-} from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+import { ChevronRight, ChevronDown, FileText, CloudUpload, Eye, Trash2, MessageCircle } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useClassesStore } from '../../store/classesStore';
 import { fetchRegistry } from '../../store/fetchRegistry';
@@ -20,6 +10,14 @@ import GradeDonut from '../../components/charts/GradeDonut';
 import EmptyState from '../../components/EmptyState';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import QuickCommentModal from '../../components/QuickCommentModal';
+import PageShell from '@/components/shared/PageShell';
+import Spinner from '@/components/shared/Spinner';
+import Searchbar from '@/components/shared/Searchbar';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import './AttendanceList.css';
 
 function formatDate(d: string) {
@@ -30,8 +28,8 @@ function formatDate(d: string) {
 }
 
 const AttendanceList: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId?: string }>();
-  const history = useHistory();
+  const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
+  const navigate = useNavigate();
 
   const summaries = useAttendanceStore((s) => s.summaries);
   const fetchSummary = useAttendanceStore((s) => s.fetchSummary);
@@ -133,7 +131,7 @@ const AttendanceList: React.FC = () => {
   const subjectColor = subjectId ? subjects.find(s => s.subjectId === subjectId)?.subjectColor : undefined;
   const basePath = subjectId
     ? `/tabs/classes/${classId}/subjects/${subjectId}`
-    : `/tabs/classes/${classId}`;
+    : '/tabs/classes';
 
   const getRateClass = (rate: number) => {
     if (rate >= 0.9) return 'att-rate--good';
@@ -149,7 +147,9 @@ const AttendanceList: React.FC = () => {
       return;
     }
     setExpandedStudentId(studentId);
-    if (!studentRecords[studentId]) {
+    const summary = summaries.find(s => s.studentId === studentId);
+    const hasAbsences = summary && (summary.absent > 0 || summary.justified > 0);
+    if (hasAbsences && !studentRecords[studentId]) {
       setLoadingRecords(studentId);
       try {
         const records = await fetchStudentHistory(studentId, classId, effectiveSubjectId);
@@ -209,206 +209,244 @@ const AttendanceList: React.FC = () => {
   };
 
   return (
-    <IonPage>
-      <IonContent className="att-list-content" scrollY style={subjectThemeStyle(subjectColor)}>
-        {/* Hero Header */}
-        <div className="att-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
-          <div className="att-list-hero__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={basePath} text="" color="light" />
-            </IonButtons>
-            <div className="att-list-hero__center">
-              <h1 className="att-list-hero__title">Asistencia</h1>
-              {(displayClass || subjectName) && (
-                <p className="att-list-hero__subtitle">
-                  {displayClass?.name}{subjectName ? ` — ${subjectName}` : ''}
-                </p>
-              )}
-            </div>
-            {/* Spacer to balance back button */}
-            <div style={{ width: 40 }} />
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="att-list-filters">
-          <IonSegment
-            value={filter}
-            onIonChange={(e) => setFilter(e.detail.value as 'all' | 'low')}
-            className="att-list-segment"
-          >
-            <IonSegmentButton value="all"><IonLabel>Todos</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="low"><IonLabel>Baja asistencia</IonLabel></IonSegmentButton>
-          </IonSegment>
-
-          {showSubjectFilter && (
-            <IonSelect
-              value={subjectFilter}
-              onIonChange={(e) => setSubjectFilter(e.detail.value as string)}
-              interface="popover"
-              placeholder="Asignatura"
-              className="att-list-subject-select"
+    <PageShell noPadding className="att-list-page" contentClassName="!p-0">
+      {/* Hero Header */}
+      <div className="att-list-hero" style={subjectColor ? { background: subjectColor, ...(subjectThemeStyle(subjectColor) as React.CSSProperties) } : subjectThemeStyle(subjectColor) as React.CSSProperties}>
+        <div className="att-list-hero__nav">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(basePath)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/20 transition-colors text-white"
             >
-              <IonSelectOption value="all">Todas las asignaturas</IonSelectOption>
-              {subjects.map((s) => (
-                <IonSelectOption key={s.subjectId} value={s.subjectId}>
-                  {s.subjectName}
-                </IonSelectOption>
-              ))}
-            </IonSelect>
-          )}
+              <ArrowLeft size={20} />
+            </button>
+          </div>
+          <div className="att-list-hero__center">
+            <h1 className="att-list-hero__title">Asistencia</h1>
+            {(displayClass || subjectName) && (
+              <p className="att-list-hero__subtitle">
+                {displayClass?.name}{subjectName ? ` — ${subjectName}` : ''}
+              </p>
+            )}
+          </div>
+          {/* Spacer to balance back button */}
+          <div style={{ width: 40 }} />
+        </div>
+      </div>
 
-          <IonSearchbar
-            value={searchText}
-            onIonInput={(e) => setSearchText(e.detail.value || '')}
-            placeholder="Buscar alumno..."
-            className="att-list-search"
-            debounce={200}
+      {/* Filters */}
+      <div className="att-list-filters">
+        <Tabs
+          value={filter}
+          onValueChange={(v) => setFilter(v as 'all' | 'low')}
+          className="w-full"
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="all">Todos</TabsTrigger>
+            <TabsTrigger value="low">Baja asistencia</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {showSubjectFilter && (
+          <Select
+            value={subjectFilter}
+            onValueChange={(v) => setSubjectFilter(v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Asignatura" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las asignaturas</SelectItem>
+              {subjects.map((s) => (
+                <SelectItem key={s.subjectId} value={s.subjectId}>
+                  {s.subjectName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <Searchbar
+          value={searchText}
+          onChange={setSearchText}
+          placeholder="Buscar alumno..."
+        />
+      </div>
+
+      {loading ? (
+        <div className="att-list-loading">
+          <Spinner />
+        </div>
+      ) : summaries.length === 0 ? (
+        <div className="att-list-container">
+          <EmptyState
+            icon="📋"
+            title="Sin datos de asistencia"
+            subtitle="Pasa lista desde el calendario para ver estadísticas aquí"
           />
         </div>
+      ) : (
+        <div className="att-list-container">
+          {/* Summary Chart */}
+          {totals.total > 0 && (
+            <div className="att-list-summary">
+              <GradeDonut
+                distribution={donutSegments}
+                centerLabel={`${totals.rate}%`}
+                centerSubLabel="asistencia"
+                size={150}
+              />
+            </div>
+          )}
 
-        {loading ? (
-          <div className="att-list-loading">
-            <IonSpinner color="primary" />
-          </div>
-        ) : summaries.length === 0 ? (
-          <div className="att-list-container">
-            <EmptyState
-              icon="📋"
-              title="Sin datos de asistencia"
-              subtitle="Pasa lista desde el calendario para ver estadísticas aquí"
-            />
-          </div>
-        ) : (
-          <div className="att-list-container">
-            {/* Summary Chart */}
-            {totals.total > 0 && (
-              <div className="att-list-summary">
-                <GradeDonut
-                  distribution={donutSegments}
-                  centerLabel={`${totals.rate}%`}
-                  centerSubLabel="asistencia"
-                  size={150}
-                />
-              </div>
-            )}
+          {/* Student List */}
+          <div className="att-list-items">
+            {filteredSummaries.map((s) => {
+              const isExpanded = expandedStudentId === s.studentId;
+              const hasAbsences = s.absent > 0 || s.justified > 0;
+              const records = absentRecordsFor(s.studentId);
 
-            {/* Student List */}
-            <div className="att-list-items">
-              {filteredSummaries.map((s) => {
-                const isExpanded = expandedStudentId === s.studentId;
-                const hasAbsences = s.absent > 0 || s.justified > 0;
-                const records = absentRecordsFor(s.studentId);
-
-                return (
-                  <div key={s.studentId} className={`att-student-card ${isExpanded ? 'att-student-card--expanded' : ''}`}>
-                    <div className="att-student-row">
-                      {/* Expandable area: name + bar */}
-                      <button
-                        className="att-student-row__main"
-                        onClick={() => hasAbsences ? handleToggleExpand(s.studentId) : history.push(`/tabs/classes/${classId}/students/${s.studentId}`)}
-                      >
-                        <div className="att-student-row__info">
-                          <div className="att-student-row__name-line">
-                            <span className="att-student-row__name">{s.studentName}</span>
-                            {s.justified > 0 && (
-                              <IonIcon icon={documentTextOutline} className="att-student-row__justified-icon" />
-                            )}
-                          </div>
-                          <div className="att-bar">
-                            {s.present > 0 && (
-                              <div className="att-bar__seg att-bar__seg--present" style={{ flex: s.present }} />
-                            )}
-                            {s.late > 0 && (
-                              <div className="att-bar__seg att-bar__seg--late" style={{ flex: s.late }} />
-                            )}
-                            {s.justified > 0 && (
-                              <div className="att-bar__seg att-bar__seg--justified" style={{ flex: s.justified }} />
-                            )}
-                            {s.absent > 0 && (
-                              <div className="att-bar__seg att-bar__seg--absent" style={{ flex: s.absent }} />
-                            )}
-                          </div>
+              return (
+                <div key={s.studentId} className={`att-student-card ${isExpanded ? 'att-student-card--expanded' : ''}`}>
+                  <div className="att-student-row">
+                    {/* Expandable area: name + bar — always expand; ficha link is inside expanded area */}
+                    <button
+                      className="att-student-row__main"
+                      onClick={() => handleToggleExpand(s.studentId)}
+                    >
+                      <div className="att-student-row__info">
+                        <div className="att-student-row__name-line">
+                          <span className="att-student-row__name">{s.studentName}</span>
+                          {s.justified > 0 && (
+                            <FileText size={14} className="att-student-row__justified-icon" />
+                          )}
                         </div>
-                        <span className={`att-rate ${getRateClass(s.attendanceRate)}`}>
-                          {Math.round(s.attendanceRate * 100)}%
-                        </span>
-                        <IonIcon
-                          icon={hasAbsences ? chevronDownOutline : chevronForwardOutline}
-                          className={`att-student-row__arrow ${isExpanded ? 'att-student-row__arrow--expanded' : ''}`}
-                        />
-                      </button>
+                        <div className="att-bar">
+                          {s.present > 0 && (
+                            <div className="att-bar__seg att-bar__seg--present" style={{ flex: s.present }} />
+                          )}
+                          {s.late > 0 && (
+                            <div className="att-bar__seg att-bar__seg--late" style={{ flex: s.late }} />
+                          )}
+                          {s.justified > 0 && (
+                            <div className="att-bar__seg att-bar__seg--justified" style={{ flex: s.justified }} />
+                          )}
+                          {s.absent > 0 && (
+                            <div className="att-bar__seg att-bar__seg--absent" style={{ flex: s.absent }} />
+                          )}
+                        </div>
+                      </div>
+                      <span className={`att-rate ${getRateClass(s.attendanceRate)}`}>
+                        {Math.round(s.attendanceRate * 100)}%
+                      </span>
+                      <ChevronDown
+                        size={18}
+                        className={`att-student-row__arrow ${isExpanded ? 'att-student-row__arrow--expanded' : ''}`}
+                      />
+                    </button>
 
-                      {/* Quick comment */}
-                      <button
-                        className="att-student-row__nav"
-                        onClick={() => setCommentTarget({ id: s.studentId, name: s.studentName })}
-                        title="Añadir comentario"
-                      >
-                        <IonIcon icon={chatbubbleOutline} />
-                      </button>
+                    {/* Quick comment */}
+                    <button
+                      className="att-student-row__nav"
+                      onClick={() => setCommentTarget({ id: s.studentId, name: s.studentName })}
+                      title="Añadir comentario"
+                    >
+                      <MessageCircle size={18} />
+                    </button>
 
-                    </div>
+                  </div>
 
-                    {/* Expanded: absent/justified records */}
-                    {isExpanded && (
-                      <div className="att-expand">
-                        {loadingRecords === s.studentId ? (
-                          <div className="att-expand__loading">
-                            <IonSpinner name="crescent" />
-                          </div>
-                        ) : records.length === 0 ? (
-                          <div className="att-expand__empty">Sin ausencias registradas</div>
-                        ) : (
-                          <div className="att-expand__list">
-                            {records.map((r) => (
-                              <div key={r.id} className="att-expand__record">
-                                <span className="att-expand__date">{formatDate(r.date)}</span>
-                                {r.subjectName && <span className="att-expand__subject">{r.subjectName}</span>}
-                                <span className={`att-expand__status att-expand__status--${r.status}`}>
-                                  {r.status === 'absent' ? 'Ausente' : 'Justificada'}
-                                </span>
-                                <button
-                                  className={`att-expand__just-btn ${r.justificationUrl ? 'att-expand__just-btn--has-doc' : ''}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (r.justificationUrl) {
-                                      setJustificationActionRecord(r);
-                                    } else {
+                  {/* Expanded: absent/justified records */}
+                  {isExpanded && (
+                    <div className="att-expand">
+                      {loadingRecords === s.studentId ? (
+                        <div className="att-expand__loading">
+                          <Spinner size={20} />
+                        </div>
+                      ) : !hasAbsences ? (
+                        <div className="att-expand__empty">Sin ausencias registradas</div>
+                      ) : records.length === 0 ? (
+                        <div className="att-expand__empty">Sin ausencias registradas</div>
+                      ) : (
+                        <div className="att-expand__list">
+                          {records.map((r) => (
+                            <div key={r.id} className="att-expand__record">
+                              <span className="att-expand__date">{formatDate(r.date)}</span>
+                              {r.subjectName && <span className="att-expand__subject">{r.subjectName}</span>}
+                              <span className={`att-expand__status att-expand__status--${r.status}`}>
+                                {r.status === 'absent' ? 'Ausente' : 'Justificada'}
+                              </span>
+                              {r.justificationUrl ? (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      className="att-expand__just-btn att-expand__just-btn--has-doc"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title="Ver justificante"
+                                    >
+                                      <FileText size={15} />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => handleViewJustification(r)}>
+                                      <Eye size={16} />
+                                      Ver justificante
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
                                       setJustificationActionRecord(r);
                                       justificationInputRef.current?.click();
-                                    }
+                                    }}>
+                                      <CloudUpload size={16} />
+                                      Reemplazar documento
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() => handleDeleteJustification(r)}
+                                    >
+                                      <Trash2 size={16} />
+                                      Eliminar justificante
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              ) : (
+                                <button
+                                  className="att-expand__just-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setJustificationActionRecord(r);
+                                    justificationInputRef.current?.click();
                                   }}
-                                  title={r.justificationUrl ? 'Ver justificante' : 'Subir justificante'}
+                                  title="Subir justificante"
                                 >
-                                  <IonIcon icon={r.justificationUrl ? documentTextOutline : cloudUploadOutline} />
+                                  <CloudUpload size={15} />
                                 </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <button
-                          className="att-expand__ficha"
-                          onClick={() => history.push(`/tabs/classes/${classId}/students/${s.studentId}`)}
-                        >
-                          Ver ficha del alumno
-                          <IonIcon icon={chevronForwardOutline} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {filter === 'low' && filteredSummaries.length === 0 && (
-              <div className="att-list-empty-filter">
-                Todos los alumnos tienen una asistencia superior al 80%
-              </div>
-            )}
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        className="att-expand__ficha"
+                        onClick={() => navigate(`/tabs/classes/${classId}/students/${s.studentId}`)}
+                      >
+                        Ver ficha del alumno
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-      </IonContent>
+
+          {filter === 'low' && filteredSummaries.length === 0 && (
+            <div className="att-list-empty-filter">
+              Todos los alumnos tienen una asistencia superior al 80%
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Hidden file input for justification uploads */}
       <input
@@ -417,41 +455,6 @@ const AttendanceList: React.FC = () => {
         style={{ display: 'none' }}
         accept=".pdf,.jpg,.jpeg,.png"
         onChange={handleJustificationUpload}
-      />
-
-      {/* Action sheet for existing justification */}
-      <IonActionSheet
-        isOpen={!!justificationActionRecord?.justificationUrl}
-        onDidDismiss={() => setJustificationActionRecord(null)}
-        header="Justificante"
-        buttons={[
-          {
-            text: 'Ver justificante',
-            icon: eyeOutline,
-            handler: () => {
-              if (justificationActionRecord) handleViewJustification(justificationActionRecord);
-            },
-          },
-          {
-            text: 'Reemplazar documento',
-            icon: cloudUploadOutline,
-            handler: () => {
-              justificationInputRef.current?.click();
-            },
-          },
-          {
-            text: 'Eliminar justificante',
-            icon: trashOutline,
-            role: 'destructive',
-            handler: () => {
-              if (justificationActionRecord) handleDeleteJustification(justificationActionRecord);
-            },
-          },
-          {
-            text: 'Cancelar',
-            role: 'cancel',
-          },
-        ]}
       />
 
       {/* Quick Comment Modal */}
@@ -465,11 +468,11 @@ const AttendanceList: React.FC = () => {
       {/* Upload spinner overlay */}
       {uploadingJustification && (
         <div className="att-justification-overlay">
-          <IonSpinner color="primary" />
+          <Spinner size={32} className="text-white" />
           <span>Subiendo justificante...</span>
         </div>
       )}
-    </IonPage>
+    </PageShell>
   );
 };
 

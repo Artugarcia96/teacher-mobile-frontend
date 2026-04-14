@@ -1,40 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { IonModal, IonIcon, IonTextarea, IonHeader, IonToolbar, IonContent, IonButtons, IonButton, IonTitle } from '@ionic/react';
-import {
-  closeOutline,
-  sparklesOutline,
-  sparkles,
-  refreshOutline,
-  schoolOutline,
-  alertCircleOutline,
-  calendarOutline,
-  checkmarkCircleOutline,
-  chevronDownOutline,
-  chevronUpOutline,
-  chevronBackOutline,
-  chevronForwardOutline,
-  peopleOutline,
-  timeOutline,
-  documentTextOutline,
-  analyticsOutline,
-  trendingDownOutline,
-  trendingUpOutline,
-  bookOutline,
-  locationOutline,
-  bulbOutline,
-  trophyOutline,
-  chatbubbleOutline,
-  createOutline,
-  barbellOutline,
-} from 'ionicons/icons';
-import { useHistory } from 'react-router-dom';
+import { BarChart3, BookOpen, Calendar, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Dumbbell, FileText, Pencil, RefreshCw, School, Sparkles, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import Modal from '@/components/shared/Modal';
+import { useNavigate } from 'react-router-dom';
 import { useCalendarStore } from '../store/calendarStore';
 import './PrepareYourDayModal.css';
 
 const PREPARE_STEPS = [
-  { icon: schoolOutline, label: 'Analizando clases del día' },
-  { icon: documentTextOutline, label: 'Revisando correcciones' },
-  { icon: analyticsOutline, label: 'Generando recomendaciones' },
+  { icon: School, label: 'Analizando clases del día' },
+  { icon: FileText, label: 'Revisando correcciones' },
+  { icon: BarChart3, label: 'Generando recomendaciones' },
 ];
 
 const PrepareLoadingAnimation: React.FC = () => {
@@ -53,7 +29,7 @@ const PrepareLoadingAnimation: React.FC = () => {
         <div className="prepare-modal__loading-ripple" />
         <div className="prepare-modal__loading-ripple delay-1" />
         <div className="prepare-modal__loading-icon">
-          <IonIcon icon={sparkles} />
+          <Sparkles size={18} />
         </div>
         <div className="prepare-modal__loading-particles">
           <span className="prepare-modal__loading-particle" />
@@ -73,7 +49,7 @@ const PrepareLoadingAnimation: React.FC = () => {
             key={i}
             className={`prepare-modal__loading-step ${i < activeStep ? 'done' : ''} ${i === activeStep ? 'active' : ''}`}
           >
-            <IonIcon icon={i < activeStep ? checkmarkCircleOutline : step.icon} />
+            {i < activeStep ? <CheckCircle size={14} /> : <step.icon size={14} />}
             <span>{step.label}</span>
           </div>
         ))}
@@ -158,7 +134,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [autoGenerateTriggered, setAutoGenerateTriggered] = useState(false);
-  const history = useHistory();
+  const navigate = useNavigate();
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const currentPreparation = useCalendarStore((s) => s.currentPreparation);
@@ -272,13 +248,13 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
 
   const navigateTo = useCallback((path: string) => {
     onDismiss();
-    history.push(path);
+    navigate(path);
   }, [onDismiss, history]);
 
-  /** Build the base path for routing: /tabs/classes/{classId}[/subjects/{subjectId}] */
+  /** Build the base path for routing */
   const classBasePath = useCallback((classId: string, subjectId?: string | null) => {
     if (subjectId) return `/tabs/classes/${classId}/subjects/${subjectId}`;
-    return `/tabs/classes/${classId}`;
+    return '/tabs/classes';
   }, []);
 
   /** Merge grade_alerts into class_breakdowns, sort chronologically */
@@ -334,23 +310,23 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
   const hasTriageContent = triage.urgent.length > 0 || triage.pending.length > 0 || triage.positive.length > 0;
 
   return (
-    <IonModal isOpen={isOpen} onDidDismiss={onDismiss} className="prepare-modal">
-      <IonHeader className="prepare-modal__header">
-        <IonToolbar color="primary" className="prepare-modal__toolbar">
-          <IonTitle className="prepare-modal__title">Prepara tu día</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={onDismiss} className="prepare-modal__close">
-              <IonIcon icon={closeOutline} slot="icon-only" />
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
-      </IonHeader>
+    <Modal open={isOpen} onClose={onDismiss} sheetHeight="lg">
+      <div className="prepare-modal__header">
+        
+          <h2 className="text-base font-semibold">Prepara tu día</h2>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon-sm" className="prepare-modal__close" onClick={onDismiss} aria-label="Cerrar">
+              <X size={18} />
+            </Button>
+          </div>
+        
+      </div>
 
-      <IonContent className="prepare-modal__content">
+      <div className="prepare-modal__content">
         {/* Date navigator */}
         <div className="prepare-modal__date-nav">
           <button className="prepare-modal__date-nav-btn" onClick={() => shiftDate(-1)} aria-label="Día anterior">
-            <IonIcon icon={chevronBackOutline} />
+            <ChevronLeft size={18} />
           </button>
           <div className="prepare-modal__date-center-group">
             <div className="prepare-modal__date-center-text">
@@ -359,10 +335,10 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
             </div>
           </div>
           <button className="prepare-modal__date-nav-btn" onClick={() => shiftDate(1)} aria-label="Día siguiente">
-            <IonIcon icon={chevronForwardOutline} />
+            <ChevronRight size={18} />
           </button>
           <label className="prepare-modal__date-calendar-btn" aria-label="Seleccionar fecha">
-            <IonIcon icon={calendarOutline} />
+            <Calendar size={18} />
             <input
               ref={dateInputRef}
               type="date"
@@ -415,13 +391,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
               <>
                 {showFocusInput && (
                   <div className="prepare-modal__focus">
-                    <IonTextarea
-                      value={focusTopics}
-                      onIonInput={(e) => setFocusTopics(e.detail.value || '')}
-                      placeholder="Ej: Repasar fracciones, preparar examen..."
-                      rows={2}
-                      className="prepare-modal__focus-input"
-                    />
+                    <Textarea value={focusTopics} onChange={(e) => setFocusTopics(e.target.value || '')} placeholder="Ej: Repasar fracciones, preparar examen..." rows={2} />
                   </div>
                 )}
                 <button className="prepare-modal__generate-btn" onClick={handleGenerate}>
@@ -501,7 +471,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                           {ev.startTime ? (
                             <span className="prepare-modal__timeline-time">{ev.startTime.slice(0, 5)}</span>
                           ) : (
-                            <IonIcon icon={ev.eventType === 'tutoring' ? peopleOutline : calendarOutline} />
+                            null
                           )}
                         </div>
                         {idx < timelineItems.length - 1 && <div className="prepare-modal__timeline-line" />}
@@ -560,7 +530,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                         {cls.start_time ? (
                           <span className="prepare-modal__timeline-time">{cls.start_time}</span>
                         ) : (
-                          <IonIcon icon={schoolOutline} />
+                          <School size={18} />
                         )}
                       </div>
                       {idx < timelineItems.length - 1 && <div className="prepare-modal__timeline-line" />}
@@ -575,7 +545,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                           <div className="prepare-modal__class-title-row">
                             <span
                               className="prepare-modal__class-name prepare-modal__link"
-                              onClick={(e) => { e.stopPropagation(); if (cls.class_id) navigateTo(`/tabs/classes/${cls.class_id}`); }}
+                              onClick={(e) => { e.stopPropagation(); navigateTo(classBasePath(cls.class_id, cls.subject_id)); }}
                             >
                               {cls.class_name}
                             </span>
@@ -611,7 +581,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                             </div>
                           )}
                         </div>
-                        <IonIcon icon={isExpanded ? chevronUpOutline : chevronDownOutline} />
+                        {isExpanded ? <ChevronUp size={18} className="shrink-0 text-muted-foreground" /> : <ChevronDown size={18} className="shrink-0 text-muted-foreground" />}
                       </button>
 
                       {isExpanded && (
@@ -664,7 +634,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                                       navigateTo(`${base}/exams/new?name=${encodeURIComponent(cls.upcoming_plan_exam.name)}&date=${cls.upcoming_plan_exam.date}`);
                                     }}
                                   >
-                                    <IonIcon icon={createOutline} /> Crear examen con IA
+                                    <Pencil size={18} /> Crear examen con IA
                                   </button>
                                 )}
                               </div>
@@ -715,11 +685,11 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                                           {alert.avg_grade.toFixed(1)}
                                         </span>
                                       )}
-                                      {alert.trend && alert.trend !== 'stable' && (
-                                        <IonIcon
-                                          icon={alert.trend === 'improving' ? trendingUpOutline : trendingDownOutline}
-                                          className={`prepare-modal__trend-icon prepare-modal__trend-icon--${alert.trend}`}
-                                        />
+                                      {alert.trend && alert.trend === 'improving' && (
+                                        <TrendingUp size={14} className="text-success" />
+                                      )}
+                                      {alert.trend && alert.trend === 'declining' && (
+                                        <TrendingDown size={14} className="text-danger" />
                                       )}
                                     </div>
                                     <span className="prepare-modal__student-reason">{alert.issue}</span>
@@ -804,7 +774,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                                   navigateTo(`${classBasePath(cls.class_id, cls.subject_id)}/topics`);
                                 }}
                               >
-                                <IonIcon icon={bookOutline} /> Temario
+                                <BookOpen size={18} /> Temario
                               </button>
                               <button
                                 className="prepare-modal__action-btn"
@@ -813,7 +783,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                                   navigateTo(`${classBasePath(cls.class_id, cls.subject_id)}/exams/new`);
                                 }}
                               >
-                                <IonIcon icon={createOutline} /> Crear examen
+                                <Pencil size={18} /> Crear examen
                               </button>
                               <button
                                 className="prepare-modal__action-btn"
@@ -822,7 +792,7 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
                                   navigateTo(`${classBasePath(cls.class_id, cls.subject_id)}/exercises`);
                                 }}
                               >
-                                <IonIcon icon={barbellOutline} /> Ejercicios
+                                <Dumbbell size={18} /> Ejercicios
                               </button>
                             </div>
                           )}
@@ -877,19 +847,13 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
         {currentPreparation && !preparationLoading && (
           <div className="prepare-modal__footer">
             <button className="prepare-modal__regenerate" onClick={handleRegenerate}>
-              <IonIcon icon={refreshOutline} />
+              <RefreshCw size={18} />
               Regenerar con otros temas
             </button>
 
             {showFocusInput && (
               <div className="prepare-modal__regenerate-form" ref={regenerateFormRef}>
-                <IonTextarea
-                  value={focusTopics}
-                  onIonInput={(e) => setFocusTopics(e.detail.value || '')}
-                  placeholder="Ej: Quiero enfocarme en preparar el examen de la próxima semana..."
-                  rows={2}
-                  className="prepare-modal__focus-input"
-                />
+                <Textarea value={focusTopics} onChange={(e) => setFocusTopics(e.target.value || '')} placeholder="Ej: Quiero enfocarme en preparar el examen de la próxima semana..." rows={2} />
                 <button className="prepare-modal__btn" onClick={handleGenerate}>
                   Regenerar
                 </button>
@@ -897,8 +861,8 @@ const PrepareYourDayModal: React.FC<PrepareYourDayModalProps> = ({ isOpen, onDis
             )}
           </div>
         )}
-      </IonContent>
-    </IonModal>
+      </div>
+    </Modal>
   );
 };
 

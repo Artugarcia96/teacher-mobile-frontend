@@ -1,31 +1,39 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
-  IonButton, IonIcon, IonItem, IonLabel, IonInput, IonTextarea,
-  IonSpinner, IonAlert, IonSelect, IonSelectOption, IonBadge,
-  IonModal, IonActionSheet, IonProgressBar,
-} from '@ionic/react';
-import {
-  addOutline, documentOutline, imageOutline, trashOutline, createOutline, checkmarkOutline,
-  downloadOutline, sparklesOutline, cloudUploadOutline,
-  closeOutline, chevronDownOutline, chevronForwardOutline,
-  ellipsisHorizontal, folderOpenOutline,
-} from 'ionicons/icons';
+  Plus, FileText, Image, Trash2, Pencil, Check,
+  Download, Sparkles, CloudUpload, X, ChevronDown,
+  ChevronRight, MoreHorizontal, FolderOpen,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { topics as topicsApi, authenticatedFetch } from '../../services/api';
 
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
-import { useParams, useHistory } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
 import EmptyState from '../../components/EmptyState';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useAcademicConfigStore } from '../../store/academicConfigStore';
 import { getPeriodNumbers, getPeriodLabel } from '../../utils/periodConfig';
+
+import PageShell from '@/components/shared/PageShell';
+import Modal from '@/components/shared/Modal';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import Spinner from '@/components/shared/Spinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
+
 import './TopicDetail.css';
 
 const TopicDetail: React.FC = () => {
-  const { classId, topicId, subjectId } = useParams<{ classId: string; topicId: string; subjectId?: string }>();
-  const history = useHistory();
+  const { classId, topicId, subjectId } = useParams() as { classId: string; topicId: string; subjectId?: string };
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const subTemaFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,7 +143,8 @@ const TopicDetail: React.FC = () => {
     try {
       await updateTopic(topicId, { name: editName.trim(), description: editDescription.trim() || undefined, trimester: editTrimester ? parseInt(editTrimester) : 0, include_in_generation: editIncludeInGeneration });
       setIsEditing(false);
-    } catch (err) { console.error(err); } finally { setSaving(false); }
+      toast.success('Tema actualizado');
+    } catch (err) { console.error(err); toast.error('Error al guardar el tema'); } finally { setSaving(false); }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,7 +159,8 @@ const TopicDetail: React.FC = () => {
         await uploadMaterial(targetId, arr[i]);
       }
       if (targetId !== topicId) await fetchTopic(topicId);
-    } catch (err) { console.error(err); }
+      toast.success(`${arr.length} archivo${arr.length > 1 ? 's subidos' : ' subido'}`);
+    } catch (err) { console.error(err); toast.error('Error al subir material'); }
     finally { setUploading(false); setUploadProgress(''); setUploadTargetId(''); if (fileInputRef.current) fileInputRef.current.value = ''; if (subTemaFileInputRef.current) subTemaFileInputRef.current.value = ''; }
   };
 
@@ -165,7 +175,7 @@ const TopicDetail: React.FC = () => {
     authenticatedFetch(fullUrl)
       .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
       .then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); })
-      .catch(() => {});
+      .catch(() => { toast.error('Error al descargar'); });
   };
 
   const handlePreviewMaterial = async (url: string) => {
@@ -175,7 +185,7 @@ const TopicDetail: React.FC = () => {
       if (!r.ok) throw new Error();
       const b = await r.blob();
       setPreviewUrl(window.URL.createObjectURL(b) + '#.pdf');
-    } catch {}
+    } catch { toast.error('Error al cargar vista previa'); }
   };
 
   const handleGenerateMaterial = async () => {
@@ -189,6 +199,7 @@ const TopicDetail: React.FC = () => {
     const examples = generateExamples;
 
     setGenerateModalOpen(false); setGeneratePrompt(''); setGenerateTargetId('');
+    toast.success('Generación iniciada. Puedes seguir trabajando mientras se procesa.');
 
     addBackgroundTask({
       type: 'iteration',
@@ -222,47 +233,85 @@ const TopicDetail: React.FC = () => {
   };
 
   const handleToggleGeneration = async (tId: string, value: boolean) => {
-    try { await updateTopic(tId, { include_in_generation: value }); await fetchTopic(topicId); } catch {}
+    try { await updateTopic(tId, { include_in_generation: value }); await fetchTopic(topicId); } catch { toast.error('Error al actualizar'); }
   };
 
-  const getMaterialIcon = (type?: string) => type === 'image' ? imageOutline : documentOutline;
+  const getMaterialIcon = (type?: string) => type === 'image' ? Image : FileText;
 
-  // Keep a ref to activeMaterial so IonAlert handlers can access it after dismiss
+  // Keep a ref to activeMaterial so handlers can access it after dismiss
   const activeMaterialRef = useRef(activeMaterial);
   activeMaterialRef.current = activeMaterial;
 
 
   // ─── Render a compact material row ───
-  const renderMaterial = (material: any, ownerTopicId: string) => (
-    <div
-      className="td-mat-row"
-      key={material.id}
-      onClick={() => material.documentUrl && material.documentType !== 'image' ? handlePreviewMaterial(material.documentUrl) : undefined}
-    >
-      <IonIcon icon={getMaterialIcon(material.documentType)} className="td-mat-icon" />
-      <div className="td-mat-info">
-        <span className="td-mat-name">{material.name}</span>
-        <span className="td-mat-meta">
-          {material._pageCount ? `${material._pageCount} páginas` : new Date(material.uploadedAt).toLocaleDateString()}
-          {material.isGenerated && <IonBadge color="medium" className="td-mat-badge">IA</IonBadge>}
-          {!material.includeInExercises && <IonBadge color="medium" className="td-mat-badge">Excluido</IonBadge>}
-        </span>
-      </div>
-      <button
-        className="td-mat-menu-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          setActiveMaterial({
-            id: material.id, name: material.name, ownerTopicId,
-            documentUrl: material.documentUrl, documentType: material.documentType,
-            includeInExercises: material.includeInExercises,
-          });
-        }}
+  const renderMaterial = (material: any, ownerTopicId: string) => {
+    const IconComp = getMaterialIcon(material.documentType);
+    return (
+      <div
+        className="td-mat-row"
+        key={material.id}
+        onClick={() => material.documentUrl && material.documentType !== 'image' ? handlePreviewMaterial(material.documentUrl) : undefined}
       >
-        <IonIcon icon={ellipsisHorizontal} />
-      </button>
-    </div>
-  );
+        <IconComp size={22} className="td-mat-icon" />
+        <div className="td-mat-info">
+          <span className="td-mat-name">{material.name}</span>
+          <span className="td-mat-meta">
+            {material._pageCount ? `${material._pageCount} páginas` : new Date(material.uploadedAt).toLocaleDateString()}
+            {material.isGenerated && <Badge variant="secondary" className="td-mat-badge">IA</Badge>}
+            {!material.includeInExercises && <Badge variant="secondary" className="td-mat-badge">Excluido</Badge>}
+          </span>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="td-mat-menu-btn"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal size={20} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {material.documentUrl && (
+              <DropdownMenuItem onClick={() => handleDownloadMaterial(material.documentUrl, material.name)}>
+                <Download size={14} className="mr-2" /> Descargar
+              </DropdownMenuItem>
+            )}
+            {!material.id.startsWith('__textbook_') && currentTopic && currentTopic.children.length > 0 && (
+              <DropdownMenuItem onClick={() => {
+                setActiveMaterial({
+                  id: material.id, name: material.name, ownerTopicId,
+                  documentUrl: material.documentUrl, documentType: material.documentType,
+                  includeInExercises: material.includeInExercises,
+                });
+                setShowMoveSheet(true);
+              }}>
+                <FolderOpen size={14} className="mr-2" /> Mover a...
+              </DropdownMenuItem>
+            )}
+            {!material.id.startsWith('__textbook_') && (
+              <DropdownMenuItem onClick={async () => {
+                try { await updateMaterial(ownerTopicId, material.id, { include_in_exercises: !material.includeInExercises }); if (ownerTopicId !== topicId) await fetchTopic(topicId); } catch {}
+              }}>
+                {material.includeInExercises ? 'Excluir de ejercicios' : 'Incluir en ejercicios'}
+              </DropdownMenuItem>
+            )}
+            {!material.id.startsWith('__textbook_') && (
+              <DropdownMenuItem className="text-destructive" onClick={() => {
+                setActiveMaterial({
+                  id: material.id, name: material.name, ownerTopicId,
+                  documentUrl: material.documentUrl, documentType: material.documentType,
+                  includeInExercises: material.includeInExercises,
+                });
+                setDeleteMaterialConfirm(true);
+              }}>
+                <Trash2 size={14} className="mr-2" /> Eliminar
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  };
 
   // ─── Render a subtopic section ───
   const renderSubTopic = (child: any, idx: number) => {
@@ -270,18 +319,20 @@ const TopicDetail: React.FC = () => {
     return (
       <div className="td-folder" key={child.id}>
         <div className="td-folder-header" onClick={() => toggleSection(child.id)}>
-          <IonIcon icon={isExpanded ? chevronDownOutline : chevronForwardOutline} className="td-folder-chevron" style={{ color: accentColor }} />
+          {isExpanded
+            ? <ChevronDown size={14} className="td-folder-chevron" style={{ color: accentColor }} />
+            : <ChevronRight size={14} className="td-folder-chevron" style={{ color: accentColor }} />
+          }
           <span className="td-folder-name">{child.name}</span>
           {child.materials.length > 0 && (
             <span className="td-folder-count">{child.materials.length}</span>
           )}
-          {!child.includeInGeneration && <IonBadge color="medium" className="td-mat-badge">Excluido</IonBadge>}
+          {!child.includeInGeneration && <Badge variant="secondary" className="td-mat-badge">Excluido</Badge>}
           <button className="td-folder-menu" onClick={(e) => {
             e.stopPropagation();
-            // Simple: show delete/toggle alert
             setDeleteSubTemaTarget({ id: child.id, name: child.name });
           }}>
-            <IonIcon icon={ellipsisHorizontal} />
+            <MoreHorizontal size={18} />
           </button>
         </div>
         {isExpanded && (
@@ -289,10 +340,10 @@ const TopicDetail: React.FC = () => {
             {child.materials.map((m: any) => renderMaterial(m, child.id))}
             <div className="td-folder-actions">
               <button className="td-add-btn" onClick={() => triggerUpload(child.id)}>
-                <IonIcon icon={cloudUploadOutline} /> Subir
+                <CloudUpload size={14} /> Subir
               </button>
               <button className="td-add-btn" onClick={() => { setGenerateTargetId(child.id); setGenerateModalOpen(true); }}>
-                <IonIcon icon={sparklesOutline} /> Generar
+                <Sparkles size={14} /> Generar
               </button>
             </div>
           </div>
@@ -302,375 +353,405 @@ const TopicDetail: React.FC = () => {
   };
 
   // ─── Guards ───
-  if (loading && !currentTopic) return <IonPage><IonContent className="ion-padding"><div className="topic-loading"><IonSpinner /></div></IonContent></IonPage>;
+  if (loading && !currentTopic) return (
+    <PageShell title="">
+      <div className="topic-loading"><Spinner /></div>
+    </PageShell>
+  );
   if (!currentTopic) return (
-    <IonPage><IonHeader><IonToolbar><IonButtons slot="start"><IonBackButton defaultHref={`/tabs/classes/${classId}/topics`} text="" /></IonButtons><IonTitle>Tema no encontrado</IonTitle></IonToolbar></IonHeader>
-    <IonContent className="ion-padding"><EmptyState icon="📚" title="Tema no encontrado" /></IonContent></IonPage>
+    <PageShell title="Tema no encontrado" backHref={`/tabs/classes/${classId}/topics`}>
+      <EmptyState icon="📚" title="Tema no encontrado" />
+    </PageShell>
   );
 
   const hasSubtopics = currentTopic.children.length > 0;
 
   return (
-    <IonPage style={subjectThemeStyle(subjectColor)}>
-      <IonHeader>
-        <IonToolbar style={subjectColor ? { '--background': subjectColor, '--color': 'white' } as React.CSSProperties : undefined}>
-          <IonButtons slot="start"><IonBackButton defaultHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}/topics` : `/tabs/classes/${classId}/topics`} text="" color={subjectColor ? 'light' : undefined} /></IonButtons>
-          <IonTitle>{currentTopic.name}</IonTitle>
-          <IonButtons slot="end">
-            {isEditing
-              ? <IonButton onClick={handleSaveEdit} disabled={saving} color={subjectColor ? 'light' : undefined}>{saving ? <IonSpinner name="crescent" /> : <IonIcon icon={checkmarkOutline} />}</IonButton>
-              : <>
-                  <IonButton onClick={() => setShowDeleteTopic(true)} color={subjectColor ? 'light' : undefined}><IonIcon icon={trashOutline} /></IonButton>
-                  <IonButton onClick={() => setIsEditing(true)} color={subjectColor ? 'light' : undefined}><IonIcon icon={createOutline} /></IonButton>
-                </>}
-          </IonButtons>
-        </IonToolbar>
-      </IonHeader>
+    <PageShell
+      title={currentTopic.name}
+      backHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}/topics` : `/tabs/classes/${classId}/topics`}
+      noPadding
+      headerActions={
+        isEditing
+          ? <Button variant="ghost" size="icon" onClick={handleSaveEdit} disabled={saving}>
+              {saving ? <Spinner size={18} /> : <Check size={18} />}
+            </Button>
+          : <>
+              <Button variant="ghost" size="icon" onClick={() => setShowDeleteTopic(true)}><Trash2 size={18} /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)}><Pencil size={18} /></Button>
+            </>
+      }
+    >
+      <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" multiple onChange={handleFileUpload} />
+      <input type="file" ref={subTemaFileInputRef} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" multiple onChange={handleFileUpload} />
 
-      <IonContent>
-        <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" multiple onChange={handleFileUpload} />
-        <input type="file" ref={subTemaFileInputRef} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" multiple onChange={handleFileUpload} />
-
-        {/* ─── Edit mode ─── */}
-        {isEditing ? (
-          <div className="td-edit-panel">
-            <IonInput value={editName} onIonInput={(e) => setEditName(e.detail.value ?? '')} placeholder="Nombre" className="td-edit-input" />
-            <IonTextarea value={editDescription} onIonInput={(e) => setEditDescription(e.detail.value ?? '')} placeholder="Descripción (opcional)" rows={2} className="td-edit-input" />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <IonSelect value={editTrimester} onIonChange={(e) => setEditTrimester(e.detail.value)} interface="popover" placeholder="Trimestre" style={{ fontSize: 13, flex: 1 }}>
-                <IonSelectOption value="">Sin asignar</IonSelectOption>
+      {/* ─── Edit mode ─── */}
+      {isEditing ? (
+        <div className="td-edit-panel">
+          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" className="mb-2 text-sm" />
+          <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Descripción (opcional)" rows={2} className="mb-2 text-sm" />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <Select value={editTrimester} onValueChange={(v) => setEditTrimester(v)}>
+              <SelectTrigger className="flex-1 text-sm">
+                <SelectValue placeholder="Trimestre" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Sin asignar</SelectItem>
                 {getPeriodNumbers(periodMode).map((t) => (
-                  <IonSelectOption key={t} value={String(t)}>{getPeriodLabel(periodMode, t)}</IonSelectOption>
+                  <SelectItem key={t} value={String(t)}>{getPeriodLabel(periodMode, t)}</SelectItem>
                 ))}
-              </IonSelect>
-            </div>
-            <div className="td-edit-option" onClick={() => setEditIncludeInGeneration(!editIncludeInGeneration)}>
-              <div className={`td-edit-checkbox ${editIncludeInGeneration ? 'td-edit-checkbox--checked' : ''}`} style={editIncludeInGeneration ? { borderColor: accentColor, background: accentColor } : undefined}>
-                {editIncludeInGeneration && <IonIcon icon={checkmarkOutline} style={{ fontSize: 12, color: 'white' }} />}
-              </div>
-              <span>Incluir en generación de ejercicios y exámenes</span>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
-        ) : (
-          <div className="topic-header">
-            {currentTopic.description && <p>{currentTopic.description}</p>}
-            <div className="td-info-strip">
-              {/* Status pills */}
-              <button
-                className={`td-status-pill td-status-pill--${currentTopic.status}`}
-                onClick={async () => {
-                  const next = currentTopic.status === 'draft' ? 'ready' : currentTopic.status === 'ready' ? 'taught' : 'draft';
-                  try { await updateTopic(topicId, {}); await topicsApi.updateStatus(topicId, next); await fetchTopic(topicId); } catch {}
-                }}
-              >
-                {currentTopic.status === 'taught' ? '✓ Impartido' : currentTopic.status === 'ready' ? '● Listo' : '○ Borrador'}
-              </button>
-              {currentTopic.trimester && (
-                <span className="td-info-badge" style={{ background: `${accentColor}12`, color: accentColor }}>
-                  {getPeriodLabel(periodMode, currentTopic.trimester)}
-                </span>
-              )}
-              {!currentTopic.includeInGeneration && (
-                <span className="td-info-badge td-info-badge--muted">Excluido</span>
-              )}
-            </div>
-            {/* Scheduled dates from plan */}
-            {currentTopic.scheduledDates && currentTopic.scheduledDates.length > 0 && (
-              <div className="td-schedule">
-                <span className="td-schedule-label">Sesiones programadas</span>
-                <div className="td-schedule-dates">
-                  {currentTopic.scheduledDates.map((d, i) => {
-                    const [,m,day] = d.split('-');
-                    const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-                    return <span key={i} className="td-schedule-chip">{parseInt(day)} {MONTHS[parseInt(m)-1]}</span>;
-                  })}
-                </div>
-              </div>
+          <div className="td-edit-option" onClick={() => setEditIncludeInGeneration(!editIncludeInGeneration)}>
+            <Checkbox
+              checked={editIncludeInGeneration}
+              onCheckedChange={(v) => setEditIncludeInGeneration(!!v)}
+              style={editIncludeInGeneration ? { borderColor: accentColor, backgroundColor: accentColor } : undefined}
+            />
+            <span>Incluir en generación de ejercicios y exámenes</span>
+          </div>
+        </div>
+      ) : (
+        <div className="topic-header">
+          {currentTopic.description && <p>{currentTopic.description}</p>}
+          <div className="td-info-strip">
+            {/* Status pills */}
+            <button
+              className={`td-status-pill td-status-pill--${currentTopic.status}`}
+              onClick={async () => {
+                const next = currentTopic.status === 'draft' ? 'ready' : currentTopic.status === 'ready' ? 'taught' : 'draft';
+                try { await updateTopic(topicId, {}); await topicsApi.updateStatus(topicId, next); await fetchTopic(topicId); } catch { toast.error('Error al cambiar estado'); }
+              }}
+            >
+              {currentTopic.status === 'taught' ? '✓ Impartido' : currentTopic.status === 'ready' ? '● Listo' : '○ Borrador'}
+            </button>
+            {currentTopic.trimester && (
+              <span className="td-info-badge" style={{ background: `${accentColor}12`, color: accentColor }}>
+                {getPeriodLabel(periodMode, currentTopic.trimester)}
+              </span>
+            )}
+            {!currentTopic.includeInGeneration && (
+              <span className="td-info-badge td-info-badge--muted">Excluido</span>
             )}
           </div>
-        )}
-
-        {/* ═══ ACTION BAR ═══ */}
-        <div className="td-action-bar">
-          <button className="td-action-btn td-action-upload" onClick={() => triggerUpload(topicId)} disabled={uploading}>
-            {uploading ? <IonSpinner name="crescent" style={{ width: 16, height: 16 }} /> : <><IonIcon icon={cloudUploadOutline} /> Subir</>}
-          </button>
-          <button className="td-action-btn td-action-generate" style={{ background: accentColor }} onClick={() => { setGenerateTargetId(''); setGenerateModalOpen(true); }}>
-            <IonIcon icon={sparklesOutline} /> Generar
-          </button>
+          {/* Scheduled dates from plan */}
+          {currentTopic.scheduledDates && currentTopic.scheduledDates.length > 0 && (
+            <div className="td-schedule">
+              <span className="td-schedule-label">Sesiones programadas</span>
+              <div className="td-schedule-dates">
+                {currentTopic.scheduledDates.map((d, i) => {
+                  const [,m,day] = d.split('-');
+                  const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+                  return <span key={i} className="td-schedule-chip">{parseInt(day)} {MONTHS[parseInt(m)-1]}</span>;
+                })}
+              </div>
+            </div>
+          )}
         </div>
+      )}
 
+      {/* ─── MATERIALES DE REFERENCIA (inputs for generation) ─── */}
+      <div className="td-section">
+        <div className="td-section-header">
+          <h3>Materiales de referencia</h3>
+          {currentTopic.materials.length > 0 && (
+            <span className="td-section-count">{currentTopic.materials.length}</span>
+          )}
+        </div>
+        {currentTopic.materials.length > 0 ? (
+          currentTopic.materials.map(m => renderMaterial(m, topicId))
+        ) : (
+          <p className="td-empty-hint">Sube PDFs, documentos o imágenes que la IA usará como referencia para generar contenido.</p>
+        )}
+        <button className="td-action-btn td-action-upload" onClick={() => triggerUpload(topicId)} disabled={uploading}>
+          {uploading ? <Spinner size={16} /> : <><CloudUpload size={16} /> Subir material</>}
+        </button>
         {uploadProgress && (
           <div className="materials-upload-progress">
-            <IonProgressBar type="indeterminate" />
+            <Progress className="w-full h-[3px]" />
             <span>{uploadProgress}</span>
           </div>
         )}
+      </div>
 
-        {/* ═══ SUBTEMAS (folders) ═══ */}
-        {hasSubtopics && (
-          <div className="td-section">
-            <div className="td-section-header"><h3>Sub-temas</h3></div>
-            {currentTopic.children.map((child, idx) => renderSubTopic(child, idx))}
-          </div>
-        )}
-
-        {/* ─── Add sub-tema ─── */}
-        <div className="td-add-subtema">
-          <IonInput
-            value={subTemaName}
-            onIonInput={(e) => setSubTemaName(e.detail.value ?? '')}
-            placeholder="Nombre del sub-tema..."
-            className="td-add-subtema-input"
-            onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSubTema(); }}
-          />
-          <IonButton fill="clear" size="small" disabled={!subTemaName.trim() || creatingSubTema} onClick={handleCreateSubTema} style={{ '--color': accentColor }}>
-            {creatingSubTema ? <IonSpinner name="crescent" style={{ width: 14, height: 14 }} /> : <IonIcon icon={addOutline} />}
-          </IonButton>
+      {/* ─── GENERATED CONTENT (hero card or CTA) ─── */}
+      <div className="td-section">
+        <div className="td-section-header">
+          <h3>Contenido generado</h3>
         </div>
-
-        {/* ═══ MATERIALES ═══ */}
-        {(currentTopic.materials.length > 0 || currentTopic.pdfUrl || !hasSubtopics) && (
-          <div className="td-section">
-            <div className="td-section-header">
-              <h3>Materiales</h3>
-              {(currentTopic.materials.length > 0 || currentTopic.pdfUrl) && (
-                <span className="td-section-count">{currentTopic.materials.length + (currentTopic.pdfUrl ? 1 : 0)}</span>
-              )}
-            </div>
-
-            {/* Textbook PDF as a regular material */}
-            {currentTopic.pdfUrl && renderMaterial({
-              id: `__textbook_${topicId}`,
-              name: `${currentTopic.name}.pdf`,
-              documentUrl: `/topics/${topicId}/pdf`,
-              documentType: 'pdf',
-              uploadedAt: currentTopic.createdAt,
-              isGenerated: true,
-              includeInExercises: true,
-              _isTextbookPdf: true,
-              _pageCount: currentTopic.pageCount,
-            }, topicId)}
-
-            {currentTopic.materials.length === 0 && !currentTopic.pdfUrl ? (
-              <div className="td-empty-state">
-                <p>Sube PDFs o genera contenido con IA</p>
+        {currentTopic.pdfUrl ? (
+          <>
+            <div className="td-content-card">
+              <div className="td-content-card-body" onClick={() => handlePreviewMaterial(`/topics/${topicId}/pdf`)}>
+                <div className="td-content-icon" style={{ background: accentColor }}>
+                  <FileText size={24} />
+                </div>
+                <div className="td-content-info">
+                  <p className="td-content-title">{currentTopic.name}</p>
+                  <div className="td-content-meta">
+                    <span>{currentTopic.pageCount ? `${currentTopic.pageCount} páginas` : 'PDF generado'}</span>
+                    <Badge variant="secondary" className="td-mat-badge">IA</Badge>
+                  </div>
+                </div>
+                <div className="td-content-actions">
+                  <button className="td-content-action-btn" onClick={(e) => { e.stopPropagation(); handleDownloadMaterial(`/topics/${topicId}/pdf`, `${currentTopic.name}.pdf`); }}>
+                    <Download size={18} />
+                  </button>
+                </div>
               </div>
-            ) : (
-              currentTopic.materials.map(m => renderMaterial(m, topicId))
-            )}
+            </div>
+            <button
+              className="td-action-btn td-action-generate"
+              style={{ background: accentColor }}
+              onClick={() => { setGenerateTargetId(''); setGenerateModalOpen(true); }}
+            >
+              <Sparkles size={16} /> Generar nuevo contenido
+            </button>
+            <p className="td-regen-hint">Se usará el contenido actual como referencia para la nueva generación</p>
+          </>
+        ) : (
+          <div className="td-generate-cta" onClick={() => { setGenerateTargetId(''); setGenerateModalOpen(true); }}>
+            <div className="td-generate-cta-icon" style={{ background: accentColor }}>
+              <Sparkles size={26} />
+            </div>
+            <h4>Generar material con IA</h4>
+            <p>Crea contenido pedagógico personalizado: teoría, ejemplos resueltos y ejercicios</p>
           </div>
         )}
+      </div>
 
-        {/* Some bottom padding */}
-        <div style={{ height: 40 }} />
+      {/* SUBTEMAS (folders) */}
+      {hasSubtopics && (
+        <div className="td-section">
+          <div className="td-section-header"><h3>Sub-temas</h3></div>
+          {currentTopic.children.map((child, idx) => renderSubTopic(child, idx))}
+        </div>
+      )}
 
-        {/* ═══ MODALS & SHEETS ═══ */}
-
-        {/* Material context menu */}
-        {/* Material context menu */}
-        <IonAlert
-          isOpen={!!activeMaterial && !showMoveSheet && !deleteMaterialConfirm}
-          header={activeMaterial?.name || ''}
-          onDidDismiss={({ detail }) => {
-            // Only clear if user cancelled (no action taken that needs activeMaterial)
-            if (detail.role === 'cancel' || detail.role === 'backdrop') {
-              setActiveMaterial(null);
-            }
-          }}
-          buttons={(() => {
-            if (!activeMaterial || !currentTopic) return [{ text: 'Cerrar', role: 'cancel' }];
-            const m = activeMaterial;
-            const isTextbookPdf = m.id.startsWith('__textbook_');
-            const btns: any[] = [];
-
-            if (m.documentUrl) {
-              btns.push({
-                text: 'Descargar',
-                handler: () => {
-                  const ref = activeMaterialRef.current;
-                  if (ref?.documentUrl) handleDownloadMaterial(ref.documentUrl, ref.name);
-                  setActiveMaterial(null);
-                },
-              });
-            }
-            if (!isTextbookPdf) {
-              if (currentTopic.children.length > 0) {
-                btns.push({ text: 'Mover a...', handler: () => setShowMoveSheet(true) });
-              }
-              btns.push({
-                text: m.includeInExercises ? 'Excluir de ejercicios' : 'Incluir en ejercicios',
-                handler: async () => {
-                  const ref = activeMaterialRef.current;
-                  if (!ref) return;
-                  try { await updateMaterial(ref.ownerTopicId, ref.id, { include_in_exercises: !ref.includeInExercises }); if (ref.ownerTopicId !== topicId) await fetchTopic(topicId); } catch {}
-                  setActiveMaterial(null);
-                },
-              });
-              btns.push({ text: 'Eliminar', role: 'destructive', handler: () => setDeleteMaterialConfirm(true) });
-            }
-            btns.push({ text: 'Cancelar', role: 'cancel' });
-            return btns;
-          })()}
+      {/* Add sub-tema */}
+      <div className="td-add-subtema">
+        <Input
+          value={subTemaName}
+          onChange={(e) => setSubTemaName(e.target.value)}
+          placeholder="Nombre del sub-tema..."
+          className="flex-1 text-sm"
+          onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSubTema(); }}
         />
+        <Button variant="ghost" size="sm" disabled={!subTemaName.trim() || creatingSubTema} onClick={handleCreateSubTema} style={{ color: accentColor }}>
+          {creatingSubTema ? <Spinner size={14} /> : <Plus size={18} />}
+        </Button>
+      </div>
 
-        {/* Move destination picker */}
-        <IonActionSheet
-          isOpen={showMoveSheet}
-          header="Mover a..."
-          onDidDismiss={() => { setShowMoveSheet(false); setActiveMaterial(null); }}
-          buttons={(() => {
-            const ref = activeMaterialRef.current;
-            if (!ref || !currentTopic) return [{ text: 'Cancelar', role: 'cancel' as const }];
-            const from = ref.ownerTopicId;
-            const btns: any[] = [];
-            if (from !== topicId) {
-              btns.push({
-                text: `${currentTopic.name} (sin sub-tema)`,
-                handler: () => { moveMaterial(from, ref.id, topicId).catch(() => {}); },
-              });
-            }
-            for (const c of currentTopic.children) {
-              if (c.id !== from) {
-                btns.push({
-                  text: c.name,
-                  handler: () => { moveMaterial(from, ref.id, c.id).catch(() => {}); },
-                });
-              }
-            }
-            btns.push({ text: 'Cancelar', role: 'cancel' });
-            return btns;
-          })()}
-        />
+      {/* Some bottom padding */}
+      <div style={{ height: 40 }} />
 
-        {/* Delete material confirmation */}
-        <IonAlert
-          isOpen={deleteMaterialConfirm}
-          header="Eliminar material"
-          message={`¿Eliminar "${activeMaterial?.name}"?`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Eliminar', role: 'destructive', handler: async () => {
-              const ref = activeMaterialRef.current;
-              if (ref) {
-                try { await deleteMaterial(ref.ownerTopicId, ref.id); if (ref.ownerTopicId !== topicId) await fetchTopic(topicId); } catch {}
-              }
-            }},
-          ]}
-          onDidDismiss={() => { setDeleteMaterialConfirm(false); setActiveMaterial(null); }}
-        />
+      {/* MODALS & SHEETS */}
 
-        {/* Generate Material */}
-        <IonModal isOpen={generateModalOpen} onDidDismiss={() => setGenerateModalOpen(false)} initialBreakpoint={0.75} breakpoints={[0, 0.75, 0.95]}>
-          <IonHeader><IonToolbar style={{ '--background': accentColor, '--color': 'white' } as React.CSSProperties}>
-            <IonTitle style={{ fontSize: 16 }}>Generar Material</IonTitle>
-            <IonButtons slot="end"><IonButton color="light" onClick={() => setGenerateModalOpen(false)}><IonIcon icon={closeOutline} /></IonButton></IonButtons>
-          </IonToolbar></IonHeader>
-          <IonContent className="ion-padding" style={subjectThemeStyle(subjectColor)}>
-            <p style={{ fontSize: 12, color: 'var(--ion-color-medium)', margin: '0 0 10px' }}>
-              La IA analizará los materiales existentes del tema y generará contenido nuevo.
-            </p>
+      {/* Move destination picker */}
+      <Modal open={showMoveSheet} onClose={() => { setShowMoveSheet(false); setActiveMaterial(null); }} title="Mover a...">
+        <div className="flex flex-col gap-1 py-2">
+          {activeMaterial && currentTopic && activeMaterial.ownerTopicId !== topicId && (
+            <Button variant="ghost" className="justify-start" onClick={() => {
+              moveMaterial(activeMaterial.ownerTopicId, activeMaterial.id, topicId).catch(() => {});
+              setShowMoveSheet(false); setActiveMaterial(null);
+            }}>
+              {currentTopic.name} (sin sub-tema)
+            </Button>
+          )}
+          {activeMaterial && currentTopic && currentTopic.children.filter(c => c.id !== activeMaterial.ownerTopicId).map(c => (
+            <Button key={c.id} variant="ghost" className="justify-start" onClick={() => {
+              moveMaterial(activeMaterial.ownerTopicId, activeMaterial.id, c.id).catch(() => {});
+              setShowMoveSheet(false); setActiveMaterial(null);
+            }}>
+              {c.name}
+            </Button>
+          ))}
+        </div>
+      </Modal>
 
-            <IonTextarea value={generatePrompt} onIonInput={(e) => setGeneratePrompt(e.detail.value ?? '')}
-              placeholder="Describe qué quieres generar... Ej: 'Resumen visual con ejemplos prácticos de ecuaciones de primer grado' o 'Ficha de repaso para el examen'"
-              rows={4} style={{ '--background': 'var(--ion-color-light)', '--border-radius': '8px', '--padding-start': '10px', fontSize: '13px', marginBottom: 12 }} />
+      {/* Delete material confirmation */}
+      <AlertConfirm
+        open={deleteMaterialConfirm}
+        onClose={() => { setDeleteMaterialConfirm(false); setActiveMaterial(null); }}
+        header="Eliminar material"
+        message={`¿Eliminar "${activeMaterial?.name}"?`}
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={async () => {
+          const ref = activeMaterialRef.current;
+          if (ref) {
+            try { await deleteMaterial(ref.ownerTopicId, ref.id); if (ref.ownerTopicId !== topicId) await fetchTopic(topicId); } catch {}
+          }
+          setDeleteMaterialConfirm(false); setActiveMaterial(null);
+        }}
+      />
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <div
+      {/* Generate Material */}
+      <Modal open={generateModalOpen} onClose={() => setGenerateModalOpen(false)} title="Generar Material" sheetHeight="lg">
+        <div className="space-y-4">
+          {/* Material context */}
+          <div className="space-y-2">
+            {currentTopic?.pdfUrl && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 text-sm">
+                <Sparkles size={16} className="shrink-0 text-primary" />
+                <span>Se usará el <strong>contenido actual ({currentTopic.pageCount || ''}p)</strong> como base para la nueva generación</span>
+              </div>
+            )}
+            {totalMaterials > 0 ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted text-sm">
+                <FileText size={16} className="shrink-0 text-primary" />
+                <span>+ <strong>{totalMaterials} material{totalMaterials !== 1 ? 'es' : ''}</strong> subidos como referencia</span>
+              </div>
+            ) : !currentTopic?.pdfUrl ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-warning/10 text-sm text-warning">
+                <FileText size={16} className="shrink-0" />
+                <span>Sin materiales de referencia. La IA generará contenido basándose solo en tu descripción.</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Descripción del contenido</label>
+            <Textarea value={generatePrompt} onChange={(e) => setGeneratePrompt(e.target.value)}
+              placeholder="Ej: 'Explicaciones claras con ejemplos sobre ecuaciones de primer grado' o 'Ficha de repaso con ejercicios resueltos'"
+              rows={3} className="text-sm" autoFocus />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Enfoque</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
                 onClick={() => setGenerateEnfoque('practico')}
+                className="flex-1 p-2.5 rounded-lg text-center cursor-pointer border transition-colors"
                 style={{
-                  flex: 1, padding: '10px 12px', borderRadius: 8, textAlign: 'center', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                  background: generateEnfoque === 'practico' ? accentColor : 'var(--ion-color-light)',
-                  color: generateEnfoque === 'practico' ? 'white' : 'var(--ion-text-color)',
-                  border: `1px solid ${generateEnfoque === 'practico' ? accentColor : 'var(--ion-color-light-shade)'}`,
+                  background: generateEnfoque === 'practico' ? accentColor : 'var(--color-muted)',
+                  color: generateEnfoque === 'practico' ? 'white' : 'var(--color-foreground)',
+                  borderColor: generateEnfoque === 'practico' ? accentColor : 'var(--color-border)',
                 }}
+                aria-pressed={generateEnfoque === 'practico'}
               >
-                Práctico
-              </div>
-              <div
+                <span className="text-sm font-medium block">Práctico</span>
+                <span className="text-[11px] opacity-80 block mt-0.5">Más ejercicios y ejemplos</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setGenerateEnfoque('teorico')}
+                className="flex-1 p-2.5 rounded-lg text-center cursor-pointer border transition-colors"
                 style={{
-                  flex: 1, padding: '10px 12px', borderRadius: 8, textAlign: 'center', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                  background: generateEnfoque === 'teorico' ? accentColor : 'var(--ion-color-light)',
-                  color: generateEnfoque === 'teorico' ? 'white' : 'var(--ion-text-color)',
-                  border: `1px solid ${generateEnfoque === 'teorico' ? accentColor : 'var(--ion-color-light-shade)'}`,
+                  background: generateEnfoque === 'teorico' ? accentColor : 'var(--color-muted)',
+                  color: generateEnfoque === 'teorico' ? 'white' : 'var(--color-foreground)',
+                  borderColor: generateEnfoque === 'teorico' ? accentColor : 'var(--color-border)',
                 }}
+                aria-pressed={generateEnfoque === 'teorico'}
               >
-                Teórico
-              </div>
+                <span className="text-sm font-medium block">Teórico</span>
+                <span className="text-[11px] opacity-80 block mt-0.5">Más explicaciones y conceptos</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block">Configuración</label>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Páginas</span>
+              <Select value={String(generatePages)} onValueChange={(v) => setGeneratePages(parseInt(v))}>
+                <SelectTrigger className="w-20 text-sm h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="15">15</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="30">30</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <IonItem lines="none" style={{ '--padding-start': '0', marginBottom: 4 }}>
-              <IonLabel style={{ fontSize: 13 }}>Páginas aprox.</IonLabel>
-              <IonSelect value={String(generatePages)} onIonChange={(e) => setGeneratePages(parseInt(e.detail.value))} interface="popover" style={{ fontSize: 13 }}>
-                <IonSelectOption value="5">5</IonSelectOption>
-                <IonSelectOption value="10">10</IonSelectOption>
-                <IonSelectOption value="15">15</IonSelectOption>
-                <IonSelectOption value="20">20</IonSelectOption>
-                <IonSelectOption value="30">30</IonSelectOption>
-              </IonSelect>
-            </IonItem>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Ejercicios / sección</span>
+              <Select value={String(generateExercises)} onValueChange={(v) => setGenerateExercises(parseInt(v))}>
+                <SelectTrigger className="w-20 text-sm h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">0</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <IonItem lines="none" style={{ '--padding-start': '0', marginBottom: 4 }}>
-              <IonLabel style={{ fontSize: 13 }}>Ejercicios por sección</IonLabel>
-              <IonSelect value={String(generateExercises)} onIonChange={(e) => setGenerateExercises(parseInt(e.detail.value))} interface="popover" style={{ fontSize: 13 }}>
-                <IonSelectOption value="0">Sin ejercicios</IonSelectOption>
-                <IonSelectOption value="3">3</IonSelectOption>
-                <IonSelectOption value="5">5</IonSelectOption>
-                <IonSelectOption value="10">10</IonSelectOption>
-                <IonSelectOption value="15">15</IonSelectOption>
-              </IonSelect>
-            </IonItem>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Ejemplos / sección</span>
+              <Select value={String(generateExamples)} onValueChange={(v) => setGenerateExamples(parseInt(v))}>
+                <SelectTrigger className="w-20 text-sm h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">0</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-            <IonItem lines="none" style={{ '--padding-start': '0', marginBottom: 12 }}>
-              <IonLabel style={{ fontSize: 13 }}>Ejemplos por sección</IonLabel>
-              <IonSelect value={String(generateExamples)} onIonChange={(e) => setGenerateExamples(parseInt(e.detail.value))} interface="popover" style={{ fontSize: 13 }}>
-                <IonSelectOption value="0">Sin ejemplos</IonSelectOption>
-                <IonSelectOption value="1">1</IonSelectOption>
-                <IonSelectOption value="2">2</IonSelectOption>
-                <IonSelectOption value="3">3</IonSelectOption>
-              </IonSelect>
-            </IonItem>
+          {/* Pre-generation summary */}
+          <div className="p-3 rounded-lg bg-muted/50 border border-border text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground text-sm">Resumen</p>
+            <p>PDF de ~{generatePages} páginas, enfoque {generateEnfoque === 'practico' ? 'práctico' : 'teórico'}, {generateExercises} ejercicios y {generateExamples} ejemplos por sección.</p>
+            <p>Tiempo estimado: 2-5 minutos. Se procesa en segundo plano.</p>
+          </div>
 
-            <IonButton expand="block" disabled={!generatePrompt.trim()} onClick={handleGenerateMaterial}
-              style={{ '--border-radius': '8px', '--background': accentColor, fontWeight: 600 }}>
-              <IonIcon icon={sparklesOutline} slot="start" /> Generar Material
-            </IonButton>
-          </IonContent>
-        </IonModal>
+          <Button className="w-full font-semibold h-11" disabled={!generatePrompt.trim()} onClick={handleGenerateMaterial}
+            style={{ background: accentColor }}>
+            <Sparkles size={16} className="mr-2" /> Generar Material
+          </Button>
+        </div>
+      </Modal>
 
-        {/* PDF Preview */}
-        <IonModal isOpen={!!previewUrl} onDidDismiss={() => { if (previewUrl?.startsWith('blob:')) window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} className="paper-preview-modal">
-          <IonHeader><IonToolbar><IonTitle style={{ fontSize: 16 }}>Vista previa</IonTitle><IonButtons slot="end"><IonButton onClick={() => setPreviewUrl(null)}><IonIcon icon={closeOutline} /></IonButton></IonButtons></IonToolbar></IonHeader>
-          <IonContent className="paper-preview-content" scrollY={false}>{previewUrl && <div className="paper-preview-container"><iframe src={previewUrl} title="Material" className="paper-preview-pdf" /></div>}</IonContent>
-        </IonModal>
+      {/* PDF Preview */}
+      <Modal open={!!previewUrl} onClose={() => { if (previewUrl?.startsWith('blob:')) window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} title="Vista previa" sheetHeight="full">
+        {previewUrl && <div className="w-full h-full"><iframe src={previewUrl} title="Material" className="w-full h-full border-none bg-white" style={{ minHeight: '70vh' }} /></div>}
+      </Modal>
 
-        {/* Delete topic */}
-        <IonAlert isOpen={showDeleteTopic} header="Eliminar tema" message={`¿Eliminar "${currentTopic.name}" y todo su contenido?`}
-          buttons={[{ text: 'Cancelar', role: 'cancel', handler: () => setShowDeleteTopic(false) }, { text: 'Eliminar', role: 'destructive', handler: async () => { try { await deleteTopic(topicId); history.goBack(); } catch {} setShowDeleteTopic(false); } }]}
-          onDidDismiss={() => setShowDeleteTopic(false)} />
+      {/* Delete topic */}
+      <AlertConfirm
+        open={showDeleteTopic}
+        onClose={() => setShowDeleteTopic(false)}
+        header="Eliminar tema"
+        message={`¿Eliminar "${currentTopic.name}" y todo su contenido?`}
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={async () => { try { await deleteTopic(topicId); navigate(-1); } catch {} setShowDeleteTopic(false); }}
+      />
 
-        {/* Delete sub-tema */}
-        <IonAlert isOpen={!!deleteSubTemaTarget} header={deleteSubTemaTarget?.name || ''}
-          message="¿Qué quieres hacer con este sub-tema?"
-          buttons={[
-            { text: 'Cancelar', role: 'cancel', handler: () => setDeleteSubTemaTarget(null) },
-            ...(deleteSubTemaTarget ? [{
-              text: currentTopic.children.find(c => c.id === deleteSubTemaTarget.id)?.includeInGeneration ? 'Excluir de generación' : 'Incluir en generación',
-              handler: () => {
-                const child = currentTopic.children.find(c => c.id === deleteSubTemaTarget!.id);
-                if (child) handleToggleGeneration(child.id, !child.includeInGeneration);
-                setDeleteSubTemaTarget(null);
-              },
-            }] : []),
-            { text: 'Eliminar', role: 'destructive', handler: async () => {
+      {/* Delete sub-tema */}
+      {deleteSubTemaTarget && (
+        <Modal open={!!deleteSubTemaTarget} onClose={() => setDeleteSubTemaTarget(null)} title={deleteSubTemaTarget.name} sheetHeight="sm">
+          <div className="flex flex-col gap-2 py-2">
+            <Button variant="ghost" className="justify-start" onClick={() => {
+              const child = currentTopic.children.find(c => c.id === deleteSubTemaTarget.id);
+              if (child) handleToggleGeneration(child.id, !child.includeInGeneration);
+              setDeleteSubTemaTarget(null);
+            }}>
+              {currentTopic.children.find(c => c.id === deleteSubTemaTarget.id)?.includeInGeneration ? 'Excluir de generación' : 'Incluir en generación'}
+            </Button>
+            <Button variant="destructive" className="justify-start" onClick={async () => {
               if (deleteSubTemaTarget) { try { await deleteTopic(deleteSubTemaTarget.id); await fetchTopic(topicId); } catch {} }
               setDeleteSubTemaTarget(null);
-            }},
-          ]}
-          onDidDismiss={() => setDeleteSubTemaTarget(null)} />
-      </IonContent>
-    </IonPage>
+            }}>
+              Eliminar
+            </Button>
+          </div>
+        </Modal>
+      )}
+    </PageShell>
   );
 };
 

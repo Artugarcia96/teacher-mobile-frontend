@@ -20,14 +20,14 @@
 
 .gtl__axis-label {
   font-size: 9px;
-  font-family: var(--ion-font-family);
+  font-family: var(--font-sans);
   fill: var(--color-text-tertiary, #94A3B8);
   font-weight: 500;
 }
 
 .gtl__x-label {
   font-size: 8px;
-  font-family: var(--ion-font-family);
+  font-family: var(--font-sans);
   fill: var(--color-text-tertiary, #94A3B8);
   font-weight: 500;
 }

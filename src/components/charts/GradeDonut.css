@@ -20,7 +20,7 @@
 }
 
 .gd__center-value {
-  font-family: var(--ion-font-family);
+  font-family: var(--font-sans);
   font-size: 22px;
   font-weight: 800;
   fill: var(--color-text-primary, #0F172A);
@@ -28,7 +28,7 @@
 }
 
 .gd__center-label {
-  font-family: var(--ion-font-family);
+  font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 500;
   fill: var(--color-text-tertiary, #94A3B8);

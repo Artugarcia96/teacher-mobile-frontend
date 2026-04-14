@@ -1,17 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
-  IonButton, IonIcon, IonList, IonItem, IonLabel, IonInput, IonTextarea,
-  IonModal, IonSpinner, IonBadge, IonAlert, IonChip, IonProgressBar,
-  IonItemSliding, IonItemOptions, IonItemOption, IonReorder, IonReorderGroup,
-  IonSearchbar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonCheckbox,
-} from '@ionic/react';
-import {
-  addOutline, documentTextOutline, cloudUploadOutline, closeCircleOutline,
-  bookOutline, linkOutline, trashOutline, sparklesOutline, downloadOutline,
-  sparkles, checkmarkCircleOutline,
-} from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+  Plus, FileText, Upload, XCircle,
+  BookOpen, Link, Trash2, Sparkles, Download,
+  CheckCircle,
+} from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { fetchRegistry } from '../../store/fetchRegistry';
@@ -30,12 +23,24 @@ import { useIsDesktop } from '../../hooks/useIsDesktop';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useAcademicConfigStore } from '../../store/academicConfigStore';
 import { getPeriodNumbers, getPeriodLabel, getPeriodFullLabel } from '../../utils/periodConfig';
-import '../../components/ContentCreatorModal.css';
+import PageShell from '@/components/shared/PageShell';
+import Spinner from '@/components/shared/Spinner';
+import Searchbar from '@/components/shared/Searchbar';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import Modal from '@/components/shared/Modal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import './TopicsList.css';
 
 const TopicsList: React.FC = () => {
-  const { classId, subjectId: urlSubjectId } = useParams<{ classId: string; subjectId?: string }>();
-  const history = useHistory();
+  const { classId, subjectId: urlSubjectId } = useParams() as { classId: string; subjectId?: string };
+  const navigate = useNavigate();
   const isDesktop = useIsDesktop();
 
   const allClasses = useClassesStore((s) => s.classes);
@@ -297,63 +302,30 @@ const TopicsList: React.FC = () => {
   const subjectColor = urlSubjectId ? classesStoreSubjects[classId]?.find(s => s.subjectId === urlSubjectId)?.subjectColor : undefined;
 
   return (
-    <IonPage style={subjectThemeStyle(subjectColor)}>
-      <IonHeader>
-        <IonToolbar style={subjectColor ? { '--background': subjectColor, '--color': 'white' } as React.CSSProperties : undefined}>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={urlSubjectId ? `/tabs/classes/${classId}/subjects/${urlSubjectId}` : `/tabs/classes/${classId}`} text="" color={subjectColor ? 'light' : undefined} />
-          </IonButtons>
-          <IonTitle>{classGroup ? `${classGroup.name} — Temario` : 'Temario'}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={handleOpenSubjectModal} title="Gestionar asignaturas" color={subjectColor ? 'light' : undefined}>
-              <IonIcon icon={linkOutline} />
-            </IonButton>
-            {activeSubjectId && (
-              <IonButton onClick={() => {
-                if (activeTrimester !== 'all' && activeTrimester !== '0') {
-                  setNewTrimester(activeTrimester);
-                }
-                setShowTopicModal(true);
-              }} color={subjectColor ? 'light' : undefined}>
-                <IonIcon icon={addOutline} />
-              </IonButton>
-            )}
-          </IonButtons>
-        </IonToolbar>
-
-        {/* Subject selector — only show when NOT in a subject-scoped route */}
-        {!urlSubjectId && classSubjects.length > 0 && (
-          <IonToolbar className="subject-selector-toolbar">
-            {classSubjects.length <= 4 ? (
-              <IonSegment
-                value={activeSubjectId}
-                onIonChange={(e) => { setActiveSubjectId(e.detail.value as string); setSearch(''); setActiveTrimester('all'); }}
-                className="subject-segment"
-              >
-                {classSubjects.map((s) => (
-                  <IonSegmentButton key={s.id} value={s.id}>
-                    <IonLabel>{s.name}</IonLabel>
-                  </IonSegmentButton>
-                ))}
-              </IonSegment>
-            ) : (
-              <IonSelect
-                value={activeSubjectId}
-                onIonChange={(e) => { setActiveSubjectId(e.detail.value); setSearch(''); setActiveTrimester('all'); }}
-                interface="popover"
-                className="subject-dropdown"
-              >
-                {classSubjects.map((s) => (
-                  <IonSelectOption key={s.id} value={s.id}>{s.name}</IonSelectOption>
-                ))}
-              </IonSelect>
-            )}
-          </IonToolbar>
-        )}
-
-      </IonHeader>
-
-      <IonContent>
+    <PageShell
+      title={classGroup ? `${classGroup.name} — Temario` : 'Temario'}
+      backHref={urlSubjectId ? `/tabs/classes/${classId}/subjects/${urlSubjectId}` : '/tabs/classes'}
+      headerActions={
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleOpenSubjectModal} title="Gestionar asignaturas">
+            <Link size={18} />
+          </Button>
+          {activeSubjectId && (
+            <Button variant="ghost" size="sm" onClick={() => {
+              if (activeTrimester !== 'all' && activeTrimester !== '0') {
+                setNewTrimester(activeTrimester);
+              }
+              setShowTopicModal(true);
+            }}>
+              <Plus size={18} />
+            </Button>
+          )}
+        </div>
+      }
+      noPadding
+      className={subjectColor ? '' : ''}
+    >
+      <div style={subjectThemeStyle(subjectColor)}>
         <input
           type="file"
           ref={fileInputRef}
@@ -363,8 +335,42 @@ const TopicsList: React.FC = () => {
           style={{ display: 'none' }}
         />
 
+        {/* Subject selector -- only show when NOT in a subject-scoped route */}
+        {!urlSubjectId && classSubjects.length > 0 && (
+          <div className="px-4 lg:px-6 py-2 border-b border-border">
+            {classSubjects.length <= 4 ? (
+              <Tabs
+                value={activeSubjectId}
+                onValueChange={(v) => { setActiveSubjectId(v); setSearch(''); setActiveTrimester('all'); }}
+              >
+                <TabsList variant="line" className="w-full">
+                  {classSubjects.map((s) => (
+                    <TabsTrigger key={s.id} value={s.id} className="flex-1 text-sm">
+                      {s.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            ) : (
+              <Select
+                value={activeSubjectId}
+                onValueChange={(v) => { setActiveSubjectId(v); setSearch(''); setActiveTrimester('all'); }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {classSubjects.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
+
         {topicsLoading ? (
-          <div className="topics-loading"><IonSpinner color="primary" /></div>
+          <div className="topics-loading"><Spinner /></div>
         ) : classSubjects.length === 0 ? (
           <EmptyState
             icon="📚"
@@ -380,7 +386,7 @@ const TopicsList: React.FC = () => {
               <div className="topics-onboarding">
                 <div className="topics-onboarding__hero">
                   <button className="topics-onboarding__plan" onClick={() => setShowCoursePlanCreator(true)}>
-                    <IonIcon icon={sparkles} className="topics-onboarding__plan-icon" />
+                    <Sparkles size={26} className="topics-onboarding__plan-icon" />
                     <div className="topics-onboarding__plan-text">
                       <span className="topics-onboarding__plan-title">Planificar curso con IA</span>
                       <span className="topics-onboarding__plan-desc">
@@ -392,7 +398,7 @@ const TopicsList: React.FC = () => {
                     <span>o añade temas manualmente</span>
                   </div>
                   <button className="topics-onboarding__manual" onClick={() => setShowTopicModal(true)}>
-                    <IonIcon icon={addOutline} />
+                    <Plus size={16} />
                     <span>Nuevo tema</span>
                   </button>
                 </div>
@@ -413,12 +419,12 @@ const TopicsList: React.FC = () => {
                           role={plan.status === 'completed' ? 'button' : undefined}
                         >
                           <div className="topics-plan-status__row">
-                            <IonIcon icon={sparkles} className="topics-plan-status__icon" />
+                            <Sparkles size={22} className="topics-plan-status__icon" />
                             <div className="topics-plan-status__info">
                               <span className="topics-plan-status__title">{plan.title || `Planificación ${activeSubjectName}`}</span>
                               <span className="topics-plan-status__label">
                                 {isProcessing ? (
-                                  <><IonSpinner name="crescent" style={{ width: 12, height: 12 }} /> {plan.status === 'analyzing' ? 'Analizando currículo...' : 'Generando plan...'}</>
+                                  <><Spinner size={12} /> {plan.status === 'analyzing' ? 'Analizando currículo...' : 'Generando plan...'}</>
                                 ) : plan.status === 'completed' ? (
                                   'Planificación lista — toca para revisar'
                                 ) : plan.status === 'failed' ? (
@@ -431,11 +437,11 @@ const TopicsList: React.FC = () => {
                                 e.stopPropagation();
                                 setDeletePlanTarget({ id: plan.id, name: plan.title || `Planificación ${activeSubjectName}` });
                               }}>
-                                <IonIcon icon={trashOutline} />
+                                <Trash2 size={16} />
                               </button>
                             )}
                           </div>
-                          {isProcessing && <IonProgressBar type="indeterminate" color="primary" style={{ height: 3, borderRadius: 2, marginTop: 8 }} />}
+                          {isProcessing && <Progress className="h-[3px] rounded-sm mt-2" />}
                         </div>
                       );
                     })
@@ -444,7 +450,7 @@ const TopicsList: React.FC = () => {
                     <span>mientras tanto</span>
                   </div>
                   <button className="topics-onboarding__manual" onClick={() => setShowTopicModal(true)}>
-                    <IonIcon icon={addOutline} />
+                    <Plus size={16} />
                     <span>Añadir tema manualmente</span>
                   </button>
                 </div>
@@ -473,7 +479,7 @@ const TopicsList: React.FC = () => {
             {activeSubjectId && textbooks.filter(tb => !tb.temasCreated && !tb.coursePlanId).length > 0 && (
               <div className="topics-generated">
                 <div className="topics-generated__header">
-                  <IonIcon icon={sparklesOutline} className="topics-generated__icon" />
+                  <Sparkles size={18} className="topics-generated__icon" />
                   <span className="topics-generated__title">Contenido generado</span>
                 </div>
                 {textbooks.filter(tb => !tb.temasCreated && !tb.coursePlanId).map((tb) => (
@@ -516,68 +522,57 @@ const TopicsList: React.FC = () => {
             )}
 
             {(activeSubject?.topics.length || 0) > 3 && (
-              <IonSearchbar
+              <Searchbar
                 value={search}
-                onIonInput={(e) => setSearch(e.detail.value ?? '')}
+                onChange={(v) => setSearch(v)}
                 placeholder="Buscar temas..."
-                className="topics-search"
+                className="mx-4 lg:mx-6 my-1"
               />
             )}
             {activeTopics.length === 0 && (search || activeTrimester !== 'all') ? (
               <EmptyState icon="🔍" title="Sin resultados" subtitle={search ? "No hay temas que coincidan" : "No hay temas en este trimestre"} />
             ) : activeTopics.length > 0 ? (
-              <IonList className="topics-list">
-                <IonReorderGroup disabled={false} onIonItemReorder={(e) => e.detail.complete()}>
+              <div className="topics-list">
+                <div className="flex flex-col">
                   {activeTopics.map((topic, idx) => (
-                    <IonItemSliding key={topic.id}>
-                      <IonItem
-                        button
-                        onClick={() => history.push(activeSubjectId ? `/tabs/classes/${classId}/subjects/${activeSubjectId}/topics/${topic.id}` : `/tabs/classes/${classId}/topics/${topic.id}`)}
-                        className="topic-item card-item"
-                      >
-                        <div className="topic-item__left" slot="start">
-                          <div className={`topic-item__number topic-item__number--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'draft'}`}>
-                            {topic.status === 'taught' ? '✓' : idx + 1}
-                          </div>
+                    <div
+                      key={topic.id}
+                      className="topic-item card-item cursor-pointer"
+                      onClick={() => navigate(activeSubjectId ? `/tabs/classes/${classId}/subjects/${activeSubjectId}/topics/${topic.id}` : `/tabs/classes/${classId}/topics/${topic.id}`)}
+                    >
+                      <div className="topic-item__left">
+                        <div className={`topic-item__number topic-item__number--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'draft'}`}>
+                          {topic.status === 'taught' ? '✓' : idx + 1}
                         </div>
-                        <IonLabel className="topic-item__body">
-                          <h3 className="topic-item__name">{topic.name}</h3>
-                          {topic.description && <p className="topic-item__desc">{topic.description}</p>}
-                          <div className="topic-item__tags">
-                            {topic.trimester && activeTrimester === 'all' && (
-                              <span className="topic-item__trimester-tag">{getPeriodLabel(periodMode, topic.trimester)}</span>
-                            )}
-                            {topic.hasContent && (
-                              <span className={`topic-item__content-tag topic-item__content-tag--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'default'}`}>
-                                {topic.pageCount ? `${topic.pageCount}p` : 'Material'}
-                              </span>
-                            )}
-                          </div>
-                        </IonLabel>
-                        <div className="topic-item__right" slot="end">
-                          {topic.materialCount > 0 && (
-                            <span className="topic-item__material-count">
-                              <IonIcon icon={documentTextOutline} /> {topic.materialCount}
+                      </div>
+                      <div className="topic-item__body">
+                        <h3 className="topic-item__name">{topic.name}</h3>
+                        {topic.description && <p className="topic-item__desc">{topic.description}</p>}
+                        <div className="topic-item__tags">
+                          {topic.trimester && activeTrimester === 'all' && (
+                            <span className="topic-item__trimester-tag">{getPeriodLabel(periodMode, topic.trimester)}</span>
+                          )}
+                          {topic.hasContent && (
+                            <span className={`topic-item__content-tag topic-item__content-tag--${topic.status === 'taught' ? 'taught' : topic.status === 'ready' ? 'ready' : 'default'}`}>
+                              <Sparkles size={10} /> {topic.pageCount ? `${topic.pageCount} pág.` : 'IA'}
                             </span>
                           )}
-                          <button className="topic-item__delete" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: topic.id, name: topic.name }); }}>
-                            <IonIcon icon={trashOutline} />
-                          </button>
-                          <IonReorder />
                         </div>
-                      </IonItem>
-                      <IonItemOptions side="end">
-                        <IonItemOption
-                          color="danger"
-                          onClick={() => setDeleteTarget({ id: topic.id, name: topic.name })}
-                        >
-                          Eliminar
-                        </IonItemOption>
-                      </IonItemOptions>
-                    </IonItemSliding>
+                      </div>
+                      <div className="topic-item__right">
+                        {topic.materialCount > 0 && (
+                          <span className="topic-item__material-count">
+                            <FileText size={14} className="opacity-60" /> {topic.materialCount}
+                          </span>
+                        )}
+                        <button className="topic-item__delete" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: topic.id, name: topic.name }); }}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </IonReorderGroup>
-              </IonList>
+                </div>
+              </div>
             ) : null}
           </>
         )}
@@ -625,84 +620,79 @@ const TopicsList: React.FC = () => {
         />
 
         {/* Delete topic confirmation */}
-        <IonAlert
-          isOpen={!!deleteTarget}
+        <AlertConfirm
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
           header="Eliminar tema"
           message={`¿Eliminar "${deleteTarget?.name}" y todo su contenido?`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel', handler: () => setDeleteTarget(null) },
-            { text: 'Eliminar', role: 'destructive', handler: handleDeleteConfirm },
-          ]}
-          onDidDismiss={() => setDeleteTarget(null)}
+          cancelText="Cancelar"
+          confirmText="Eliminar"
+          variant="destructive"
+          onConfirm={handleDeleteConfirm}
         />
 
         {/* Delete plan confirmation */}
-        <IonAlert
-          isOpen={!!deletePlanTarget}
+        <AlertConfirm
+          open={!!deletePlanTarget}
+          onClose={() => setDeletePlanTarget(null)}
           header="Eliminar planificación"
           message={`¿Eliminar "${deletePlanTarget?.name}"?`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel', handler: () => setDeletePlanTarget(null) },
-            { text: 'Eliminar', role: 'destructive', handler: async () => {
-              if (deletePlanTarget) {
-                await deletePlan(deletePlanTarget.id);
-                await Promise.all([
-                  fetchCoursePlans(activeSubjectId, classId),
-                  fetchTopicsForClass(classId),
-                  fetchClassSubjects(classId),
-                ]);
-              }
-              setDeletePlanTarget(null);
-            }},
-          ]}
-          onDidDismiss={() => setDeletePlanTarget(null)}
+          cancelText="Cancelar"
+          confirmText="Eliminar"
+          variant="destructive"
+          onConfirm={async () => {
+            if (deletePlanTarget) {
+              await deletePlan(deletePlanTarget.id);
+              await Promise.all([
+                fetchCoursePlans(activeSubjectId, classId),
+                fetchTopicsForClass(classId),
+                fetchClassSubjects(classId),
+              ]);
+            }
+            setDeletePlanTarget(null);
+          }}
         />
 
         {/* Unlink subject confirmation */}
-        <IonAlert
-          isOpen={!!unlinkTarget}
+        <AlertConfirm
+          open={!!unlinkTarget}
+          onClose={() => setUnlinkTarget(null)}
           header="Desvincular asignatura"
           message={`¿Quitar "${unlinkTarget?.name}" de esta clase? La asignatura y sus temas seguirán existiendo, pero no estarán vinculados a esta clase.`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel', handler: () => setUnlinkTarget(null) },
-            { text: 'Desvincular', role: 'destructive', handler: handleUnlinkConfirm },
-          ]}
-          onDidDismiss={() => setUnlinkTarget(null)}
+          cancelText="Cancelar"
+          confirmText="Desvincular"
+          variant="destructive"
+          onConfirm={handleUnlinkConfirm}
         />
 
         {/* ─── Link/create subjects modal ─── */}
-        <IonModal
-          isOpen={showSubjectModal}
-          onDidDismiss={() => setShowSubjectModal(false)}
-          initialBreakpoint={isDesktop ? 1 : 0.65}
-          breakpoints={isDesktop ? [0, 1] : [0, 0.65, 0.85]}
+        <Modal
+          open={showSubjectModal}
+          onClose={() => setShowSubjectModal(false)}
+          title={`Asignaturas de ${classGroup?.name || 'la clase'}`}
+          description="Vincula asignaturas existentes (comparten temario con otras clases)."
+          sheetHeight="lg"
         >
-          <div className="modal-sheet">
-            <h2 className="modal-sheet__title">Asignaturas de {classGroup?.name || 'la clase'}</h2>
-            <p className="modal-sheet__subtitle">
-              Vincula asignaturas existentes (comparten temario con otras clases).
-            </p>
-
+          <div className="flex flex-col gap-4">
             {classSubjects.length > 0 && (
               <div className="linked-subjects">
                 <span className="linked-subjects__label">Vinculadas a esta clase:</span>
                 <div className="linked-subjects__items">
                   {classSubjects.map((s) => (
                     <div key={s.id} className="linked-subject-item">
-                      <IonIcon icon={bookOutline} className="linked-subject-item__icon" />
+                      <BookOpen size={18} className="linked-subject-item__icon" />
                       <span className="linked-subject-item__name">{s.name}</span>
                       {s.topicCount > 0 && (
-                        <IonBadge color="medium">{s.topicCount} tema{s.topicCount !== 1 ? 's' : ''}</IonBadge>
+                        <Badge variant="secondary">{s.topicCount} tema{s.topicCount !== 1 ? 's' : ''}</Badge>
                       )}
-                      <IonButton
-                        fill="clear"
-                        size="small"
-                        color="danger"
-                        className="linked-subject-item__remove"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="linked-subject-item__remove text-destructive hover:text-destructive"
                         onClick={() => setUnlinkTarget({ id: s.id, name: s.name })}
                       >
-                        <IonIcon icon={trashOutline} slot="icon-only" />
-                      </IonButton>
+                        <Trash2 size={16} />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -713,22 +703,25 @@ const TopicsList: React.FC = () => {
             {otherClasses.length > 0 && (
               <div className="import-from-class">
                 <span className="import-from-class__label">Importar de otra clase:</span>
-                <IonItem lines="none" className="import-class-selector">
-                  <IonSelect
+                <div className="import-class-selector">
+                  <Select
                     value={selectedSourceClassId}
-                    onIonChange={(e) => handleSourceClassChange(e.detail.value || '')}
-                    interface="popover"
-                    placeholder="Seleccionar clase..."
+                    onValueChange={(v) => handleSourceClassChange(v || '')}
                   >
-                    {otherClasses.map((c) => (
-                      <IonSelectOption key={c.id} value={c.id}>{c.name}</IonSelectOption>
-                    ))}
-                  </IonSelect>
-                </IonItem>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccionar clase..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {otherClasses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {selectedSourceClassId && (
                   loadingSourceSubjects ? (
-                    <div className="import-loading"><IonSpinner name="crescent" /></div>
+                    <div className="import-loading"><Spinner /></div>
                   ) : availableSourceSubjects.length === 0 ? (
                     <p className="import-empty">
                       {sourceClassSubjects.length === 0
@@ -743,10 +736,10 @@ const TopicsList: React.FC = () => {
                           className={`subject-link-chip ${selectedLinkIds.includes(s.id) ? 'subject-link-chip--active' : ''}`}
                           onClick={() => toggleLinkSubject(s.id)}
                         >
-                          <IonCheckbox checked={selectedLinkIds.includes(s.id)} />
+                          <Checkbox checked={selectedLinkIds.includes(s.id)} />
                           <span>{s.name}</span>
                           {s.topicCount > 0 && (
-                            <IonBadge color="medium">{s.topicCount} tema{s.topicCount !== 1 ? 's' : ''}</IonBadge>
+                            <Badge variant="secondary">{s.topicCount} tema{s.topicCount !== 1 ? 's' : ''}</Badge>
                           )}
                         </div>
                       ))}
@@ -756,81 +749,60 @@ const TopicsList: React.FC = () => {
               </div>
             )}
 
-            <IonButton
-              expand="block"
-              className="ion-margin-top"
+            <Button
+              className="w-full mt-2"
               onClick={handleLinkSubjects}
               disabled={linkingSaving || selectedLinkIds.length === 0}
             >
-              {linkingSaving ? <IonSpinner name="crescent" /> : 'Añadir'}
-            </IonButton>
+              {linkingSaving ? <Spinner size={16} /> : 'Añadir'}
+            </Button>
           </div>
-        </IonModal>
+        </Modal>
 
         {/* ─── New topic / generate content modal ─── */}
-        <IonModal
-          isOpen={showTopicModal}
-          onDidDismiss={handleTopicModalDismiss}
-          initialBreakpoint={isDesktop ? 1 : 0.75}
-          breakpoints={isDesktop ? [0, 1] : [0, 0.75, 1]}
+        <Modal
+          open={showTopicModal}
+          onClose={handleTopicModalDismiss}
+          title={`Añadir — ${activeSubjectName}`}
+          sheetHeight="lg"
         >
-          <IonHeader>
-            <IonToolbar style={subjectColor ? { '--background': subjectColor, '--color': 'white' } as React.CSSProperties : undefined}>
-              <IonTitle style={{ fontSize: 16 }}>Añadir — {activeSubjectName}</IonTitle>
-              <IonButtons slot="end">
-                <IonButton color={subjectColor ? 'light' : undefined} onClick={handleTopicModalDismiss}>
-                  <IonIcon icon={closeCircleOutline} />
-                </IonButton>
-              </IonButtons>
-            </IonToolbar>
-          </IonHeader>
-          <IonContent className="ion-padding" style={subjectThemeStyle(subjectColor)}>
-            <div className="modal-sheet modal-sheet--scrollable" style={{ padding: 0 }}>
-
+          <div style={subjectThemeStyle(subjectColor)} className="flex flex-col gap-4">
             <div className="ccm">
                 {/* Nombre */}
                 <div className="ccm__field">
                   <span className="ccm__enfoque-label">Nombre</span>
-                  <IonItem lines="none" className="ccm__input">
-                    <IonInput
-                      value={newName}
-                      onIonInput={(e) => setNewName(e.detail.value ?? '')}
-                      placeholder="ej. Ecuaciones lineales"
-                    />
-                  </IonItem>
+                  <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="ej. Ecuaciones lineales"
+                  />
                 </div>
 
                 {/* Descripción */}
                 <div className="ccm__notes">
                   <span className="ccm__enfoque-label">Descripción (opcional)</span>
-                  <IonItem lines="none" className="ccm__notes-item">
-                    <IonTextarea
-                      value={newDescription}
-                      onIonInput={(e) => setNewDescription(e.detail.value ?? '')}
-                      placeholder="Breve descripción del tema"
-                      rows={2}
-                    />
-                  </IonItem>
+                  <Textarea
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="Breve descripción del tema"
+                    rows={2}
+                  />
                 </div>
 
                 {/* Trimestre */}
                 <div className="ccm__field">
                   <span className="ccm__enfoque-label">Trimestre</span>
-                  <div className="ccm__trimester-pills">
-                    {[
-                      { value: '', label: 'Sin asignar' },
-                      ...getPeriodNumbers(periodMode).map((t) => ({ value: String(t), label: getPeriodFullLabel(periodMode, t) })),
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        className={`ccm__trimester-pill${(newTrimester || '') === opt.value ? ' ccm__trimester-pill--active' : ''}`}
-                        onClick={() => setNewTrimester(opt.value)}
-                        type="button"
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                  <Select value={newTrimester || ''} onValueChange={(v) => setNewTrimester(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sin asignar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin asignar</SelectItem>
+                      {getPeriodNumbers(periodMode).map((t) => (
+                        <SelectItem key={t} value={String(t)}>{getPeriodFullLabel(periodMode, t)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Documentos */}
@@ -841,7 +813,7 @@ const TopicsList: React.FC = () => {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={saving}
                   >
-                    <IonIcon icon={selectedFiles.length > 0 ? checkmarkCircleOutline : cloudUploadOutline} />
+                    {selectedFiles.length > 0 ? <CheckCircle size={18} /> : <Upload size={18} />}
                     <span className="ccm__upload-name">
                       {selectedFiles.length > 0 ? `${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}` : 'Añadir documentos'}
                     </span>
@@ -850,11 +822,11 @@ const TopicsList: React.FC = () => {
                   {selectedFiles.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                       {selectedFiles.map((file, idx) => (
-                        <IonChip key={idx} style={{ margin: 0 }}>
-                          <IonIcon icon={documentTextOutline} />
-                          <IonLabel>{file.name}</IonLabel>
-                          <IonIcon icon={closeCircleOutline} onClick={() => removeFile(idx)} style={{ cursor: 'pointer' }} />
-                        </IonChip>
+                        <Badge key={idx} variant="outline" className="gap-1 py-1 px-2">
+                          <FileText size={12} />
+                          <span>{file.name}</span>
+                          <XCircle size={12} onClick={() => removeFile(idx)} className="cursor-pointer" />
+                        </Badge>
                       ))}
                     </div>
                   )}
@@ -862,36 +834,33 @@ const TopicsList: React.FC = () => {
 
                 {uploadProgress && (
                   <div className="topic-upload-progress">
-                    <IonProgressBar type="indeterminate" />
+                    <Progress className="h-1 rounded-sm" />
                     <span>{uploadProgress}</span>
                   </div>
                 )}
 
-                <IonButton
-                  expand="block"
-                  color="primary"
+                <Button
+                  className="w-full"
                   onClick={handleCreate}
-                  className="ccm__generate"
                   disabled={saving || !newName.trim() || !activeSubjectId}
                 >
                   {saving ? (
                     <>
-                      <IonSpinner name="crescent" style={{ marginRight: 8 }} />
+                      <Spinner size={16} className="mr-2" />
                       Creando...
                     </>
                   ) : (
                     <>
-                      <IonIcon icon={addOutline} slot="start" />
+                      <Plus size={16} className="mr-1" />
                       Crear tema
                     </>
                   )}
-                </IonButton>
+                </Button>
               </div>
           </div>
-          </IonContent>
-        </IonModal>
-      </IonContent>
-    </IonPage>
+        </Modal>
+      </div>
+    </PageShell>
   );
 };
 

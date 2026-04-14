@@ -1,8 +1,5 @@
-import { IonIcon, IonBadge } from '@ionic/react';
-import {
-  chevronForwardOutline, createOutline,
-  locationOutline, timeOutline, pencilOutline,
-} from 'ionicons/icons';
+import { ChevronRight, Pencil, MapPin, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { ClassSubjectSummary, ScheduleSlot } from '../types';
 import './SubjectCard.css';
 
@@ -78,14 +75,14 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
           <div className="sc__chips">
             {hasAula && (
               <span className="sc__chip">
-                <IonIcon icon={locationOutline} />
+                <MapPin size={12} className="opacity-70 shrink-0" />
                 {subject.aula}
               </span>
             )}
             {hasAula && scheduleStr && <span className="sc__chip-dot" />}
             {scheduleStr && (
               <span className="sc__chip">
-                <IonIcon icon={timeOutline} />
+                <Clock size={12} className="opacity-70 shrink-0" />
                 {scheduleStr}
               </span>
             )}
@@ -99,7 +96,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
           </div>
           {subject.pendingExerciseCount > 0 && (
             <div className="sc__pending">
-              <IonIcon icon={pencilOutline} />
+              <Pencil size={12} className="shrink-0" />
               <span>{subject.pendingExerciseCount} {subject.pendingExerciseCount === 1 ? 'ejercicio pendiente' : 'ejercicios pendientes'}</span>
             </div>
           )}
@@ -113,12 +110,14 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                 onCorrect?.(firstPendingExamId);
               }}
             >
-              <IonIcon icon={createOutline} />
+              <Pencil size={14} />
               <span>Corregir</span>
-              <IonBadge color="danger">{subject.pendingCorrections}</IonBadge>
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-0.5 bg-white/30 text-white border-0">
+                {subject.pendingCorrections}
+              </Badge>
             </button>
           ) : (
-            <IonIcon icon={chevronForwardOutline} className="sc__arrow" />
+            <ChevronRight size={18} className="sc__arrow" />
           )}
         </div>
       </div>

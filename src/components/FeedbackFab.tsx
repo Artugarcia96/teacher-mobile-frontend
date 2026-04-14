@@ -1,26 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  IonModal,
-  IonIcon,
-  IonList,
-  IonItem,
-  IonItemSliding,
-  IonItemOptions,
-  IonItemOption,
-  IonTextarea,
-  IonButton,
-  IonSegment,
-  IonSegmentButton,
-  IonLabel,
-  IonSpinner,
-} from '@ionic/react';
-import {
-  chatboxEllipsesOutline,
-  addOutline,
-  arrowBackOutline,
-  chatbubblesOutline,
-  trashOutline,
-} from 'ionicons/icons';
+import { MessageSquareText, Plus, ArrowLeft, MessageSquare, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
 import { useFeedbackStore, FeedbackItem } from '../store/feedbackStore';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import './FeedbackFab.css';
@@ -39,7 +23,7 @@ const FeedbackFab: React.FC = () => {
   const [category, setCategory] = useState<string>('suggestion');
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
-  const listRef = useRef<HTMLIonListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const items = useFeedbackStore((s) => s.items);
   const loading = useFeedbackStore((s) => s.loading);
@@ -114,46 +98,42 @@ const FeedbackFab: React.FC = () => {
     <>
       <div className="feedback-fab">
         <button className="feedback-fab__button" onClick={() => setIsOpen(true)}>
-          <IonIcon icon={chatboxEllipsesOutline} />
+          <MessageSquareText size={24} />
         </button>
       </div>
 
-      <IonModal
-        isOpen={isOpen}
-        onDidDismiss={handleDismiss}
-        initialBreakpoint={isDesktop ? 1 : 0.5}
-        breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.75]}
-        handleBehavior="cycle"
+      <Modal
+        open={isOpen}
+        onClose={handleDismiss}
+        title={mode === 'list' ? 'Tu feedback' : (editingItem ? 'Editar' : 'Nuevo feedback')}
+        sheetHeight={isDesktop ? 'lg' : 'md'}
       >
         <div className="feedback-modal__content">
           {mode === 'list' ? (
             <>
               <div className="feedback-modal__header">
-                <h2>Tu feedback</h2>
                 <button className="feedback-modal__add-btn" onClick={handleNewFeedback}>
-                  <IonIcon icon={addOutline} />
+                  <Plus size={20} />
                   Nuevo
                 </button>
               </div>
 
               {loading && items.length === 0 ? (
                 <div className="feedback-empty">
-                  <IonSpinner name="dots" />
+                  <Spinner size={24} />
                 </div>
               ) : items.length === 0 ? (
                 <div className="feedback-empty">
-                  <IonIcon icon={chatbubblesOutline} />
+                  <MessageSquare size={36} className="opacity-50 mb-2" />
                   <p>No has enviado feedback todavia.</p>
                   <p>Tus sugerencias nos ayudan a mejorar.</p>
                 </div>
               ) : (
-                <IonList ref={listRef}>
+                <div ref={listRef}>
                   {items.map((item) => (
-                    <IonItemSliding key={item.id}>
-                      <IonItem
+                    <div key={item.id} className="feedback-item-row">
+                      <div
                         className="feedback-item"
-                        button
-                        detail={false}
                         onClick={() => handleEditFeedback(item)}
                       >
                         <div className="feedback-item__content">
@@ -165,77 +145,65 @@ const FeedbackFab: React.FC = () => {
                           </div>
                           <p className="feedback-item__text">{item.text}</p>
                         </div>
-                      </IonItem>
-                      <IonItemOptions side="end">
-                        <IonItemOption
-                          className="feedback-delete-option"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          <IonIcon slot="icon-only" icon={trashOutline} />
-                        </IonItemOption>
-                      </IonItemOptions>
-                    </IonItemSliding>
+                      </div>
+                      <button
+                        className="feedback-item__delete"
+                        onClick={() => handleDelete(item.id)}
+                        title="Eliminar"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   ))}
-                </IonList>
+                </div>
               )}
             </>
           ) : (
             <>
               <div className="feedback-modal__header">
                 <button className="feedback-modal__back" onClick={resetForm}>
-                  <IonIcon icon={arrowBackOutline} />
+                  <ArrowLeft size={20} />
                   Volver
                 </button>
-                <h2>{editingItem ? 'Editar' : 'Nuevo feedback'}</h2>
                 <div style={{ width: 60 }} />
               </div>
 
               <div className="feedback-form">
-                <IonSegment
-                  value={category}
-                  onIonChange={(e) => setCategory(e.detail.value as string)}
-                  className="feedback-form__segment"
-                >
-                  <IonSegmentButton value="suggestion">
-                    <IonLabel>Sugerencia</IonLabel>
-                  </IonSegmentButton>
-                  <IonSegmentButton value="bug">
-                    <IonLabel>Error</IonLabel>
-                  </IonSegmentButton>
-                  <IonSegmentButton value="other">
-                    <IonLabel>Otro</IonLabel>
-                  </IonSegmentButton>
-                </IonSegment>
+                <Tabs value={category} onValueChange={setCategory} className="feedback-form__segment">
+                  <TabsList className="w-full">
+                    <TabsTrigger value="suggestion" className="flex-1">Sugerencia</TabsTrigger>
+                    <TabsTrigger value="bug" className="flex-1">Error</TabsTrigger>
+                    <TabsTrigger value="other" className="flex-1">Otro</TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
-                <IonTextarea
+                <Textarea
                   value={text}
-                  onIonInput={(e) => setText(e.detail.value || '')}
+                  onChange={(e) => setText(e.target.value)}
                   placeholder="Describe tu sugerencia o el error que has encontrado..."
                   rows={4}
                   className="feedback-form__textarea"
                   disabled={saving}
-                  autoGrow
                 />
 
-                <IonButton
-                  expand="block"
-                  className="feedback-form__submit"
+                <Button
+                  className="w-full feedback-form__submit"
                   onClick={handleSubmit}
                   disabled={saving || !text.trim()}
                 >
                   {saving ? (
-                    <IonSpinner name="dots" />
+                    <Spinner size={18} />
                   ) : editingItem ? (
                     'Guardar'
                   ) : (
                     'Enviar'
                   )}
-                </IonButton>
+                </Button>
               </div>
             </>
           )}
         </div>
-      </IonModal>
+      </Modal>
     </>
   );
 };

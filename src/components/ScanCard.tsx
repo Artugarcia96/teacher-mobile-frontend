@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { IonCard, IonCardContent, IonSelect, IonSelectOption, IonInput, IonButton, IonBadge, IonItem, IonTextarea, IonSpinner, IonIcon } from '@ionic/react';
-import { closeCircle, sparkles, imageOutline, downloadOutline, documentTextOutline, helpCircle, trashOutline, chevronDownOutline, chevronUpOutline, checkmarkCircleOutline, alertCircleOutline } from 'ionicons/icons';
+import {
+  XCircle, Sparkles, Image, Download, FileText, HelpCircle, Trash2, Upload,
+  ChevronDown, ChevronUp, CheckCircle, AlertCircle, MoreVertical, RefreshCw, UserX, RotateCcw,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
+import Spinner from '@/components/shared/Spinner';
 import { Student, AIAnalysis } from '../types';
 import { questionStatusConfig } from '../utils/statusConfig';
 import { QuestionStatusBar } from './charts';
@@ -30,6 +40,23 @@ interface Props {
   onDownloadPaper?: () => void;
   onDownloadReport?: () => void;
   onDelete?: () => void;
+  /** Upload paper for this student (shown when no paperUrl) */
+  onUploadPaper?: () => void;
+  /** Replace the existing paper with a new file (shown when paperUrl exists). */
+  onReplacePaper?: () => void;
+  /** Mark the student as "did not take the exam". */
+  onMarkNotTaken?: () => void;
+  /** Undo NP — return to "pending". */
+  onUnmarkNotTaken?: () => void;
+  /** True when this correction is in the NP state. */
+  notTaken?: boolean;
+  /** Show a "Reemplazando..." spinner pill while the paper is being replaced. */
+  replacing?: boolean;
+  /** Standalone mode: no student list required. Shows text input for name instead of select. */
+  standalone?: boolean;
+  /** Free-text student name for standalone mode */
+  studentName?: string;
+  onStudentNameChange?: (name: string) => void;
 }
 
 function getCorrectPercent(questions: AIAnalysis['questions']): number | null {
@@ -39,7 +66,22 @@ function getCorrectPercent(questions: AIAnalysis['questions']): number | null {
   return Math.round(((correct + partial * 0.5) / questions.length) * 100);
 }
 
-/* ─── Question Breakdown: mini-cards with expandable feedback ─── */
+/* Status icon mapping for question breakdown */
+const STATUS_ICONS: Record<string, React.FC<{ size?: number; className?: string }>> = {
+  correct: CheckCircle,
+  partial: AlertCircle,
+  incorrect: XCircle,
+  blank: HelpCircle,
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  correct: 'text-emerald-600',
+  partial: 'text-yellow-600',
+  incorrect: 'text-red-600',
+  blank: 'text-slate-400',
+};
+
+/* Question Breakdown: mini-cards with expandable feedback */
 const FEEDBACK_CHAR_THRESHOLD = 60;
 
 const QuestionBreakdown: React.FC<{ questions: AIAnalysis['questions'] }> = ({ questions }) => {
@@ -59,6 +101,7 @@ const QuestionBreakdown: React.FC<{ questions: AIAnalysis['questions'] }> = ({ q
         const cfg = questionStatusConfig[q.status] || questionStatusConfig.blank;
         const isLong = (q.feedback?.length || 0) > FEEDBACK_CHAR_THRESHOLD;
         const isExpanded = expandedIds.has(q.id);
+        const IconComp = STATUS_ICONS[q.status] || HelpCircle;
 
         return (
           <div
@@ -67,7 +110,7 @@ const QuestionBreakdown: React.FC<{ questions: AIAnalysis['questions'] }> = ({ q
             onClick={() => q.feedback && isLong ? toggle(q.id) : undefined}
           >
             <div className="scan-q-card__header">
-              <IonIcon icon={cfg.icon} color={cfg.color} className="scan-q-card__icon" />
+              <IconComp size={14} className={`scan-q-card__icon ${STATUS_COLORS[q.status] || ''}`} />
               <span className="scan-q-card__id">P{q.id}</span>
               <span className={`scan-q-card__badge scan-q-card__badge--${q.status}`}>{cfg.label}</span>
             </div>
@@ -91,16 +134,31 @@ const QuestionBreakdown: React.FC<{ questions: AIAnalysis['questions'] }> = ({ q
 const ScanCard: React.FC<Props> = ({
   index, aiAnalysis, selectedStudentId, students,
   maxScore, grade, originalGrade, teacherComments, saved, saving, autoSaved, aiProcessing, aiError,
-  paperUrl, onStudentChange, onGradeChange, onCommentsChange, onSave, onProcessAI, onPreviewPaper, onDownloadPaper, onDownloadReport, onDelete,
+  paperUrl, onStudentChange, onGradeChange, onCommentsChange, onSave, onProcessAI, onPreviewPaper, onDownloadPaper, onDownloadReport, onDelete, onUploadPaper,
+  onReplacePaper, onMarkNotTaken, onUnmarkNotTaken, notTaken, replacing,
+  standalone, studentName: standaloneStudentName, onStudentNameChange,
 }) => {
-  const [expanded, setExpanded] = useState(!saved);
+  const kebabRef = useRef<HTMLDetailsElement | null>(null);
+  const closeKebab = () => { if (kebabRef.current) kebabRef.current.open = false; };
+  // Close on outside click
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!kebabRef.current) return;
+      if (!kebabRef.current.contains(e.target as Node)) kebabRef.current.open = false;
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
+
+  const showKebab = !!(onReplacePaper || onMarkNotTaken || onUnmarkNotTaken || onDelete);
+  const [expanded, setExpanded] = useState(!saved && !!paperUrl && !notTaken);
   const wasProcessing = useRef(false);
   const hasAI = !!aiAnalysis;
 
-  // Auto-collapse card when AI analysis finishes
+  // Auto-expand card when AI analysis finishes (so user sees results)
   useEffect(() => {
     if (wasProcessing.current && !aiProcessing && hasAI) {
-      setExpanded(false);
+      setExpanded(true);
     }
     wasProcessing.current = !!aiProcessing;
   }, [aiProcessing, hasAI]);
@@ -118,28 +176,155 @@ const ScanCard: React.FC<Props> = ({
     aiAnalysis.summary
   );
 
-  const studentName = students.find(s => s.id === selectedStudentId)?.name;
+  const studentName = standalone ? standaloneStudentName : students.find(s => s.id === selectedStudentId)?.name;
+  const displayName = studentName || (standalone ? 'Alumno' : 'Sin asignar');
 
   return (
-    <IonCard className={`scan-card ${saved ? 'scan-card-saved' : ''} ${hasGradeChanged ? 'scan-card-modified' : ''} ${aiProcessing ? 'scan-card-ai-active' : ''}`}>
-      <IonCardContent className="scan-card-content">
-        {/* Collapsed header — always visible */}
+    <div className={`scan-card ${saved ? 'scan-card-saved' : ''} ${hasGradeChanged ? 'scan-card-modified' : ''} ${aiProcessing ? 'scan-card-ai-active' : ''}`}>
+      <div className="scan-card-content">
+        {/* Collapsed header — always visible.
+            A small 6px dot to the left of the name signals delivery state at
+            a glance: green = paper uploaded, slate = not delivered (or NP).
+            Compact enough not to compete with the index/grade chips. */}
         <div className="scan-card-collapsed-header" onClick={() => setExpanded(!expanded)}>
           <span className="scan-card-index">#{index + 1}</span>
+          <span
+            className={`scan-card-delivery-dot${
+              notTaken
+                ? ' scan-card-delivery-dot--np'
+                : paperUrl
+                ? ' scan-card-delivery-dot--delivered'
+                : ' scan-card-delivery-dot--missing'
+            }`}
+            aria-label={
+              notTaken ? 'No presentado' : paperUrl ? 'Examen entregado' : 'Sin entrega'
+            }
+            title={
+              notTaken ? 'No presentado' : paperUrl ? 'Examen entregado' : 'Sin entrega'
+            }
+          />
           <span className="scan-card-collapsed-name">
-            {studentName || 'Sin asignar'}
+            {displayName}
           </span>
           <div className="scan-card-collapsed-right">
-            {grade !== null && grade !== undefined ? (
-              <span className={`scan-card-collapsed-grade ${(grade / maxScore) >= 0.5 ? 'scan-card-collapsed-grade--pass' : 'scan-card-collapsed-grade--fail'}`}>
-                {grade}/{maxScore}
+            {/* NP state takes precedence over upload/grade indicators */}
+            {notTaken ? (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200"
+                title="Marcado como no presentado — excluido de la media de la clase"
+              >
+                <UserX size={12} /> No presentado
               </span>
             ) : (
-              <span className="scan-card-collapsed-grade scan-card-collapsed-grade--pending">—/{maxScore}</span>
+              <>
+                {!paperUrl && !aiProcessing && (
+                  onUploadPaper ? (
+                    <button
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); onUploadPaper(); }}
+                      title="Subir examen de este alumno"
+                    >
+                      <Upload size={12} /> Subir
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">Sin examen</span>
+                  )
+                )}
+                {/* Replace-in-progress indicator */}
+                {replacing && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600">
+                    <Spinner size={12} /> Reemplazando
+                  </span>
+                )}
+                {/* "Corregir IA" — clickable shortcut to run AI on this paper. */}
+                {!replacing && !expanded && !hasAI && !aiProcessing && paperUrl && selectedStudentId && onProcessAI && (
+                  <button
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); onProcessAI(); }}
+                    title="Corregir este examen con IA"
+                  >
+                    <Sparkles size={12} /> Corregir IA
+                  </button>
+                )}
+                {aiProcessing && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700">
+                    <Spinner size={12} /> Corrigiendo
+                  </span>
+                )}
+                {grade !== null && grade !== undefined ? (
+                  <span className={`scan-card-collapsed-grade ${(grade / maxScore) >= 0.5 ? 'scan-card-collapsed-grade--pass' : 'scan-card-collapsed-grade--fail'}`}>
+                    {grade}/{maxScore}
+                  </span>
+                ) : (
+                  <span className="scan-card-collapsed-grade scan-card-collapsed-grade--pending">—/{maxScore}</span>
+                )}
+                {saved && !hasGradeChanged && <CheckCircle size={16} className="text-emerald-600" />}
+                {hasAI && !aiProcessing && <Sparkles size={14} className="text-indigo-500" />}
+              </>
             )}
-            {saved && !hasGradeChanged && <IonIcon icon={checkmarkCircleOutline} color="success" className="scan-card-collapsed-check" />}
-            {hasAI && <IonIcon icon={sparkles} color="tertiary" className="scan-card-collapsed-ai" />}
-            <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="scan-card-collapsed-chevron" />
+            {showKebab && (
+              <details
+                ref={kebabRef}
+                className="scan-card-kebab"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <summary
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors list-none cursor-pointer"
+                  title="Acciones"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical size={14} />
+                </summary>
+                <div className="scan-card-kebab__menu">
+                  {!notTaken && paperUrl && onReplacePaper && (
+                    <button
+                      type="button"
+                      className="scan-card-kebab__item"
+                      onClick={() => { closeKebab(); onReplacePaper(); }}
+                    >
+                      <RefreshCw size={14} /> Reemplazar entrega
+                    </button>
+                  )}
+                  {!notTaken && !paperUrl && onUploadPaper && (
+                    <button
+                      type="button"
+                      className="scan-card-kebab__item"
+                      onClick={() => { closeKebab(); onUploadPaper(); }}
+                    >
+                      <Upload size={14} /> Subir entrega
+                    </button>
+                  )}
+                  {!notTaken && onMarkNotTaken && (
+                    <button
+                      type="button"
+                      className="scan-card-kebab__item"
+                      onClick={() => { closeKebab(); onMarkNotTaken(); }}
+                    >
+                      <UserX size={14} /> Marcar como no presentado
+                    </button>
+                  )}
+                  {notTaken && onUnmarkNotTaken && (
+                    <button
+                      type="button"
+                      className="scan-card-kebab__item"
+                      onClick={() => { closeKebab(); onUnmarkNotTaken(); }}
+                    >
+                      <RotateCcw size={14} /> Marcar como presentado
+                    </button>
+                  )}
+                  {onDelete && !onMarkNotTaken && (
+                    <button
+                      type="button"
+                      className="scan-card-kebab__item scan-card-kebab__item--danger"
+                      onClick={() => { closeKebab(); onDelete(); }}
+                    >
+                      <Trash2 size={14} /> Eliminar
+                    </button>
+                  )}
+                </div>
+              </details>
+            )}
+            {expanded ? <ChevronUp size={16} className="scan-card-collapsed-chevron" /> : <ChevronDown size={16} className="scan-card-collapsed-chevron" />}
           </div>
         </div>
 
@@ -150,64 +335,75 @@ const ScanCard: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Expanded content */}
-        {expanded && (
+        {/* Expanded content — collapsed (and gated) when student is NP */}
+        {expanded && !notTaken && (
           <div className="scan-card-expanded">
             <div className="scan-card-top-row">
               <div className="scan-card-index-group">
                 {onPreviewPaper && (
                   <span className="scan-card-index" onClick={onPreviewPaper} style={{ cursor: 'pointer' }}>
-                    <IonIcon icon={imageOutline} className="scan-card-preview-icon" />
+                    <Image size={12} className="scan-card-preview-icon" />
                   </span>
                 )}
                 {onDownloadPaper && paperUrl && (
-                  <IonButton
-                    fill="clear"
-                    size="small"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={onDownloadPaper}
                     className="scan-card-download-btn"
                     title="Descargar examen"
                   >
-                    <IonIcon icon={downloadOutline} slot="icon-only" />
-                  </IonButton>
+                    <Download size={16} />
+                  </Button>
                 )}
-                {onDelete && (
-                  <IonButton
-                    fill="clear"
-                    size="small"
-                    color="danger"
+                {onDelete && !showKebab && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={onDelete}
-                    className="scan-card-download-btn"
+                    className="scan-card-download-btn text-destructive"
                     title="Eliminar"
                   >
-                    <IonIcon icon={trashOutline} slot="icon-only" />
-                  </IonButton>
+                    <Trash2 size={16} />
+                  </Button>
                 )}
               </div>
 
-              <IonSelect
-                value={selectedStudentId}
-                onIonChange={(e) => onStudentChange(e.detail.value)}
-                interface="popover"
-                disabled={saved}
-                placeholder="Alumno"
-                className="scan-card-student-select"
-              >
-                {students.map((s) => (
-                  <IonSelectOption key={s.id} value={s.id}>{s.name}</IonSelectOption>
-                ))}
-              </IonSelect>
+              {standalone ? (
+                <Input
+                  value={studentName || ''}
+                  onChange={(e) => onStudentNameChange?.(e.target.value)}
+                  placeholder="Nombre del alumno"
+                  className="scan-card-student-select"
+                  disabled={saved}
+                />
+              ) : (
+                <Select
+                  value={selectedStudentId}
+                  onValueChange={onStudentChange}
+                  disabled={saved}
+                >
+                  <SelectTrigger className="scan-card-student-select">
+                    <SelectValue placeholder="Alumno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               <div className={`scan-card-grade-inline ${hasGradeChanged ? 'scan-card-grade-modified' : ''}`}>
-                <IonInput
+                <Input
                   type="number"
                   min={0}
                   max={maxScore}
                   value={grade ?? ''}
                   placeholder="—"
-                  onIonInput={(e) => {
-                    const val = parseFloat(e.detail.value ?? '');
-                    if (!isNaN(val)) onGradeChange(val);
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val) && val >= 0 && val <= maxScore) onGradeChange(val);
                   }}
                   className="scan-card-grade-input"
                 />
@@ -215,28 +411,28 @@ const ScanCard: React.FC<Props> = ({
               </div>
 
               {saved && !hasGradeChanged ? (
-                <IonBadge color="success" className="scan-card-status">✓</IonBadge>
+                <Badge variant="default" className="scan-card-status bg-emerald-600">✓</Badge>
               ) : (
                 <>
                   {autoSaved && (
                     <span className="scan-card-autosaved">Guardado automáticamente</span>
                   )}
-                  <IonButton
-                    size="small"
+                  <Button
+                    size="sm"
                     onClick={onSave}
-                    disabled={grade === null || !selectedStudentId || saving}
+                    disabled={grade === null || (!standalone && !selectedStudentId) || saving}
                     className="scan-card-save-btn"
-                    color={hasGradeChanged ? 'warning' : 'primary'}
+                    variant={hasGradeChanged ? 'outline' : 'default'}
                   >
-                    {saving ? <IonSpinner name="crescent" /> : hasGradeChanged ? 'Actualizar' : 'Guardar'}
-                  </IonButton>
+                    {saving ? <Spinner size={16} /> : hasGradeChanged ? 'Actualizar' : 'Guardar'}
+                  </Button>
                 </>
               )}
             </div>
 
             {aiAnalysis?.suggestedStudentName && !selectedStudentId && (
               <div className="scan-card-ai-hint">
-                <IonIcon icon={sparkles} color="tertiary" />
+                <Sparkles size={14} className="text-indigo-500" />
                 <span>IA: {aiAnalysis.suggestedStudentName} ({Math.round(confidence * 100)}%)</span>
               </div>
             )}
@@ -247,13 +443,13 @@ const ScanCard: React.FC<Props> = ({
                   <>
                     <div className="scan-card-ai-header">
                       <div className="scan-card-ai-stats">
-                        <IonIcon icon={sparkles} color="tertiary" />
+                        <Sparkles size={14} className="text-indigo-500" />
                         <span className="scan-card-ai-label">Análisis IA</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {onDownloadReport && (
                           <button onClick={onDownloadReport} className="scan-card-report-link" type="button">
-                            <IonIcon icon={documentTextOutline} /> Informe
+                            <FileText size={14} /> Informe
                           </button>
                         )}
                         {correctPercent !== null && (
@@ -268,7 +464,7 @@ const ScanCard: React.FC<Props> = ({
 
                     {blankCount > 0 && (
                       <div className="scan-card-blank-warning">
-                        <IonIcon icon={helpCircle} />
+                        <HelpCircle size={14} />
                         <span>{blankCount} pregunta{blankCount > 1 ? 's' : ''} sin responder</span>
                       </div>
                     )}
@@ -280,82 +476,73 @@ const ScanCard: React.FC<Props> = ({
                 {totalQuestions === 0 && (
                   <div className="scan-card-ai-header">
                     <div className="scan-card-ai-stats">
-                      <IonIcon icon={sparkles} color="tertiary" />
+                      <Sparkles size={14} className="text-indigo-500" />
                       <span className="scan-card-ai-label">Análisis IA</span>
                     </div>
                   </div>
                 )}
 
-                {aiAnalysis.weakAreas && aiAnalysis.weakAreas.length > 0 && (
-                  <div className="scan-card-weak-areas">
-                    {aiAnalysis.weakAreas.map((area, idx) => (
+                {/* Summary + weak areas in a compact row */}
+                {(aiAnalysis.summary || (aiAnalysis.weakAreas && aiAnalysis.weakAreas.length > 0)) && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {aiAnalysis.summary && (
+                      <span className="text-[11px] text-muted-foreground">{aiAnalysis.summary}</span>
+                    )}
+                    {aiAnalysis.weakAreas && aiAnalysis.weakAreas.length > 0 && aiAnalysis.weakAreas.map((area, idx) => (
                       <span key={idx} className="scan-card-weak-tag">{area}</span>
                     ))}
                   </div>
-                )}
-
-                {aiAnalysis.summary && (
-                  <p className="scan-card-summary">{aiAnalysis.summary}</p>
                 )}
 
               </div>
             )}
 
             {!hasAnyAIContent && onProcessAI && (
-              <>
+              <div className="mt-2">
                 {aiProcessing ? (
-                  <div className="scan-card-ai-processing">
-                    <div className="scan-card-ai-processing-icon">
-                      <IonIcon icon={sparkles} />
-                      <span className="scan-card-ai-processing-ripple" />
-                    </div>
-                    <div className="scan-card-ai-processing-text">
-                      <span>Analizando examen</span>
-                      <span className="scan-card-ai-processing-dots">
-                        <span />
-                        <span />
-                        <span />
-                      </span>
-                    </div>
-                    <div className="scan-card-ai-processing-bar">
-                      <div className="scan-card-ai-processing-bar-fill" />
-                    </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-indigo-50 border border-indigo-100">
+                    <Spinner size={14} />
+                    <span className="text-xs text-indigo-600 font-medium">Corrigiendo con IA...</span>
                   </div>
                 ) : (
-                  <IonButton
-                    size="small"
-                    fill="outline"
-                    onClick={onProcessAI}
-                    className="scan-card-ai-btn"
-                    disabled={!selectedStudentId}
-                  >
-                    <IonIcon icon={sparkles} slot="start" /> Analizar con IA
-                  </IonButton>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onProcessAI}
+                      className="scan-card-ai-btn"
+                      disabled={(!standalone && !selectedStudentId) || !paperUrl}
+                    >
+                      <Sparkles size={16} /> Corregir con IA
+                    </Button>
+                    {!paperUrl && (
+                      <p className="scan-card-assign-hint">Sube el examen del alumno para poder corregir</p>
+                    )}
+                    {paperUrl && !standalone && !selectedStudentId && (
+                      <p className="scan-card-assign-hint">Asigna un alumno para corregir con IA</p>
+                    )}
+                  </>
                 )}
-                {!selectedStudentId && !aiProcessing && (
-                  <p className="scan-card-assign-hint">Asigna un alumno para analizar con IA</p>
-                )}
-              </>
+              </div>
             )}
 
             {aiError && (
               <div className="scan-card-ai-error">
-                <IonIcon icon={closeCircle} color="danger" />
+                <XCircle size={14} className="text-red-600 flex-shrink-0" />
                 <span>{aiError}</span>
               </div>
             )}
 
             {!saved && (
-              <IonItem lines="none" className="scan-card-notes-item">
-                <IonTextarea
+              <div className="scan-card-notes-item">
+                <Textarea
                   value={teacherComments}
                   placeholder="Comentarios (opcional)"
-                  onIonInput={(e) => onCommentsChange(e.detail.value ?? '')}
+                  onChange={(e) => onCommentsChange(e.target.value)}
                   disabled={saved}
                   rows={1}
-                  autoGrow
                 />
-              </IonItem>
+              </div>
             )}
 
             {saved && teacherComments && (
@@ -363,8 +550,8 @@ const ScanCard: React.FC<Props> = ({
             )}
           </div>
         )}
-      </IonCardContent>
-    </IonCard>
+      </div>
+    </div>
   );
 };
 

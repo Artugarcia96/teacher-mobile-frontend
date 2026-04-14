@@ -1,10 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IonIcon } from '@ionic/react';
-import {
-  checkmarkCircleOutline,
-  ellipseOutline,
-  closeOutline,
-} from 'ionicons/icons';
+import { CheckCircle, Circle, X } from 'lucide-react';
 import './OnboardingChecklist.css';
 
 interface Props {
@@ -74,13 +69,13 @@ const OnboardingChecklist: React.FC<Props> = ({
           </span>
         </div>
         <button className="onboarding-checklist__dismiss" onClick={handleDismiss}>
-          <IonIcon icon={closeOutline} />
+          <X size={22} />
         </button>
       </div>
 
       {allDone ? (
         <div className="onboarding-checklist__done">
-          <IonIcon icon={checkmarkCircleOutline} />
+          <CheckCircle size={28} />
           <p>
             ¡Todo listo! Ya puedes aprovechar todas las funcionalidades.
           </p>
@@ -93,10 +88,11 @@ const OnboardingChecklist: React.FC<Props> = ({
               className={`onboarding-checklist__step stagger-item ${step.done ? 'onboarding-checklist__step--done' : ''}`}
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              <IonIcon
-                icon={step.done ? checkmarkCircleOutline : ellipseOutline}
-                className="onboarding-checklist__step-icon"
-              />
+              {step.done ? (
+                <CheckCircle size={20} className="onboarding-checklist__step-icon" />
+              ) : (
+                <Circle size={20} className="onboarding-checklist__step-icon" />
+              )}
               <span className="onboarding-checklist__step-label">{step.label}</span>
             </li>
           ))}

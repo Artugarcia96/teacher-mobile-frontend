@@ -57,6 +57,17 @@ export interface ExamIterationHistoryItem {
   changes_made?: string[];
 }
 
+export interface ExamAssignment {
+  classId: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+  correctionDeadline?: string;
+  deadlineStatus?: 'ok' | 'soon' | 'urgent' | 'overdue' | 'completed';
+  studentCount?: number;
+  hasClassPdf?: boolean;
+}
+
 export interface Exam {
   id: string;
   name: string;
@@ -81,6 +92,15 @@ export interface Exam {
   categoryId?: string;
   categoryName?: string;
   weight?: number;
+  examOrigin?: ExamOrigin;
+  isTestFormat?: boolean;
+  examFormat?: 'boxes' | 'compact' | 'test';
+  originalDocumentUrl?: string;
+  assignments?: ExamAssignment[];
+  /** Natural-language instructions the teacher wrote when creating the exam.
+   *  Used both on backend (to guide AI generation / digitisation) and on
+   *  the Validar UI (to show the teacher what they asked for). */
+  refinementPrompt?: string;
 }
 
 export interface AIQuestionFeedback {
@@ -101,13 +121,19 @@ export interface CorrectionResult {
   id: string;
   examId: string;
   studentId: string;
+  studentName?: string;
+  classId?: string;
+  className?: string;
   paperUrl?: string;
   aiAnalysis?: AIAnalysis;
   aiProcessed?: boolean;
   grade: number | null;
   teacherComments?: string;
   weakAreas?: string[];
-  delivered?: boolean;
+  /** Teacher explicitly marked the student as "did not take the exam".
+   *  When true, paperUrl/grade/aiAnalysis are all cleared and the row is
+   *  excluded from class averages. */
+  notTaken?: boolean;
   savedAt?: string;
 }
 
@@ -174,7 +200,8 @@ export interface WeakArea {
   maxScore: number;
 }
 
-export type ExamStatus = 'uploaded' | 'assigned' | 'corrected';
+export type ExamStatus = 'pending_validation' | 'pending_schedule' | 'scheduled' | 'pending_correction' | 'corrected';
+export type ExamOrigin = 'digitalized' | 'ai_generated';
 
 export interface TopicMaterial {
   id: string;
@@ -240,14 +267,6 @@ export interface TopicListItem {
   children?: TopicListItem[];
 }
 
-export interface TopicContent {
-  sections: { title: string; key_concepts: string[] }[];
-  wordCount: number;
-  pageCount?: number;
-  hasPdf: boolean;
-  status: string;
-}
-
 export interface SubjectWithTopics {
   subjectId: string;
   subjectName: string;
@@ -269,8 +288,21 @@ export interface BulkUploadNeedsReview {
   suggestions: { studentId: string; studentName: string; code: string }[];
 }
 
+export interface BulkUploadSkipped {
+  correctionId: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  hadGrade: boolean;
+}
+
 export interface BulkUploadResult {
   autoMatched: BulkUploadMatch[];
+  /** Papers that overwrote an existing entry (overwrite=true). Exam corrections only. */
+  replaced?: BulkUploadMatch[];
+  /** Students whose paper was found but whose existing entry was kept
+   *  because overwrite was false. Exam corrections only. */
+  skippedAlreadyAssigned?: BulkUploadSkipped[];
   needsReview: BulkUploadNeedsReview[];
   studentsWithoutPapers: { studentId: string; studentName: string; code: string }[];
 }
@@ -344,31 +376,6 @@ export interface CalendarEvent {
   topicName?: string;
   topicPdfUrl?: string;
   mentionedStudents?: MentionedStudent[];
-}
-
-export interface MaterialWithContext {
-  id: string;
-  name: string;
-  documentUrl: string;
-  documentType?: string;
-  uploadedAt: string;
-  topicId: string;
-  topicName: string;
-  subjectId: string;
-  subjectName: string;
-}
-
-export interface TopicForUpload {
-  id: string;
-  name: string;
-  trimester?: number | null;
-  order: number;
-}
-
-export interface SubjectWithTopicsForUpload {
-  subjectId: string;
-  subjectName: string;
-  topics: TopicForUpload[];
 }
 
 export interface MaterialInStructure {
@@ -544,13 +551,6 @@ export interface DashboardStats {
   totalStudents: number;
   examsThisTrimester: number;
   pendingCorrectionsCount: number;
-}
-
-export interface SuggestedTema {
-  name: string;
-  sections: number[];
-  trimester: number;
-  description?: string;
 }
 
 export interface TextbookChapter {

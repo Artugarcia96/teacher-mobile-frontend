@@ -1,74 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Primary palette — SEPIA teal */
-  --ion-color-primary: #15665E;
-  --ion-color-primary-rgb: 21, 102, 94;
-  --ion-color-primary-contrast: #ffffff;
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #125A53;
-  --ion-color-primary-tint: #2C756E;
-
-  --ion-color-secondary: #E87A1C;
-  --ion-color-secondary-rgb: 232, 122, 28;
-  --ion-color-secondary-contrast: #ffffff;
-  --ion-color-secondary-contrast-rgb: 255, 255, 255;
-  --ion-color-secondary-shade: #CC6B19;
-  --ion-color-secondary-tint: #EA8733;
-
-  --ion-color-tertiary: #1E8A7F;
-  --ion-color-tertiary-rgb: 30, 138, 127;
-  --ion-color-tertiary-contrast: #ffffff;
-  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
-  --ion-color-tertiary-shade: #1A7970;
-  --ion-color-tertiary-tint: #35968C;
-
-  --ion-color-success: #059669;
-  --ion-color-success-rgb: 5, 150, 105;
-  --ion-color-success-contrast: #ffffff;
-  --ion-color-success-contrast-rgb: 255, 255, 255;
-  --ion-color-success-shade: #04845A;
-  --ion-color-success-tint: #1EA178;
-
-  --ion-color-warning: #D97706;
-  --ion-color-warning-rgb: 217, 119, 6;
-  --ion-color-warning-contrast: #ffffff;
-  --ion-color-warning-contrast-rgb: 255, 255, 255;
-  --ion-color-warning-shade: #BF6905;
-  --ion-color-warning-tint: #DD851F;
-
-  --ion-color-danger: #DC2626;
-  --ion-color-danger-rgb: 220, 38, 38;
-  --ion-color-danger-contrast: #ffffff;
-  --ion-color-danger-contrast-rgb: 255, 255, 255;
-  --ion-color-danger-shade: #C22121;
-  --ion-color-danger-tint: #E03C3C;
-
-  --ion-color-medium: #64748B;
-  --ion-color-medium-rgb: 100, 116, 139;
-  --ion-color-medium-contrast: #ffffff;
-  --ion-color-medium-contrast-rgb: 255, 255, 255;
-  --ion-color-medium-shade: #586274;
-  --ion-color-medium-tint: #748598;
-
-  --ion-color-light: #F1F5F9;
-  --ion-color-light-rgb: 241, 245, 249;
-  --ion-color-light-contrast: #0F172A;
-  --ion-color-light-contrast-rgb: 15, 23, 42;
-  --ion-color-light-shade: #D4D8DB;
-  --ion-color-light-tint: #F2F6FA;
-
-  /* Surfaces */
-  --ion-background-color: #F8FAFC;
-  --ion-background-color-rgb: 248, 250, 252;
-  --ion-text-color: #0F172A;
-  --ion-text-color-rgb: 15, 23, 42;
-  --ion-font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --ion-border-radius: 10px;
-
-  --ion-toolbar-background: #ffffff;
-  --ion-item-background: #ffffff;
-  --ion-card-background: #ffffff;
+  /* Primary palette — SEPIA teal (used by Tailwind theme in index.css) */
 
   /* Typography scale */
   --font-size-xs: 0.6875rem;    /* 11px */
@@ -123,7 +56,7 @@
   --color-text-primary: #0F172A;
   --color-text-secondary: #64748B;
   --color-text-tertiary: #94A3B8;
-  --color-text-muted: #CBD5E1;
+  --color-text-muted: #94A3B8;
   
   /* Chart colors */
   --chart-correct: #10B981;
@@ -184,103 +117,17 @@
 }
 
 body {
-  font-family: var(--ion-font-family);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--ion-background-color);
-  color: var(--ion-text-color);
+  background: var(--color-background);
+  color: var(--color-foreground);
 }
 
-/* ─── Global content ─── */
-ion-content {
-  --padding-top: 0;
-  --padding-bottom: var(--space-3xl);
-  --padding-start: var(--space-lg);
-  --padding-end: var(--space-lg);
-}
-
-ion-content::part(background) {
-  background: var(--ion-background-color);
-}
-
-ion-content.ion-padding {
-  --padding-top: var(--space-sm);
-  --padding-bottom: var(--space-3xl);
-}
-
-/* ─── Cards ─── */
-ion-card {
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  margin: var(--space-md);
-  overflow: hidden;
-  background: var(--ion-card-background);
-  isolation: isolate;
-  position: relative;
-}
-
-ion-card-header {
-  padding: var(--space-xl) var(--space-xl) var(--space-md);
-}
-
-ion-card-content {
-  padding: var(--space-md) var(--space-xl) var(--space-xl);
-}
-
-ion-card-content ion-list { padding: 0; }
-ion-card-content ion-item { --inner-padding-end: 0; }
-
-/* ─── Buttons ─── */
-ion-button {
-  --border-radius: var(--radius-md);
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: -0.01em;
-  --box-shadow: none;
-  transition: all var(--transition-base);
-  --padding-top: 12px;
-  --padding-bottom: 12px;
-  --padding-start: 20px;
-  --padding-end: 20px;
-  font-size: var(--font-size-base);
-}
-
-ion-button[color="primary"]:not([fill="clear"]):not([fill="outline"]) {
-  --box-shadow: none;
-}
-
-ion-button[fill="clear"] {
-  --box-shadow: none;
-}
-
-ion-button[fill="outline"] {
-  --box-shadow: none;
-  --border-width: 1.5px;
-}
-
-/* ─── Items ─── */
-ion-item {
-  --min-height: 52px;
-  --padding-start: var(--space-lg);
-  --padding-end: var(--space-lg);
-  --border-color: rgba(15, 23, 42, 0.06);
-  --background: transparent;
-  font-size: var(--font-size-base);
-}
-
-ion-list {
-  background: transparent !important;
-  --background: transparent !important;
-  --ion-item-background: transparent !important;
-}
-
-ion-list::part(background) { background: transparent !important; }
-ion-list ion-item { --background: transparent !important; }
-ion-list ion-item::part(native) { background: transparent !important; }
+/* ─── (Ionic element selectors removed — now using Tailwind/Shadcn) ─── */
 
 .card-item {
-  --background: #ffffff !important;
+  --background: var(--color-surface) !important;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
   border: 1px solid rgba(15, 23, 42, 0.06);
@@ -290,139 +137,9 @@ ion-list ion-item::part(native) { background: transparent !important; }
   position: relative;
 }
 
-.card-item::part(native) { background: #ffffff !important; }
+.card-item::part(native) { background: var(--color-surface) !important; }
 
-/* ─── Header ─── */
-ion-header {
-  box-shadow: none !important;
-}
-
-ion-header::after {
-  display: none !important;
-}
-
-ion-header.header-md::after,
-ion-header.header-ios::after {
-  display: none !important;
-  background-image: none !important;
-}
-
-/* ─── Toolbar ─── */
-ion-toolbar {
-  --padding-start: var(--space-lg);
-  --padding-end: var(--space-lg);
-  --border-width: 0;
-  --min-height: 56px;
-  --background: transparent;
-  --box-shadow: none;
-  --border-color: transparent;
-}
-
-ion-header ion-toolbar:first-of-type {
-  --background: var(--ion-toolbar-background);
-}
-
-ion-header ion-toolbar:last-of-type {
-  --border-width: 0;
-}
-
-ion-title {
-  font-weight: 700;
-  font-size: var(--font-size-lg);
-  letter-spacing: -0.02em;
-}
-
-/* ─── Tab bar ─── */
-ion-tab-bar {
-  --background: #ffffff;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-  padding-bottom: max(env(safe-area-inset-bottom), 8px);
-  padding-top: 6px;
-  min-height: 60px;
-  box-shadow: none;
-  position: sticky;
-  bottom: 0;
-  z-index: 100;
-}
-
-ion-tab-button {
-  --color: #94A3B8;
-  --color-selected: var(--ion-color-primary);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  min-height: 52px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  transition: color var(--transition-fast);
-}
-
-ion-tab-button ion-icon {
-  font-size: 22px;
-  transition: transform var(--transition-fast);
-}
-
-ion-tab-button.tab-selected ion-icon {
-  transform: none;
-}
-
-ion-tab-button.tab-selected ion-label {
-  font-weight: 600;
-}
-
-/* ─── Searchbar ─── */
-ion-searchbar {
-  --border-radius: var(--radius-md);
-  --background: #ffffff;
-  --box-shadow: var(--shadow-xs);
-  padding: var(--space-md) var(--space-lg);
-  --placeholder-color: #94A3B8;
-  --color: var(--ion-text-color);
-  --icon-color: #94A3B8;
-}
-
-/* ─── Segments ─── */
-ion-segment {
-  --background: rgba(15, 23, 42, 0.04);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  margin: var(--space-md) var(--space-lg);
-  width: calc(100% - var(--space-3xl));
-  max-width: 100%;
-  box-sizing: border-box;
-  display: flex;
-}
-
-ion-segment-button {
-  --indicator-color: transparent;
-  --indicator-box-shadow: none;
-  --color: var(--ion-color-medium);
-  --color-checked: var(--ion-color-primary);
-  font-weight: 500;
-  font-size: var(--font-size-sm);
-  text-transform: none;
-  min-height: 36px;
-  border-radius: var(--radius-sm);
-  flex: 1;
-  margin: 0 2px;
-  transition: all var(--transition-fast);
-  position: relative;
-  overflow: hidden;
-}
-
-ion-segment-button.segment-button-checked {
-  --background: #ffffff;
-  --color: var(--ion-color-primary);
-  box-shadow: var(--shadow-sm);
-  font-weight: 600;
-}
-
-ion-segment-button:not(.segment-button-checked):hover {
-  --background: rgba(255, 255, 255, 0.6);
-}
+/* ─── (Ionic header/toolbar/tabs/searchbar/segment selectors removed) ─── */
 
 /* ─── Grade badges ─── */
 .grade-pass {
@@ -476,10 +193,10 @@ ion-segment-button:not(.segment-button-checked):hover {
   flex-shrink: 0;
 }
 
-.status-dot--success { background-color: var(--ion-color-success); }
-.status-dot--warning { background-color: var(--ion-color-warning); }
-.status-dot--danger { background-color: var(--ion-color-danger); }
-.status-dot--medium { background-color: var(--ion-color-medium); }
+.status-dot--success { background-color: var(--color-success); }
+.status-dot--warning { background-color: var(--color-warning); }
+.status-dot--danger { background-color: var(--color-danger); }
+.status-dot--medium { background-color: var(--color-muted-foreground); }
 
 /* ─── Avatar ─── */
 .avatar {
@@ -521,18 +238,18 @@ ion-segment-button:not(.segment-button-checked):hover {
 
 /* ─── Metric card ─── */
 .metric-card {
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   box-shadow: var(--shadow-xs);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--color-border-strong);
   text-align: center;
 }
 
 .metric-card__value {
   font-size: var(--font-size-2xl);
   font-weight: 800;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
@@ -544,70 +261,7 @@ ion-segment-button:not(.segment-button-checked):hover {
   margin-top: var(--space-xs);
 }
 
-/* ─── Responsive ─── */
-@media (max-width: 768px) {
-  ion-content {
-    --padding-start: var(--space-md);
-    --padding-end: var(--space-md);
-  }
-  ion-segment {
-    margin: var(--space-sm) var(--space-md);
-    width: calc(100% - var(--space-2xl));
-  }
-  ion-toolbar {
-    --padding-start: var(--space-md);
-    --padding-end: var(--space-md);
-  }
-}
-
-@media (max-height: 667px) {
-  ion-tab-bar { min-height: 56px; }
-  ion-tab-button { font-size: 10px; min-height: 48px; }
-}
-
-@supports (padding: max(0px)) {
-  ion-tab-bar {
-    padding-bottom: max(env(safe-area-inset-bottom), 6px);
-  }
-}
-
-/* ─── Desktop (≥992px) ─── */
-@media (min-width: 992px) {
-  /* Hide bottom tab bar when sidebar is visible */
-  ion-tab-bar {
-    display: none;
-  }
-
-  /* Wider content padding */
-  ion-content {
-    --padding-start: var(--space-3xl);
-    --padding-end: var(--space-3xl);
-  }
-
-  /* Modal sizing: centered card instead of full-screen sheet */
-  ion-modal:not(.modal-fullscreen) {
-    --width: 560px;
-    --height: auto;
-    --max-height: 85vh;
-    --border-radius: var(--radius-xl);
-  }
-
-  ion-modal:not(.modal-fullscreen) .ion-page {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Relax touch targets for mouse */
-  ion-chip {
-    min-height: 36px;
-  }
-}
-
-/* ─── Touch targets (min 44px) ─── */
-ion-chip {
-  min-height: 44px;
-  padding: var(--space-sm) var(--space-md);
-}
+/* ─── (Ionic responsive/desktop/touch-target selectors removed) ─── */
 
 /* ─── Text truncation utilities ─── */
 .text-truncate {
@@ -671,42 +325,11 @@ ion-chip {
   100% { background-position: -200% 0; }
 }
 
-/* ─── Focus ─── */
-ion-button:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-}
-
-ion-segment-button:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
-  outline-offset: 2px;
-}
+/* ─── (Ionic focus styles removed) ─── */
 
 /* ─── Dark theme ─── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --ion-background-color: #0C0C0F;
-    --ion-background-color-rgb: 12, 12, 15;
-    --ion-text-color: #F1F5F9;
-    --ion-text-color-rgb: 241, 245, 249;
-
-    --ion-toolbar-background: #16161A;
-    --ion-item-background: #16161A;
-    --ion-card-background: #16161A;
-
-    --ion-color-light: #1E1E24;
-    --ion-color-light-rgb: 30, 30, 36;
-    --ion-color-light-contrast: #F1F5F9;
-    --ion-color-light-contrast-rgb: 241, 245, 249;
-
-    --ion-color-medium: #A1A1AA;
-    --ion-color-medium-rgb: 161, 161, 170;
-
-    --ion-color-primary: #2C9E92;
-    --ion-color-primary-rgb: 44, 158, 146;
-    --ion-color-primary-shade: #1E8A7F;
-    --ion-color-primary-tint: #4DB0A5;
-
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -714,14 +337,14 @@ ion-segment-button:focus-visible {
     --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-primary: none;
     --shadow-primary-lg: none;
-    
+
     /* Utility colors - Text (dark mode) */
     --color-text-primary: #F1F5F9;
     --color-text-secondary: #A1A1AA;
     --color-text-tertiary: #71717A;
-    --color-text-muted: #52525B;
-    
-    /* Chart colors (dark mode - brighter for contrast) */
+    --color-text-muted: #71717A;
+
+    /* Chart colors (dark mode) */
     --chart-correct: #34D399;
     --chart-partial: #FBBF24;
     --chart-incorrect: #F87171;
@@ -731,7 +354,7 @@ ion-segment-button:focus-visible {
     --chart-borderline: #FBBF24;
     --chart-fail: #F87171;
 
-    /* Utility colors - Status (dark mode - brighter for contrast) */
+    /* Utility colors - Status (dark mode) */
     --color-status-pending: #FBBF24;
     --color-status-pending-bg: rgba(217, 119, 6, 0.15);
     --color-status-success: #34D399;
@@ -740,7 +363,7 @@ ion-segment-button:focus-visible {
     --color-status-danger-bg: rgba(220, 38, 38, 0.15);
     --color-status-info: #818CF8;
     --color-status-info-bg: rgba(99, 102, 241, 0.15);
-    
+
     /* Utility colors - Backgrounds (dark mode) */
     --color-surface: #16161A;
     --color-surface-hover: rgba(255, 255, 255, 0.04);
@@ -748,17 +371,6 @@ ion-segment-button:focus-visible {
     --color-border: rgba(255, 255, 255, 0.06);
     --color-border-strong: rgba(255, 255, 255, 0.08);
   }
-
-  ion-card {
-    background: #16161A;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-
-  .card-item {
-    --background: #16161A !important;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-  .card-item::part(native) { background: #16161A !important; }
 
   .skeleton {
     background: linear-gradient(
@@ -770,34 +382,8 @@ ion-segment-button:focus-visible {
     background-size: 200% 100%;
   }
 
-  ion-searchbar {
-    --background: #16161A;
-    --color: #F1F5F9;
-    --placeholder-color: #71717A;
-    --icon-color: #71717A;
-  }
-
-  ion-segment { --background: rgba(255, 255, 255, 0.06); }
-  ion-segment-button.segment-button-checked {
-    --background: #16161A;
-    box-shadow: var(--shadow-sm);
-  }
-
-  ion-tab-bar {
-    --background: #16161A;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: none;
-  }
-
-  ion-tab-button {
-    --color: #71717A;
-    --color-selected: var(--ion-color-primary);
-  }
-
-  ion-button[fill="outline"] { --border-color: rgba(255, 255, 255, 0.15); }
-
   .metric-card {
-    background: #16161A;
+    background: var(--color-surface);
     border: 1px solid rgba(255, 255, 255, 0.12);
   }
 
@@ -807,28 +393,6 @@ ion-segment-button:focus-visible {
   .annotation-correct { background-color: rgba(5, 150, 105, 0.15); color: #34D399; }
   .annotation-incorrect { background-color: rgba(220, 38, 38, 0.15); color: #F87171; }
   .annotation-uncertain { background-color: rgba(255, 255, 255, 0.06); color: #A1A1AA; }
-
-  ion-modal { --background: #16161A; }
-  ion-alert { --background: #16161A; --color: #ffffff; }
-  ion-popover { --background: #16161A; --color: #ffffff; }
-  ion-spinner { --color: var(--ion-color-primary); }
-
-  ion-checkbox {
-    --background: #1E1E24;
-    --background-checked: var(--ion-color-primary);
-    --border-color: #3F3F46;
-    --border-color-checked: var(--ion-color-primary);
-    --checkmark-color: #ffffff;
-  }
-
-  ion-textarea { --background: #1E1E24; --color: #ffffff; --placeholder-color: #71717A; }
-  ion-input { --background: #1E1E24; --color: #ffffff; --placeholder-color: #71717A; }
-  ion-select { --background: #1E1E24; --color: #ffffff; --placeholder-color: #71717A; }
-
-  ion-chip {
-    --background: #1E1E24;
-    --color: #ffffff;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -851,7 +415,7 @@ ion-segment-button:focus-visible {
   font-weight: 700;
   margin: 0 0 var(--space-lg);
   letter-spacing: -0.02em;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .modal-sheet__subtitle {
@@ -861,7 +425,7 @@ ion-segment-button:focus-visible {
 }
 
 @media (prefers-color-scheme: dark) {
-  .modal-sheet { background: #16161A; }
+  .modal-sheet { background: var(--color-surface); }
 }
 
 /* ─── Shared Form Layout ─── */
@@ -899,7 +463,7 @@ ion-segment-button:focus-visible {
 .form-item-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   padding-left: 2px;
 }
 
@@ -917,8 +481,8 @@ ion-segment-button:focus-visible {
   padding: 10px 14px;
   margin-bottom: var(--space-md);
   border-radius: var(--radius-md);
-  background: var(--ion-color-danger-tint);
-  color: var(--ion-color-danger-shade);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-danger);
   font-size: var(--font-size-sm);
 }
 
@@ -934,9 +498,9 @@ ion-segment-button:focus-visible {
   align-items: center;
   gap: var(--space-lg);
   padding: var(--space-lg);
-  border: 1.5px solid rgba(15, 23, 42, 0.08);
+  border: 1.5px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
-  background: #ffffff;
+  background: var(--color-surface);
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
@@ -952,16 +516,17 @@ ion-segment-button:focus-visible {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  background: rgba(21, 102, 94, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.add-action-card__icon ion-icon {
-  font-size: 20px;
-  color: var(--ion-color-primary);
+.add-action-card__icon svg {
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary);
 }
 
 .add-action-card__content {
@@ -973,18 +538,18 @@ ion-segment-button:focus-visible {
 .add-action-card__title {
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .add-action-card__desc {
   font-size: var(--font-size-xs);
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 @media (prefers-color-scheme: dark) {
   .form-item { --background: rgba(255, 255, 255, 0.04); }
   .add-action-card {
-    background: #1E1E24;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 }
@@ -1003,8 +568,8 @@ ion-segment-button:focus-visible {
 }
 
 .std-card--selected {
-  border-color: var(--ion-color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--ion-color-primary-rgb), 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(21, 102, 94, 0.15);
 }
 
 /* ─── Status Badges ─── */
@@ -1080,7 +645,7 @@ ion-segment-button:focus-visible {
 }
 
 .alert-banner--warning .alert-banner__icon {
-  background: var(--ion-color-warning);
+  background: var(--color-warning);
   color: #ffffff;
 }
 
@@ -1095,7 +660,7 @@ ion-segment-button:focus-visible {
 .alert-banner__title {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .alert-banner__subtitle {
@@ -1147,7 +712,7 @@ ion-segment-button:focus-visible {
 .action-card__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   line-height: 1.3;
 }
 
@@ -1202,7 +767,7 @@ ion-segment-button:focus-visible {
 .list-item-card__title {
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .list-item-card__subtitle {
@@ -1261,7 +826,7 @@ ion-segment-button:focus-visible {
 .stat-card__value {
   font-size: var(--font-size-2xl);
   font-weight: 800;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   line-height: 1;
   letter-spacing: -0.02em;
 }
@@ -1311,8 +876,8 @@ ion-segment-button:focus-visible {
   overflow: hidden;
   z-index: 10000;
   padding: var(--space-md) var(--space-xl);
-  background: var(--ion-color-primary);
-  color: var(--ion-color-primary-contrast);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
   font-size: var(--font-size-base);
   font-weight: 600;
   border-radius: 0 0 var(--radius-md) 0;
@@ -1338,7 +903,7 @@ ion-segment-button:focus-visible {
 .action-card:focus-visible,
 .list-item-card:focus-visible,
 .side-menu__item:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-md);
 }

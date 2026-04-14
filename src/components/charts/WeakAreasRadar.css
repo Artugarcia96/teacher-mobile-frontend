@@ -19,21 +19,21 @@
 }
 
 .war__data {
-  fill: rgba(var(--ion-color-primary-rgb), 0.15);
-  stroke: var(--ion-color-primary);
+  fill: rgba(21, 102, 94, 0.15);
+  stroke: var(--color-primary);
   stroke-width: 2;
   transition: all var(--transition-base);
 }
 
 .war__dot {
-  fill: var(--ion-color-primary);
+  fill: var(--color-primary);
   stroke: var(--color-surface, #ffffff);
   stroke-width: 1.5;
 }
 
 .war__label {
   font-size: 10px;
-  font-family: var(--ion-font-family);
+  font-family: var(--font-sans);
   fill: var(--color-text-secondary, #64748B);
   font-weight: 500;
 }
@@ -51,14 +51,14 @@
   gap: var(--space-xs);
   padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: rgba(var(--ion-color-primary-rgb), 0.08);
-  color: var(--ion-color-primary);
+  background: rgba(21, 102, 94, 0.08);
+  color: var(--color-primary);
   font-size: var(--font-size-xs);
   font-weight: 600;
 }
 
 .war-fallback__count {
-  background: rgba(var(--ion-color-primary-rgb), 0.15);
+  background: rgba(21, 102, 94, 0.15);
   border-radius: var(--radius-full);
   padding: 1px 6px;
   font-size: 10px;

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import {
-  IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonSpinner, IonTextarea,
-} from '@ionic/react';
-import { sparkles, downloadOutline, refreshOutline } from 'ionicons/icons';
+import { Sparkles, Download, RefreshCw } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { reports as reportsApi, classes as classesApi } from '../../services/api';
 import { hapticSuccess } from '../../utils/haptics';
+import PageShell from '@/components/shared/PageShell';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import Spinner from '@/components/shared/Spinner';
 import './ReportComments.css';
 
 interface StudentComment {
@@ -17,7 +17,7 @@ interface StudentComment {
 }
 
 const ReportComments: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId?: string }>();
+  const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
   const [comments, setComments] = useState<StudentComment[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -103,100 +103,94 @@ const ReportComments: React.FC = () => {
   };
 
   return (
-    <IonPage>
-      <IonContent className="rc-content" scrollY>
-        <div className="rc-header">
-          <div className="rc-header__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
-            </IonButtons>
-            <h1 className="rc-header__title">Comentarios del bolet&iacute;n</h1>
-            {comments.length > 0 && (
-              <IonButton fill="clear" size="small" onClick={handleExport}>
-                <IonIcon icon={downloadOutline} slot="icon-only" />
-              </IonButton>
-            )}
-          </div>
-          {className && <p className="rc-header__subtitle">{className}</p>}
+    <PageShell
+      title="Comentarios del bolet&iacute;n"
+      backHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}` : '/tabs/classes'}
+      headerActions={
+        comments.length > 0 ? (
+          <Button variant="ghost" size="sm" onClick={handleExport}>
+            <Download size={18} />
+          </Button>
+        ) : undefined
+      }
+    >
+      {className && <p className="rc-header__subtitle">{className}</p>}
+
+      {comments.length === 0 && !generating && (
+        <div className="rc-empty">
+          <Sparkles size={48} className="rc-empty__icon" />
+          <span className="rc-empty__title">Genera comentarios con IA</span>
+          <span className="rc-empty__subtitle">
+            Basados en las notas, tendencias y observaciones de cada alumno
+          </span>
+          <Button onClick={handleGenerate} disabled={generating}>
+            <Sparkles size={16} className="mr-2" />
+            Generar comentarios
+          </Button>
         </div>
+      )}
 
-        {comments.length === 0 && !generating && (
-          <div className="rc-empty">
-            <IonIcon icon={sparkles} className="rc-empty__icon" />
-            <span className="rc-empty__title">Genera comentarios con IA</span>
-            <span className="rc-empty__subtitle">
-              Basados en las notas, tendencias y observaciones de cada alumno
-            </span>
-            <IonButton onClick={handleGenerate} disabled={generating}>
-              <IonIcon icon={sparkles} slot="start" />
-              Generar comentarios
-            </IonButton>
-          </div>
-        )}
+      {generating && (
+        <div className="rc-generating">
+          <Spinner />
+          <span>Generando comentarios...</span>
+          <span className="rc-generating__sub">Esto puede tardar unos segundos</span>
+        </div>
+      )}
 
-        {generating && (
-          <div className="rc-generating">
-            <IonSpinner color="primary" />
-            <span>Generando comentarios...</span>
-            <span className="rc-generating__sub">Esto puede tardar unos segundos</span>
-          </div>
-        )}
-
-        {comments.length > 0 && !generating && (
-          <div className="rc-list">
-            {comments.map((c, i) => {
-              const displayComment = editedComments[c.studentId] ?? c.comment;
-              const isRegenerating = regeneratingId === c.studentId;
-              return (
-                <div
-                  key={c.studentId}
-                  className="rc-card stagger-item"
-                  style={{ animationDelay: `${i * 40}ms` }}
-                >
-                  <div className="rc-card__header">
-                    <span className="rc-card__name">{c.studentName}</span>
-                    {c.avgGrade !== null && (
-                      <span className={`rc-card__grade ${gradeClass(c.avgGrade)}`}>
-                        {c.avgGrade.toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                  <IonTextarea
-                    className="rc-card__textarea"
-                    value={displayComment}
-                    autoGrow
-                    onIonInput={(e) => handleEditComment(c.studentId, e.detail.value || '')}
-                  />
-                  <div className="rc-card__actions">
-                    <button
-                      className="rc-card__regen-btn"
-                      onClick={() => handleRegenerate(c.studentId)}
-                      disabled={isRegenerating}
-                    >
-                      {isRegenerating ? (
-                        <IonSpinner name="crescent" />
-                      ) : (
-                        <>
-                          <IonIcon icon={refreshOutline} />
-                          <span>Regenerar</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+      {comments.length > 0 && !generating && (
+        <div className="rc-list">
+          {comments.map((c, i) => {
+            const displayComment = editedComments[c.studentId] ?? c.comment;
+            const isRegenerating = regeneratingId === c.studentId;
+            return (
+              <div
+                key={c.studentId}
+                className="rc-card stagger-item"
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
+                <div className="rc-card__header">
+                  <span className="rc-card__name">{c.studentName}</span>
+                  {c.avgGrade !== null && (
+                    <span className={`rc-card__grade ${gradeClass(c.avgGrade)}`}>
+                      {c.avgGrade.toFixed(1)}
+                    </span>
+                  )}
                 </div>
-              );
-            })}
+                <Textarea
+                  className="rc-card__textarea"
+                  value={displayComment}
+                  onChange={(e) => handleEditComment(c.studentId, e.target.value)}
+                />
+                <div className="rc-card__actions">
+                  <button
+                    className="rc-card__regen-btn"
+                    onClick={() => handleRegenerate(c.studentId)}
+                    disabled={isRegenerating}
+                  >
+                    {isRegenerating ? (
+                      <Spinner size={14} />
+                    ) : (
+                      <>
+                        <RefreshCw size={14} />
+                        <span>Regenerar</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
 
-            <div className="rc-footer">
-              <IonButton expand="block" onClick={handleGenerate}>
-                <IonIcon icon={sparkles} slot="start" />
-                Regenerar todos
-              </IonButton>
-            </div>
+          <div className="rc-footer">
+            <Button className="w-full" onClick={handleGenerate}>
+              <Sparkles size={16} className="mr-2" />
+              Regenerar todos
+            </Button>
           </div>
-        )}
-      </IonContent>
-    </IonPage>
+        </div>
+      )}
+    </PageShell>
   );
 };
 

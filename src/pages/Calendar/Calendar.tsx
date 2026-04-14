@@ -1,22 +1,22 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { IonPage, IonContent, IonIcon, IonSpinner, IonSegment, IonSegmentButton, IonRefresher, IonRefresherContent, useIonViewWillEnter } from '@ionic/react';
 import {
-  calendarOutline,
-  documentTextOutline,
-  timeOutline,
-  chevronForwardOutline,
-  chevronBackOutline,
-  sparklesOutline,
-  checkmarkCircleOutline,
-  readerOutline,
-  helpCircleOutline,
-  bookOutline,
-  createOutline,
-  sparkles,
-} from 'ionicons/icons';
+  Calendar as CalendarIcon,
+  FileText,
+  Clock,
+  ChevronRight,
+  ChevronLeft,
+  Sparkles,
+  CheckCircle,
+  FileText as ReaderIcon,
+  HelpCircle,
+  BookOpen,
+  Pencil,
+} from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Spinner from '@/components/shared/Spinner';
 import { parseEventNotes } from '../../utils/parseEventNotes';
-import SepiaLogo from '../../components/SepiaLogo';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import PageShell from '@/components/shared/PageShell';
 import { useClassesStore } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
 import { useCalendarStore, CalendarView } from '../../store/calendarStore';
@@ -72,30 +72,30 @@ function getMonthEnd(d: Date): Date {
 function getCalendarWeeks(year: number, month: number): Date[][] {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  
+
   // Start from the Monday before/on the first day of month
   let start = getMonday(firstDay);
-  
+
   const weeks: Date[][] = [];
   let currentWeek: Date[] = [];
-  
+
   // Generate all days needed (up to 6 weeks)
   const endDate = new Date(lastDay);
   endDate.setDate(endDate.getDate() + (7 - endDate.getDay()) % 7);
-  
+
   let current = new Date(start);
   while (current <= endDate || currentWeek.length > 0) {
     currentWeek.push(new Date(current));
-    
+
     if (currentWeek.length === 7) {
       weeks.push(currentWeek);
       currentWeek = [];
       if (current > lastDay) break;
     }
-    
+
     current.setDate(current.getDate() + 1);
   }
-  
+
   return weeks;
 }
 
@@ -111,7 +111,7 @@ function formatTime(time?: string): string {
 
 
 const Calendar: React.FC = () => {
-  const history = useHistory();
+  const navigate = useNavigate();
   const isDesktop = useIsDesktop();
   const todayStr = toDateStr(new Date());
   const today = new Date();
@@ -132,7 +132,7 @@ const Calendar: React.FC = () => {
   const preparedDates = useCalendarStore((s) => s.preparedDates);
   const fetchPreparedDates = useCalendarStore((s) => s.fetchPreparedDates);
   const lastScheduleUpdate = useCalendarStore((s) => s.lastScheduleUpdate);
-  
+
   // Track schedule updates to trigger refresh
   const lastKnownScheduleUpdate = useRef(lastScheduleUpdate);
 
@@ -145,7 +145,7 @@ const Calendar: React.FC = () => {
 
   const fetchTaken = useAttendanceStore(s => s.fetchTaken);
   const isAttendanceTaken = useAttendanceStore(s => s.isAttendanceTaken);
-  
+
   // Week/Month navigation state
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthDate, setMonthDate] = useState(new Date());
@@ -210,20 +210,6 @@ const Calendar: React.FC = () => {
     }
   }, [lastScheduleUpdate, view, loadWeek, loadMonth]);
 
-  // Refresh data when tab becomes visible
-  useIonViewWillEnter(() => {
-    fetchClasses();
-    fetchExams();
-    fetchAllStudents();
-    fetchDashboard();
-    if (view === 'week') {
-      loadWeek();
-    } else {
-      loadMonth();
-    }
-    // Update our ref to current value
-    lastKnownScheduleUpdate.current = lastScheduleUpdate;
-  });
 
   const selectedDayEvents = useMemo(() => {
     return calEvents
@@ -234,7 +220,7 @@ const Calendar: React.FC = () => {
   const selectedDayExams = useMemo(() => {
     return exams.filter((e) => e.date === selectedDate);
   }, [exams, selectedDate]);
-  
+
   const isToday = selectedDate === todayStr;
 
   const weekDays = useMemo(() => {
@@ -303,7 +289,7 @@ const Calendar: React.FC = () => {
       firstExamId: examsInGroup[0].id,
     }));
   }, [selectedDayExams]);
-  
+
   const formatSelectedDate = (): string => {
     const d = new Date(selectedDate + 'T00:00:00');
     if (selectedDate === todayStr) return 'Hoy';
@@ -329,12 +315,9 @@ const Calendar: React.FC = () => {
     setShowEventEditor(true);
   };
 
-  const handleExamClick = (examId: string, status: string) => {
-    if (status === 'assigned' || status === 'corrected') {
-      history.push(`/correction/${examId}`);
-    } else {
-      history.push(`/tabs/exams/${examId}`);
-    }
+  const handleExamClick = (examId: string, _status: string) => {
+    // Unified exam detail: same URL for prep, scheduling and correction.
+    navigate(`/tabs/exams/${examId}`);
   };
 
   const handleNewEvent = () => {
@@ -343,34 +326,27 @@ const Calendar: React.FC = () => {
   };
 
 
-  return (
-    <IonPage>
-      <IonContent className="cal-content" scrollY>
-        <IonRefresher slot="fixed" onIonRefresh={async (e) => { await Promise.all([fetchClasses(), fetchExams(), fetchAllStudents(), fetchDashboard()]); if (view === 'week') { loadWeek(); } else { loadMonth(); } e.detail.complete(); }}>
-          <IonRefresherContent />
-        </IonRefresher>
+  const headerActions = (
+    <button
+      onClick={() => navigate('/tabs/guide')}
+      aria-label="Guía de uso"
+      className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-accent transition-colors"
+    >
+      <HelpCircle size={20} />
+    </button>
+  );
 
-        <div className="cal-banner">
-          <div className="cal-banner__left">
-            <SepiaLogo size={36} showText variant="white" />
-          </div>
-          <div className="cal-banner__right">
-            <h1 className="cal-banner__greeting">{getGreeting()}</h1>
-            <p className="cal-banner__date">{formatTodayDate()}</p>
-          </div>
-          <button className="cal-banner__help" onClick={() => history.push('/tabs/guide')} aria-label="Guía de uso">
-            <IonIcon icon={helpCircleOutline} />
-          </button>
-        </div>
+  return (
+    <PageShell title="Calendario" headerActions={headerActions} noPadding contentClassName="pb-[100px] bg-background">
 
         {/* Prepare Your Day Button */}
         <div className="cal-section">
-          <button 
+          <button
             className={`cal-prepare-btn ${isDayPrepared(todayStr) ? 'cal-prepare-btn--done' : ''}`}
             onClick={() => setShowPrepareModal(true)}
           >
             <div className="cal-prepare-btn__icon">
-              <IonIcon icon={isDayPrepared(todayStr) ? checkmarkCircleOutline : sparklesOutline} />
+              {isDayPrepared(todayStr) ? <CheckCircle size={20} color="#ffffff" /> : <Sparkles size={20} color="#ffffff" />}
             </div>
             <div className="cal-prepare-btn__content">
               <span className="cal-prepare-btn__title">
@@ -380,7 +356,7 @@ const Calendar: React.FC = () => {
                 {isDayPrepared(todayStr) ? 'Toca para ver el resumen' : 'Obtén un resumen con IA de tus clases de hoy'}
               </span>
             </div>
-            <IonIcon icon={chevronForwardOutline} className="cal-prepare-btn__arrow" />
+            <ChevronRight size={18} className="cal-prepare-btn__arrow" />
           </button>
         </div>
 
@@ -397,7 +373,11 @@ const Calendar: React.FC = () => {
                 <button
                   key={pc.examId}
                   className="cal-pending-item"
-                  onClick={() => history.push(`/correction/${pc.examId}`)}
+                  onClick={() => navigate(
+                    pc.classId
+                      ? `/tabs/classes/${pc.classId}/exams/${pc.examId}`
+                      : `/tabs/exams/${pc.examId}`
+                  )}
                 >
                   <div className="cal-pending-item__info">
                     <span className="cal-pending-item__name">{pc.examName}</span>
@@ -414,7 +394,7 @@ const Calendar: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <IonIcon icon={chevronForwardOutline} className="cal-pending-item__arrow" />
+                  <ChevronRight size={14} className="cal-pending-item__arrow" />
                 </button>
               ))}
             </div>
@@ -424,30 +404,28 @@ const Calendar: React.FC = () => {
         <div className="cal-section">
           <div className="cal-section__header">
             <h2 className="cal-section__title">
-              <IonIcon icon={calendarOutline} /> Calendario
+              <CalendarIcon size={16} className="text-primary" /> Calendario
             </h2>
           </div>
 
           {/* View Toggle */}
-          <IonSegment 
-            value={view} 
-            onIonChange={(e) => handleViewChange(e.detail.value as CalendarView)}
-            className="cal-view-toggle"
+          <Tabs
+            value={view}
+            onValueChange={(v) => handleViewChange(v as CalendarView)}
+            className="cal-view-toggle-tabs"
           >
-            <IonSegmentButton value="week">
-              <span>Semana</span>
-            </IonSegmentButton>
-            <IonSegmentButton value="month">
-              <span>Mes</span>
-            </IonSegmentButton>
-          </IonSegment>
+            <TabsList className="w-full">
+              <TabsTrigger value="week" className="flex-1">Semana</TabsTrigger>
+              <TabsTrigger value="month" className="flex-1">Mes</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {view === 'week' ? (
             <>
               {/* Week Navigation */}
               <div className="cal-week-nav">
                 <button className="cal-week-nav__btn" onClick={handlePrevWeek}>
-                  <IonIcon icon={chevronBackOutline} />
+                  <ChevronLeft size={18} />
                 </button>
                 <div className="cal-week-nav__center">
                   <span className="cal-week-nav__range">{formatWeekRange()}</span>
@@ -458,14 +436,14 @@ const Calendar: React.FC = () => {
                   )}
                 </div>
                 <button className="cal-week-nav__btn" onClick={handleNextWeek}>
-                  <IonIcon icon={chevronForwardOutline} />
+                  <ChevronRight size={18} />
                 </button>
               </div>
 
               {/* Week Days */}
               <div className="cal-mini-cal">
                 {weekDays.map((day) => (
-                  <button 
+                  <button
                     key={day.date}
                     onClick={() => setSelectedDate(day.date)}
                     className={`cal-mini-cal__day ${day.isToday ? 'cal-mini-cal__day--today' : ''} ${day.isSelected ? 'cal-mini-cal__day--selected' : ''} ${day.hasEvents ? 'cal-mini-cal__day--has-events' : ''}`}
@@ -483,13 +461,13 @@ const Calendar: React.FC = () => {
               {/* Month Navigation */}
               <div className="cal-week-nav">
                 <button className="cal-week-nav__btn" onClick={handlePrevMonth}>
-                  <IonIcon icon={chevronBackOutline} />
+                  <ChevronLeft size={18} />
                 </button>
                 <span className="cal-week-nav__range">
                   {MONTH_NAMES_UPPER[monthDate.getMonth()]} {monthDate.getFullYear()}
                 </span>
                 <button className="cal-week-nav__btn" onClick={handleNextMonth}>
-                  <IonIcon icon={chevronForwardOutline} />
+                  <ChevronRight size={18} />
                 </button>
               </div>
 
@@ -533,7 +511,7 @@ const Calendar: React.FC = () => {
         <div className="cal-section">
           <div className="cal-section__header">
             <h2 className="cal-section__title">
-              <IonIcon icon={timeOutline} /> {formatSelectedDate()}
+              <Clock size={16} className="text-primary" /> {formatSelectedDate()}
             </h2>
             <div className="cal-section__actions">
               <span className="cal-section__count">
@@ -546,7 +524,7 @@ const Calendar: React.FC = () => {
           </div>
 
           {calLoading ? (
-            <div className="cal-loading"><IonSpinner name="dots" color="primary" /></div>
+            <div className="cal-loading"><Spinner size={24} /></div>
           ) : (
             <div className="cal-agenda">
               {selectedDayEvents.length === 0 && groupedDayExams.length === 0 ? (
@@ -613,7 +591,7 @@ const Calendar: React.FC = () => {
                                 setAttendanceData({ classId: ev.classId!, date: ev.date, eventId: ev.id, subjectId: ev.subjectId });
                               }}
                             >
-                              <IonIcon icon={taken ? checkmarkCircleOutline : readerOutline} />
+                              {taken ? <CheckCircle size={14} /> : <ReaderIcon size={14} />}
                               <span>{taken ? 'Lista revisada' : 'Pasar lista'}</span>
                             </button>
                           );
@@ -626,7 +604,7 @@ const Calendar: React.FC = () => {
                               window.open(`${import.meta.env.VITE_API_URL || ''}/files${ev.topicPdfUrl}`, '_blank');
                             }}
                           >
-                            <IonIcon icon={bookOutline} />
+                            <BookOpen size={14} />
                             <span>Ver material</span>
                           </button>
                         )}
@@ -638,10 +616,10 @@ const Calendar: React.FC = () => {
                               const params = new URLSearchParams({ generate: '1' });
                               if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
                               if (ev.title) params.set('name', ev.title);
-                              history.push(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exercises?${params}`);
+                              navigate(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exercises?${params}`);
                             }}
                           >
-                            <IonIcon icon={sparkles} />
+                            <Sparkles size={14} />
                             <span>Ejercicios</span>
                           </button>
                         )}
@@ -654,10 +632,10 @@ const Calendar: React.FC = () => {
                               if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
                               params.set('date', ev.date);
                               params.set('name', ev.title);
-                              history.push(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exams/new?${params}`);
+                              navigate(`/tabs/classes/${ev.classId}/subjects/${ev.subjectId}/exams/new?${params}`);
                             }}
                           >
-                            <IonIcon icon={createOutline} />
+                            <Pencil size={14} />
                             <span>Crear examen</span>
                           </button>
                         )}
@@ -669,20 +647,20 @@ const Calendar: React.FC = () => {
                   {groupedDayExams.map((group) => {
                     const cls = classes.find((c) => c.id === group.classId);
                     return (
-                      <div 
-                        key={group.key} 
+                      <div
+                        key={group.key}
                         className="cal-agenda-item cal-agenda-item--exam"
                         onClick={() => handleExamClick(group.firstExamId, group.status)}
                       >
                         <div className={`cal-agenda-item__time cal-agenda-item__time--exam-${group.status}`}>
-                          <IonIcon icon={documentTextOutline} />
+                          <FileText size={18} />
                         </div>
                         <div className="cal-agenda-item__content">
                           <span className="cal-agenda-item__title">{group.name}</span>
                           {cls && <span className="cal-agenda-item__class">{cls.name}</span>}
                         </div>
                         <span className={`cal-agenda-item__status cal-agenda-item__status--${group.status}`}>
-                          {group.status === 'assigned' ? 'Pendiente' : group.status === 'corrected' ? 'Corregido' : 'Subido'}
+                          {group.status === 'pending_correction' ? 'Sin corregir' : group.status === 'corrected' ? 'Evaluado' : group.status === 'scheduled' ? 'Planificado' : 'Pendiente'}
                         </span>
                       </div>
                     );
@@ -694,13 +672,11 @@ const Calendar: React.FC = () => {
         </div>
 
 
-      </IonContent>
-
       <EventEditorSheet
         isOpen={showEventEditor}
-        onDismiss={() => { 
-          setShowEventEditor(false); 
-          setEditingEvent(null); 
+        onDismiss={() => {
+          setShowEventEditor(false);
+          setEditingEvent(null);
           view === 'week' ? loadWeek() : loadMonth();
         }}
         existingEvent={editingEvent}
@@ -721,7 +697,7 @@ const Calendar: React.FC = () => {
         subjectId={attendanceData?.subjectId}
         onDismiss={() => setAttendanceData(null)}
       />
-    </IonPage>
+    </PageShell>
   );
 };
 

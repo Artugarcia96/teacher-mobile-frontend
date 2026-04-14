@@ -1,144 +1,202 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MentionTextarea — self-contained comment/@-mention input.
+   Visually neutral: it takes the container's background when possible.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .mention-textarea {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
+  min-width: 0;
 }
 
+/* The wrap IS the visible input box. Call sites shouldn't add their own
+   border — MentionTextarea is self-framed so every comment UI looks the
+   same. The wrap transitions its border on focus-within. */
 .mention-textarea__wrap {
   position: relative;
+  width: 100%;
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E5E7EB);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mention-textarea__wrap:focus-within {
+  border-color: var(--color-primary, #15665E);
+  box-shadow: 0 0 0 3px rgba(21, 102, 94, 0.08);
 }
 
 .mention-textarea__input {
   width: 100%;
-  border: 1px solid var(--ion-color-light-shade, #d1d5db);
-  border-radius: var(--radius-md, 8px);
+  min-height: 40px;
   padding: 10px 12px;
-  font-size: var(--font-size-sm, 14px);
-  font-family: inherit;
-  color: var(--ion-text-color, #1e293b);
-  background: var(--ion-background-color, #fff);
-  resize: none;
+  background: transparent;
+  border: none;
   outline: none;
-  transition: border-color 0.15s;
+  resize: none;
+  font-family: inherit;
+  font-size: 13px;
   line-height: 1.45;
+  color: var(--color-foreground, #1F2937);
+  -webkit-appearance: none;
+  appearance: none;
   box-sizing: border-box;
-}
-
-.mention-textarea__input:focus {
-  border-color: var(--ion-color-primary, #15665E);
-}
-
-.mention-textarea__input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  display: block;
 }
 
 .mention-textarea__input::placeholder {
-  color: var(--ion-color-medium, #92949c);
+  color: var(--color-text-tertiary, #94A3B8);
+  opacity: 1;
 }
 
+.mention-textarea__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* The helper ("Usa @ para mencionar alumnos") sits BELOW the textarea as a
+   tiny muted hint. It only renders while `value === ''` (the component
+   enforces this via the `showHelper` prop). We keep it outside the textarea
+   to avoid any overlap with long placeholders or typed content. */
 .mention-textarea__helper {
-  display: flex;
+  margin: 0;
+  padding: 2px 10px 0;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin: 4px 2px 0;
-  font-size: 11px;
-  color: var(--ion-color-medium, #92949c);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--color-text-tertiary, #94A3B8);
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.mention-textarea__helper ion-icon {
-  font-size: 12px;
+.mention-textarea__helper svg {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
-/* Mention chips below textarea */
+/* Mention chips shown below when the user has inserted mentions. Compact,
+   wrap naturally. */
 .mention-textarea__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 6px;
 }
 
 .mention-textarea__chip {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 8px;
-  background: var(--ion-color-primary-tint, #e0f2f1);
-  color: var(--ion-color-primary, #15665E);
-  border-radius: 12px;
-  font-size: 12px;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  background: rgba(21, 102, 94, 0.08);
+  border: 1px solid rgba(21, 102, 94, 0.18);
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 500;
+  color: var(--color-primary, #15665E);
 }
 
 .mention-textarea__chip-remove {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   border: none;
-  cursor: pointer;
-  font-size: 14px;
+  background: rgba(21, 102, 94, 0.12);
+  color: var(--color-primary, #15665E);
+  border-radius: 50%;
+  font-size: 12px;
   line-height: 1;
-  color: var(--ion-color-primary, #15665E);
-  padding: 0 2px;
-  opacity: 0.7;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
 }
 
 .mention-textarea__chip-remove:hover {
-  opacity: 1;
+  background: rgba(21, 102, 94, 0.22);
 }
 
-/*
- * Autocomplete dropdown — rendered as a React portal on document.body
- * so it escapes Ionic modal transform/overflow. Position set via inline style.
- */
+/* ─── Dropdown (rendered via portal into document.body) ──────────────── */
 .mention-textarea__dropdown {
-  z-index: 99999;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-  max-height: 200px;
+  max-height: 240px;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E5E7EB);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  z-index: 10000;
 }
 
 .mention-textarea__dropdown-loading,
 .mention-textarea__dropdown-empty,
 .mention-textarea__dropdown-hint {
   padding: 10px 12px;
-  font-size: 13px;
-  color: #92949c;
+  font-size: 12px;
+  color: var(--color-text-tertiary, #94A3B8);
+  text-align: center;
 }
 
 .mention-textarea__dropdown-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: none;
-  background: none;
+  background: transparent;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-foreground, #1F2937);
   cursor: pointer;
   text-align: left;
-  font-size: 14px;
-  color: #1e293b;
-  transition: background 0.1s;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.mention-textarea__dropdown-item:last-child {
-  border-bottom: none;
+  transition: background 0.1s ease;
 }
 
 .mention-textarea__dropdown-item:hover,
 .mention-textarea__dropdown-item--selected {
-  background: #f1f5f9;
+  background: var(--color-bg-subtle, rgba(21, 102, 94, 0.08));
 }
 
 .mention-textarea__dropdown-name {
   font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mention-textarea__dropdown-class {
-  font-size: 12px;
-  color: #92949c;
-  margin-left: 8px;
+  font-size: 11px;
+  color: var(--color-text-tertiary, #94A3B8);
   flex-shrink: 0;
+}
+
+/* ─── Dark mode ──────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .mention-textarea__dropdown {
+    background: var(--color-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .mention-textarea__dropdown-item:hover,
+  .mention-textarea__dropdown-item--selected {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .mention-textarea__chip {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #34D399;
+  }
 }

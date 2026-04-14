@@ -1,5 +1,5 @@
 .month-grid {
-  background: var(--ion-toolbar-background);
+  background: var(--color-card);
   padding: var(--space-sm) var(--space-lg) var(--space-lg);
 }
 
@@ -13,7 +13,7 @@
 .month-grid__title {
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   letter-spacing: -0.01em;
 }
 
@@ -22,7 +22,7 @@
   border: none;
   padding: var(--space-sm);
   cursor: pointer;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   font-size: 20px;
   display: flex;
   align-items: center;
@@ -32,7 +32,7 @@
 }
 
 .month-grid__nav:active {
-  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  background: rgba(21, 102, 94, 0.08);
 }
 
 .month-grid__day-labels {
@@ -82,7 +82,7 @@
 .month-grid__day-num {
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   width: 28px;
   height: 28px;
   display: flex;
@@ -93,17 +93,17 @@
 }
 
 .month-grid__day--today .month-grid__day-num {
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   font-weight: 700;
 }
 
 .month-grid__day--selected .month-grid__day-num {
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
 .month-grid__day--today.month-grid__day--selected .month-grid__day-num {
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
@@ -111,13 +111,13 @@
   width: 4px;
   height: 4px;
   border-radius: var(--radius-full);
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   position: absolute;
   bottom: 2px;
 }
 
 .month-grid__day--selected .month-grid__dot {
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   opacity: 0.5;
 }
 
@@ -127,6 +127,6 @@
 
 @media (prefers-color-scheme: dark) {
   .month-grid {
-    background: var(--ion-toolbar-background);
+    background: var(--color-card);
   }
 }

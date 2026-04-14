@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import {
-  IonModal, IonContent, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton,
-  IonSegment, IonSegmentButton, IonLabel, IonList, IonItem, IonInput,
-  IonCheckbox, IonSearchbar, IonSpinner, IonIcon, IonProgressBar,
-} from '@ionic/react';
-import { closeOutline, addOutline, trashOutline, personAddOutline } from 'ionicons/icons';
+import { Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
+import Searchbar from '@/components/shared/Searchbar';
+import { Progress } from '@/components/ui/progress';
 import { useStudentsStore, StudentPoolEntry } from '../store/studentsStore';
 import './AddStudentsModal.css';
 
@@ -147,32 +148,32 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
   };
 
   return (
-    <IonModal isOpen={isOpen} onDidDismiss={handleDismiss}>
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={handleDismiss}>
-              <IonIcon icon={closeOutline} />
-            </IonButton>
-          </IonButtons>
-          <IonTitle>Añadir alumnos</IonTitle>
-        </IonToolbar>
-        <IonToolbar>
-          <IonSegment value={tab} onIonChange={(e) => setTab(e.detail.value as 'new' | 'existing')}>
-            <IonSegmentButton value="new">
-              <IonLabel>Nuevos</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="existing">
-              <IonLabel>Existentes</IonLabel>
-            </IonSegmentButton>
-          </IonSegment>
-        </IonToolbar>
-      </IonHeader>
+    <Modal open={isOpen} onClose={handleDismiss} sheetHeight="lg">
+      <div className="flex items-center justify-between p-4 border-b">
+        
+          <div className="flex items-center gap-1">
+            <Button onClick={handleDismiss}>
+              <X size={18} />
+            </Button>
+          </div>
+          <h2 className="text-base font-semibold">Añadir alumnos</h2>
+        
+        
+          <div className="flex rounded-lg bg-muted p-1">
+            <button onClick={() => setTab('new')} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'new' ? 'bg-background shadow-sm' : ''}`}>
+              <span>Nuevos</span>
+            </button>
+            <button onClick={() => setTab('existing')} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'existing' ? 'bg-background shadow-sm' : ''}`}>
+              <span>Existentes</span>
+            </button>
+          </div>
+        
+      </div>
 
-      <IonContent>
+      <div>
         {saving && (
           <div className="add-students__progress">
-            <IonProgressBar type="indeterminate" />
+            <Progress />
             <span>{progress}</span>
           </div>
         )}
@@ -182,36 +183,28 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
             <p className="add-students__hint">
               Introduce los nombres de los nuevos alumnos para {className}
             </p>
-            <IonList>
+            <div className="flex flex-col">
               {studentInputs.map((value, index) => (
-                <IonItem key={index}>
-                  <IonInput
-                    value={value}
-                    placeholder={`Nombre del alumno ${index + 1}`}
-                    onIonInput={(e) => handleInputChange(index, e.detail.value ?? '')}
-                  />
+                <div className="flex items-center gap-2">
+                  <Input value={value} onChange={(e) => handleInputChange(index, e.target.value)} />
                   {studentInputs.length > 1 && (
-                    <IonButton fill="clear" slot="end" onClick={() => handleRemoveRow(index)}>
-                      <IonIcon icon={trashOutline} color="danger" />
-                    </IonButton>
+                    <Button variant="ghost" onClick={() => handleRemoveRow(index)}>
+                      <Trash2 size={18} />
+                    </Button>
                   )}
-                </IonItem>
+                </div>
               ))}
-            </IonList>
+            </div>
 
-            <IonButton fill="clear" expand="block" onClick={handleAddRow}>
-              <IonIcon icon={addOutline} slot="start" />
+            <Button variant="ghost" className="w-full" onClick={handleAddRow}>
+              <Plus size={18} />
               Añadir otro
-            </IonButton>
+            </Button>
 
             <div className="add-students__actions">
-              <IonButton
-                expand="block"
-                onClick={handleAddNew}
-                disabled={saving || validNewNames.length === 0}
-              >
-                {saving ? <IonSpinner name="crescent" /> : `Añadir ${validNewNames.length || ''} alumnos`}
-              </IonButton>
+              <Button className="w-full" onClick={handleAddNew} disabled={saving || validNewNames.length === 0}>
+                {saving ? <Spinner size={18} /> : `Añadir ${validNewNames.length || ''} alumnos`}
+              </Button>
             </div>
           </div>
         )}
@@ -220,19 +213,14 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
           <div className="add-students__existing">
             {availableStudents.length === 0 && !poolLoading ? (
               <div className="add-students__empty">
-                <IonIcon icon={personAddOutline} />
+                <UserPlus size={18} />
                 <h3>No hay alumnos disponibles</h3>
                 <p>Todos tus alumnos ya están en esta clase, o aún no has creado ninguno.</p>
               </div>
             ) : (
               <>
                 <div className="add-students__filters">
-                  <IonSearchbar
-                    value={search}
-                    onIonInput={(e) => setSearch(e.detail.value ?? '')}
-                    placeholder="Buscar alumnos..."
-                    className="add-students__searchbar"
-                  />
+                  <Searchbar value={search} onChange={(v) => setSearch(v ?? '')} placeholder="Buscar alumnos..." className="add-students__searchbar" />
                   {uniqueClasses.length > 0 && (
                     <div className="add-students__class-filter-wrap">
                       <button
@@ -266,55 +254,47 @@ const AddStudentsModal: React.FC<AddStudentsModalProps> = ({
 
                 {poolLoading ? (
                   <div className="add-students__loading">
-                    <IonSpinner />
+                    <Spinner size={18} />
                   </div>
                 ) : (
                   <>
                     <div className="add-students__select-all">
-                      <IonCheckbox
-                        checked={selectedIds.size === filteredAvailable.length && filteredAvailable.length > 0}
-                        indeterminate={selectedIds.size > 0 && selectedIds.size < filteredAvailable.length}
-                        onIonChange={toggleAll}
-                      />
+                      <input type="checkbox" checked={selectedIds.size === filteredAvailable.length && filteredAvailable.length > 0}
+                        ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredAvailable.length; }}
+                        onChange={toggleAll} />
                       <span>Seleccionar todos ({filteredAvailable.length})</span>
                     </div>
 
-                    <IonList>
+                    <div className="flex flex-col">
                       {filteredAvailable.map((student) => (
-                        <IonItem key={student.id} onClick={() => toggleStudent(student.id)} button>
-                          <IonCheckbox
-                            slot="start"
-                            checked={selectedIds.has(student.id)}
-                          />
-                          <IonLabel>
+                        <div className="flex items-center gap-2" onClick={() => toggleStudent(student.id)}>
+                          <input type="checkbox" slot="start"
+                            checked={selectedIds.has(student.id)} />
+                          <span>
                             <h2>{student.name}</h2>
                             {student.classes.length > 0 && (
                               <p>
                                 En: {student.classes.map((c) => c.class_name).join(', ')}
                               </p>
                             )}
-                          </IonLabel>
-                        </IonItem>
+                          </span>
+                        </div>
                       ))}
-                    </IonList>
+                    </div>
                   </>
                 )}
 
                 <div className="add-students__actions">
-                  <IonButton
-                    expand="block"
-                    onClick={handleAddExisting}
-                    disabled={saving || selectedIds.size === 0}
-                  >
-                    {saving ? <IonSpinner name="crescent" /> : `Añadir ${selectedIds.size || ''} seleccionados`}
-                  </IonButton>
+                  <Button className="w-full" onClick={handleAddExisting} disabled={saving || selectedIds.size === 0}>
+                    {saving ? <Spinner size={18} /> : `Añadir ${selectedIds.size || ''} seleccionados`}
+                  </Button>
                 </div>
               </>
             )}
           </div>
         )}
-      </IonContent>
-    </IonModal>
+      </div>
+    </Modal>
   );
 };
 

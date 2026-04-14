@@ -42,8 +42,8 @@ const GradeDonut: React.FC<Props> = ({ distribution, centerLabel, centerSubLabel
     });
 
   return (
-    <div className="gd" style={{ width: size }}>
-      <svg viewBox={`0 0 ${size} ${size}`} className="gd__svg">
+    <div className="gd" style={{ width: size }} role="figure" aria-label={`Gráfico de distribución: ${distribution.filter(s => s.count > 0).map(s => `${s.label} ${s.count}`).join(', ')}`}>
+      <svg viewBox={`0 0 ${size} ${size}`} className="gd__svg" aria-hidden="true">
         {/* Background ring */}
         <circle
           cx={size / 2}

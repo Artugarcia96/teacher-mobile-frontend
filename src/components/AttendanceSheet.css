@@ -100,9 +100,6 @@
   transition: background 0.15s ease;
 }
 
-.att-student__status ion-icon {
-  font-size: 16px;
-}
 
 .att-sheet__save {
   padding-top: var(--space-lg);

@@ -1,13 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { IonIcon, IonSpinner } from '@ionic/react';
-import {
-  sparkles,
-  checkmarkCircleOutline,
-  alertCircleOutline,
-  closeOutline,
-  chevronForwardOutline,
-} from 'ionicons/icons';
-import { useHistory } from 'react-router-dom';
+import { Sparkles, CheckCircle, AlertCircle, X, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import Spinner from '@/components/shared/Spinner';
 import { useBackgroundTasksStore, BackgroundTask, TaskStep } from '../store/backgroundTasksStore';
 import { batch } from '../services/api';
 import './BackgroundTasksFab.css';
@@ -22,7 +16,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const BackgroundTasksFab: React.FC = () => {
-  const history = useHistory();
+  const navigate = useNavigate();
   const tasks = useBackgroundTasksStore((s) => s.tasks);
   const dismissTask = useBackgroundTasksStore((s) => s.dismissTask);
   const resumePersistedTasks = useBackgroundTasksStore((s) => s._resumePersistedTasks);
@@ -76,7 +70,7 @@ const BackgroundTasksFab: React.FC = () => {
         autoDismissTimers.current.delete(task.id);
       }
       dismissTask(task.id);
-      history.push(task.resultUrl);
+      navigate(task.resultUrl);
       setExpanded(false);
     }
   };
@@ -109,16 +103,16 @@ const BackgroundTasksFab: React.FC = () => {
       <div className="bgtasks-pill" onClick={() => setExpanded(true)}>
         {displayTask.status === 'running' ? (
           <div className="bgtasks-pill__icon bgtasks-pill__icon--running">
-            <IonIcon icon={sparkles} />
+            <Sparkles size={16} />
             <span className="bgtasks-pill__pulse" />
           </div>
         ) : displayTask.status === 'completed' ? (
           <div className="bgtasks-pill__icon bgtasks-pill__icon--done">
-            <IonIcon icon={checkmarkCircleOutline} />
+            <CheckCircle size={16} />
           </div>
         ) : (
           <div className="bgtasks-pill__icon bgtasks-pill__icon--error">
-            <IonIcon icon={alertCircleOutline} />
+            <AlertCircle size={16} />
           </div>
         )}
 
@@ -162,7 +156,7 @@ const BackgroundTasksFab: React.FC = () => {
       <div className="bgtasks-panel__header">
         <span className="bgtasks-panel__title">Procesos en segundo plano</span>
         <button className="bgtasks-panel__close" onClick={() => setExpanded(false)}>
-          <IonIcon icon={closeOutline} />
+          <X size={22} />
         </button>
       </div>
 
@@ -175,11 +169,11 @@ const BackgroundTasksFab: React.FC = () => {
           >
             <div className="bgtasks-item__icon">
               {task.status === 'running' ? (
-                <IonSpinner name="crescent" />
+                <Spinner size={20} />
               ) : task.status === 'completed' ? (
-                <IonIcon icon={checkmarkCircleOutline} />
+                <CheckCircle size={20} />
               ) : (
-                <IonIcon icon={alertCircleOutline} />
+                <AlertCircle size={20} />
               )}
             </div>
 
@@ -210,9 +204,9 @@ const BackgroundTasksFab: React.FC = () => {
                       color: step.status === 'done' ? '#059669' : step.status === 'running' ? '#6366F1' : '#94A3B8',
                     }}>
                       {step.status === 'done' ? (
-                        <IonIcon icon={checkmarkCircleOutline} style={{ fontSize: 12, flexShrink: 0 }} />
+                        <CheckCircle size={12} style={{ flexShrink: 0 }} />
                       ) : step.status === 'running' ? (
-                        <IonSpinner name="crescent" style={{ width: 12, height: 12, flexShrink: 0 }} />
+                        <Spinner size={12} className="flex-shrink-0" />
                       ) : (
                         <span style={{ width: 12, height: 12, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>·</span>
                       )}
@@ -229,9 +223,9 @@ const BackgroundTasksFab: React.FC = () => {
                   className="bgtasks-item__dismiss"
                   onClick={(e) => handleDismiss(e, task.id)}
                 >
-                  <IonIcon icon={closeOutline} />
+                  <X size={18} />
                 </button>
-                <IonIcon icon={chevronForwardOutline} className="bgtasks-item__nav" />
+                <ChevronRight size={18} className="bgtasks-item__nav" />
               </>
             ) : task.status === 'running' ? (
               <button
@@ -239,14 +233,14 @@ const BackgroundTasksFab: React.FC = () => {
                 onClick={(e) => handleCancel(e, task)}
                 title="Cancelar"
               >
-                <IonIcon icon={closeOutline} />
+                <X size={18} />
               </button>
             ) : (
               <button
                 className="bgtasks-item__dismiss"
                 onClick={(e) => handleDismiss(e, task.id)}
               >
-                <IonIcon icon={closeOutline} />
+                <X size={18} />
               </button>
             )}
           </div>

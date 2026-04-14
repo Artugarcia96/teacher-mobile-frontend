@@ -1,19 +1,13 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { avatarColor } from '../../utils/avatarColors';
 import {
-  IonPage, IonContent, IonButtons, IonBackButton,
-  IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonList, IonItem,
-  IonSearchbar, IonItemSliding, IonItemOptions, IonItemOption,
-  IonSpinner, IonAlert, IonPopover, useIonViewWillEnter,
-} from '@ionic/react';
-import {
-  addOutline, downloadOutline, cloudUploadOutline, bookOutline, peopleOutline,
-  sparkles, settingsOutline, documentTextOutline, chevronForwardOutline, createOutline,
-  locationOutline, timeOutline, calendarOutline, chevronBackOutline,
-  chatbubbleOutline, sendOutline, chevronDownOutline, trashOutline,
-} from 'ionicons/icons';
+  Plus, Download, Upload, BookOpen, Users,
+  Sparkles, Settings, FileText, ChevronRight, Pencil,
+  MapPin, Clock, Calendar, ChevronLeft,
+  MessageCircle, Send, ChevronDown, Trash2,
+} from 'lucide-react';
 import { parseEventNotes } from '../../utils/parseEventNotes';
-import { useParams, useHistory } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useClassesStore } from '../../store/classesStore';
 import { fetchRegistry } from '../../store/fetchRegistry';
 import { useStudentsStore } from '../../store/studentsStore';
@@ -72,6 +66,12 @@ import SubjectDayInsight from '../../components/SubjectDayInsight';
 import ClassInsightsPanel from '../../components/ClassInsightsPanel';
 import EventEditorSheet from '../../components/EventEditorSheet';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import Searchbar from '@/components/shared/Searchbar';
+import Spinner from '@/components/shared/Spinner';
+import AlertConfirm from '@/components/shared/AlertConfirm';
 import './GradeBook.css';
 
 const DAY_NAMES_SHORT = ['Dom', 'Lun', 'Mar', 'X', 'Jue', 'Vie', 'Sáb'];
@@ -104,8 +104,8 @@ function mapCalEvent(e: any): CalendarEvent {
 }
 
 const SubjectGradeBook: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId: string }>();
-  const history = useHistory();
+  const { classId, subjectId } = useParams() as { classId: string; subjectId: string };
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allClasses = useClassesStore((s) => s.classes);
@@ -147,7 +147,11 @@ const SubjectGradeBook: React.FC = () => {
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
   const studentIds = useMemo(() => new Set(students.map(s => s.id)), [students]);
-  const exams = useMemo(() => allExams.filter((e) => e.classId === classId && e.subjectId === subjectId), [allExams, classId, subjectId]);
+  const exams = useMemo(() => allExams.filter((e) => {
+    const directMatch = e.classId === classId && e.subjectId === subjectId;
+    const assignmentMatch = e.assignments?.some(a => a.classId === classId && a.subjectId === subjectId);
+    return directMatch || assignmentMatch;
+  }), [allExams, classId, subjectId]);
   const exercises = useMemo(() => allExercises.filter((e) => studentIds.has(e.studentId) && e.subjectId === subjectId), [allExercises, studentIds, subjectId]);
   const uniqueExerciseCount = useMemo(() => new Set(exercises.map(e => e.name || e.id)).size, [exercises]);
 
@@ -329,15 +333,6 @@ const SubjectGradeBook: React.FC = () => {
     if (activePlan) fetchPlanProgress(activePlan.id);
   }, [activePlan?.id]);
 
-  useIonViewWillEnter(() => {
-    fetchClassDetails();
-    // Refresh preparation when returning to page (e.g. after generating from Calendar)
-    fetchSubjectPrep();
-    if (fetchRegistry.isStale(`classSubjects-${classId}`, 60_000)) {
-      fetchClassSubjects(classId);
-      fetchRegistry.register(`classSubjects-${classId}`);
-    }
-  });
 
   const handleRemoveConfirm = async () => {
     if (!deleteTarget) return;
@@ -440,7 +435,7 @@ const SubjectGradeBook: React.FC = () => {
   );
 
   const pendingExamsCount = useMemo(() => {
-    return exams.filter(e => e.status === 'assigned').length;
+    return exams.filter(e => e.status === 'scheduled' || e.status === 'pending_correction').length;
   }, [exams]);
 
   const pendingExercisesCount = useMemo(() => {
@@ -452,46 +447,49 @@ const SubjectGradeBook: React.FC = () => {
 
   if (!classGroup) {
     return (
-      <IonPage>
-        <IonContent className="ion-padding">
-          <div className="gb-loading"><IonSpinner color="primary" /></div>
-        </IonContent>
-      </IonPage>
+      <div className="flex flex-col h-full min-h-0">
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="gb-loading"><Spinner /></div>
+        </div>
+      </div>
     );
   }
 
   const hasPending = pendingExamsCount > 0 || pendingExercisesCount > 0;
 
   return (
-    <IonPage>
-      <IonContent
-        className="gb-content gb-content--subject"
-        scrollY
+    <div className="flex flex-col h-full min-h-0">
+      <div
+        className="gb-content gb-content--subject flex-1 overflow-y-auto"
         style={subjectThemeStyle(subjectColor)}
       >
         {/* Header */}
         <div className="gb-hero gb-hero--compact" style={{ background: subjectColor }}>
           <div className="gb-hero__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" color="light" />
-            </IonButtons>
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate('/tabs/classes')} className="text-white/90 p-1">
+                <ChevronRight className="rotate-180" size={20} />
+              </button>
+            </div>
             <div className="gb-hero__center">
               <h1 className="gb-hero__title">{headerTitle}</h1>
               {subjectsReady && (subjectSummary?.aula || (subjectSummary?.schedule && subjectSummary.schedule.length > 0)) && (
                 <div className="gb-hero__info-badges">
                   {subjectSummary?.aula && (
                     <span className="gb-hero__badge">
-                      <IonIcon icon={locationOutline} />
+                      <MapPin size={13} />
                       {subjectSummary.aula}
                     </span>
                   )}
                   {subjectSummary?.schedule && subjectSummary.schedule.length > 0 && (
-                    <>
-                      <span className="gb-hero__badge" id="schedule-badge">
-                        <IonIcon icon={timeOutline} />
-                        {formatScheduleDays(subjectSummary.schedule)}
-                      </span>
-                      <IonPopover trigger="schedule-badge" triggerAction="click" side="bottom" alignment="center" className="gb-schedule-popover">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <span className="gb-hero__badge cursor-pointer">
+                          <Clock size={13} />
+                          {formatScheduleDays(subjectSummary.schedule)}
+                        </span>
+                      </PopoverTrigger>
+                      <PopoverContent className="gb-schedule-popover p-0" align="center" side="bottom">
                         <div className="gb-schedule-detail">
                           {formatScheduleDetail(subjectSummary.schedule).map((s, i) => (
                             <div key={i} className="gb-schedule-detail__row">
@@ -500,34 +498,30 @@ const SubjectGradeBook: React.FC = () => {
                             </div>
                           ))}
                         </div>
-                      </IonPopover>
-                    </>
+                      </PopoverContent>
+                    </Popover>
                   )}
                 </div>
               )}
             </div>
-            <IonButton
-              fill="clear"
-              size="small"
-              onClick={() => history.push(`/tabs/classes/${classId}/settings`)}
-              className="gb-hero__settings-btn"
+            <button
+              onClick={() => navigate(`/tabs/classes/${classId}/settings`)}
+              className="gb-hero__settings-btn text-white/90 p-1"
             >
-              <IonIcon icon={settingsOutline} slot="icon-only" />
-            </IonButton>
+              <Settings size={22} />
+            </button>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="gb-tabs-wrapper">
-          <IonSegment
-            value={tab}
-            onIonChange={(e) => setTab(e.detail.value as 'overview' | 'grades' | 'roster')}
-            className="gb-tabs"
-          >
-            <IonSegmentButton value="overview"><IonLabel>Resumen</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="grades"><IonLabel>Calificaciones</IonLabel></IonSegmentButton>
-            <IonSegmentButton value="roster"><IonLabel>Alumnos</IonLabel></IonSegmentButton>
-          </IonSegment>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as 'overview' | 'grades' | 'roster')} className="gb-tabs">
+            <TabsList className="w-full">
+              <TabsTrigger value="overview" className="flex-1">Resumen</TabsTrigger>
+              <TabsTrigger value="grades" className="flex-1">Calificaciones</TabsTrigger>
+              <TabsTrigger value="roster" className="flex-1">Alumnos</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         <input
@@ -550,7 +544,7 @@ const SubjectGradeBook: React.FC = () => {
 
             {/* ── Course plan progress (rich widget) ── */}
             {activePlan && planProgress && planProgress.totalTopics > 0 && (
-              <div className="tpc" onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)} role="button">
+              <div className="tpc" onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)} role="button">
                 <div className="tpc__row1">
                   <span className="tpc__pct">{Math.round((planProgress.taughtTopics / planProgress.totalTopics) * 100)}%</span>
                   <span className="tpc__title">{planProgress.taughtTopics} de {planProgress.totalTopics} temas</span>
@@ -558,7 +552,7 @@ const SubjectGradeBook: React.FC = () => {
                     e.stopPropagation();
                     setDeletePlanTarget({ id: activePlan.id, name: activePlan.title || 'Planificación' });
                   }}>
-                    <IonIcon icon={trashOutline} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
 
@@ -592,13 +586,13 @@ const SubjectGradeBook: React.FC = () => {
             <div className="gb-week-cal">
               <div className="gb-week-cal__header">
                 <h3 className="gb-week-cal__title">
-                  <IonIcon icon={calendarOutline} /> Semana
+                  <Calendar size={16} className="text-primary" /> Semana
                 </h3>
               </div>
 
               <div className="gb-week-cal__nav">
                 <button className="gb-week-cal__nav-btn" onClick={() => setWeekOffset(w => w - 1)}>
-                  <IonIcon icon={chevronBackOutline} />
+                  <ChevronLeft size={16} />
                 </button>
                 <div className="gb-week-cal__nav-center">
                   <span className="gb-week-cal__range">{formatWeekRange()}</span>
@@ -609,7 +603,7 @@ const SubjectGradeBook: React.FC = () => {
                   )}
                 </div>
                 <button className="gb-week-cal__nav-btn" onClick={() => setWeekOffset(w => w + 1)}>
-                  <IonIcon icon={chevronForwardOutline} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
 
@@ -630,7 +624,7 @@ const SubjectGradeBook: React.FC = () => {
               {/* Day events */}
               <div className="gb-week-cal__events">
                 {calLoading ? (
-                  <div className="gb-week-cal__loading"><IonSpinner name="dots" color="primary" /></div>
+                  <div className="gb-week-cal__loading"><Spinner size={20} /></div>
                 ) : selectedDayEvents.length === 0 && selectedDayExams.length === 0 ? (
                   <div className="gb-week-cal__empty">
                     <span>Sin eventos este día</span>
@@ -680,15 +674,15 @@ const SubjectGradeBook: React.FC = () => {
                               e.stopPropagation();
                               window.open(`${import.meta.env.VITE_API_URL || ''}/files${ev.topicPdfUrl}`, '_blank');
                             }}>
-                              <IonIcon icon={bookOutline} /> Ver material
+                              <BookOpen size={13} /> Ver material
                             </button>
                           )}
                           {parsed.isPlanEvent && (
                             <button className="gb-week-cal__card-action" onClick={(e) => {
                               e.stopPropagation();
-                              history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exercises?generate=1`);
+                              navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exercises?generate=1`);
                             }}>
-                              <IonIcon icon={sparkles} /> Ejercicios
+                              <Sparkles size={13} /> Ejercicios
                             </button>
                           )}
                           {ev.eventType === 'exam' && parsed.isPlanEvent && !ev.examId && (
@@ -698,9 +692,9 @@ const SubjectGradeBook: React.FC = () => {
                               if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
                               params.set('date', ev.date);
                               params.set('name', ev.title);
-                              history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exams/new?${params}`);
+                              navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exams/new?${params}`);
                             }}>
-                              <IonIcon icon={createOutline} /> Crear examen
+                              <Pencil size={13} /> Crear examen
                             </button>
                           )}
                         </div>
@@ -712,21 +706,21 @@ const SubjectGradeBook: React.FC = () => {
                         key={exam.id}
                         className="gb-week-cal__event"
                         onClick={() => {
-                          if (exam.status === 'assigned' || exam.status === 'corrected') {
-                            history.push(`/correction/${exam.id}`);
-                          } else {
-                            history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exams/${exam.id}`);
-                          }
+                          // The exam detail screen now hosts both the prep
+                          // and the correction workflow — one URL for all
+                          // statuses, with the per-class+subject context
+                          // pinned by the path.
+                          navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exams/${exam.id}`);
                         }}
                       >
                         <div className="gb-week-cal__event-time gb-week-cal__event-time--exam">
-                          <IonIcon icon={documentTextOutline} />
+                          <FileText size={16} />
                         </div>
                         <div className="gb-week-cal__event-content">
                           <span className="gb-week-cal__event-title">{exam.name}</span>
                         </div>
                         <span className={`gb-week-cal__exam-status gb-week-cal__exam-status--${exam.status}`}>
-                          {exam.status === 'assigned' ? 'Pendiente' : exam.status === 'corrected' ? 'Corregido' : 'Subido'}
+                          {exam.status === 'scheduled' || exam.status === 'pending_correction' ? 'Sin corregir' : exam.status === 'corrected' ? 'Evaluado' : 'Planificado'}
                         </span>
                       </div>
                     ))}
@@ -739,7 +733,7 @@ const SubjectGradeBook: React.FC = () => {
             <ClassInsightsPanel
               classId={classId}
               subjectId={subjectId}
-              onStudentClick={(id) => history.push(`/tabs/classes/${classId}/students/${id}?subjectId=${subjectId}`)}
+              onStudentClick={(id) => navigate(`/tabs/classes/${classId}/students/${id}?subjectId=${subjectId}`)}
               onGenerateExercises={(areas) => {
                 setPreselectedWeakAreas(areas || []);
                 setShowBulkExerciseModal(true);
@@ -752,25 +746,25 @@ const SubjectGradeBook: React.FC = () => {
                 {pendingExamsCount > 0 && (
                   <button
                     className="gb-alert-row gb-alert-row--warning"
-                    onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exams`)}
+                    onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exams`)}
                   >
                     <span className="gb-alert-row__badge">{pendingExamsCount}</span>
                     <span className="gb-alert-row__text">
                       {pendingExamsCount === 1 ? 'examen pendiente de corregir' : 'exámenes pendientes de corregir'}
                     </span>
-                    <IonIcon icon={chevronForwardOutline} className="gb-alert-row__arrow" />
+                    <ChevronRight size={16} className="gb-alert-row__arrow" />
                   </button>
                 )}
                 {pendingExercisesCount > 0 && (
                   <button
                     className="gb-alert-row gb-alert-row--info"
-                    onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exercises`)}
+                    onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exercises`)}
                   >
                     <span className="gb-alert-row__badge">{pendingExercisesCount}</span>
                     <span className="gb-alert-row__text">
                       {pendingExercisesCount === 1 ? 'ejercicio pendiente' : 'ejercicios pendientes'}
                     </span>
-                    <IonIcon icon={chevronForwardOutline} className="gb-alert-row__arrow" />
+                    <ChevronRight size={16} className="gb-alert-row__arrow" />
                   </button>
                 )}
               </div>
@@ -780,61 +774,61 @@ const SubjectGradeBook: React.FC = () => {
             <div className="gb-nav-card">
               <button
                 className="gb-nav-row"
-                onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exams`)}
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exams`)}
               >
-                <IonIcon icon={documentTextOutline} className="gb-nav-row__icon" />
+                <FileText size={20} className="gb-nav-row__icon" />
                 <span className="gb-nav-row__label">Exámenes</span>
                 {exams.length > 0 && (
                   <span className="gb-nav-row__count">{exams.length}</span>
                 )}
-                <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                <ChevronRight size={16} className="gb-nav-row__arrow" />
               </button>
 
               <button
                 className="gb-nav-row"
-                onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exercises`)}
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exercises`)}
               >
-                <IonIcon icon={sparkles} className="gb-nav-row__icon" />
+                <Sparkles size={20} className="gb-nav-row__icon" />
                 <span className="gb-nav-row__label">Ejercicios</span>
                 {uniqueExerciseCount > 0 && (
                   <span className="gb-nav-row__count">{uniqueExerciseCount}</span>
                 )}
-                <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                <ChevronRight size={16} className="gb-nav-row__arrow" />
               </button>
 
               <button
                 className="gb-nav-row"
-                onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)}
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)}
               >
-                <IonIcon icon={bookOutline} className="gb-nav-row__icon" />
+                <BookOpen size={20} className="gb-nav-row__icon" />
                 <span className="gb-nav-row__label">Temario</span>
-                <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                <ChevronRight size={16} className="gb-nav-row__arrow" />
               </button>
 
 
               <button
                 className="gb-nav-row gb-nav-row--last"
-                onClick={() => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/attendance`)}
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/attendance`)}
               >
-                <IonIcon icon={peopleOutline} className="gb-nav-row__icon" />
+                <Users size={20} className="gb-nav-row__icon" />
                 <span className="gb-nav-row__label">Asistencia</span>
-                <IonIcon icon={chevronForwardOutline} className="gb-nav-row__arrow" />
+                <ChevronRight size={16} className="gb-nav-row__arrow" />
               </button>
             </div>
 
-            {/* ── Notas / Comentarios ── */}
+            {/* ── Comentarios ── */}
             <div className="gb-comments-section">
               <button
                 className="gb-comments-section__header gb-comments-section__header--toggle"
                 onClick={() => setNotesOpen(o => !o)}
               >
-                <IonIcon icon={chatbubbleOutline} className="gb-comments-section__icon" />
-                <span className="gb-comments-section__title">Notas</span>
+                <MessageCircle size={20} className="gb-comments-section__icon" />
+                <span className="gb-comments-section__title">Comentarios</span>
                 {subjectComments.length > 0 && (
                   <span className="gb-nav-row__count">{subjectComments.length}</span>
                 )}
-                <IonIcon
-                  icon={chevronDownOutline}
+                <ChevronDown
+                  size={18}
                   className={`gb-comments-section__chevron ${notesOpen ? 'gb-comments-section__chevron--open' : ''}`}
                 />
               </button>
@@ -848,7 +842,7 @@ const SubjectGradeBook: React.FC = () => {
                       onChange={setNewCommentText}
                       mentionedStudents={commentMentions}
                       onMentionsChange={setCommentMentions}
-                      placeholder="Escribe una nota..."
+                      placeholder="Escribe un comentario..."
                       rows={1}
                       disabled={savingComment}
                       helperText="Usa @ para mencionar alumnos"
@@ -859,15 +853,15 @@ const SubjectGradeBook: React.FC = () => {
                       onClick={handleSaveComment}
                       disabled={savingComment || !newCommentText.trim()}
                     >
-                      {savingComment ? <IonSpinner name="dots" /> : <IonIcon icon={sendOutline} />}
+                      {savingComment ? <Spinner size={18} className="text-white" /> : <Send size={18} />}
                     </button>
                   </div>
 
                   {/* Comments list */}
                   {commentsLoading ? (
-                    <div className="gb-comments-section__loading"><IonSpinner name="dots" color="primary" /></div>
+                    <div className="gb-comments-section__loading"><Spinner size={20} /></div>
                   ) : subjectComments.length === 0 ? (
-                    <div className="gb-comments-section__empty">Sin notas aún</div>
+                    <div className="gb-comments-section__empty">Sin comentarios aún</div>
                   ) : (
                     <div className="gb-comments-section__list">
                       {subjectComments.map((c) => (
@@ -904,7 +898,7 @@ const SubjectGradeBook: React.FC = () => {
         {tab === 'grades' && (
           <div className="gb-grades">
             {studentsLoading ? (
-              <div className="gb-loading"><IonSpinner color="primary" /></div>
+              <div className="gb-loading"><Spinner /></div>
             ) : students.length === 0 || (exams.length === 0 && exercises.length === 0) ? (
               <EmptyState
                 icon="📊"
@@ -916,9 +910,9 @@ const SubjectGradeBook: React.FC = () => {
             ) : (
               <>
                 <div className="gb-grades-toolbar">
-                  <IonButton size="small" fill="outline" onClick={handleExportGrades}>
-                    <IonIcon icon={downloadOutline} slot="start" /> Exportar
-                  </IonButton>
+                  <Button size="sm" variant="outline" onClick={handleExportGrades}>
+                    <Download size={16} className="mr-1" /> Exportar
+                  </Button>
                 </div>
                 <GradeTable
                   students={students}
@@ -926,9 +920,9 @@ const SubjectGradeBook: React.FC = () => {
                   exercises={exercises}
                   exerciseCorrections={exerciseCorrections}
                   examWeightPct={subjectSummary?.examWeightPct ?? 70}
-                  onStudentClick={(id) => history.push(`/tabs/classes/${classId}/students/${id}?subjectId=${subjectId}`)}
-                  onExamClick={(id) => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exams/${id}`)}
-                  onExerciseClick={(id) => history.push(`/tabs/classes/${classId}/subjects/${subjectId}/exercises/${id}`)}
+                  onStudentClick={(id) => navigate(`/tabs/classes/${classId}/students/${id}?subjectId=${subjectId}`)}
+                  onExamClick={(id) => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exams/${id}`)}
+                  onExerciseClick={(id) => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/exercises/${id}`)}
                   onExamWeightChange={handleExamWeightChange}
                   onExerciseWeightChange={handleExerciseWeightChange}
                   onCategoryWeightChange={handleCategoryWeightChange}
@@ -942,45 +936,47 @@ const SubjectGradeBook: React.FC = () => {
         {tab === 'roster' && (
           <div className="gb-roster">
             <div className="gb-roster-toolbar">
-              <IonButton size="small" onClick={() => setShowAddModal(true)}>
-                <IonIcon icon={addOutline} slot="start" /> Añadir alumno
-              </IonButton>
-              <IonButton size="small" fill="outline" onClick={handleImportClick}>
-                <IonIcon icon={cloudUploadOutline} slot="start" /> Importar CSV
-              </IonButton>
+              <Button size="sm" onClick={() => setShowAddModal(true)}>
+                <Plus size={16} className="mr-1" /> Añadir alumno
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleImportClick}>
+                <Upload size={16} className="mr-1" /> Importar CSV
+              </Button>
             </div>
-            <IonSearchbar
+            <Searchbar
               value={rosterSearch}
-              onIonInput={(e) => setRosterSearch(e.detail.value ?? '')}
+              onChange={setRosterSearch}
               placeholder="Buscar alumnos..."
               className="gb-roster-search"
             />
             {studentsLoading ? (
-              <div className="gb-loading"><IonSpinner color="primary" /></div>
+              <div className="gb-loading"><Spinner /></div>
             ) : filteredRoster.length === 0 ? (
               <EmptyState icon="👤" title="No hay alumnos" actionLabel="Añadir alumno" onAction={() => setShowAddModal(true)} />
             ) : (
-              <IonList className="gb-roster-list">
+              <div className="flex flex-col">
                 {filteredRoster.map((s) => (
-                  <IonItemSliding key={s.id}>
-                    <IonItem button onClick={() => history.push(`/tabs/classes/${classId}/students/${s.id}?subjectId=${subjectId}`)} className="gb-student-item">
-                      <div className="gb-student-avatar" slot="start" style={{ background: avatarColor(s.name) }}>
-                        {s.name.charAt(0)}
-                      </div>
-                      <IonLabel>
-                        <h3 className="gb-student-name">{s.name}</h3>
-                        {s.studentId && <p className="gb-student-code">{s.studentId}</p>}
-                      </IonLabel>
-                      <IonIcon icon={chevronForwardOutline} slot="end" className="gb-student-arrow" />
-                    </IonItem>
-                    <IonItemOptions side="end">
-                      <IonItemOption color="danger" onClick={() => setDeleteTarget({ id: s.id, name: s.name })}>
-                        Quitar
-                      </IonItemOption>
-                    </IonItemOptions>
-                  </IonItemSliding>
+                  <div key={s.id} className="gb-student-item flex items-center gap-3 p-3 cursor-pointer" onClick={() => navigate(`/tabs/classes/${classId}/students/${s.id}?subjectId=${subjectId}`)}>
+                    <div className="gb-student-avatar" style={{ background: avatarColor(s.name) }}>
+                      {s.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="gb-student-name">{s.name}</h3>
+                      {s.studentId && <p className="gb-student-code">{s.studentId}</p>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: s.id, name: s.name }); }}
+                        title="Quitar"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <ChevronRight size={16} className="gb-student-arrow" />
+                    </div>
+                  </div>
                 ))}
-              </IonList>
+              </div>
             )}
           </div>
         )}
@@ -994,42 +990,43 @@ const SubjectGradeBook: React.FC = () => {
           onStudentsAdded={() => fetchStudents(classId)}
         />
 
-        <IonAlert
-          isOpen={!!deleteTarget}
+        <AlertConfirm
+          open={!!deleteTarget}
           header="Quitar alumno"
           message={`¿Quitar a "${deleteTarget?.name}" de esta clase?`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel', handler: () => setDeleteTarget(null) },
-            { text: 'Quitar', role: 'destructive', handler: handleRemoveConfirm }
-          ]}
-          onDidDismiss={() => setDeleteTarget(null)}
+          confirmText="Quitar"
+          cancelText="Cancelar"
+          onConfirm={handleRemoveConfirm}
+          onClose={() => setDeleteTarget(null)}
+          variant="destructive"
         />
-        <IonAlert
-          isOpen={!!importAlert}
+        <AlertConfirm
+          open={!!importAlert}
           header={importAlert?.header || ''}
           message={importAlert?.message || ''}
-          buttons={['OK']}
-          onDidDismiss={() => setImportAlert(null)}
+          confirmText="OK"
+          onConfirm={() => setImportAlert(null)}
+          onClose={() => setImportAlert(null)}
         />
-        <IonAlert
-          isOpen={!!deletePlanTarget}
+        <AlertConfirm
+          open={!!deletePlanTarget}
           header="Eliminar planificación"
           message={`¿Eliminar "${deletePlanTarget?.name}"? Se borrarán los temas y el contenido generado.`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel', handler: () => setDeletePlanTarget(null) },
-            { text: 'Eliminar', role: 'destructive', handler: async () => {
-              if (deletePlanTarget) {
-                await deletePlan(deletePlanTarget.id);
-                await Promise.all([
-                  fetchCoursePlans(subjectId, classId),
-                  fetchClassSubjects(classId),
-                  loadSubjectWeek(),
-                ]);
-              }
-              setDeletePlanTarget(null);
-            }},
-          ]}
-          onDidDismiss={() => setDeletePlanTarget(null)}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={async () => {
+            if (deletePlanTarget) {
+              await deletePlan(deletePlanTarget.id);
+              await Promise.all([
+                fetchCoursePlans(subjectId, classId),
+                fetchClassSubjects(classId),
+                loadSubjectWeek(),
+              ]);
+            }
+            setDeletePlanTarget(null);
+          }}
+          onClose={() => setDeletePlanTarget(null)}
+          variant="destructive"
         />
 
         <ExerciseGeneratorModal
@@ -1045,8 +1042,8 @@ const SubjectGradeBook: React.FC = () => {
           existingEvent={editingEvent}
           defaultDate={selectedDate}
         />
-      </IonContent>
-    </IonPage>
+      </div>
+    </div>
   );
 };
 

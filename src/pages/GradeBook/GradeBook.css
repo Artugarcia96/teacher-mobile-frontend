@@ -42,7 +42,7 @@
   gap: var(--space-sm);
 }
 
-.gb-hero__nav ion-buttons {
+.gb-hero__nav buttons {
   margin: 0;
   flex-shrink: 0;
 }
@@ -60,7 +60,7 @@
   flex-shrink: 0;
 }
 
-.gb-hero__settings-btn ion-icon {
+.gb-hero__settings-btn svg {
   font-size: 22px;
 }
 
@@ -110,7 +110,7 @@
   letter-spacing: 0.01em;
 }
 
-.gb-hero__badge ion-icon {
+.gb-hero__badge svg {
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -162,7 +162,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .gb-tabs-wrapper {
-  background: var(--ion-toolbar-background);
+  background: var(--color-card);
   padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
@@ -173,7 +173,7 @@
   --background: transparent;
 }
 
-.gb-tabs ion-segment-button {
+.gb-tabs button {
   --padding-start: 8px;
   --padding-end: 8px;
   --padding-top: 8px;
@@ -183,7 +183,7 @@
   letter-spacing: -0.01em;
 }
 
-.gb-tabs ion-segment-button ion-label {
+.gb-tabs button span {
   font-size: 13px;
   font-weight: 600;
   margin: 0;
@@ -224,7 +224,7 @@
 .gb-perf-card__title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   margin-bottom: var(--space-md);
 }
 
@@ -248,11 +248,11 @@
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: #ffffff;
 }
 
-.gb-action-btn ion-icon {
+.gb-action-btn svg {
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -262,13 +262,13 @@
 }
 
 .gb-action-btn--alt {
-  background: rgba(var(--ion-color-primary-rgb), 0.08);
-  color: var(--ion-color-primary);
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.15);
+  background: rgba(21, 102, 94, 0.08);
+  color: var(--color-primary);
+  border: 1px solid rgba(21, 102, 94, 0.15);
 }
 
 .gb-action-btn--alt:active {
-  background: rgba(var(--ion-color-primary-rgb), 0.14);
+  background: rgba(21, 102, 94, 0.14);
 }
 
 /* ─── Pending Alerts ─── */
@@ -293,7 +293,7 @@
 }
 
 .gb-alert-row--warning {
-  background: rgba(var(--ion-color-warning-rgb), 0.1);
+  background: rgba(217, 119, 6, 0.1);
 }
 
 .gb-alert-row--info {
@@ -319,7 +319,7 @@
 }
 
 .gb-alert-row--warning .gb-alert-row__badge {
-  background: var(--ion-color-warning);
+  background: var(--color-warning);
 }
 
 .gb-alert-row--info .gb-alert-row__badge {
@@ -330,7 +330,7 @@
   flex: 1;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .gb-alert-row__arrow {
@@ -368,12 +368,12 @@
 }
 
 .gb-nav-row:active {
-  background: rgba(var(--ion-color-primary-rgb), 0.04);
+  background: rgba(21, 102, 94, 0.04);
 }
 
 .gb-nav-row__icon {
   font-size: 20px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
@@ -381,14 +381,14 @@
   flex: 1;
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .gb-nav-row__count {
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-secondary);
-  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  background: rgba(21, 102, 94, 0.08);
   padding: 2px 10px;
   border-radius: var(--radius-full);
 }
@@ -406,28 +406,28 @@
   padding: 14px 16px;
   margin: 10px 0;
   border-radius: var(--radius-lg, 12px);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: var(--ion-card-background, #fff);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: box-shadow 0.15s;
 }
-.gb-overview .tpc:active { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06); }
+.gb-overview .tpc:active { box-shadow: var(--shadow-xs); }
 .gb-overview .tpc__row1 {
   display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
 }
 .gb-overview .tpc__pct {
-  font-size: 20px; font-weight: 800; color: var(--ion-color-primary); line-height: 1;
+  font-size: 20px; font-weight: 800; color: var(--color-primary); line-height: 1;
 }
 .gb-overview .tpc__title {
   flex: 1; font-size: 13px; font-weight: 500; color: var(--color-text-secondary, #64748b);
 }
 .gb-overview .tpc__bar {
-  height: 6px; border-radius: 3px; background: rgba(var(--ion-color-primary-rgb), 0.1); overflow: hidden;
+  height: 6px; border-radius: 3px; background: rgba(21, 102, 94, 0.1); overflow: hidden;
 }
 .gb-overview .tpc__bar-fill {
-  height: 100%; border-radius: 3px; background: var(--ion-color-primary); transition: width 0.4s ease;
+  height: 100%; border-radius: 3px; background: var(--color-primary); transition: width 0.4s ease;
 }
 .gb-overview .tpc__tri-row {
   display: flex; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 0 2px;
@@ -452,7 +452,7 @@
   padding: 8px 16px 4px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 .gb-nav-row__meta {
@@ -463,7 +463,7 @@
 }
 
 .gb-nav-row__pending {
-  background: var(--ion-color-danger);
+  background: var(--color-danger);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -512,7 +512,7 @@
 
 .gb-comments-section__icon {
   font-size: 20px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
@@ -520,15 +520,22 @@
   flex: 1;
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .gb-comments-section__input-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
+}
+
+/* MentionTextarea now carries its own border — the row is just a flex
+   container. Let the textarea fill available width. */
+.gb-comments-section__input-row .mention-textarea {
+  flex: 1;
+  min-width: 0;
 }
 
 .gb-comments-section__input {
@@ -538,14 +545,14 @@
   padding: var(--space-sm) var(--space-md);
   font-size: var(--font-size-sm);
   font-family: inherit;
-  background: var(--ion-background-color);
-  color: var(--ion-text-color);
+  background: var(--color-background);
+  color: var(--color-foreground);
   outline: none;
   transition: border-color var(--transition-fast);
 }
 
 .gb-comments-section__input:focus {
-  border-color: var(--ion-color-primary);
+  border-color: var(--color-primary);
 }
 
 .gb-comments-section__input::placeholder {
@@ -560,7 +567,7 @@
   height: 36px;
   border: none;
   border-radius: var(--radius-full);
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: white;
   font-size: 18px;
   cursor: pointer;
@@ -573,7 +580,7 @@
   cursor: default;
 }
 
-.gb-comments-section__send-btn ion-spinner {
+.gb-comments-section__send-btn svg {
   width: 18px;
   height: 18px;
   color: white;
@@ -608,7 +615,7 @@
 
 .gb-comment-item__text {
   font-size: var(--font-size-sm);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -651,7 +658,7 @@
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .gb-overview-nav-btn:active { transform: scale(0.98); }
-.gb-overview-nav-btn ion-icon { font-size: 17px; color: var(--ion-color-primary); }
+.gb-overview-nav-btn svg { font-size: 17px; color: var(--color-primary); }
 
 /* ─── Delete class link ─── */
 .gb-delete-link {
@@ -677,10 +684,10 @@
 }
 
 .gb-delete-link__btn:active {
-  color: var(--ion-color-danger);
+  color: var(--color-danger);
 }
 
-.gb-delete-link__btn ion-icon {
+.gb-delete-link__btn svg {
   font-size: 15px;
 }
 
@@ -711,9 +718,9 @@
   gap: var(--space-xs);
 }
 
-.gb-week-cal__title ion-icon {
+.gb-week-cal__title svg {
   font-size: 16px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .gb-week-cal__nav {
@@ -751,14 +758,14 @@
 .gb-week-cal__range {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   text-transform: capitalize;
 }
 
 .gb-week-cal__today-btn {
   background: none;
   border: none;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   font-family: inherit;
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -779,7 +786,7 @@
   flex-direction: column;
   align-items: center;
   padding: var(--space-xs) 2px;
-  background: var(--ion-background-color);
+  background: var(--color-background);
   border-radius: var(--radius-sm);
   position: relative;
   border: 1px solid transparent;
@@ -788,17 +795,17 @@
 }
 
 .gb-week-cal__day--selected {
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  border-color: var(--ion-color-primary);
+  background: rgba(21, 102, 94, 0.1);
+  border-color: var(--color-primary);
 }
 
 .gb-week-cal__day--today {
-  background: var(--ion-color-primary);
-  border-color: var(--ion-color-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .gb-week-cal__day--today.gb-week-cal__day--selected {
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
 }
 
 .gb-week-cal__day-name {
@@ -809,7 +816,7 @@
 
 .gb-week-cal__day--selected .gb-week-cal__day-name,
 .gb-week-cal__day--selected .gb-week-cal__day-num {
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .gb-week-cal__day--today .gb-week-cal__day-name,
@@ -820,7 +827,7 @@
 .gb-week-cal__day-num {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   margin-top: 1px;
 }
 
@@ -831,7 +838,7 @@
   transform: translateX(-50%);
   width: 4px;
   height: 4px;
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   border-radius: var(--radius-full);
 }
 
@@ -864,8 +871,8 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: 8px 10px;
-  background: var(--ion-card-background, #fff);
-  border: 1px solid rgba(15,23,42,0.06);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
   border-radius: 10px;
   cursor: pointer;
   overflow: hidden;
@@ -885,7 +892,7 @@
 }
 
 .gb-week-cal__event-time--class_session {
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .gb-week-cal__event-time--custom {
@@ -897,10 +904,10 @@
 }
 
 .gb-week-cal__event-time--exam {
-  color: var(--ion-color-warning);
+  color: var(--color-warning);
 }
 
-.gb-week-cal__event-time ion-icon {
+.gb-week-cal__event-time svg {
   font-size: 16px;
 }
 
@@ -912,7 +919,7 @@
 .gb-week-cal__event-title {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   line-height: 1.3;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
@@ -929,8 +936,8 @@
 .gb-week-cal__card {
   display: flex; flex-direction: column;
   padding: 8px 12px; border-radius: 10px;
-  background: var(--ion-card-background, #fff);
-  border: 1px solid rgba(15,23,42,0.06);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
   cursor: pointer; overflow: hidden;
 }
 .gb-week-cal__card:active { opacity: 0.85; }
@@ -939,12 +946,12 @@
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
 }
 .gb-week-cal__card-title {
-  font-size: 12px; font-weight: 600; color: var(--ion-text-color);
+  font-size: 12px; font-weight: 600; color: var(--color-foreground);
   line-height: 1.3; flex: 1; min-width: 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .gb-week-cal__card-time {
-  font-size: 10px; font-weight: 600; color: var(--ion-color-primary);
+  font-size: 10px; font-weight: 600; color: var(--color-primary);
   white-space: nowrap; flex-shrink: 0;
 }
 .gb-week-cal__card-focus {
@@ -957,8 +964,8 @@
 }
 .gb-week-cal__card-tag {
   font-size: 9px; padding: 1px 6px; border-radius: 100px;
-  background: rgba(var(--ion-color-primary-rgb), 0.06);
-  color: var(--ion-color-primary); font-weight: 500;
+  background: rgba(21, 102, 94, 0.06);
+  color: var(--color-primary); font-weight: 500;
   white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -969,13 +976,13 @@
 .gb-week-cal__card-action {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 3px 8px; font-size: 11px; font-weight: 600;
-  color: var(--ion-color-primary); background: none;
-  border: 1.5px solid rgba(var(--ion-color-primary-rgb), 0.25);
+  color: var(--color-primary); background: none;
+  border: 1.5px solid rgba(21, 102, 94, 0.25);
   border-radius: 6px; cursor: pointer; font-family: inherit;
   transition: background 0.1s;
 }
-.gb-week-cal__card-action:active { background: rgba(var(--ion-color-primary-rgb), 0.06); }
-.gb-week-cal__card-action ion-icon { font-size: 13px; }
+.gb-week-cal__card-action:active { background: rgba(21, 102, 94, 0.06); }
+.gb-week-cal__card-action svg { font-size: 13px; }
 
 /* Unplanned session — faded preview */
 .gb-week-cal__card--unplanned {
@@ -1008,8 +1015,8 @@
 
 .gb-week-cal__event-kp-tag {
   font-size: 8px; padding: 1px 5px; border-radius: 100px;
-  background: rgba(var(--ion-color-primary-rgb), 0.07);
-  color: var(--ion-color-primary); font-weight: 500;
+  background: rgba(21, 102, 94, 0.07);
+  color: var(--color-primary); font-weight: 500;
   white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -1051,7 +1058,7 @@
   margin-bottom: var(--space-lg);
 }
 
-.gb-grades-toolbar ion-button {
+.gb-grades-toolbar button {
   --border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
 }
@@ -1071,7 +1078,7 @@
   margin-bottom: var(--space-sm);
 }
 
-.gb-roster-toolbar ion-button {
+.gb-roster-toolbar button {
   --border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
 }
@@ -1122,7 +1129,7 @@
 .gb-student-name {
   font-weight: 600;
   font-size: var(--font-size-base);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   margin: 0;
 }
 
@@ -1161,7 +1168,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  background: var(--ion-color-light);
+  background: var(--color-muted);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
 }
@@ -1170,7 +1177,7 @@
   width: 24px;
   height: 24px;
   border-radius: var(--radius-full);
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: white;
   display: flex;
   align-items: center;
@@ -1190,7 +1197,7 @@
 .student-input-remove {
   background: none;
   border: none;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-size: 1.3rem;
   padding: var(--space-xs);
   cursor: pointer;
@@ -1202,7 +1209,7 @@
 
 .student-input-remove:hover,
 .student-input-remove:active {
-  color: var(--ion-color-danger);
+  color: var(--color-danger);
 }
 
 .add-row-btn {
@@ -1216,10 +1223,10 @@
   gap: var(--space-xs);
   margin-top: var(--space-md);
   font-size: var(--font-size-sm);
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
-.add-students-progress ion-progress-bar {
+.add-students-progress div {
   width: 100%;
   height: 4px;
   border-radius: var(--radius-sm);
@@ -1244,7 +1251,7 @@
   }
 
   .gb-tabs-wrapper {
-    background: var(--ion-toolbar-background);
+    background: var(--color-card);
     border-bottom-color: rgba(255, 255, 255, 0.08);
   }
 
@@ -1265,7 +1272,7 @@
   }
 
   .gb-alert-row--warning {
-    background: rgba(var(--ion-color-warning-rgb), 0.12);
+    background: rgba(217, 119, 6, 0.12);
   }
 
   .gb-alert-row--info {
@@ -1273,12 +1280,12 @@
   }
 
   .gb-perf-card {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .gb-nav-card {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
@@ -1296,24 +1303,24 @@
   }
 
   .gb-overview-nav-btn {
-    background: #16161A;
+    background: var(--color-surface);
     box-shadow: none;
     border: 1px solid rgba(255, 255, 255, 0.06);
     color: #e2e8f0;
   }
 
   .gb-roster-search {
-    --background: #16161A;
+    --background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .gb-student-item {
-    --background: #16161A !important;
+    --background: var(--color-surface) !important;
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .gb-student-item::part(native) {
-    background: #16161A !important;
+    background: var(--color-surface) !important;
   }
 
   .gb-student-arrow {
@@ -1321,7 +1328,7 @@
   }
 
   .modal-sheet {
-    background: #16161A;
+    background: var(--color-surface);
   }
 
   .student-input-row {
@@ -1329,12 +1336,12 @@
   }
 
   .gb-week-cal {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
   .gb-week-cal__nav-btn {
-    background: var(--ion-card-background);
+    background: var(--color-card);
     border-color: rgba(255, 255, 255, 0.06);
   }
 
@@ -1347,13 +1354,13 @@
   }
 
   .gb-week-cal__day--selected {
-    background: rgba(var(--ion-color-primary-rgb), 0.2);
-    border-color: var(--ion-color-primary);
+    background: rgba(21, 102, 94, 0.2);
+    border-color: var(--color-primary);
   }
 
   .gb-week-cal__day--today {
-    background: var(--ion-color-primary);
-    border-color: var(--ion-color-primary);
+    background: var(--color-primary);
+    border-color: var(--color-primary);
   }
 
   .gb-week-cal__event {
@@ -1375,7 +1382,7 @@
     font-size: 12px;
   }
 
-  .gb-action-btn ion-icon {
+  .gb-action-btn svg {
     font-size: 16px;
   }
 
@@ -1437,11 +1444,11 @@
   }
 
   .gb-nav-row:hover {
-    background: rgba(var(--ion-color-primary-rgb), 0.04);
+    background: rgba(21, 102, 94, 0.04);
   }
 
   .gb-student-item:hover {
-    border-color: var(--ion-color-primary);
+    border-color: var(--color-primary);
   }
 
   .gb-overview-nav-btn:hover {
@@ -1459,7 +1466,7 @@
   border-bottom-color: color-mix(in srgb, var(--subject-color) 12%, transparent);
 }
 
-.gb-content--subject .gb-tabs ion-segment-button {
+.gb-content--subject .gb-tabs button {
   --indicator-color: var(--subject-color);
   --color-checked: #ffffff;
 }
@@ -1491,7 +1498,7 @@
   color: var(--subject-color);
 }
 
-.gb-content--subject .gb-overview-nav-btn ion-icon {
+.gb-content--subject .gb-overview-nav-btn svg {
   color: var(--subject-color);
 }
 
@@ -1534,7 +1541,7 @@
   background: var(--subject-color);
 }
 
-.gb-content--subject .gb-week-cal__title ion-icon {
+.gb-content--subject .gb-week-cal__title svg {
   color: var(--subject-color);
 }
 
@@ -1548,15 +1555,15 @@
 
 /* Override Ionic primary color within subject context */
 .gb-content--subject {
-  --ion-color-primary: var(--subject-color);
+  --color-primary: var(--subject-color);
 }
 
-.gb-content--subject .gb-grades-toolbar ion-button {
-  --ion-color-primary: var(--subject-color);
+.gb-content--subject .gb-grades-toolbar button {
+  --color-primary: var(--subject-color);
 }
 
-.gb-content--subject .gb-roster-toolbar ion-button {
-  --ion-color-primary: var(--subject-color);
+.gb-content--subject .gb-roster-toolbar button {
+  --color-primary: var(--subject-color);
 }
 
 /* Desktop hover states */
@@ -1571,7 +1578,7 @@
 }
 
 .gb-student-item:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -1596,8 +1603,8 @@
   transition: background 0.15s;
 }
 .gb-cal-banner:active { background: rgba(245, 158, 11, 0.14); }
-.gb-cal-banner ion-icon:first-child { font-size: 18px; flex-shrink: 0; }
-.gb-cal-banner ion-icon:last-child { font-size: 14px; flex-shrink: 0; margin-left: auto; }
+.gb-cal-banner svg:first-child { font-size: 18px; flex-shrink: 0; }
+.gb-cal-banner svg:last-child { font-size: 14px; flex-shrink: 0; margin-left: auto; }
 .gb-cal-banner span { flex: 1; }
 
 @media (prefers-color-scheme: dark) {
@@ -1615,10 +1622,10 @@
   gap: 6px;
   margin: 0 16px 12px;
   padding: 12px 16px;
-  background: var(--color-surface, #fff);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   text-align: left;
   width: calc(100% - 32px);
@@ -1627,15 +1634,15 @@
 }
 .gb-progress-card:active { transform: scale(0.98); }
 .gb-progress-card__header { display: flex; align-items: center; gap: 8px; }
-.gb-progress-card__header ion-icon { font-size: 18px; color: var(--ion-color-primary); }
-.gb-progress-card__title { font-size: 13px; font-weight: 600; color: var(--ion-text-color); flex: 1; }
+.gb-progress-card__header svg { font-size: 18px; color: var(--color-primary); }
+.gb-progress-card__title { font-size: 13px; font-weight: 600; color: var(--color-foreground); flex: 1; }
 .gb-progress-card__pace { font-size: 12px; font-weight: 700; }
 .gb-progress-card__pace--ahead { color: #059669; }
 .gb-progress-card__pace--behind { color: #DC2626; }
-.gb-progress-card ion-progress-bar { --border-radius: 4px; height: 6px; }
+.gb-progress-card div { --border-radius: 4px; height: 6px; }
 .gb-progress-card__footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-secondary); }
-.gb-progress-card__current { font-weight: 500; color: var(--ion-color-primary); }
+.gb-progress-card__current { font-weight: 500; color: var(--color-primary); }
 
 @media (prefers-color-scheme: dark) {
-  .gb-progress-card { background: #16161A; border-color: rgba(255,255,255,0.08); }
+  .gb-progress-card { background: var(--color-surface); border-color: rgba(255,255,255,0.08); }
 }

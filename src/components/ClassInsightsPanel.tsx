@@ -1,13 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  IonButton, IonIcon, IonSpinner, IonBadge,
-  useIonViewWillEnter
-} from '@ionic/react';
-import {
-  refreshOutline, trendingUpOutline, trendingDownOutline,
-  removeOutline, alertCircleOutline, sparkles, bulbOutline,
-  schoolOutline, checkmarkCircleOutline, chevronDownOutline, chevronUpOutline,
-} from 'ionicons/icons';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Minus, RefreshCw, School, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import Spinner from '@/components/shared/Spinner';
 import { classes as classesApi } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import './ClassInsightsPanel.css';
@@ -75,7 +68,6 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
   }, [classId, subjectId]);
 
   useEffect(() => { loadInsights(); }, [loadInsights]);
-  useIonViewWillEnter(() => { loadInsights(false); });
 
   const handleRefresh = async () => {
     if (subjectId) {
@@ -93,7 +85,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
   if (loading) {
     return (
       <div className="cip cip--loading">
-        <IonSpinner name="crescent" />
+        <Spinner size={18} />
         <span>Analizando...</span>
       </div>
     );
@@ -102,33 +94,23 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
   const hasData = insights && (insights.average_grade !== null || insights.weak_areas.length > 0);
   if (!hasData) {
     return (
-      <div className="cip cip--empty">
-        <div className="cip__empty-bar">
-          <div className="cip__empty-bar-fill" style={{ width: '35%' }} />
-        </div>
-        <div className="cip__empty-bar">
-          <div className="cip__empty-bar-fill" style={{ width: '60%' }} />
-        </div>
-        <div className="cip__empty-bar">
-          <div className="cip__empty-bar-fill" style={{ width: '20%' }} />
-        </div>
-        <p className="cip__empty-title">Sin datos de análisis</p>
-        <p className="cip__empty-desc">Califica exámenes o ejercicios para ver estadísticas y tendencias de la clase</p>
+      <div className="cip cip--empty-inline">
+        <School size={18} className="cip__empty-icon" />
+        <span className="cip__empty-text">Sin datos de análisis</span>
         <button
-          className="cip__empty-btn"
+          className="cip__empty-refresh"
           onClick={handleRefresh}
           disabled={refreshing}
         >
-          <IonIcon icon={refreshOutline} className={refreshing ? 'spinning' : ''} />
-          {refreshing ? 'Actualizando...' : 'Actualizar'}
+          <RefreshCw size={14} className={refreshing ? 'spinning' : ''} />
         </button>
       </div>
     );
   }
 
   const validWeakAreas = insights.weak_areas.filter(a => isValidWeakArea(a.topic));
-  const trendIcon = insights.trend === 'improving' ? trendingUpOutline :
-    insights.trend === 'declining' ? trendingDownOutline : removeOutline;
+  const TrendIcon = insights.trend === 'improving' ? TrendingUp :
+    insights.trend === 'declining' ? TrendingDown : Minus;
   const trendColor = insights.trend === 'improving' ? 'success' :
     insights.trend === 'declining' ? 'warning' : 'medium';
   const trendText = insights.trend === 'improving' ? 'Mejorando' :
@@ -140,7 +122,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
       <div className="cip__header" onClick={() => setExpanded(!expanded)}>
         <div className="cip__stats-inline">
           <div className="cip__stat">
-            <IonIcon icon={schoolOutline} className="cip__stat-icon" />
+            <School size={18} className="cip__stat-icon" />
             <span className="cip__stat-value">
               {insights.average_grade !== null ? insights.average_grade.toFixed(1) : '—'}
             </span>
@@ -148,7 +130,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
           </div>
           <span className="cip__stat-sep">·</span>
           <div className="cip__stat">
-            <IonIcon icon={checkmarkCircleOutline} className="cip__stat-icon" />
+            <CheckCircle size={18} className="cip__stat-icon" />
             <span className="cip__stat-value">
               {insights.pass_rate !== null ? `${Math.round(insights.pass_rate)}%` : '—'}
             </span>
@@ -156,11 +138,11 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
           </div>
           <span className="cip__stat-sep">·</span>
           <div className={`cip__stat cip__stat--${trendColor}`}>
-            <IonIcon icon={trendIcon} className="cip__stat-icon" />
+            <TrendIcon size={18} className="cip__stat-icon" />
             <span className="cip__stat-value">{trendText}</span>
           </div>
         </div>
-        <IonIcon icon={expanded ? chevronUpOutline : chevronDownOutline} className="cip__expand-icon" />
+        {/* icon: expanded ? chevronUpOutline : chevronDownOutline */}
       </div>
 
       {/* Weak areas — always visible as compact tags */}
@@ -185,7 +167,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
         <div className="cip__ai-summary cip__ai-summary--prominent">
           <div className="cip__ai-header">
             <span className="cip__section-label cip__section-label--ai">
-              <IonIcon icon={sparkles} />
+              <Sparkles size={18} />
               Análisis IA
             </span>
             {insights.updated_at && (
@@ -204,7 +186,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
             onClick={handleRefresh}
             disabled={refreshing}
           >
-            <IonIcon icon={refreshOutline} className={refreshing ? 'spinning' : ''} />
+            <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
             {refreshing ? 'Generando análisis...' : 'Regenerar análisis'}
           </button>
         </div>
@@ -218,7 +200,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
             onClick={handleRefresh}
             disabled={refreshing}
           >
-            <IonIcon icon={sparkles} className={refreshing ? 'spinning' : ''} />
+            <Sparkles size={18} className={refreshing ? 'spinning' : ''} />
             {refreshing ? 'Generando análisis...' : 'Generar análisis IA'}
           </button>
         </div>
@@ -233,7 +215,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
               className="cip__generate-btn"
               onClick={() => onGenerateExercises(validWeakAreas.map(a => a.topic))}
             >
-              <IonIcon icon={sparkles} />
+              <Sparkles size={18} />
               Generar ejercicios de refuerzo
             </button>
           )}
@@ -241,7 +223,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
           {/* Class-level suggestion when declining */}
           {insights.trend === 'declining' && (
             <div className="cip__trend-tip">
-              <IonIcon icon={bulbOutline} />
+              <Lightbulb size={18} />
               <span>Consejo: Revisa los temas recientes y considera ejercicios de refuerzo o dedicar tiempo a resolver dudas en clase.</span>
             </div>
           )}
@@ -250,7 +232,7 @@ const ClassInsightsPanel: React.FC<ClassInsightsPanelProps> = ({
           {insights.student_alerts.length > 0 && (
             <div className="cip__alerts">
               <span className="cip__section-label">
-                <IonIcon icon={alertCircleOutline} />
+                <AlertCircle size={18} />
                 Alumnos que necesitan apoyo
               </span>
               {insights.student_alerts.slice(0, 3).map((alert, i) => (

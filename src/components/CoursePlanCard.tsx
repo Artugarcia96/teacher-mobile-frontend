@@ -1,8 +1,6 @@
-import { IonIcon, IonSpinner, IonChip, IonLabel } from '@ionic/react';
-import {
-  calendarOutline, checkmarkCircleOutline, alertCircleOutline,
-  timeOutline, sparkles, trashOutline,
-} from 'ionicons/icons';
+import { Calendar, CheckCircle, AlertCircle, Clock, Sparkles, Trash2 } from 'lucide-react';
+import Spinner from '@/components/shared/Spinner';
+import { Badge } from '@/components/ui/badge';
 import type { CoursePlanListItem } from '../types';
 import './CoursePlanCard.css';
 
@@ -14,41 +12,42 @@ interface Props {
   onDelete?: () => void;
 }
 
-const statusConfig: Record<string, { icon: string; label: string; color: string }> = {
-  pending: { icon: timeOutline, label: 'Pendiente', color: 'medium' },
-  analyzing: { icon: sparkles, label: 'Analizando...', color: 'warning' },
-  generating: { icon: sparkles, label: 'Generando...', color: 'warning' },
-  completed: { icon: checkmarkCircleOutline, label: 'Completada', color: 'success' },
-  failed: { icon: alertCircleOutline, label: 'Error', color: 'danger' },
+const statusConfig: Record<string, { icon: React.FC<{ size?: number }>; label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; colorClass: string }> = {
+  pending: { icon: Clock, label: 'Pendiente', variant: 'secondary', colorClass: 'text-muted-foreground' },
+  analyzing: { icon: Sparkles, label: 'Analizando...', variant: 'outline', colorClass: 'text-yellow-600' },
+  generating: { icon: Sparkles, label: 'Generando...', variant: 'outline', colorClass: 'text-yellow-600' },
+  completed: { icon: CheckCircle, label: 'Completada', variant: 'default', colorClass: 'text-emerald-600' },
+  failed: { icon: AlertCircle, label: 'Error', variant: 'destructive', colorClass: 'text-red-600' },
 };
 
 const CoursePlanCard: React.FC<Props> = ({ plan, subjectName, className, onClick, onDelete }) => {
   const status = statusConfig[plan.status] || statusConfig.pending;
   const isProcessing = plan.status === 'analyzing' || plan.status === 'generating';
+  const StatusIcon = status.icon;
 
   return (
     <div className={`cplan-card ${className || ''}`} onClick={onClick} role="button" tabIndex={0}>
       <div className="cplan-card__header">
         <div className="cplan-card__title-row">
-          <IonIcon icon={calendarOutline} className="cplan-card__icon" />
+          <Calendar size={20} className="cplan-card__icon" />
           <span className="cplan-card__title">
             {plan.title || (subjectName ? `Planificación ${subjectName}` : 'Planificación del curso')}
           </span>
         </div>
-        <IonChip color={status.color} className="cplan-card__status">
+        <Badge variant={status.variant} className="cplan-card__status">
           {isProcessing ? (
-            <IonSpinner name="crescent" style={{ width: 14, height: 14 }} />
+            <Spinner size={14} />
           ) : (
-            <IonIcon icon={status.icon} />
+            <StatusIcon size={12} />
           )}
-          <IonLabel>{status.label}</IonLabel>
-        </IonChip>
+          <span className="ml-1">{status.label}</span>
+        </Badge>
       </div>
 
       <div className="cplan-card__meta">
         {plan.totalSessions && (
           <span className="cplan-card__meta-item">
-            <IonIcon icon={calendarOutline} />
+            <Calendar size={12} />
             {plan.totalSessions} sesiones
           </span>
         )}
@@ -57,7 +56,7 @@ const CoursePlanCard: React.FC<Props> = ({ plan, subjectName, className, onClick
         </span>
         {plan.topicsCreated && (
           <span className="cplan-card__meta-item cplan-card__meta-item--success">
-            <IonIcon icon={checkmarkCircleOutline} />
+            <CheckCircle size={12} />
             Temas creados
           </span>
         )}
@@ -69,7 +68,7 @@ const CoursePlanCard: React.FC<Props> = ({ plan, subjectName, className, onClick
       {onDelete && (
         <button className="cplan-card__delete" onClick={(e) => { e.stopPropagation(); onDelete(); }}
           title="Eliminar planificación">
-          <IonIcon icon={trashOutline} />
+          <Trash2 size={16} />
         </button>
       )}
     </div>

@@ -1,25 +1,31 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
-  IonIcon, IonProgressBar, IonBadge, IonSpinner, IonModal, IonChip,
-  IonSegment, IonSegmentButton, IonLabel,
-} from '@ionic/react';
-import { closeOutline, cloudUploadOutline, checkmarkCircleOutline, sparkles, eyeOutline, pencilOutline, downloadOutline, personOutline, peopleOutline, checkmarkOutline, warningOutline, helpOutline } from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+  X, Upload, CheckCircle, Sparkles, Eye, Pencil, Download,
+  User, Users, Check, AlertTriangle, HelpCircle,
+} from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useExerciseCorrectionStore } from '../../store/exerciseCorrectionStore';
 import { exerciseCorrections as ecApi, authenticatedFetch } from '../../services/api';
+import { getFullPaperUrl } from '../../utils/examUrls';
 import { BulkUploadResult } from '../../types';
 import ScanCard from '../../components/ScanCard';
 import CorrectionReviewCard from '../../components/CorrectionReviewCard';
 import QRReviewTable from '../../components/QRReviewTable';
 import EmptyState from '../../components/EmptyState';
+import PageShell from '@/components/shared/PageShell';
+import Modal from '@/components/shared/Modal';
+import Spinner from '@/components/shared/Spinner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import './ExerciseCorrection.css';
 
 const ExerciseCorrection: React.FC = () => {
-  const { exerciseId } = useParams<{ exerciseId: string }>();
-  const history = useHistory();
+  const { exerciseId } = useParams() as { exerciseId: string };
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,11 +153,11 @@ const ExerciseCorrection: React.FC = () => {
 
   if (!exercise) {
     return (
-      <IonPage>
-        <IonContent className="ion-padding">
-          <IonSpinner />
-        </IonContent>
-      </IonPage>
+      <PageShell>
+        <div className="flex justify-center items-center py-20">
+          <Spinner />
+        </div>
+      </PageShell>
     );
   }
 
@@ -309,16 +315,6 @@ const ExerciseCorrection: React.FC = () => {
     }
   };
 
-  const getFullPaperUrl = (paperUrl?: string) => {
-    if (!paperUrl) return null;
-    if (paperUrl.startsWith('http')) return paperUrl;
-    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    baseUrl = baseUrl.replace(/\/+$/, '');
-    if (paperUrl.startsWith('/uploads/')) {
-      return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
-    }
-    return `${baseUrl}${paperUrl}`;
-  };
 
   const triggerAutoSave = (correctionId: string) => {
     if (autoSaveTimers.current[correctionId]) {
@@ -420,7 +416,7 @@ const ExerciseCorrection: React.FC = () => {
       for (const ex of siblingExercises) {
         await finishCorrection(ex.id);
       }
-      history.goBack();
+      navigate(-1);
     } catch (err) {
       console.error('Failed to finish:', err);
     }
@@ -471,43 +467,48 @@ const ExerciseCorrection: React.FC = () => {
   const unassignedSectionRef = useRef<HTMLDivElement>(null);
 
   return (
-    <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => history.goBack()}>
-              <IonIcon icon={closeOutline} />
-            </IonButton>
-          </IonButtons>
-          <IonTitle>{exerciseName}</IonTitle>
-          <IonButtons slot="end">
-            {isReviewMode ? (
-              <IonBadge color="success" className="progress-badge">Corregido</IonBadge>
-            ) : (
-              <IonBadge color={progress >= 1 ? 'success' : 'primary'} className="progress-badge">
-                {savedCount}/{totalPapers}
-              </IonBadge>
-            )}
-          </IonButtons>
-        </IonToolbar>
-        {isReviewMode && (
-          <IonToolbar>
-            <IonSegment value={viewMode} onIonChange={(e) => setViewMode(e.detail.value as typeof viewMode)}>
-              <IonSegmentButton value="review">
-                <IonIcon icon={eyeOutline} />
-                <IonLabel>Revisar</IonLabel>
-              </IonSegmentButton>
-              <IonSegmentButton value="edit">
-                <IonIcon icon={pencilOutline} />
-                <IonLabel>Editar</IonLabel>
-              </IonSegmentButton>
-            </IonSegment>
-          </IonToolbar>
-        )}
-        {!isReviewMode && <IonProgressBar value={progress} color={progress >= 1 ? 'success' : 'primary'} />}
-      </IonHeader>
+    <PageShell
+      title={exerciseName}
+      headerActions={
+        <div className="flex items-center gap-2">
+          {isReviewMode ? (
+            <Badge className="bg-green-600 text-white">Corregido</Badge>
+          ) : (
+            <Badge variant={progress >= 1 ? 'default' : 'secondary'} className={progress >= 1 ? 'bg-green-600 text-white' : ''}>
+              {savedCount}/{totalPapers}
+            </Badge>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <X size={18} />
+          </Button>
+        </div>
+      }
+      noPadding
+    >
+      {/* View mode tabs for review mode */}
+      {isReviewMode && (
+        <div className="px-4 py-2 border-b border-border">
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
+            <TabsList className="w-full">
+              <TabsTrigger value="review" className="flex-1 gap-1">
+                <Eye size={14} />
+                Revisar
+              </TabsTrigger>
+              <TabsTrigger value="edit" className="flex-1 gap-1">
+                <Pencil size={14} />
+                Editar
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
+      {!isReviewMode && (
+        <div className="px-4 pt-1">
+          <Progress value={progress * 100} className={`h-1.5 ${progress >= 1 ? '[&>div]:bg-green-600' : ''}`} />
+        </div>
+      )}
 
-      <IonContent className="exercise-correction-content">
+      <div className="exercise-correction-content">
         <input
           type="file"
           ref={fileInputRef}
@@ -576,23 +577,23 @@ const ExerciseCorrection: React.FC = () => {
           <>
             {/* Bulk review results */}
             {bulkResult && (
-              <div className="bulk-review-section" style={{ margin: 'var(--space-md)', background: 'var(--ion-card-background, #fff)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', padding: 'var(--space-md)', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="bulk-review-section" style={{ margin: 'var(--space-md)', background: 'var(--color-surface, #fff)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', padding: 'var(--space-md)', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="bulk-review-stats" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: 'var(--space-md)' }}>
-                  <IonChip color="success">
-                    <IonIcon icon={checkmarkOutline} />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                    <Check size={14} />
                     {bulkResult.autoMatched.length} detectados
-                  </IonChip>
+                  </span>
                   {bulkResult.needsReview.length > 0 && (
-                    <IonChip color="warning">
-                      <IonIcon icon={warningOutline} />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                      <AlertTriangle size={14} />
                       {bulkResult.needsReview.length} pendientes
-                    </IonChip>
+                    </span>
                   )}
                   {bulkResult.studentsWithoutPapers.length > 0 && (
-                    <IonChip color="medium">
-                      <IonIcon icon={helpOutline} />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                      <HelpCircle size={14} />
                       {bulkResult.studentsWithoutPapers.length} sin ejercicio
-                    </IonChip>
+                    </span>
                   )}
                 </div>
 
@@ -634,46 +635,45 @@ const ExerciseCorrection: React.FC = () => {
                 <div style={{ marginTop: 'var(--space-md)' }}>
                   {bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId]) && (
                     <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
-                      <IonIcon icon={warningOutline} /> Asigna todos los ejercicios pendientes para analizar con IA
+                      <AlertTriangle size={16} /> Asigna todos los ejercicios pendientes para analizar con IA
                     </p>
                   )}
-                  <IonButton
-                    expand="block"
+                  <Button
+                    className="w-full"
                     onClick={handleConfirmReviewAssignments}
                     disabled={confirmingReview || bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId])}
                   >
                     {confirmingReview ? (
-                      <><IonSpinner name="crescent" /> Asignando y analizando...</>
+                      <><Spinner size={18} /> Asignando y analizando...</>
                     ) : (
-                      <><IonIcon icon={sparkles} slot="start" /> Confirmar y analizar con IA</>
+                      <><Sparkles size={16} /> Confirmar y analizar con IA</>
                     )}
-                  </IonButton>
-                  <IonButton
-                    expand="block"
-                    fill="clear"
-                    color="medium"
+                  </Button>
+                  <Button
+                    className="w-full mt-2"
+                    variant="ghost"
                     onClick={() => { setBulkResult(null); setReviewAssignments({}); }}
                     disabled={confirmingReview}
                   >
                     Omitir
-                  </IonButton>
+                  </Button>
                 </div>
               </div>
             )}
 
             <div className="exercise-correction-toolbar">
-              <IonButton size="small" fill="outline" color="secondary" onClick={handleBulkUploadClick} disabled={bulkUploading}>
-                {bulkUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={peopleOutline} slot="start" /> Subir PDF de toda la clase</>}
-              </IonButton>
+              <Button size="sm" variant="outline" onClick={handleBulkUploadClick} disabled={bulkUploading}>
+                {bulkUploading ? <Spinner size={16} /> : <><Users size={14} /> Subir PDF de toda la clase</>}
+              </Button>
 
-              <IonButton size="small" fill="outline" onClick={handleUploadClick} disabled={uploading}>
-                {uploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={personOutline} slot="start" /> Subir ejercicio individual</>}
-              </IonButton>
+              <Button size="sm" variant="outline" onClick={handleUploadClick} disabled={uploading}>
+                {uploading ? <Spinner size={16} /> : <><User size={14} /> Subir ejercicio individual</>}
+              </Button>
 
               {exerciseCorrections.filter(c => !c.aiAnalysis && c.paperUrl).length > 0 && (
-                <IonButton
-                  size="small"
-                  color="tertiary"
+                <Button
+                  size="sm"
+                  variant="default"
                   onClick={async () => {
                     const toProcess = exerciseCorrections
                       .filter(c => !c.aiAnalysis && c.paperUrl && c.studentId);
@@ -697,20 +697,20 @@ const ExerciseCorrection: React.FC = () => {
                   disabled={exerciseCorrections.some(c => c.paperUrl && !c.studentId)}
                   title={exerciseCorrections.some(c => c.paperUrl && !c.studentId) ? 'Asigna todos los ejercicios a un alumno primero' : undefined}
                 >
-                  <IonIcon icon={sparkles} slot="start" />
+                  <Sparkles size={14} />
                   Analizar con IA
-                </IonButton>
+                </Button>
               )}
 
               {allSaved && (
-                <IonButton size="small" color="success" onClick={handleFinish}>
-                  <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar
-                </IonButton>
+                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={handleFinish}>
+                  <CheckCircle size={14} /> Finalizar
+                </Button>
               )}
             </div>
 
             {loading && exerciseCorrections.length === 0 && (
-              <div className="exercise-correction-loading"><IonSpinner /></div>
+              <div className="exercise-correction-loading"><Spinner /></div>
             )}
 
             {exerciseCorrections.length === 0 && !loading && (
@@ -729,33 +729,31 @@ const ExerciseCorrection: React.FC = () => {
                 <div className="assignment-status-summary">
                   <div className="assignment-status-counts">
                     <span className="assignment-count assignment-count--assigned">
-                      <IonIcon icon={checkmarkCircleOutline} /> {assignedCorrections.length} asignados
+                      <CheckCircle size={14} /> {assignedCorrections.length} asignados
                     </span>
                     <span className="assignment-count assignment-count--unassigned">
-                      <IonIcon icon={warningOutline} /> {unassignedCorrections.length} sin asignar
+                      <AlertTriangle size={14} /> {unassignedCorrections.length} sin asignar
                     </span>
                   </div>
-                  <IonProgressBar
-                    value={assignedCorrections.length / exerciseCorrections.length}
-                    color="warning"
-                    className="assignment-progress"
+                  <Progress
+                    value={(assignedCorrections.length / exerciseCorrections.length) * 100}
+                    className="assignment-progress h-1"
                   />
                 </div>
-                <IonButton
-                  size="small"
-                  fill="outline"
-                  color="warning"
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => unassignedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 >
                   Ver sin asignar
-                </IonButton>
+                </Button>
               </div>
             )}
 
             {/* Assigned corrections */}
             {assignedCorrections.length > 0 && hasUnassigned && (
               <div className="assignment-section-header">
-                <IonIcon icon={checkmarkCircleOutline} color="success" />
+                <CheckCircle size={16} className="text-green-600" />
                 <span>Asignados ({assignedCorrections.length})</span>
               </div>
             )}
@@ -796,7 +794,7 @@ const ExerciseCorrection: React.FC = () => {
             {unassignedCorrections.length > 0 && (
               <>
                 <div className="assignment-section-header assignment-section-header--unassigned" ref={unassignedSectionRef}>
-                  <IonIcon icon={warningOutline} color="warning" />
+                  <AlertTriangle size={16} className="text-amber-600" />
                   <span>Sin asignar ({unassignedCorrections.length})</span>
                 </div>
                 <div className="exercise-correction-scans exercise-correction-scans--unassigned">
@@ -837,27 +835,22 @@ const ExerciseCorrection: React.FC = () => {
 
             {!allSaved && exerciseCorrections.length > 0 && (
               <div className="exercise-correction-finish">
-                <IonButton expand="block" color="success" onClick={handleFinish}>
-                  <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar corrección
-                </IonButton>
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={handleFinish}>
+                  <CheckCircle size={16} /> Finalizar correccion
+                </Button>
               </div>
             )}
           </>
         )}
 
         {/* Paper preview modal */}
-        <IonModal isOpen={!!previewUrl} onDidDismiss={() => setPreviewUrl(null)} className="paper-preview-modal">
-          <IonHeader>
-            <IonToolbar>
-              <IonTitle>Vista previa</IonTitle>
-              <IonButtons slot="end">
-                <IonButton onClick={() => setPreviewUrl(null)}>
-                  <IonIcon icon={closeOutline} />
-                </IonButton>
-              </IonButtons>
-            </IonToolbar>
-          </IonHeader>
-          <IonContent className="paper-preview-content" scrollY={false}>
+        <Modal
+          open={!!previewUrl}
+          onClose={() => setPreviewUrl(null)}
+          title="Vista previa"
+          sheetHeight="full"
+        >
+          <div className="paper-preview-content">
             {previewUrl && (
               <div className="paper-preview-container">
                 {previewUrl.toLowerCase().endsWith('.pdf') ? (
@@ -867,10 +860,10 @@ const ExerciseCorrection: React.FC = () => {
                 )}
               </div>
             )}
-          </IonContent>
-        </IonModal>
-      </IonContent>
-    </IonPage>
+          </div>
+        </Modal>
+      </div>
+    </PageShell>
   );
 };
 

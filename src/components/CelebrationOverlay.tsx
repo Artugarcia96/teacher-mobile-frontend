@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { IonIcon } from '@ionic/react';
-import { checkmarkCircleOutline } from 'ionicons/icons';
+import { CheckCircle } from 'lucide-react';
 import { hapticSuccess } from '../utils/haptics';
 import './CelebrationOverlay.css';
 
@@ -36,12 +35,12 @@ const CelebrationOverlay: React.FC<Props> = ({
   return (
     <div className="celebration-overlay" onClick={onDismiss}>
       <div className="celebration-overlay__content">
-        <IonIcon
-          icon={checkmarkCircleOutline}
+        <CheckCircle
+          size={80}
           className="celebration-overlay__icon"
         />
         <h2 className="celebration-overlay__message">
-          {message || '¡Corrección completada!'}
+          {message || '!Correccion completada!'}
         </h2>
         <p className="celebration-overlay__subtitle">
           Todas las correcciones han sido guardadas

@@ -1,7 +1,0 @@
-{
-  "name": "co-teacher-app",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "react-vite"
-}

@@ -1,22 +1,21 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import {
-  IonButton, IonIcon, IonProgressBar, IonBadge,
-  IonSpinner, IonChip, IonModal, IonAlert,
-  IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
-} from '@ionic/react';
-import {
-  closeOutline, checkmarkCircleOutline, pencilOutline, cloudUploadOutline,
-  checkmarkOutline, warningOutline, helpOutline, sparkles, timeOutline,
-  peopleOutline, chevronDownOutline, chevronUpOutline,
-} from 'ionicons/icons';
-import { useHistory } from 'react-router-dom';
+import { AlertTriangle, Check, CheckCircle, ChevronDown, ChevronUp, Clock, HelpCircle, Pencil, RefreshCw, Sparkles, Upload, Users, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
+import { Progress } from '@/components/ui/progress';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import { useNavigate } from 'react-router-dom';
 import { useExamsStore } from '../store/examsStore';
 import { useStudentsStore } from '../store/studentsStore';
 import { useCorrectionStore } from '../store/correctionStore';
 import { corrections as correctionsApi, batch, authenticatedFetch } from '../services/api';
 import { BulkUploadResult } from '../types';
+import { getFullPaperUrl } from '../utils/examUrls';
 import ScanCard from './ScanCard';
 import QRReviewTable from './QRReviewTable';
+import PdfViewer from '@/components/shared/PdfViewer';
 import EmptyState from './EmptyState';
 
 import CelebrationOverlay from './CelebrationOverlay';
@@ -25,13 +24,19 @@ import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
 interface CorrectionPanelProps {
   examId: string;
   onFinished?: () => void;
+  /** When true, allows correction without student assignment (no class context). */
+  standalone?: boolean;
+  /** Filter corrections to show only students from this class */
+  filterClassId?: string;
+  /** Reserved for future per-subject scoping. Currently a no-op because all
+   * students in a class take all subjects of that class. */
+  filterSubjectId?: string;
 }
 
-const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished }) => {
-  const history = useHistory();
+const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished, standalone = false, filterClassId, filterSubjectId: _filterSubjectId }) => {
+  const navigate = useNavigate();
 
   const allExams = useExamsStore((s) => s.exams);
-  const updateExamStatus = useExamsStore((s) => s.updateExam);
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
   const hasBatchRunning = useBackgroundTasksStore((s) =>
     s.tasks.some((t) => t.status === 'running' && t.expectedResultUrl === `/correction/${examId}`)
@@ -48,17 +53,39 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
   const loading = useCorrectionStore((s) => s.loading);
 
   const exam = useMemo(() => allExams.find((e) => e.id === examId), [allExams, examId]);
-  const students = useMemo(() => allStudents.filter((st) => st.classId === exam?.classId), [allStudents, exam?.classId]);
-  const examCorrections = useMemo(() =>
-    corrections
-      .filter((c) => c.examId === examId)
-      .sort((a, b) => a.id.localeCompare(b.id)),
-    [corrections, examId]);
+  // CorrectionPanel always operates on ONE class at a time (or standalone).
+  // The parent component (ExamDetail) is responsible for picking which class
+  // via class tabs and passing it down. There is no longer a "show all
+  // classes grouped by header" mode — that confused multi-class exams.
+  const effectiveClassId = filterClassId;
+  const students = useMemo(
+    () => effectiveClassId ? allStudents.filter((st) => st.classId === effectiveClassId) : allStudents,
+    [allStudents, effectiveClassId]
+  );
+
+  const examCorrections = useMemo(() => {
+    let filtered = corrections.filter((c) => c.examId === examId);
+    if (effectiveClassId) {
+      // Authoritative scoping: only the rows that belong to this class.
+      // Legacy rows without classId are matched via the student's classId.
+      const classStudentIds = new Set(
+        allStudents.filter((s) => s.classId === effectiveClassId).map((s) => s.id)
+      );
+      filtered = filtered.filter((c) =>
+        c.classId
+          ? c.classId === effectiveClassId
+          : !!c.studentId && classStudentIds.has(c.studentId)
+      );
+    }
+    return filtered.sort((a, b) => a.id.localeCompare(b.id));
+  }, [corrections, examId, effectiveClassId, allStudents]);
 
   const [localGrades, setLocalGrades] = useState<Record<string, { grade: number | null; teacherComments: string; studentId: string }>>({});
   const localGradesRef = useRef(localGrades);
   localGradesRef.current = localGrades;
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+  // Standalone mode: free-text student names per correction (not linked to student DB)
+  const [standaloneNames, setStandaloneNames] = useState<Record<string, string>>({});
 
   const [bulkResult, setBulkResult] = useState<BulkUploadResult | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -69,7 +96,8 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
 
   const [uploadingForStudent, setUploadingForStudent] = useState<string | null>(null);
   const studentFileInputRef = useRef<HTMLInputElement>(null);
-  const [showStudentList, setShowStudentList] = useState(false);
+  const standaloneInputRef = useRef<HTMLInputElement>(null);
+  const [standaloneUploading, setStandaloneUploading] = useState(false);
 
   const autoSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [autoSavedIds, setAutoSavedIds] = useState<Set<string>>(new Set());
@@ -86,7 +114,15 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     studentName: string;
   } | null>(null);
 
-  // Sync local grades from corrections
+  // Reset transient panel state when the active class changes (tab swap).
+  // Without this the bulk-result panel and pending review assignments leak
+  // from one class to the next, confusing the teacher.
+  useEffect(() => {
+    setBulkResult(null);
+    setReviewAssignments({});
+  }, [effectiveClassId]);
+
+  // Sync local grades from corrections + restore standalone names from teacher_notes
   useEffect(() => {
     setLocalGrades((prev) => {
       const next = { ...prev };
@@ -99,7 +135,20 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
       });
       return next;
     });
-  }, [examCorrections]);
+    // Restore standalone names from persisted teacher_notes prefix
+    if (standalone) {
+      setStandaloneNames((prev) => {
+        const next = { ...prev };
+        examCorrections.forEach((c) => {
+          if (!next[c.id] && c.teacherComments) {
+            const match = c.teacherComments.match(/^\[Alumno: (.+?)\]/);
+            if (match) next[c.id] = match[1];
+          }
+        });
+        return next;
+      });
+    }
+  }, [examCorrections, standalone]);
 
   // Cleanup auto-save timers on unmount
   useEffect(() => {
@@ -165,18 +214,6 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     fetchEstimate();
   }, [examCorrections, examId]);
 
-  const getFullPaperUrl = (paperUrl?: string) => {
-    if (!paperUrl) return null;
-    if (paperUrl.startsWith('http')) return paperUrl;
-    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    baseUrl = baseUrl.replace(/\/+$/, '');
-    if (paperUrl.startsWith('/files/')) return `${baseUrl}${paperUrl}`;
-    if (paperUrl.startsWith('/uploads/')) return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
-    if (paperUrl.startsWith('uploads/')) return `${baseUrl}/files/${paperUrl.replace('uploads/', '')}`;
-    if (!paperUrl.startsWith('/')) return `${baseUrl}/${paperUrl}`;
-    return `${baseUrl}${paperUrl}`;
-  };
-
   const assignedStudentIds = useMemo(() => {
     const ids = new Set<string>();
     examCorrections.forEach((c) => { if (c.studentId) ids.add(c.studentId); });
@@ -195,7 +232,7 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     autoSaveTimers.current[correctionId] = setTimeout(() => {
       setLocalGrades((current) => {
         const local = current[correctionId];
-        if (local && local.grade !== null && local.studentId) {
+        if (local && local.grade !== null && (standalone || local.studentId)) {
           handleSavePaper(correctionId).then(() => {
             setAutoSavedIds((prev) => new Set(prev).add(correctionId));
           });
@@ -227,13 +264,22 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
 
     setSaving((prev) => ({ ...prev, [correctionId]: true }));
     try {
+      // In standalone mode, prepend student name to teacher_notes if provided
+      let notes = local.teacherComments;
+      if (standalone && standaloneNames[correctionId]) {
+        const namePrefix = `[Alumno: ${standaloneNames[correctionId]}]`;
+        if (!notes.startsWith(namePrefix)) {
+          notes = notes ? `${namePrefix} ${notes}` : namePrefix;
+        }
+      }
       await updateCorrection(correctionId, {
         student_id: local.studentId || undefined,
         grade: local.grade,
-        teacher_notes: local.teacherComments,
+        teacher_notes: notes,
       });
     } catch (err) {
       console.error('Failed to save correction:', err);
+      toast.error('Error al guardar la corrección. Inténtalo de nuevo.');
     } finally {
       setSaving((prev) => ({ ...prev, [correctionId]: false }));
     }
@@ -245,17 +291,23 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     try {
       const result = await processAI(correctionId);
       if (result?.suggestedStudentName) {
-        const nameLower = result.suggestedStudentName.toLowerCase();
-        const matchedStudent = students.find((s) =>
-          s.name.toLowerCase() === nameLower ||
-          s.name.toLowerCase().includes(nameLower) ||
-          nameLower.includes(s.name.toLowerCase())
-        );
-        if (matchedStudent) {
-          setLocalGrades((prev) => ({
-            ...prev,
-            [correctionId]: { ...prev[correctionId], studentId: matchedStudent.id }
-          }));
+        if (standalone) {
+          // In standalone mode, auto-fill the name text field
+          setStandaloneNames((prev) => ({ ...prev, [correctionId]: result.suggestedStudentName }));
+        } else {
+          // In class mode, try to match to an existing student
+          const nameLower = result.suggestedStudentName.toLowerCase();
+          const matchedStudent = students.find((s) =>
+            s.name.toLowerCase() === nameLower ||
+            s.name.toLowerCase().includes(nameLower) ||
+            nameLower.includes(s.name.toLowerCase())
+          );
+          if (matchedStudent) {
+            setLocalGrades((prev) => ({
+              ...prev,
+              [correctionId]: { ...prev[correctionId], studentId: matchedStudent.id }
+            }));
+          }
         }
       }
       if (!skipRefetch) {
@@ -267,6 +319,92 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
       setAiErrors((prev) => ({ ...prev, [correctionId]: errorMsg }));
     } finally {
       setAiProcessing((prev) => ({ ...prev, [correctionId]: false }));
+    }
+  };
+
+  // ── NP / replace ──
+  const markNotTaken = useCorrectionStore((s) => s.markNotTaken);
+  const replacePaperApi = useCorrectionStore((s) => s.replacePaper);
+
+  const [npConfirm, setNpConfirm] = useState<{ correctionId: string; studentName: string; hadGrade: boolean; hadPaper: boolean } | null>(null);
+  const [replacingForCorrection, setReplacingForCorrection] = useState<string | null>(null);
+  const [replaceWarning, setReplaceWarning] = useState<{ correctionId: string; studentName: string; hadGrade: boolean } | null>(null);
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleMarkNotTakenClick = (correctionId: string) => {
+    const c = examCorrections.find((x) => x.id === correctionId);
+    if (!c) return;
+    const studentName = students.find((s) => s.id === c.studentId)?.name || c.studentName || 'este alumno';
+    const hadGrade = c.grade !== null && c.grade !== undefined;
+    const hadPaper = !!c.paperUrl;
+    if (hadGrade || hadPaper) {
+      // Risky: confirm
+      setNpConfirm({ correctionId, studentName, hadGrade, hadPaper });
+    } else {
+      // Safe: just flip
+      markNotTaken(correctionId, true).catch((err) => {
+        console.error(err);
+        toast.error('No se pudo marcar como no presentado');
+      });
+    }
+  };
+
+  const handleConfirmMarkNotTaken = async () => {
+    if (!npConfirm) return;
+    try {
+      await markNotTaken(npConfirm.correctionId, true);
+      toast.success(`${npConfirm.studentName} marcado como no presentado`);
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo marcar como no presentado');
+    } finally {
+      setNpConfirm(null);
+    }
+  };
+
+  const handleUnmarkNotTaken = (correctionId: string) => {
+    markNotTaken(correctionId, false).catch((err) => {
+      console.error(err);
+      toast.error('No se pudo deshacer');
+    });
+  };
+
+  const handleReplacePaperClick = (correctionId: string) => {
+    const c = examCorrections.find((x) => x.id === correctionId);
+    if (!c) return;
+    const hadGrade = c.grade !== null && c.grade !== undefined;
+    if (hadGrade) {
+      const studentName = students.find((s) => s.id === c.studentId)?.name || c.studentName || 'este alumno';
+      setReplaceWarning({ correctionId, studentName, hadGrade: true });
+      return;
+    }
+    setReplacingForCorrection(correctionId);
+    setTimeout(() => replaceFileInputRef.current?.click(), 50);
+  };
+
+  const handleConfirmReplaceWarning = () => {
+    if (!replaceWarning) return;
+    setReplacingForCorrection(replaceWarning.correctionId);
+    setReplaceWarning(null);
+    setTimeout(() => replaceFileInputRef.current?.click(), 50);
+  };
+
+  const handleReplaceFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !replacingForCorrection) {
+      setReplacingForCorrection(null);
+      return;
+    }
+    try {
+      await replacePaperApi(replacingForCorrection, files[0]);
+      toast.success('Entrega reemplazada');
+      await fetchCorrections(examId);
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo reemplazar la entrega');
+    } finally {
+      setReplacingForCorrection(null);
+      e.target.value = '';
     }
   };
 
@@ -292,8 +430,14 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
   };
 
   // ── Per-student upload ──
-  const handleStudentUploadClick = (studentId: string) => {
+  // Track both the student and the class so the backend updates the correct
+  // pre-assigned Correction (a student in two classes has one Correction per
+  // class and we must not create orphans).
+  const [uploadingForClassId, setUploadingForClassId] = useState<string | null>(null);
+
+  const handleStudentUploadClick = (studentId: string, classId?: string) => {
     setUploadingForStudent(studentId);
+    setUploadingForClassId(classId || null);
     setTimeout(() => studentFileInputRef.current?.click(), 100);
   };
 
@@ -301,10 +445,17 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     const files = e.target.files;
     if (!files || files.length === 0 || !uploadingForStudent) {
       setUploadingForStudent(null);
+      setUploadingForClassId(null);
       return;
     }
     try {
-      const newCorrections = await uploadPapers(examId, Array.from(files), uploadingForStudent);
+      const newCorrections = await uploadPapers(
+        examId,
+        Array.from(files),
+        uploadingForStudent,
+        true,
+        uploadingForClassId || undefined,
+      );
       await fetchCorrections(examId);
       const hasUnassigned = examCorrections.some(c => c.paperUrl && !c.studentId);
       if (!hasUnassigned) {
@@ -319,13 +470,40 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
       console.error('Failed to upload paper for student:', err);
     } finally {
       setUploadingForStudent(null);
+      setUploadingForClassId(null);
       e.target.value = '';
     }
   };
 
   // ── Bulk upload ──
-  const handleBulkUploadClick = () => {
-    bulkInputRef.current?.click();
+  // Per-class bulk upload: when the user clicks "Subir PDF de 2B", the class_id
+  // is captured here and sent with the next file selection.
+  const [bulkUploadClassId, setBulkUploadClassId] = useState<string | null>(null);
+  const [bulkUploadOverwrite, setBulkUploadOverwrite] = useState(false);
+  const [bulkOverwritePrompt, setBulkOverwritePrompt] = useState<{ classId: string | null; existingCount: number } | null>(null);
+
+  /** Open file picker. If the target class already has papers, ask first
+   *  whether the new upload should overwrite existing entries. */
+  const handleBulkUploadClick = (classId?: string) => {
+    // The panel is already scoped to a single class via filterClassId; we use
+    // examCorrections directly without re-filtering.
+    const cid = classId || effectiveClassId || null;
+    const existing = examCorrections.filter((c) => !!c.paperUrl);
+    if (existing.length > 0) {
+      setBulkOverwritePrompt({ classId: cid, existingCount: existing.length });
+      return;
+    }
+    setBulkUploadClassId(cid);
+    setBulkUploadOverwrite(false);
+    setTimeout(() => bulkInputRef.current?.click(), 50);
+  };
+
+  const proceedBulkUpload = (overwrite: boolean) => {
+    if (!bulkOverwritePrompt) return;
+    setBulkUploadClassId(bulkOverwritePrompt.classId);
+    setBulkUploadOverwrite(overwrite);
+    setBulkOverwritePrompt(null);
+    setTimeout(() => bulkInputRef.current?.click(), 50);
   };
 
   const handleBulkFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -333,15 +511,29 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     if (!files || files.length === 0) return;
     setBulkUploading(true);
     try {
-      const response = await correctionsApi.bulkUpload(examId, Array.from(files));
+      const response = await correctionsApi.bulkUpload(
+        examId,
+        Array.from(files),
+        bulkUploadClassId || undefined,
+        bulkUploadOverwrite,
+      );
       const data = response.data;
-      setBulkResult({
-        autoMatched: (data.auto_matched || []).map((m: any) => ({
-          correctionId: m.correction_id,
-          studentId: m.student_id,
-          studentName: m.student_name,
-          studentCode: m.student_code,
-          confidence: m.confidence
+      const mapMatch = (m: any) => ({
+        correctionId: m.correction_id,
+        studentId: m.student_id,
+        studentName: m.student_name,
+        studentCode: m.student_code,
+        confidence: m.confidence,
+      });
+      const result = {
+        autoMatched: (data.auto_matched || []).map(mapMatch),
+        replaced: (data.replaced || []).map(mapMatch),
+        skippedAlreadyAssigned: (data.skipped_already_assigned || []).map((s: any) => ({
+          correctionId: s.correction_id,
+          studentId: s.student_id,
+          studentName: s.student_name,
+          studentCode: s.student_code,
+          hadGrade: !!s.had_grade,
         })),
         needsReview: (data.needs_review || []).map((r: any) => ({
           correctionId: r.correction_id,
@@ -350,20 +542,91 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
           suggestions: (r.suggestions || []).map((s: any) => ({
             studentId: s.student_id,
             studentName: s.student_name,
-            code: s.code
-          }))
+            code: s.code,
+          })),
         })),
         studentsWithoutPapers: (data.students_without_papers || []).map((s: any) => ({
           studentId: s.student_id,
           studentName: s.student_name,
-          code: s.code
-        }))
-      });
+          code: s.code,
+        })),
+      };
       await fetchCorrections(examId);
+
+      // Summarise as a transient toast — fire-and-forget, doesn't block the UI.
+      // The persistent panel is reserved for needsReview (which requires manual
+      // QR assignment); everything else is purely informational.
+      const newCount = result.autoMatched.length;
+      const replacedCount = result.replaced.length;
+      const skippedCount = result.skippedAlreadyAssigned.length;
+      const reviewCount = result.needsReview.length;
+
+      const parts: string[] = [];
+      if (newCount > 0) parts.push(`${newCount} ${newCount === 1 ? 'nueva' : 'nuevas'}`);
+      if (replacedCount > 0) parts.push(`${replacedCount} ${replacedCount === 1 ? 'reemplazada' : 'reemplazadas'}`);
+      if (skippedCount > 0) parts.push(`${skippedCount} ${skippedCount === 1 ? 'saltada' : 'saltadas'} (ya tenían entrega)`);
+      if (reviewCount > 0) parts.push(`${reviewCount} sin reconocer`);
+
+      if (parts.length === 0) {
+        toast.info('No se ha podido reconocer ninguna entrega.');
+      } else if (skippedCount > 0 && newCount + replacedCount === 0 && reviewCount === 0) {
+        // All skipped — that's the surprising case the user complained about
+        // ("ya estaba subido y no me lo dijiste"). Use warning + describe.
+        toast.warning(parts.join(' · '), {
+          description: skippedCount === 1
+            ? 'Si querías sustituirla, vuelve a subir el PDF y elige Reemplazar.'
+            : 'Si querías sustituirlas, vuelve a subir el PDF y elige Reemplazar.',
+          duration: 8000,
+        });
+      } else if (reviewCount > 0) {
+        toast.warning(parts.join(' · '), {
+          description: 'Asigna manualmente los exámenes sin reconocer abajo.',
+          duration: 8000,
+        });
+      } else {
+        toast.success(parts.join(' · '));
+      }
+
+      // Only persist the panel when there's actual work for the teacher to do
+      // (manual QR assignment). Otherwise clear it so it doesn't linger across
+      // tab changes.
+      if (reviewCount > 0) {
+        setBulkResult(result);
+      } else {
+        setBulkResult(null);
+      }
     } catch (err) {
       console.error('Failed to bulk upload papers:', err);
+      toast.error('Error al subir los exámenes. Inténtalo de nuevo.');
     } finally {
       setBulkUploading(false);
+      setBulkUploadClassId(null);
+      setBulkUploadOverwrite(false);
+      e.target.value = '';
+    }
+  };
+
+  // ── Standalone single upload ──
+  const handleStandaloneUploadClick = () => {
+    standaloneInputRef.current?.click();
+  };
+
+  const handleStandaloneFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setStandaloneUploading(true);
+    try {
+      // group=true: multiple photos/files are merged into one PDF per student
+      const newCorrections = await uploadPapers(examId, Array.from(files), undefined, true);
+      await fetchCorrections(examId);
+      // Launch AI in background — don't block the UI
+      for (const c of newCorrections) {
+        handleProcessAI(c.id);
+      }
+    } catch (err) {
+      console.error('Failed to upload standalone paper:', err);
+    } finally {
+      setStandaloneUploading(false);
       e.target.value = '';
     }
   };
@@ -423,6 +686,7 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
 
   const registerCorrectionBackgroundTask = (jobId: string, label: string) => {
     const capturedExamId = examId;
+    let lastProcessed = 0;
     addBackgroundTask({
       type: 'exam',
       label: `Corrección: ${label}`,
@@ -436,6 +700,14 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
           await sleep(interval);
           const res = await batch.getJobProgress(jobId);
           const status = res.data.status;
+          const processed = res.data.processed_items || 0;
+
+          // Refresh corrections when new items complete — shows results incrementally
+          if (processed > lastProcessed) {
+            lastProcessed = processed;
+            fetchCorrections(capturedExamId);
+          }
+
           if (status === 'completed') break;
           if (status === 'failed' || status === 'cancelled') {
             throw new Error('Error en la corrección');
@@ -506,17 +778,36 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
 
   const handleFinish = async () => {
     try {
+      // /corrections/{exam_id}/finish already moves the exam to "corrected"
+      // server-side. Calling updateExam afterwards with the same status hit
+      // the PUT VALID_TRANSITIONS check (corrected → corrected = 400) and
+      // the redundant call was the source of the recent 400 the teacher saw.
       await finishCorrection(examId);
-      await updateExamStatus(examId, { status: 'corrected' });
       setShowCelebration(true);
     } catch (err) {
       console.error('Failed to finish:', err);
+      toast.error('No se pudo finalizar la corrección. Revisa la conexión.');
     }
   };
 
   const handleCelebrationDismiss = () => {
     setShowCelebration(false);
     onFinished?.();
+  };
+
+  const handlePreviewPaper = async (paperUrl: string) => {
+    const fullUrl = getFullPaperUrl(paperUrl);
+    if (!fullUrl) return;
+    try {
+      const res = await authenticatedFetch(fullUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const isPdf = paperUrl.toLowerCase().includes('.pdf');
+      setPreviewUrl(blobUrl + (isPdf ? '#.pdf' : ''));
+    } catch (err) {
+      console.error('Failed to preview paper:', err);
+    }
   };
 
   const handleDownloadStudentPaper = (paperUrl: string, studentName?: string) => {
@@ -562,25 +853,12 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
   };
 
   // ── Computed ──
-  const savedCount = examCorrections.filter((c) => c.savedAt).length;
+  // NP rows count as "saved" — the teacher has explicitly resolved them and
+  // shouldn't be blocked from finishing because of an absent student.
+  const savedCount = examCorrections.filter((c) => c.savedAt || c.notTaken).length;
   const allSaved = savedCount === examCorrections.length && examCorrections.length > 0;
 
-  const studentCorrectionMap = useMemo(() => {
-    const map: Record<string, { correction: typeof examCorrections[0] | null; status: 'none' | 'uploaded' | 'processing' | 'corrected' }> = {};
-    students.forEach(s => {
-      const corr = examCorrections.find(c => c.studentId === s.id);
-      let status: 'none' | 'uploaded' | 'processing' | 'corrected' = 'none';
-      if (corr) {
-        if (corr.savedAt) status = 'corrected';
-        else if (corr.aiAnalysis || corr.aiProcessed) status = 'processing';
-        else status = 'uploaded';
-      }
-      map[s.id] = { correction: corr || null, status };
-    });
-    return map;
-  }, [students, examCorrections]);
-
-  const missingCount = students.filter(s => studentCorrectionMap[s.id]?.status === 'none').length;
+  const allHavePapers = examCorrections.length > 0 && examCorrections.every(c => c.paperUrl || c.notTaken);
 
   // Assignment grouping
   const assignedExamCorrections = useMemo(() =>
@@ -588,7 +866,7 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
     [examCorrections]
   );
   const unassignedExamCorrections = useMemo(() =>
-    examCorrections.filter(c => !c.studentId),
+    examCorrections.filter(c => !c.studentId && !c.notTaken),
     [examCorrections]
   );
   const hasUnassignedCorrections = unassignedExamCorrections.length > 0;
@@ -599,14 +877,16 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
   return (
     <>
       {/* Hidden file inputs */}
-      <input
-        type="file"
-        ref={bulkInputRef}
-        style={{ display: 'none' }}
-        accept=".jpg,.jpeg,.png,.pdf"
-        multiple
-        onChange={handleBulkFilesSelected}
-      />
+      {!standalone && (
+        <input
+          type="file"
+          ref={bulkInputRef}
+          style={{ display: 'none' }}
+          accept=".jpg,.jpeg,.png,.pdf"
+          multiple
+          onChange={handleBulkFilesSelected}
+        />
+      )}
       <input
         type="file"
         ref={studentFileInputRef}
@@ -615,28 +895,65 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
         multiple
         onChange={handleStudentFileSelected}
       />
+      {standalone && (
+        <input
+          type="file"
+          ref={standaloneInputRef}
+          style={{ display: 'none' }}
+          accept=".jpg,.jpeg,.png,.pdf"
+          multiple
+          onChange={handleStandaloneFileSelected}
+        />
+      )}
 
-      {/* Bulk review results */}
-      {bulkResult && (
+      {/* Bulk review results (class mode only) */}
+      {!standalone && bulkResult && (
         <div className="bulk-review-section">
           <div className="bulk-review-stats">
-            <IonChip color="success">
-              <IonIcon icon={checkmarkOutline} />
-              {bulkResult.autoMatched.length} asignados
-            </IonChip>
-            {bulkResult.needsReview.length > 0 && (
-              <IonChip color="warning">
-                <IonIcon icon={warningOutline} />
-                {bulkResult.needsReview.length} pendientes
-              </IonChip>
+            {bulkResult.autoMatched.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
+                <Check size={14} />
+                {bulkResult.autoMatched.length} {bulkResult.autoMatched.length === 1 ? 'nueva' : 'nuevas'}
+              </span>
             )}
-            {bulkResult.studentsWithoutPapers.length > 0 && (
-              <IonChip color="medium">
-                <IonIcon icon={helpOutline} />
-                {bulkResult.studentsWithoutPapers.length} sin examen
-              </IonChip>
+            {(bulkResult.replaced?.length ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-blue-50 text-blue-700 border-blue-200">
+                <RefreshCw size={14} />
+                {(bulkResult.replaced?.length ?? 0)} reemplazada{(bulkResult.replaced?.length ?? 0) === 1 ? '' : 's'}
+              </span>
+            )}
+            {(bulkResult.skippedAlreadyAssigned?.length ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-amber-50 text-amber-700 border-amber-200">
+                <AlertTriangle size={14} />
+                {(bulkResult.skippedAlreadyAssigned?.length ?? 0)} {(bulkResult.skippedAlreadyAssigned?.length ?? 0) === 1 ? 'saltada' : 'saltadas'}
+              </span>
+            )}
+            {bulkResult.needsReview.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium">
+                <HelpCircle size={14} />
+                {bulkResult.needsReview.length} sin reconocer
+              </span>
             )}
           </div>
+
+          {(bulkResult.skippedAlreadyAssigned?.length ?? 0) > 0 && (
+            <div className="bulk-review-skipped">
+              <p className="text-xs text-amber-800 mb-1 font-medium">
+                Estos alumnos ya tenían entrega y no se han tocado:
+              </p>
+              <ul className="text-xs text-amber-900 list-disc pl-5 space-y-0.5">
+                {(bulkResult.skippedAlreadyAssigned ?? []).map((s) => (
+                  <li key={s.correctionId}>
+                    <span className="font-medium">{s.studentName}</span>
+                    {s.hadGrade && <span className="text-amber-700"> · ya tenía nota</span>}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-amber-700 mt-1">
+                Si querías sustituir sus entregas, vuelve a subir el PDF y elige <em>Reemplazar</em>.
+              </p>
+            </div>
+          )}
 
           {bulkResult.needsReview.length > 0 && (
             <QRReviewTable
@@ -674,185 +991,151 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
           )}
 
           <div className="bulk-review-actions">
-            {bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId]) && (
+            {bulkResult.needsReview.length > 0 && bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId]) && (
               <p className="bulk-review-pending-hint">
-                <IonIcon icon={warningOutline} /> Asigna todos los exámenes pendientes para analizar con IA
+                <AlertTriangle size={18} /> Hay exámenes sin asignar — se omitirán del análisis con IA
               </p>
             )}
-            <IonButton
-              expand="block"
-              onClick={handleConfirmReviewAssignments}
-              disabled={confirmingReview || bulkResult.needsReview.some(item => !reviewAssignments[item.correctionId])}
-              className="bulk-review-confirm-btn"
-            >
-              {confirmingReview ? (
-                <><IonSpinner name="crescent" /> Asignando y analizando...</>
-              ) : (
-                <><IonIcon icon={sparkles} slot="start" /> Confirmar y analizar con IA</>
-              )}
-            </IonButton>
-            <IonButton
-              expand="block"
-              fill="clear"
-              color="medium"
-              onClick={() => { setBulkResult(null); setReviewAssignments({}); }}
+            {bulkResult.needsReview.length > 0 && (
+              <Button className="w-full bulk-review-confirm-btn" onClick={handleConfirmReviewAssignments}>
+                {confirmingReview ? (
+                  <><Spinner size={18} /> Asignando y analizando...</>
+                ) : (
+                  <><Sparkles size={18} /> Confirmar y analizar con IA</>
+                )}
+              </Button>
+            )}
+            <Button variant="ghost" className="w-full" onClick={() => { setBulkResult(null); setReviewAssignments({}); }}
               disabled={confirmingReview}
             >
-              Omitir
-            </IonButton>
+              {bulkResult.needsReview.length > 0 ? 'Omitir' : 'Cerrar'}
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Toolbar */}
+      {/* Toolbar — context-aware buttons based on correction state */}
       <div className="correction-toolbar">
-        <IonButton size="small" fill="outline" color="secondary" onClick={handleBulkUploadClick} disabled={bulkUploading}>
-          {bulkUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={peopleOutline} slot="start" /> Subir PDF de toda la clase</>}
-        </IonButton>
+        {(() => {
+          const unprocessedWithPaper = examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length;
+          const anyProcessingNow = hasBatchRunning || Object.values(aiProcessing).some(Boolean);
+          const hasUnassignedPapers = examCorrections.some(c => c.paperUrl && !c.studentId);
 
-        {!bulkResult && !hasBatchRunning && !Object.values(aiProcessing).some(Boolean) && examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length > 1 && (
-          <IonButton
-            size="small"
-            color="tertiary"
-            onClick={handleBatchProcessAll}
-            className="batch-ai-btn"
-            disabled={examCorrections.some(c => c.paperUrl && !c.studentId)}
-            title={examCorrections.some(c => c.paperUrl && !c.studentId) ? 'Asigna todos los exámenes a un alumno primero' : undefined}
-          >
-            <IonIcon icon={sparkles} slot="start" />
-            Analizar todo ({examCorrections.filter(c => !c.aiProcessed && c.paperUrl).length})
-            {batchEstimate && (
-              <IonBadge color="light" className="time-badge">
-                <IonIcon icon={timeOutline} /> {batchEstimate.time_string}
-              </IonBadge>
-            )}
-          </IonButton>
-        )}
+          return (
+            <>
+              {/* AI processing banner */}
+              {anyProcessingNow && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-50 border border-purple-200 text-purple-800 text-xs w-full">
+                  <Sparkles size={14} className="animate-pulse flex-shrink-0" />
+                  <span>IA corrigiendo exámenes... No subas más hasta que termine.</span>
+                </div>
+              )}
 
-        {allSaved && (
-          <IonButton size="small" color="success" onClick={handleFinish}>
-            <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar
-          </IonButton>
-        )}
+              {/* Upload button: standalone or class mode when not all have papers */}
+              {standalone ? (
+                <Button variant="outline" size="sm" onClick={handleStandaloneUploadClick} disabled={standaloneUploading || anyProcessingNow}>
+                  {standaloneUploading ? <Spinner size={18} /> : <><Upload size={18} /> Subir examen</>}
+                </Button>
+              ) : !anyProcessingNow && !bulkResult && effectiveClassId ? (
+                <Button variant="outline" size="sm" onClick={() => handleBulkUploadClick(effectiveClassId)} disabled={bulkUploading}>
+                  {bulkUploading ? <Spinner size={18} /> : (
+                    <><Users size={18} /> {allHavePapers ? 'Añadir / Reemplazar entregas' : 'Subir PDF de toda la clase'}</>
+                  )}
+                </Button>
+              ) : null}
 
-        <IonButton size="small" fill="clear" color="medium" onClick={() => history.push(
-          exam?.subjectId
-            ? `/tabs/classes/${exam.classId}/subjects/${exam.subjectId}/exams/${examId}/edit`
-            : exam?.classId
-              ? `/tabs/classes/${exam.classId}/exams/${examId}/edit`
-              : `/tabs/exams/${examId}`
-        )}>
-          <IonIcon icon={pencilOutline} slot="start" /> Editar examen
-        </IonButton>
+              {/* Batch AI button: when papers exist and need processing */}
+              {!standalone && !bulkResult && !anyProcessingNow && unprocessedWithPaper > 0 && (
+                <Button size="sm" className="batch-ai-btn" onClick={handleBatchProcessAll}
+                  disabled={hasUnassignedPapers}
+                  title={hasUnassignedPapers ? 'Asigna todos los exámenes a un alumno primero' : `Analizar ${unprocessedWithPaper} exámenes con IA`}
+                >
+                  <Sparkles size={16} className="flex-shrink-0" />
+                  <span className="batch-ai-btn__label">
+                    Analizar{unprocessedWithPaper > 1 ? ` (${unprocessedWithPaper})` : ''}
+                  </span>
+                  {batchEstimate && (
+                    <span className="time-badge">
+                      <Clock size={14} className="flex-shrink-0" />
+                      <span>{batchEstimate.time_string}</span>
+                    </span>
+                  )}
+                </Button>
+              )}
+
+              {/* Finish button lives at the bottom of the corrections list
+                  only — having it twice (top + bottom) was redundant. */}
+            </>
+          );
+        })()}
       </div>
-
-      {/* Students without exam */}
-      {missingCount > 0 && (
-        <div className="student-list-section">
-          <div className="student-list-header" onClick={() => setShowStudentList(!showStudentList)}>
-            <div className="student-list-header-left">
-              <IonIcon icon={peopleOutline} />
-              <span>Alumnos sin examen ({missingCount})</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <IonBadge color="warning">{missingCount} sin examen</IonBadge>
-              <IonIcon icon={showStudentList ? chevronUpOutline : chevronDownOutline} />
-            </div>
-          </div>
-
-          {showStudentList && (
-            <div className="student-list-items">
-              {students.filter(s => studentCorrectionMap[s.id]?.status === 'none').map(student => {
-                const isUploading = uploadingForStudent === student.id;
-
-                return (
-                  <div
-                    key={student.id}
-                    className="student-list-item student-list-item--none"
-                  >
-                    <div className="student-list-item-info">
-                      <div className="student-list-item-name">{student.name}</div>
-                      <div className="student-list-item-status">Sin examen</div>
-                    </div>
-                    <div className="student-list-item-actions">
-                      <IonButton
-                        size="small"
-                        fill="outline"
-                        onClick={() => handleStudentUploadClick(student.id)}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? <IonSpinner name="crescent" /> : <><IonIcon icon={cloudUploadOutline} slot="start" /> Subir</>}
-                      </IonButton>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Loading */}
       {loading && examCorrections.length === 0 && (
-        <div className="correction-loading"><IonSpinner /></div>
+        <div className="correction-loading"><Spinner size={18} /></div>
       )}
 
       {/* Empty state */}
       {examCorrections.length === 0 && !loading && (
-        <EmptyState
-          icon="📷"
-          title="Sin exámenes"
-          subtitle="Sube los exámenes de los alumnos (PDF de toda la clase o uno por uno)"
-          actionLabel="Subir PDF de toda la clase"
-          onAction={handleBulkUploadClick}
-        />
+        standalone ? (
+          <EmptyState
+            icon="📷"
+            title="Sin exámenes"
+            subtitle="Sube el examen de un alumno para corregirlo con IA"
+            actionLabel="Subir examen"
+            onAction={handleStandaloneUploadClick}
+          />
+        ) : (
+          <EmptyState
+            icon="📷"
+            title="Sin exámenes"
+            subtitle="Sube los exámenes de los alumnos (PDF de toda la clase o uno por uno)"
+            actionLabel="Subir PDF de toda la clase"
+            onAction={() => handleBulkUploadClick()}
+          />
+        )
       )}
 
-      {/* Assignment status banner */}
-      {examCorrections.length > 0 && hasUnassignedCorrections && (
+      {/* Assignment status banner (hidden in standalone mode) */}
+      {!standalone && examCorrections.length > 0 && hasUnassignedCorrections && (
         <div className="assignment-status-banner assignment-status-banner--warning">
           <div className="assignment-status-summary">
             <div className="assignment-status-counts">
               <span className="assignment-count assignment-count--assigned">
-                <IonIcon icon={checkmarkOutline} /> {assignedExamCorrections.length} asignados
+                <Check size={18} /> {assignedExamCorrections.length} asignados
               </span>
               <span className="assignment-count assignment-count--unassigned">
-                <IonIcon icon={warningOutline} /> {unassignedExamCorrections.length} sin asignar
+                <AlertTriangle size={18} /> {unassignedExamCorrections.length} sin asignar
               </span>
             </div>
-            <IonProgressBar
-              value={assignedExamCorrections.length / examCorrections.length}
+            <Progress value={assignedExamCorrections.length / examCorrections.length}
               color="warning"
               className="assignment-progress"
             />
           </div>
-          <IonButton
-            size="small"
-            fill="outline"
-            color="warning"
-            onClick={() => unassignedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          <Button variant="outline" size="sm" onClick={() => unassignedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           >
             Ver sin asignar
-          </IonButton>
+          </Button>
         </div>
       )}
 
       {/* Assigned ScanCards */}
-      {assignedExamCorrections.length > 0 && hasUnassignedCorrections && (
+      {!standalone && assignedExamCorrections.length > 0 && hasUnassignedCorrections && (
         <div className="assignment-section-header">
-          <IonIcon icon={checkmarkCircleOutline} color="success" />
+          <CheckCircle size={18} />
           <span>Asignados ({assignedExamCorrections.length})</span>
         </div>
       )}
-      <div className="correction-scans">
-        {(hasUnassignedCorrections ? assignedExamCorrections : examCorrections).map((correction, i) => {
+      {(() => {
+        const renderCard = (correction: typeof examCorrections[0], i: number) => {
           const local = localGrades[correction.id] || { grade: correction.grade, teacherComments: '', studentId: correction.studentId || '' };
           const isSaved = !!correction.savedAt;
           const student = students.find(s => s.id === local.studentId);
           return (
             <div key={correction.id} id={`correction-${correction.id}`}>
               <ScanCard
-                index={hasUnassignedCorrections ? examCorrections.indexOf(correction) : i}
+                index={i}
                 aiAnalysis={correction.aiAnalysis}
                 selectedStudentId={local.studentId}
                 students={students}
@@ -868,24 +1151,41 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
                 onCommentsChange={(n) => handleCommentsChange(correction.id, n)}
                 onSave={() => handleSavePaper(correction.id)}
                 onProcessAI={!hasBatchRunning ? () => handleProcessAI(correction.id) : undefined}
-                onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
+                onPreviewPaper={correction.paperUrl ? () => handlePreviewPaper(correction.paperUrl!) : undefined}
                 onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, student?.name) : undefined}
                 onDownloadReport={correction.aiProcessed ? () => handleDownloadReport(correction.id, student?.name) : undefined}
                 onDelete={() => handleDeleteCorrection(correction.id)}
+                onMarkNotTaken={!standalone ? () => handleMarkNotTakenClick(correction.id) : undefined}
+                onUnmarkNotTaken={!standalone ? () => handleUnmarkNotTaken(correction.id) : undefined}
+                onReplacePaper={correction.paperUrl ? () => handleReplacePaperClick(correction.id) : undefined}
+                notTaken={correction.notTaken}
+                replacing={replacingForCorrection === correction.id}
+                onUploadPaper={!bulkResult && !correction.paperUrl && local.studentId && !correction.notTaken ? () => handleStudentUploadClick(local.studentId, correction.classId) : undefined}
                 saving={saving[correction.id]}
-                aiProcessing={aiProcessing[correction.id] || hasBatchRunning}
+                aiProcessing={aiProcessing[correction.id] || (hasBatchRunning && !correction.aiProcessed && !!correction.paperUrl)}
                 aiError={aiErrors[correction.id]}
+                standalone={standalone}
+                studentName={standaloneNames[correction.id] || correction.aiAnalysis?.suggestedStudentName || ''}
+                onStudentNameChange={(name) => setStandaloneNames(prev => ({ ...prev, [correction.id]: name }))}
               />
             </div>
           );
-        })}
-      </div>
+        };
+
+        const cardsToRender = standalone ? examCorrections : hasUnassignedCorrections ? assignedExamCorrections : examCorrections;
+
+        return (
+          <div className="correction-scans">
+            {cardsToRender.map((correction, i) => renderCard(correction, hasUnassignedCorrections ? examCorrections.indexOf(correction) : i))}
+          </div>
+        );
+      })()}
 
       {/* Unassigned ScanCards */}
-      {hasUnassignedCorrections && (
+      {hasUnassignedCorrections && !standalone && (
         <>
           <div className="assignment-section-header assignment-section-header--unassigned" ref={unassignedSectionRef}>
-            <IonIcon icon={warningOutline} color="warning" />
+            <AlertTriangle size={18} />
             <span>Sin asignar ({unassignedExamCorrections.length})</span>
           </div>
           <div className="correction-scans correction-scans--unassigned">
@@ -912,13 +1212,20 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
                     onCommentsChange={(n) => handleCommentsChange(correction.id, n)}
                     onSave={() => handleSavePaper(correction.id)}
                     onProcessAI={!hasBatchRunning ? () => handleProcessAI(correction.id) : undefined}
-                    onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined}
+                    onPreviewPaper={correction.paperUrl ? () => handlePreviewPaper(correction.paperUrl!) : undefined}
                     onDownloadPaper={correction.paperUrl ? () => handleDownloadStudentPaper(correction.paperUrl!, student?.name) : undefined}
                     onDownloadReport={correction.aiProcessed ? () => handleDownloadReport(correction.id, student?.name) : undefined}
                     onDelete={() => handleDeleteCorrection(correction.id)}
+                    onMarkNotTaken={!standalone ? () => handleMarkNotTakenClick(correction.id) : undefined}
+                    onUnmarkNotTaken={!standalone ? () => handleUnmarkNotTaken(correction.id) : undefined}
+                    onReplacePaper={correction.paperUrl ? () => handleReplacePaperClick(correction.id) : undefined}
+                    notTaken={correction.notTaken}
                     saving={saving[correction.id]}
-                    aiProcessing={aiProcessing[correction.id] || hasBatchRunning}
+                    aiProcessing={aiProcessing[correction.id] || (hasBatchRunning && !correction.aiProcessed && !!correction.paperUrl)}
                     aiError={aiErrors[correction.id]}
+                    standalone={standalone}
+                    studentName={standaloneNames[correction.id] || correction.aiAnalysis?.suggestedStudentName || ''}
+                    onStudentNameChange={(name) => setStandaloneNames(prev => ({ ...prev, [correction.id]: name }))}
                   />
                 </div>
               );
@@ -930,59 +1237,100 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished })
       {/* Bottom finish button */}
       {allSaved && examCorrections.length > 0 && (
         <div className="correction-finish">
-          <IonButton expand="block" color="success" onClick={handleFinish}>
-            <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar corrección
-          </IonButton>
+          <Button variant="outline" className="w-full" onClick={handleFinish}>
+            <CheckCircle size={18} /> Finalizar corrección
+          </Button>
         </div>
       )}
 
-      {/* Paper preview modal */}
-      <IonModal isOpen={!!previewUrl} onDidDismiss={() => setPreviewUrl(null)} className="paper-preview-modal">
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>Vista previa</IonTitle>
-            <IonButtons slot="end">
-              <IonButton onClick={() => setPreviewUrl(null)}>
-                <IonIcon icon={closeOutline} />
-              </IonButton>
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="paper-preview-content" scrollY={false}>
-          {previewUrl && (
-            <div className="paper-preview-container">
-              {previewUrl.toLowerCase().endsWith('.pdf') ? (
-                <iframe src={previewUrl} title="Examen" className="paper-preview-pdf" />
-              ) : (
-                <img src={previewUrl} alt="Examen" className="paper-preview-img" />
-              )}
-            </div>
-          )}
-        </IonContent>
-      </IonModal>
+      {/* Paper preview overlay — same pattern as ExamDetail */}
+      {previewUrl && (
+        <div className="ed-preview-overlay" style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
+          <div className="ed-preview-viewer" style={{ height: '100%' }}>
+            {previewUrl.includes('#.pdf') ? (
+              <PdfViewer
+                url={previewUrl.replace('#.pdf', '')}
+                title="Examen del alumno"
+                onClose={() => { URL.revokeObjectURL(previewUrl.replace('#.pdf', '')); setPreviewUrl(null); }}
+              />
+            ) : (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--color-background)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--color-border)' }}>
+                  <span style={{ fontWeight: 600 }}>Examen del alumno</span>
+                  <Button variant="ghost" size="sm" onClick={() => setPreviewUrl(null)}><X size={18} /></Button>
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '16px' }}>
+                  <img src={previewUrl} alt="Examen" style={{ maxWidth: '100%', height: 'auto', objectFit: 'contain' }} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      <Modal open={false} onClose={() => {}}><span />
+      </Modal>
 
       {/* Duplicate Assignment Conflict Dialog */}
-      <IonAlert
-        isOpen={!!duplicateConflict}
+      <AlertConfirm open={!!duplicateConflict}
         header="Examen duplicado"
         message={`${duplicateConflict?.studentName} ya tiene un examen asignado. ¿Qué quieres hacer?`}
-        buttons={[
-          {
-            text: 'Cancelar',
-            role: 'cancel',
-            handler: () => setDuplicateConflict(null),
-          },
-          {
-            text: 'Eliminar este nuevo',
-            cssClass: 'alert-button-danger',
-            handler: handleDuplicateKeepExisting,
-          },
-          {
-            text: 'Reemplazar el anterior',
-            handler: handleDuplicateReplace,
-          },
-        ]}
-        onDidDismiss={() => setDuplicateConflict(null)}
+        onConfirm={handleDuplicateReplace}
+        confirmText="Reemplazar el anterior"
+        variant="destructive"
+        onClose={() => setDuplicateConflict(null)}
+      />
+
+      {/* Bulk overwrite prompt — appears before the file picker when the
+          target class already has uploaded papers. The teacher picks "Añadir
+          nuevas" (default, skip duplicates) or "Reemplazar". */}
+      <AlertConfirm
+        open={!!bulkOverwritePrompt}
+        header={bulkOverwritePrompt ? `Esta clase ya tiene ${bulkOverwritePrompt.existingCount} entrega${bulkOverwritePrompt.existingCount === 1 ? '' : 's'}` : ''}
+        message="¿Cómo quieres tratar a los alumnos que ya tengan entrega? Puedes añadir solo a los que faltan, o reemplazar las anteriores (se perderán las notas asociadas)."
+        confirmText="Reemplazar entregas existentes"
+        cancelText="Solo añadir nuevas"
+        variant="destructive"
+        onConfirm={() => proceedBulkUpload(true)}
+        onClose={() => proceedBulkUpload(false)}
+      />
+
+      {/* Mark as Not Taken — only confirms when there's something to lose */}
+      <AlertConfirm
+        open={!!npConfirm}
+        header={npConfirm ? `Marcar a ${npConfirm.studentName} como no presentado` : ''}
+        message={
+          npConfirm
+            ? (npConfirm.hadGrade
+                ? 'Esto eliminará la nota guardada y la entrega de este alumno. El alumno quedará excluido de la media de la clase.'
+                : 'Esto eliminará la entrega subida. El alumno quedará excluido de la media de la clase.')
+            : ''
+        }
+        confirmText="Marcar como no presentado"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={handleConfirmMarkNotTaken}
+        onClose={() => setNpConfirm(null)}
+      />
+
+      {/* Replace paper — only confirms when there is a saved grade */}
+      <AlertConfirm
+        open={!!replaceWarning}
+        header={replaceWarning ? `Reemplazar la entrega de ${replaceWarning.studentName}` : ''}
+        message="Hay una nota guardada para este alumno. Si reemplazas la entrega, se eliminará la nota y el análisis de IA — tendrás que corregir de nuevo."
+        confirmText="Sí, reemplazar"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={handleConfirmReplaceWarning}
+        onClose={() => setReplaceWarning(null)}
+      />
+
+      {/* Hidden file input used by the replace-paper flow */}
+      <input
+        ref={replaceFileInputRef}
+        type="file"
+        accept="application/pdf,image/*"
+        style={{ display: 'none' }}
+        onChange={handleReplaceFileSelected}
       />
 
       <CelebrationOverlay show={showCelebration} onDismiss={handleCelebrationDismiss} />

@@ -1,6 +1,5 @@
 .ebc-content {
-  --padding-top: 0;
-  --padding-bottom: var(--space-2xl);
+  padding-bottom: var(--space-2xl);
 }
 
 .ebc-progress-badge {
@@ -23,7 +22,7 @@
   font-size: var(--font-size-xl);
   font-weight: 700;
   margin: 0 0 var(--space-xs);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .ebc-select-subtitle {
@@ -44,7 +43,7 @@
 }
 
 .ebc-group-item {
-  --background: var(--ion-card-background, #fff);
+  --background: var(--color-surface);
   --border-radius: var(--radius-lg);
   --padding-start: var(--space-md);
   --padding-end: var(--space-md);
@@ -52,7 +51,7 @@
   margin-bottom: var(--space-sm);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--color-border-strong);
   overflow: hidden;
 }
 
@@ -62,9 +61,9 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(21, 102, 94, 0.1);
   border-radius: var(--radius-md);
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   font-size: 20px;
 }
 
@@ -82,7 +81,7 @@
   color: #94A3B8;
 }
 
-.ebc-group-meta ion-icon {
+.ebc-group-meta svg {
   font-size: 12px;
 }
 
@@ -122,24 +121,24 @@
 }
 
 .ebc-upload-area {
-  border: 2px dashed rgba(var(--ion-color-primary-rgb), 0.3);
+  border: 2px dashed rgba(21, 102, 94, 0.3);
   border-radius: var(--radius-xl);
   padding: var(--space-2xl) var(--space-lg);
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: rgba(var(--ion-color-primary-rgb), 0.02);
+  background: rgba(21, 102, 94, 0.02);
 }
 
 .ebc-upload-area:hover,
 .ebc-upload-area:active {
-  border-color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.05);
+  border-color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.05);
 }
 
 .ebc-upload-icon {
   font-size: 48px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   margin-bottom: var(--space-md);
 }
 
@@ -147,7 +146,7 @@
   font-size: var(--font-size-lg);
   font-weight: 600;
   margin: 0 0 var(--space-xs);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .ebc-upload-area p {
@@ -178,14 +177,14 @@
 .ebc-existing-corrections {
   text-align: center;
   padding: var(--space-md);
-  background: rgba(var(--ion-color-success-rgb), 0.05);
+  background: rgba(5, 150, 105, 0.05);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(var(--ion-color-success-rgb), 0.15);
+  border: 1px solid rgba(5, 150, 105, 0.15);
 }
 
 .ebc-existing-label {
   font-size: var(--font-size-sm);
-  color: var(--ion-color-success);
+  color: var(--color-success);
   font-weight: 500;
   margin: 0 0 var(--space-sm);
 }
@@ -201,7 +200,7 @@
   flex-wrap: wrap;
 }
 
-.ebc-correct-toolbar ion-button {
+.ebc-correct-toolbar button {
   --border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 }
@@ -227,7 +226,7 @@
 .ebc-content .bulk-review-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   margin: 0 0 var(--space-xs);
 }
 
@@ -245,7 +244,7 @@
 }
 
 .ebc-content .bulk-review-card-auto {
-  border-left: 3px solid var(--ion-color-success);
+  border-left: 3px solid var(--color-success);
 }
 
 .ebc-content .auto-badge {
@@ -296,7 +295,7 @@
   opacity: 1;
 }
 
-.ebc-content .bulk-review-thumb-overlay ion-icon {
+.ebc-content .bulk-review-thumb-overlay svg {
   color: white;
   font-size: 20px;
 }
@@ -307,13 +306,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ion-color-light);
+  background: var(--color-muted);
 }
 
-.ebc-content .bulk-review-thumb-loading ion-spinner {
+.ebc-content .bulk-review-thumb-loading svg {
   width: 20px;
   height: 20px;
-  --color: var(--ion-color-medium);
+  --color: var(--color-muted-foreground);
 }
 
 .ebc-content .bulk-review-card-info {
@@ -326,7 +325,7 @@
 .ebc-content .bulk-review-card-index {
   font-weight: 700;
   font-size: var(--font-size-sm);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .ebc-content .bulk-review-card-meta {
@@ -358,14 +357,14 @@
   align-items: center;
   gap: 6px;
   font-size: var(--font-size-xs);
-  color: var(--ion-color-warning-shade);
+  color: #BF6905;
   margin: 0;
   padding: var(--space-sm) var(--space-md);
-  background: rgba(var(--ion-color-warning-rgb), 0.08);
+  background: rgba(217, 119, 6, 0.08);
   border-radius: var(--radius-sm);
 }
 
-.ebc-content .bulk-review-pending-hint ion-icon {
+.ebc-content .bulk-review-pending-hint svg {
   font-size: 16px;
   flex-shrink: 0;
 }
@@ -379,8 +378,8 @@
 
 .ebc-content .detected-code {
   display: inline-block;
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
-  color: var(--ion-color-primary);
+  background: rgba(21, 102, 94, 0.1);
+  color: var(--color-primary);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-family: monospace;
@@ -420,24 +419,24 @@
   }
 
   .ebc-group-item {
-    --background: #16161A;
+    --background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.06);
   }
 
   .ebc-upload-area {
-    border-color: rgba(var(--ion-color-primary-rgb), 0.2);
-    background: rgba(var(--ion-color-primary-rgb), 0.03);
+    border-color: rgba(21, 102, 94, 0.2);
+    background: rgba(21, 102, 94, 0.03);
   }
 
   .ebc-upload-area:hover,
   .ebc-upload-area:active {
-    border-color: var(--ion-color-primary);
-    background: rgba(var(--ion-color-primary-rgb), 0.08);
+    border-color: var(--color-primary);
+    background: rgba(21, 102, 94, 0.08);
   }
 
   .ebc-existing-corrections {
-    background: rgba(var(--ion-color-success-rgb), 0.08);
-    border-color: rgba(var(--ion-color-success-rgb), 0.2);
+    background: rgba(5, 150, 105, 0.08);
+    border-color: rgba(5, 150, 105, 0.2);
   }
 
   .ebc-correct-toolbar {
@@ -446,7 +445,7 @@
   }
 
   .ebc-content .bulk-review-card {
-    background: #16161A !important;
+    background: var(--color-surface) !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
   }
 

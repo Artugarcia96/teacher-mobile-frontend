@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  IonModal, IonButton, IonSelect, IonSelectOption, IonItem, IonLabel,
-  IonInput, IonSpinner, IonIcon,
-} from '@ionic/react';
-import { arrowForwardOutline, personOutline, addOutline, bookOutline, createOutline, sparkles } from 'ionicons/icons';
+import { ArrowRight, Plus, BookOpen, Pencil, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
 import { parseEventNotes } from '../utils/parseEventNotes';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CalendarEvent, MentionedStudent } from '../types';
 import { useClassesStore } from '../store/classesStore';
 import { useCalendarStore } from '../store/calendarStore';
@@ -23,7 +24,7 @@ interface Props {
 
 const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, defaultDate }) => {
   const isDesktop = useIsDesktop();
-  const history = useHistory();
+  const navigate = useNavigate();
   const allClasses = useClassesStore((s) => s.classes);
   const classSubjects = useClassesStore((s) => s.classSubjects);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
@@ -94,9 +95,9 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
       if (match) subjectId = match.subjectId;
     }
     if (subjectId) {
-      history.push(`/tabs/classes/${existingEvent.classId}/subjects/${subjectId}`);
+      navigate(`/tabs/classes/${existingEvent.classId}/subjects/${subjectId}`);
     } else {
-      history.push(`/tabs/classes/${existingEvent.classId}`);
+      navigate('/tabs/classes');
     }
   };
 
@@ -199,11 +200,10 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
   const isClassSession = existingEvent?.eventType === 'class_session' && existingEvent?.classId;
 
   return (
-    <IonModal
-      isOpen={isOpen}
-      onDidDismiss={onDismiss}
-      initialBreakpoint={isDesktop ? 1 : 0.65}
-      breakpoints={isDesktop ? [0, 1] : [0, 0.65, 0.85]}
+    <Modal
+      open={isOpen}
+      onClose={onDismiss}
+      sheetHeight="lg"
     >
       <div className="ev-editor">
         <h2 className="ev-editor__title">
@@ -215,7 +215,7 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           <div className="ev-editor__quick-actions">
             {isClassSession && (
               <button className="ev-editor__quick-btn" onClick={handleGoToSubject}>
-                <IonIcon icon={arrowForwardOutline} />
+                <ArrowRight size={18} />
                 Ir a la asignatura
               </button>
             )}
@@ -223,7 +223,7 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
               <button className="ev-editor__quick-btn ev-editor__quick-btn--accent" onClick={() => {
                 window.open(`${import.meta.env.VITE_API_URL || ''}/files${existingEvent.topicPdfUrl}`, '_blank');
               }}>
-                <IonIcon icon={bookOutline} />
+                <BookOpen size={18} />
                 Ver material
               </button>
             )}
@@ -233,9 +233,9 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
               return (
                 <button className="ev-editor__quick-btn ev-editor__quick-btn--accent" onClick={() => {
                   onDismiss();
-                  history.push(`/tabs/classes/${existingEvent.classId}/subjects/${existingEvent.subjectId}/exercises?generate=1`);
+                  navigate(`/tabs/classes/${existingEvent.classId}/subjects/${existingEvent.subjectId}/exercises?generate=1`);
                 }}>
-                  <IonIcon icon={sparkles} />
+                  <Sparkles size={18} />
                   Ejercicios
                 </button>
               );
@@ -250,9 +250,9 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
                   if (parsed.topicIds.length) params.set('topicIds', parsed.topicIds.join(','));
                   params.set('date', existingEvent.date);
                   params.set('name', existingEvent.title);
-                  history.push(`/tabs/classes/${existingEvent.classId}/subjects/${existingEvent.subjectId}/exams/new?${params}`);
+                  navigate(`/tabs/classes/${existingEvent.classId}/subjects/${existingEvent.subjectId}/exams/new?${params}`);
                 }}>
-                  <IonIcon icon={createOutline} />
+                  <Pencil size={18} />
                   Crear examen con IA
                 </button>
               );
@@ -260,80 +260,73 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           </div>
         )}
 
-        <IonItem lines="none" className="ev-editor__field">
-          <IonInput
+        <div className="ev-editor__field">
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Título</label>
+          <Input
             value={title}
-            onIonInput={(e) => setTitle(e.detail.value ?? '')}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Título del evento"
-            label="Título"
-            labelPlacement="stacked"
           />
-        </IonItem>
+        </div>
 
         {!existingEvent && (
           <>
-            <IonItem lines="none" className="ev-editor__field">
-              <IonLabel position="stacked">Tipo de evento</IonLabel>
-              <IonSelect
-                value={eventType}
-                onIonChange={(e) => handleEventTypeChange(e.detail.value)}
-                interface="popover"
-              >
-                <IonSelectOption value="custom">Evento personalizado</IonSelectOption>
-                <IonSelectOption value="class_session">Sesión de clase</IonSelectOption>
-                <IonSelectOption value="tutoring">Tutoría</IonSelectOption>
-              </IonSelect>
-            </IonItem>
+            <div className="ev-editor__field">
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo de evento</label>
+              <Select value={eventType} onValueChange={(v) => handleEventTypeChange(v as 'class_session' | 'custom' | 'tutoring')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Evento personalizado</SelectItem>
+                  <SelectItem value="class_session">Sesión de clase</SelectItem>
+                  <SelectItem value="tutoring">Tutoría</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {eventType === 'class_session' && (
-              <IonItem lines="none" className="ev-editor__field">
-                <IonLabel position="stacked">Clase</IonLabel>
-                <IonSelect
-                  value={classId}
-                  onIonChange={(e) => handleClassChange(e.detail.value)}
-                  interface="popover"
-                  placeholder="Selecciona una clase"
-                >
-                  {classes.map((c) => (
-                    <IonSelectOption key={c.id} value={c.id}>
-                      {c.name} — {c.subject}
-                    </IonSelectOption>
-                  ))}
-                </IonSelect>
-              </IonItem>
+              <div className="ev-editor__field">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Clase</label>
+                <Select value={classId} onValueChange={(v) => handleClassChange(v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona una clase" /></SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} — {c.subject}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </>
         )}
 
-        <IonItem lines="none" className="ev-editor__field">
-          <IonInput
+        <div className="ev-editor__field">
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Fecha</label>
+          <Input
             type="date"
             value={eventDate}
-            onIonInput={(e) => setEventDate(e.detail.value ?? '')}
-            label="Fecha"
-            labelPlacement="stacked"
+            onChange={(e) => setEventDate(e.target.value)}
           />
-        </IonItem>
+        </div>
 
         <div className="ev-editor__row">
-          <IonItem lines="none" className="ev-editor__field ev-editor__field--half">
-            <IonInput
+          <div className="ev-editor__field ev-editor__field--half">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Inicio</label>
+            <Input
               type="time"
               value={startTime}
-              onIonInput={(e) => setStartTime(e.detail.value ?? '')}
-              label="Inicio"
-              labelPlacement="stacked"
+              onChange={(e) => setStartTime(e.target.value)}
             />
-          </IonItem>
-          <IonItem lines="none" className="ev-editor__field ev-editor__field--half">
-            <IonInput
+          </div>
+          <div className="ev-editor__field ev-editor__field--half">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Fin</label>
+            <Input
               type="time"
               value={endTime}
-              onIonInput={(e) => setEndTime(e.detail.value ?? '')}
-              label="Fin"
-              labelPlacement="stacked"
+              onChange={(e) => setEndTime(e.target.value)}
             />
-          </IonItem>
+          </div>
         </div>
 
         {existingEvent ? (
@@ -404,7 +397,7 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
                 onClick={handleAddObservation}
                 disabled={savingObservation || !newObservation.trim()}
               >
-                {savingObservation ? <IonSpinner name="dots" /> : <IonIcon icon={addOutline} />}
+                {savingObservation ? <Spinner size={16} /> : <Plus size={22} />}
               </button>
             </div>
           </div>
@@ -424,39 +417,36 @@ const EventEditorSheet: React.FC<Props> = ({ isOpen, onDismiss, existingEvent, d
           </div>
         )}
 
-        <IonButton
-          expand="block"
-          className="ev-editor__save"
+        <Button
+          className="w-full ev-editor__save"
           onClick={handleSave}
           disabled={saving || !title.trim() || !eventDate}
         >
-          {saving ? <IonSpinner name="crescent" /> : 'Guardar'}
-        </IonButton>
+          {saving ? <Spinner size={18} /> : 'Guardar'}
+        </Button>
 
         {existingEvent && (
           <div className="ev-editor__actions">
-            <IonButton
-              fill="outline"
-              color="medium"
-              size="small"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleCancel}
               disabled={saving}
             >
               {existingEvent.isCancelled ? 'Reactivar' : 'Cancelar sesión'}
-            </IonButton>
-            <IonButton
-              fill="outline"
-              color="danger"
-              size="small"
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={handleDelete}
               disabled={saving}
             >
               Eliminar
-            </IonButton>
+            </Button>
           </div>
         )}
       </div>
-    </IonModal>
+    </Modal>
   );
 };
 

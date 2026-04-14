@@ -1,38 +1,46 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
-  IonButton, IonItem, IonLabel, IonInput, IonSelect, IonSelectOption, IonIcon,
-  IonSpinner, IonCheckbox, IonTextarea, IonBadge, IonSegment, IonSegmentButton,
-  IonAlert, IonChip, IonList, IonAccordion, IonAccordionGroup,
-} from '@ionic/react';
-import {
-  cloudUploadOutline, documentOutline, checkmarkCircleOutline, sparklesOutline,
-  downloadOutline, documentTextOutline, trashOutline, refreshOutline, timeOutline,
-  createOutline, chevronForwardOutline, informationCircleOutline,
-  barbellOutline, medkitOutline, alertCircleOutline,
-} from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+  Upload, File as FileIconLucide, CheckCircle, Sparkles,
+  Download, FileText, Trash2, RefreshCw, Clock,
+  Pencil, AlertCircle,
+} from 'lucide-react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useExamsStore } from '../../store/examsStore';
 import { useClassesStore } from '../../store/classesStore';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
-import api, { exams as examsApi, classes as classesApi, subjects as subjectsApi, corrections as correctionsApi, batch } from '../../services/api';
-import { Lecture, ExamIterationHistoryItem, SubjectWithTopics, Exam } from '../../types';
+import api, { exams as examsApi, classes as classesApi, subjects as subjectsApi } from '../../services/api';
+import { Lecture, ExamIterationHistoryItem, SubjectWithTopics } from '../../types';
 import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import ClassSubjectPicker from '../../components/ClassSubjectPicker';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useAcademicConfigStore } from '../../store/academicConfigStore';
-import { getPeriodNumbers, getPeriodLabel } from '../../utils/periodConfig';
+import { EDUCATION_LEVELS, DIFFICULTY_OPTIONS, EXAM_DEADLINE_CONFIG } from './examConstants';
+import type { ExamFormat } from './examConstants';
+import FormatSelector from './FormatSelector';
+import LogoUploader from './LogoUploader';
+import TopicSelector from './TopicSelector';
+import PageShell from '@/components/shared/PageShell';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import Spinner from '@/components/shared/Spinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import './ExamEditor.css';
 
 const ExamEditor: React.FC = () => {
-  const { examId, classId: urlClassId, subjectId: urlSubjectId } = useParams<{ examId: string; classId?: string; subjectId?: string }>();
-  const history = useHistory();
+  const { examId, classId: urlClassId, subjectId: urlSubjectId } = useParams() as { examId: string; classId?: string; subjectId?: string };
+  const navigate = useNavigate();
+  const location = useLocation();
   // isNew if examId is 'new' OR undefined (when coming from /tabs/classes/:classId/exams/new route)
   const isNew = examId === 'new' || examId === undefined;
 
   // Query params from calendar: ?topicIds=id1,id2&date=2026-04-05
-  const queryParams = useMemo(() => new URLSearchParams(history.location.search), [history.location.search]);
+  const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const qTopicIds = useMemo(() => queryParams.get('topicIds')?.split(',').filter(Boolean) || [], [queryParams]);
   const qDate = queryParams.get('date');
   const qName = queryParams.get('name');
@@ -94,28 +102,39 @@ const ExamEditor: React.FC = () => {
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficulty, setDifficulty] = useState('medium');
   const [refinement, setRefinement] = useState('');
-  const [showInstructions, setShowInstructions] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+
+  // Exam format: boxes (default), compact, test
+  const [examFormat, setExamFormat] = useState<'boxes' | 'compact' | 'test'>('boxes');
+  // MCQ-only config (only meaningful when examFormat === 'test')
+  const [numOptions, setNumOptions] = useState<3 | 4 | 5>(4);
+  const [numMultiAnswer, setNumMultiAnswer] = useState(0);
+
+  // Logo
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Global context: free-text subject name when no urlClassId
+  const [subjectNameText, setSubjectNameText] = useState('');
+
+  // Reference materials (uploaded files for AI generation)
+  const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
+  const [referencePaths, setReferencePaths] = useState<string[]>([]);
+  const [uploadingRefs, setUploadingRefs] = useState(false);
+  const refInputRef = useRef<HTMLInputElement>(null);
+
+  // Education level
+  const [educationLevel, setEducationLevel] = useState('secundaria');
+
+  // Blank answer pages per student
+  const [blankPages, setBlankPages] = useState(1);
 
   // Phase 4: Deadline and iteration
   const [correctionDeadline, setCorrectionDeadline] = useState('');
-  const [blankPagesCount, setBlankPagesCount] = useState(1);
   const [iterationInstruction, setIterationInstruction] = useState('');
   const [iterating, setIterating] = useState(false);
   const [iterationError, setIterationError] = useState('');
   const iterateExam = useExamsStore((s) => s.iterateExam);
-
-  // Recovery exam mode
-  const [examType, setExamType] = useState<'practice' | 'recovery'>('practice');
-  const [sourceExamId, setSourceExamId] = useState('');
-  const [failingStudents, setFailingStudents] = useState<{ id: string; name: string; grade: number }[]>([]);
-  const [loadingFailingStudents, setLoadingFailingStudents] = useState(false);
-
-  // Corrected exams for recovery source selection
-  const correctedExams = useMemo(
-    () => allExams.filter((e) => e.status === 'corrected' && e.classId === classId),
-    [allExams, classId]
-  );
 
   // Fetch lectures when class changes
   const fetchLectures = useCallback(async (cId: string) => {
@@ -147,21 +166,29 @@ const ExamEditor: React.FC = () => {
   const fetchAcademicConfig = useAcademicConfigStore((s) => s.fetchConfig);
   useEffect(() => { if (classId) fetchAcademicConfig(classId); }, [classId, fetchAcademicConfig]);
 
-  const topicTrimesters = useMemo(() => {
-    const trims = new Set(allSubjectTopics.map((t) => (t as any).trimester || 0));
-    return trims;
-  }, [allSubjectTopics]);
-
-  const filteredTopics = useMemo(() => {
-    if (topicTrimesterFilter === 'all') return allSubjectTopics;
-    const tri = parseInt(topicTrimesterFilter);
-    return allSubjectTopics.filter((t) => ((t as any).trimester || 0) === tri);
-  }, [allSubjectTopics, topicTrimesterFilter]);
+  // Unsaved changes guard — warn on browser back/close when form has data
+  const hasUnsavedChanges = isNew && (name.trim().length > 0 || files.length > 0 || selectedTopicIds.length > 0 || referenceFiles.length > 0);
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
 
   const selectedClass = useMemo(
     () => classes.find((c) => c.id === classId),
     [classes, classId]
   );
+
+  // Pre-fill education level from class
+  useEffect(() => {
+    if (selectedClass?.educationLevel) {
+      setEducationLevel(selectedClass.educationLevel);
+    }
+  }, [selectedClass?.educationLevel]);
 
   const duplicateName = useMemo(() => {
     if (!name.trim() || !isNew) return false;
@@ -192,6 +219,28 @@ const ExamEditor: React.FC = () => {
 
   useEffect(() => { fetchClasses(); if (urlClassId) fetchClassSubjects(urlClassId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch teacher logo
+  useEffect(() => {
+    examsApi.getLogo().then(res => {
+      if (res.data?.logo_url) setLogoUrl(res.data.logo_url);
+    }).catch(() => {});
+  }, []);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const res = await examsApi.uploadLogo(file);
+      setLogoUrl(res.data.logo_url);
+    } catch (err) {
+      console.error('Logo upload failed:', err);
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
+
   // Fetch class-subject pairs for combined dropdown
   useEffect(() => {
     setPairsLoading(true);
@@ -207,7 +256,7 @@ const ExamEditor: React.FC = () => {
       .catch(() => setClassPairs([]))
       .finally(() => setPairsLoading(false));
   }, []);
-  
+
   useEffect(() => {
     if (!isNew && examId) {
       fetchExams();
@@ -219,19 +268,21 @@ const ExamEditor: React.FC = () => {
   useEffect(() => {
     if (!isNew && examId && examId !== 'new' && !examsLoading && allExams.length > 0 && !exam) {
       console.error('Exam not found, redirecting to create new exam');
-      history.replace('/tabs/exams/new');
+      navigate('/tabs/exams/new', { replace: true });
     }
-  }, [isNew, examId, examsLoading, allExams, exam, history]);
+  }, [isNew, examId, examsLoading, allExams, exam, navigate]);
 
   useEffect(() => {
     if (exam) {
       setName(exam.name);
       setClassId(exam.classId || '');
       setLectureId(exam.lectureId || '');
+      if (exam.subjectId) setSelectedSubjectId(exam.subjectId);
       setDate(exam.date);
       setMaxScore(exam.maxScore);
       setCorrectionDeadline(exam.correctionDeadline || '');
-      setBlankPagesCount(exam.blankPagesCount || 1);
+      if (exam.examFormat) setExamFormat(exam.examFormat as 'boxes' | 'compact' | 'test');
+      if (exam.blankPagesCount !== undefined && exam.blankPagesCount !== null) setBlankPages(exam.blankPagesCount);
     } else if (isNew) {
       if (urlClassId) setClassId(urlClassId);
       if (urlSubjectId) setSelectedSubjectId(urlSubjectId);
@@ -262,45 +313,6 @@ const ExamEditor: React.FC = () => {
       }
     }
   }, [date, isNew, correctionDeadline]);
-
-  // Fetch failing students when source exam changes (recovery mode)
-  useEffect(() => {
-    if (!sourceExamId || examType !== 'recovery') {
-      setFailingStudents([]);
-      return;
-    }
-    setLoadingFailingStudents(true);
-    correctionsApi.list(sourceExamId)
-      .then((res) => {
-        const sourceExam = allExams.find((e) => e.id === sourceExamId);
-        const passThreshold = (sourceExam?.maxScore ?? 10) * 0.5;
-        const failing = (res.data as any[])
-          .filter((c: any) => c.grade !== null && c.grade !== undefined && c.grade < passThreshold)
-          .map((c: any) => ({ id: c.student_id, name: c.student_name || 'Alumno', grade: c.grade }));
-        setFailingStudents(failing);
-      })
-      .catch(() => setFailingStudents([]))
-      .finally(() => setLoadingFailingStudents(false));
-  }, [sourceExamId, examType, allExams]);
-
-  // Auto-set name and topics when source exam changes in recovery mode
-  useEffect(() => {
-    if (examType === 'recovery' && sourceExamId) {
-      const sourceExam = allExams.find((e) => e.id === sourceExamId);
-      if (sourceExam) {
-        if (!name.trim()) setName(`Recuperación - ${sourceExam.name}`);
-        if (sourceExam.subjectId) setSelectedSubjectId(sourceExam.subjectId);
-      }
-    }
-  }, [sourceExamId, examType]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reset recovery state when switching exam type
-  useEffect(() => {
-    if (examType === 'practice') {
-      setSourceExamId('');
-      setFailingStudents([]);
-    }
-  }, [examType]);
 
   useEffect(() => {
     if (classId) {
@@ -371,103 +383,54 @@ const ExamEditor: React.FC = () => {
 
   const handleSave = async () => {
     if (!name.trim()) return;
-    if (!isNew && !exam) return; // Should not happen due to redirect effect
-
-    // New exam with file(s): run creation + AI correction in background
-    if (isNew && files.length > 0) {
-      const taskName = name.trim();
-      const taskFiles = [...files];
-      const examData = {
-        name: taskName,
-        classId: classId || undefined,
-        lectureId: lectureId || undefined,
-        subjectId: selectedSubjectId || undefined,
-        date,
-        maxScore,
-        isPersonalized,
-        blankPagesCount: blankPagesCount,
-      };
-
-      addBackgroundTask({
-        type: 'exam',
-        label: taskName,
-        description: 'La IA recorta cada examen por alumno y analiza las respuestas para preparar la corrección.',
-        execute: async () => {
-          // 1. Create exam with file upload (returns immediately, AI analysis runs in background)
-          const { id: examId, batchJobId: analysisJobId } = await addExam(examData, taskFiles.length === 1 ? taskFiles[0] : taskFiles);
-
-          // 2. Wait for upload analysis (extract questions, solve, generate PDFs, personalize)
-          if (analysisJobId) {
-            let done = false;
-            while (!done) {
-              await new Promise((r) => setTimeout(r, 3000));
-              const progressRes = await batch.getJobProgress(analysisJobId);
-              const status = progressRes.data.status;
-              if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-                done = true;
-                if (status === 'failed') throw new Error('El análisis del examen falló');
-              }
-            }
-          }
-
-          // 3. Assign exam (creates corrections for each student)
-          await assignExam(examId);
-
-          // 4. Fetch corrections and start batch AI correction
-          const corrRes = await correctionsApi.list(examId);
-          const correctionIds = (corrRes.data as any[])
-            .filter((c: any) => c.paper_url && !c.ai_processed)
-            .map((c: any) => c.id);
-
-          if (correctionIds.length > 0) {
-            const batchRes = await batch.startBatchCorrection(examId, correctionIds);
-            const jobId = batchRes.data.id;
-
-            // 5. Poll until batch correction completes
-            let done = false;
-            while (!done) {
-              await new Promise((r) => setTimeout(r, 3000));
-              const progressRes = await batch.getJobProgress(jobId);
-              const status = progressRes.data.status;
-              if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-                done = true;
-                if (status === 'failed') throw new Error('La corrección por IA falló');
-              }
-            }
-          }
-
-          return `/tabs/exams/${examId}`;
-        },
-      });
-
-      // Navigate away immediately
-      if (urlClassId && urlSubjectId) {
-        history.replace(`/tabs/classes/${urlClassId}/subjects/${urlSubjectId}/exams`);
-      } else if (urlClassId) {
-        history.replace(`/tabs/classes/${urlClassId}/exams`);
-      } else {
-        history.replace('/tabs/classes');
-      }
-      return;
-    }
+    if (!isNew && !exam) return;
 
     setSaving(true);
     try {
       if (isNew) {
-        const { id } = await addExam({
-          name: name.trim(),
+        const taskName = name.trim();
+        const examData = {
+          name: taskName,
           classId: classId || undefined,
           lectureId: lectureId || undefined,
           subjectId: selectedSubjectId || undefined,
-          date,
+          // Exam date is left undefined; it will be set during the
+          // Planificar step. Previously we passed today() here, which
+          // surfaced the exam in the calendar prematurely.
           maxScore,
-          isPersonalized,
-          blankPagesCount: blankPagesCount,
-        });
-        history.replace(`/tabs/exams/${id}`);
+          examFormat: examFormat || undefined,
+          // Persist the teacher's instructions so the digitiser can apply
+          // them and the Validar card can surface them back.
+          refinementPrompt: refinement || undefined,
+        };
+        const { id: newExamId, batchJobId: jobId } = await addExam(examData, files.length === 1 ? files[0] : files.length > 1 ? files : undefined);
+
+        // Build destination URL using form-selected values (not URL params)
+        const targetCId = classId || urlClassId;
+        const targetSId = selectedSubjectId || urlSubjectId;
+        const detailUrl = targetCId && targetSId
+          ? `/tabs/classes/${targetCId}/subjects/${targetSId}/exams/${newExamId}`
+          : targetCId
+            ? `/tabs/classes/${targetCId}/exams/${newExamId}`
+            : `/tabs/exams/${newExamId}`;
+
+        // Register background task for upload processing (question extraction)
+        if (jobId) {
+          addBackgroundTask({
+            type: 'exam',
+            label: taskName,
+            description: 'Extrayendo preguntas del documento y generando el examen digitalizado.',
+            batchJobId: jobId,
+            expectedResultUrl: detailUrl,
+            execute: async () => detailUrl,
+          });
+        }
+
+        // Navigate to exam detail so teacher can validate/assign
+        navigate(detailUrl, { replace: true });
       } else if (exam) {
-        await updateExam(exam.id, { name, classId: classId || undefined, lectureId: lectureId || undefined, date, maxScore });
-        history.goBack();
+        await updateExam(exam.id, { name, classId: classId || undefined, lectureId: lectureId || undefined, subjectId: selectedSubjectId || undefined, maxScore, examFormat });
+        navigate(-1);
       }
     } catch (err) {
       console.error('Failed to save exam:', err);
@@ -502,11 +465,7 @@ const ExamEditor: React.FC = () => {
     if (!exam) return;
     try {
       await deleteExam(exam.id);
-      if (urlClassId) {
-        history.replace(`/tabs/classes/${urlClassId}`);
-      } else {
-        history.replace('/tabs/classes');
-      }
+      navigate(backHref, { replace: true });
     } catch (err) {
       console.error('Failed to delete exam:', err);
     }
@@ -514,73 +473,85 @@ const ExamEditor: React.FC = () => {
 
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
 
-  const handleGenerate = () => {
-    const isRecovery = examType === 'recovery';
-    // For recovery: source exam is required, topics are optional
+  const handleGenerate = async () => {
     if (!name.trim()) return;
-    if (!isRecovery && selectedTopicIds.length === 0) return;
-    if (isRecovery && !sourceExamId) return;
 
     const taskName = name.trim();
+
+    // Step 1: Upload reference files if any (before creating the exam)
+    let uploadedPaths: string[] = [...referencePaths];
+    if (referenceFiles.length > 0) {
+      try {
+        setUploadingRefs(true);
+        const uploadRes = await examsApi.uploadReferenceMaterials(referenceFiles);
+        uploadedPaths = [...uploadedPaths, ...(uploadRes.data.paths || [])];
+        setReferencePaths(uploadedPaths);
+      } catch (err) {
+        console.error('[ExamEditor] Failed to upload reference materials:', err);
+        return;
+      } finally {
+        setUploadingRefs(false);
+      }
+    }
+
+    // Step 2: Generate exam
     const genData: Record<string, any> = {
       class_id: classId || undefined,
       lecture_id: lectureId || undefined,
       subject_id: selectedSubjectId || undefined,
+      subject_name: !urlClassId ? subjectNameText || undefined : undefined,
       topic_ids: selectedTopicIds.length > 0 ? [...selectedTopicIds] : undefined,
+      reference_material_paths: uploadedPaths.length > 0 ? uploadedPaths : undefined,
       name: taskName,
-      exam_date: date,
       num_questions: numQuestions,
       max_score: maxScore,
       difficulty,
       refinement_prompt: refinement || undefined,
-      is_personalized: isPersonalized,
-      correction_deadline: correctionDeadline || undefined,
-      blank_pages_count: blankPagesCount,
-      ...(isRecovery ? {
-        exam_type: 'recovery',
-        source_exam_id: sourceExamId,
-      } : {}),
+      is_test_format: examFormat === 'test',
+      exam_format: examFormat,
+      education_level: educationLevel,
+      // MCQ-only params, always sent — backend ignores them unless test
+      num_options: numOptions,
+      num_multi_answer: numMultiAnswer,
     };
 
-    // Call generate synchronously (fast — just creates DB records + batch job)
-    generateExam(genData as any).then(({ id: examId, batchJobId: jobId }) => {
+    generateExam(genData as any).then(({ id: newExamId, batchJobId: jobId }) => {
+      // Build destination URL using form-selected values (not URL params)
+      const tCId = classId || urlClassId;
+      const tSId = selectedSubjectId || urlSubjectId;
+      const detailUrl = tCId && tSId
+        ? `/tabs/classes/${tCId}/subjects/${tSId}/exams/${newExamId}`
+        : tCId
+          ? `/tabs/classes/${tCId}/exams/${newExamId}`
+          : `/tabs/exams/${newExamId}`;
       addBackgroundTask({
         type: 'exam',
         label: taskName,
-        description: isRecovery
-          ? 'La IA genera un examen de recuperación reformulando las preguntas del examen original.'
-          : 'La IA genera preguntas a partir de los temas seleccionados y compone el examen en PDF.',
+        description: 'La IA genera preguntas a partir del material proporcionado y compone el examen en PDF.',
         batchJobId: jobId,
-        expectedResultUrl: `/tabs/exams/${examId}`,
-        execute: async () => {
-          // Polling is handled by batchJobId; this is a no-op
-          return `/tabs/exams/${examId}`;
-        },
+        expectedResultUrl: detailUrl,
+        execute: async () => detailUrl,
       });
+      // Navigate to exam detail so teacher sees processing state
+      navigate(detailUrl, { replace: true });
     }).catch((err) => {
       console.error('[ExamEditor] Failed to start exam generation:', err);
+      toast.error('Error al iniciar la generacion');
     });
-
-    // Navigate back immediately — generation runs in background
-    if (urlClassId && urlSubjectId) {
-      history.replace(`/tabs/classes/${urlClassId}/subjects/${urlSubjectId}/exams`);
-    } else if (urlClassId) {
-      history.replace(`/tabs/classes/${urlClassId}/exams`);
-    } else {
-      history.replace('/tabs/classes');
-    }
   };
 
   const handleStartCorrection = async () => {
     if (exam) {
-      if (exam.status === 'uploaded') await assignExam(exam.id);
-      // Navigate to ExamDetail (which includes corrections section)
-      if (urlClassId && urlSubjectId) {
-        history.push(`/tabs/classes/${urlClassId}/subjects/${urlSubjectId}/exams/${exam.id}`);
-      } else if (urlClassId) {
-        history.push(`/tabs/classes/${urlClassId}/exams/${exam.id}`);
+      if (exam.status === 'pending_validation') await assignExam(exam.id);
+      // Use exam's own classId/subjectId (may have been linked after creation)
+      const cId = exam.classId || urlClassId;
+      const sId = exam.subjectId || urlSubjectId;
+      if (cId && sId) {
+        navigate(`/tabs/classes/${cId}/subjects/${sId}/exams/${exam.id}`);
+      } else if (cId) {
+        navigate(`/tabs/classes/${cId}/exams/${exam.id}`);
       } else {
-        history.push(`/correction/${exam.id}`);
+        navigate(`/tabs/exams/${exam.id}`);
       }
     }
   };
@@ -603,57 +574,58 @@ const ExamEditor: React.FC = () => {
     setIterationInstruction(instruction);
   };
 
-  const getDeadlineStatusColor = (status?: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'ok': return 'success';
-      case 'soon': return 'warning';
-      case 'urgent': return 'danger';
-      case 'overdue': return 'danger';
-      default: return 'medium';
-    }
-  };
-
   const getDeadlineStatusText = (status?: string) => {
-    switch (status) {
-      case 'completed': return 'Corregido';
-      case 'ok': return 'A tiempo';
-      case 'soon': return 'Próximo';
-      case 'urgent': return 'Urgente';
-      case 'overdue': return 'Atrasado';
-      default: return '';
-    }
+    return status ? (EXAM_DEADLINE_CONFIG[status]?.label || '') : '';
   };
 
   const editorSubjectColor = urlSubjectId && urlClassId ? classSubjects[urlClassId]?.find(s => s.subjectId === urlSubjectId)?.subjectColor : undefined;
 
-  return (
-    <IonPage style={subjectThemeStyle(editorSubjectColor)}>
-      <IonHeader>
-        <IonToolbar style={editorSubjectColor ? { '--background': editorSubjectColor, '--color': 'white' } as React.CSSProperties : undefined}>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={urlClassId ? `/tabs/classes/${urlClassId}` : '/tabs/classes'} text="" color={editorSubjectColor ? 'light' : undefined} />
-          </IonButtons>
-          <IonTitle>{isNew ? 'Nuevo examen' : name || 'Editar'}</IonTitle>
-          {!isNew && (
-            <IonButtons slot="end">
-              <IonButton color="danger" onClick={() => setShowDeleteAlert(true)}>
-                <IonIcon icon={trashOutline} />
-              </IonButton>
-            </IonButtons>
-          )}
-        </IonToolbar>
-        {isNew && (
-          <IonToolbar>
-            <IonSegment value={mode} onIonChange={(e) => setMode(e.detail.value as 'upload' | 'generate')}>
-              <IonSegmentButton value="upload"><IonLabel>Digitalizar examen</IonLabel></IonSegmentButton>
-              <IonSegmentButton value="generate"><IonLabel>Generar con IA</IonLabel></IonSegmentButton>
-            </IonSegment>
-          </IonToolbar>
-        )}
-      </IonHeader>
+  const backHref = urlClassId && urlSubjectId
+    ? `/tabs/classes/${urlClassId}/subjects/${urlSubjectId}/exams`
+    : urlClassId
+    ? `/tabs/classes/${urlClassId}/exams`
+    : '/tabs/exams';
 
-      <IonContent className="exam-editor-content">
+  // Whether we have a class context (urlClassId present)
+  const hasClassContext = !!urlClassId;
+
+  return (
+    <PageShell
+      title={isNew ? 'Nuevo examen' : name || 'Editar'}
+      backHref={backHref}
+      headerActions={
+        !isNew ? (
+          <Button variant="destructive" size="icon" onClick={() => setShowDeleteAlert(true)}>
+            <Trash2 size={18} />
+          </Button>
+        ) : undefined
+      }
+      noPadding
+      className={editorSubjectColor ? `[--color-primary:${editorSubjectColor}]` : undefined}
+    >
+      {/* Mode toggle (new exams only) */}
+      {isNew && (
+        <div className="exam-mode-toggle">
+          <button
+            type="button"
+            className={`exam-mode-btn ${mode === 'upload' ? 'exam-mode-btn--active' : ''}`}
+            onClick={() => setMode('upload')}
+          >
+            <Upload size={16} />
+            <span>Digitalizar</span>
+          </button>
+          <button
+            type="button"
+            className={`exam-mode-btn ${mode === 'generate' ? 'exam-mode-btn--active' : ''}`}
+            onClick={() => setMode('generate')}
+          >
+            <Sparkles size={16} />
+            <span>Generar con IA</span>
+          </button>
+        </div>
+      )}
+
+      <div className="exam-editor-content">
         <input
           id="exam-file-input"
           type="file"
@@ -664,14 +636,32 @@ const ExamEditor: React.FC = () => {
         />
 
         <div className="exam-editor-form">
-          {/* ─── EXAM NAME (always first, both modes) ─── */}
+          {/* --- CLASS/SUBJECT PICKER (top of form, both modes) --- */}
+          {isNew && hasClassContext && (
+            <div className="form-item-standalone">
+              <label className="form-item-label">Clase y asignatura</label>
+              <ClassSubjectPicker
+                pairs={urlClassId ? classPairs.filter(p => p.classId === urlClassId) : classPairs}
+                loading={pairsLoading}
+                value={classId && selectedSubjectId ? { classId, subjectId: selectedSubjectId } : null}
+                onChange={(cId, sId) => {
+                  if (cId !== classId) setLectureId('');
+                  setClassId(cId);
+                  setSelectedSubjectId(sId);
+                  setSelectedTopicIds([]);
+                }}
+              />
+            </div>
+          )}
+
+          {/* --- EXAM IDENTITY --- */}
           <div className="exam-name-field">
             <label className="exam-name-label">Nombre del examen</label>
-            <IonInput
+            <Input
               value={name}
-              onIonInput={(e) => setName(e.detail.value ?? '')}
+              onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Examen T2 Ecuaciones"
-              className="exam-name-input"
+              className="text-lg font-semibold"
             />
             {duplicateName && (
               <p className="exam-name-warning">
@@ -680,749 +670,528 @@ const ExamEditor: React.FC = () => {
             )}
           </div>
 
-          {/* ─── EXAM TYPE TOGGLE (both modes, new exams only) ─── */}
-          {isNew && (
-            <div className="exgen__type-toggle">
-              <button
-                className={`exgen__type-btn ${examType === 'practice' ? 'exgen__type-btn--active' : ''}`}
-                onClick={() => setExamType('practice')}
-              >
-                <IonIcon icon={barbellOutline} />
-                <span>Evaluación</span>
-              </button>
-              <button
-                className={`exgen__type-btn exgen__type-btn--recovery ${examType === 'recovery' ? 'exgen__type-btn--active' : ''}`}
-                onClick={() => setExamType('recovery')}
-              >
-                <IonIcon icon={medkitOutline} />
-                <span>Recuperación</span>
-              </button>
+          {/* Global context: subject name (shown for both modes when no class context) */}
+          {isNew && !hasClassContext && (
+            <div className="form-item" style={{ marginTop: '-8px', marginBottom: 'var(--space-lg)' }}>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Asignatura o materia</label>
+              <Input
+                value={subjectNameText}
+                onChange={(e) => setSubjectNameText(e.target.value)}
+                placeholder="Ej: Matemáticas 2º ESO, Historia del Arte..."
+              />
             </div>
           )}
 
-          {/* ─── UPLOAD MODE (existing + editing) ─── */}
+          {/* --- UPLOAD MODE (existing + editing) --- */}
           {(mode === 'upload' || !isNew) && (
             <>
               <label htmlFor="exam-file-input" className="upload-item">
-                <IonIcon
-                  icon={files.length > 0 || exam?.documentUrl ? documentOutline : cloudUploadOutline}
-                  className="upload-item-icon"
-                />
+                {files.length > 0 || exam?.documentUrl ? (
+                  <FileIconLucide size={24} className="upload-item-icon" />
+                ) : (
+                  <Upload size={24} className="upload-item-icon" />
+                )}
                 <div className="upload-item-text">
                   <h3>{files.length > 0
-                    ? (files.length === 1 ? files[0].name : `${files.length} páginas añadidas`)
+                    ? (files.length === 1 ? files[0].name : `${files.length} paginas anadidas`)
                     : (exam?.documentUrl ? 'Documento subido' : 'Sube tu examen')}</h3>
-                  <p>{files.length > 0 ? 'Toca para añadir más páginas' : (exam?.documentUrl ? 'Toca para cambiar' : 'Sube un PDF o fotos para digitalizarlo')}</p>
+                  <p>{files.length > 0 ? 'Toca para anadir mas paginas' : (exam?.documentUrl ? 'Toca para cambiar' : 'Sube un PDF o fotos para digitalizarlo')}</p>
                 </div>
                 {(files.length > 0 || exam?.documentUrl) && (
-                  <IonIcon icon={checkmarkCircleOutline} className="upload-success-icon" />
+                  <CheckCircle size={20} className="upload-success-icon" />
                 )}
               </label>
               {files.length > 1 && (
                 <div className="upload-file-list">
                   {files.map((f, i) => (
-                    <IonChip key={i} outline>
-                      <IonLabel>{f.name.length > 20 ? f.name.slice(0, 17) + '...' : f.name}</IonLabel>
-                      <IonIcon icon={trashOutline} onClick={(e) => { e.stopPropagation(); handleRemoveFile(i); }} />
-                    </IonChip>
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs">
+                      <span>{f.name.length > 20 ? f.name.slice(0, 17) + '...' : f.name}</span>
+                      <Trash2 size={12} className="cursor-pointer text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleRemoveFile(i); }} />
+                    </span>
                   ))}
                 </div>
               )}
             </>
           )}
 
-          {/* ─── GENERATE MODE ─── */}
+          {/* --- UPLOAD MODE: shared fields --- */}
+          {mode === 'upload' && isNew && (
+            <div className="form-grid">
+              <div className="form-item">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Instrucciones adicionales</label>
+                <Textarea
+                  value={refinement}
+                  onChange={(e) => setRefinement(e.target.value)}
+                  placeholder="Ej: Anadir un ejercicio extra de fracciones, cambiar el ejercicio 3..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Format + Logo — visible in both new and edit for upload mode */}
+          {mode === 'upload' && (
+            <div className="gen-config" style={{ marginTop: 'var(--space-md)' }}>
+              <span className="gen-config__label">Formato y personalización</span>
+              <FormatSelector value={examFormat} onChange={setExamFormat} />
+              {isNew && <LogoUploader logoUrl={logoUrl} uploading={uploadingLogo} onUpload={handleLogoUpload} />}
+            </div>
+          )}
+
+          {/* --- MAX SCORE (new exams in upload mode only — generate mode has it in config section) --- */}
+          {isNew && mode === 'upload' && (
+            <div className="gen-config" style={{ marginTop: 'var(--space-md)' }}>
+              <div className="gen-config-inline__row">
+                <span className="gen-config-inline__label">Calificación máxima</span>
+                <div className="gen-config-stepper">
+                  <button type="button" className="gen-config-stepper__btn" onClick={() => setMaxScore(Math.max(1, maxScore - 1))} disabled={maxScore <= 1}>−</button>
+                  <span className="gen-config-stepper__value">{maxScore}</span>
+                  <button type="button" className="gen-config-stepper__btn" onClick={() => setMaxScore(maxScore + 1)}>+</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- EXISTING EXAM: editable fields --- */}
+          {!isNew && (
+            <div className="gen-config" style={{ marginTop: 'var(--space-md)' }}>
+              <div className="gen-config-inline__row">
+                <span className="gen-config-inline__label">Calificación máxima</span>
+                <div className="gen-config-stepper">
+                  <button type="button" className="gen-config-stepper__btn" onClick={() => setMaxScore(Math.max(1, maxScore - 1))} disabled={maxScore <= 1}>−</button>
+                  <span className="gen-config-stepper__value">{maxScore}</span>
+                  <button type="button" className="gen-config-stepper__btn" onClick={() => setMaxScore(maxScore + 1)}>+</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- GENERATE MODE --- */}
           {mode === 'generate' && isNew && (
             <div className="gen-section">
-              {/* Combined class + subject selector */}
-              <div className="form-item-standalone">
-                <label className="form-item-label">Clase y asignatura</label>
-                <ClassSubjectPicker
-                  pairs={urlClassId ? classPairs.filter(p => p.classId === urlClassId) : classPairs}
-                  loading={pairsLoading}
-                  value={classId && selectedSubjectId ? { classId, subjectId: selectedSubjectId } : null}
-                  onChange={(cId, sId) => {
-                    if (cId !== classId) setLectureId('');
-                    setClassId(cId);
-                    setSelectedSubjectId(sId);
-                    setSelectedTopicIds([]);
+              {/* Topics selection */}
+              {selectedSubjectId && (
+                <TopicSelector
+                  classId={classId}
+                  topics={allSubjectTopics}
+                  selectedTopicIds={selectedTopicIds}
+                  onToggle={toggleTopic}
+                  onBulkToggle={(ids, selected) => {
+                    if (selected) {
+                      setSelectedTopicIds(prev => [...new Set([...prev, ...ids])]);
+                    } else {
+                      setSelectedTopicIds(prev => prev.filter(id => !ids.includes(id)));
+                    }
+                  }}
+                  trimesterFilter={topicTrimesterFilter}
+                  onTrimesterFilterChange={setTopicTrimesterFilter}
+                  periodMode={periodMode}
+                />
+              )}
+
+              {/* ── MATERIAL DE REFERENCIA ── */}
+              <div className="gen-config">
+                <span className="gen-config__label">{selectedTopicIds.length > 0 ? 'Material adicional' : 'Material de referencia'}</span>
+                <p className="text-xs text-muted-foreground" style={{ marginTop: '-4px', marginBottom: '8px' }}>
+                  {selectedTopicIds.length > 0
+                    ? 'La IA ya usará el material de los temas seleccionados. Añade documentos extra si quieres más detalle.'
+                    : 'Sube documentos que la IA usará como base para generar las preguntas.'
+                  }
+                </p>
+                <input
+                  ref={refInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt,.md,.html"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setReferenceFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                    }
+                    e.target.value = '';
                   }}
                 />
+                <button
+                  type="button"
+                  className="upload-item"
+                  onClick={() => refInputRef.current?.click()}
+                >
+                  <Upload size={20} className="upload-item-icon" />
+                  <div className="upload-item-text">
+                    <h3>{referenceFiles.length > 0 ? `${referenceFiles.length} archivo${referenceFiles.length !== 1 ? 's' : ''}` : 'Subir documentos'}</h3>
+                    <p>PDF, imágenes, Word, texto</p>
+                  </div>
+                  {referenceFiles.length > 0 && <CheckCircle size={18} className="upload-success-icon" />}
+                </button>
+                {referenceFiles.length > 0 && (
+                  <div className="upload-file-list">
+                    {referenceFiles.map((f, i) => (
+                      <Badge key={i} variant="outline" className="gap-1">
+                        <FileText size={12} />
+                        {f.name.length > 25 ? f.name.slice(0, 22) + '...' : f.name}
+                        <button onClick={() => setReferenceFiles(prev => prev.filter((_, j) => j !== i))} className="ml-1 hover:text-destructive">
+                          <Trash2 size={12} />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Recovery: Source exam selector */}
-              {examType === 'recovery' && classId && (
-                <div className="gen-recovery-source">
-                  <span className="gen-config__label">Examen de origen</span>
-                  <p className="gen-recovery-source__hint">
-                    Selecciona el examen corregido del que quieres generar la recuperación. Se generará un examen similar con preguntas reformuladas.
-                  </p>
-                  {correctedExams.length === 0 ? (
-                    <div className="gen-topics__empty">
-                      <p>No hay exámenes corregidos con IA en esta clase.</p>
+              {/* ── CONFIGURACIÓN ── */}
+              <div className="gen-config">
+                <span className="gen-config__label">Configuración</span>
+
+                {/* Inline stepper rows */}
+                <div className="gen-config-inline">
+                  <div className="gen-config-inline__row">
+                    <span className="gen-config-inline__label">Nº preguntas</span>
+                    <div className="gen-config-stepper">
+                      <button type="button" className="gen-config-stepper__btn" onClick={() => setNumQuestions(Math.max(1, numQuestions - 1))} disabled={numQuestions <= 1}>−</button>
+                      <span className="gen-config-stepper__value">{numQuestions}</span>
+                      <button type="button" className="gen-config-stepper__btn" onClick={() => setNumQuestions(Math.min(50, numQuestions + 1))} disabled={numQuestions >= 50}>+</button>
                     </div>
-                  ) : (
-                    <div className="gen-topics__list">
-                      {correctedExams.map((e) => (
-                        <div
-                          key={e.id}
-                          className={`gen-topic-chip ${sourceExamId === e.id ? 'gen-topic-chip--active' : ''}`}
-                          onClick={() => setSourceExamId(sourceExamId === e.id ? '' : e.id)}
-                        >
-                          <IonCheckbox checked={sourceExamId === e.id} className="gen-topic-chip__check" />
-                          <span className="gen-topic-chip__name">{e.name}</span>
-                          <IonBadge color="medium">{new Date(e.date).toLocaleDateString('es-ES')}</IonBadge>
-                        </div>
+                  </div>
+
+                  <div className="gen-config-inline__row">
+                    <span className="gen-config-inline__label">Nota máxima</span>
+                    <div className="gen-config-stepper">
+                      <button type="button" className="gen-config-stepper__btn" onClick={() => setMaxScore(Math.max(1, maxScore - 1))} disabled={maxScore <= 1}>−</button>
+                      <span className="gen-config-stepper__value">{maxScore}</span>
+                      <button type="button" className="gen-config-stepper__btn" onClick={() => setMaxScore(maxScore + 1)}>+</button>
+                    </div>
+                  </div>
+
+                  <div className="gen-config-inline__row">
+                    <span className="gen-config-inline__label">Dificultad</span>
+                    <div className="gen-config-pills">
+                      {DIFFICULTY_OPTIONS.map(({ value: v, label: l }) => (
+                        <button key={v} type="button" className={`gen-config-pill${difficulty === v ? ' gen-config-pill--active' : ''}`} onClick={() => setDifficulty(v)}>{l}</button>
                       ))}
                     </div>
-                  )}
+                  </div>
 
-                  {/* Failing students list */}
-                  {sourceExamId && (
-                    <div className="gen-recovery-students">
-                      {loadingFailingStudents ? (
-                        <div className="gen-topics__loading"><IonSpinner name="crescent" /></div>
-                      ) : failingStudents.length === 0 ? (
-                        <div className="gen-recovery-students__empty">
-                          <IonIcon icon={checkmarkCircleOutline} />
-                          <span>Todos los alumnos han aprobado este examen.</span>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="gen-recovery-students__label">
-                            <IonIcon icon={alertCircleOutline} />
-                            {failingStudents.length} alumno{failingStudents.length !== 1 ? 's' : ''} no ha{failingStudents.length !== 1 ? 'n' : ''} aprobado
-                          </span>
-                          <div className="gen-recovery-students__list">
-                            {failingStudents.map((s) => (
-                              <div key={s.id} className="gen-recovery-student">
-                                <span className="gen-recovery-student__name">{s.name}</span>
-                                <IonBadge color="danger">{s.grade} / {allExams.find((e) => e.id === sourceExamId)?.maxScore ?? 10}</IonBadge>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Topics selection - only for practice exams */}
-              {selectedSubjectId && examType !== 'recovery' && (
-                <div className="gen-topics">
-                  <span className="gen-topics__label">
-                    Temas del examen
-                    {selectedTopicIds.length > 0 && (
-                      <IonBadge color="primary" className="gen-topics__count">{selectedTopicIds.length}</IonBadge>
-                    )}
-                  </span>
-                  {/* Trimester filter for topics */}
-                  {allSubjectTopics.length > 0 && topicTrimesters.size > 1 && (
-                    <div className="trimester-pills">
-                      <button
-                        className={`trimester-pill ${topicTrimesterFilter === 'all' ? 'trimester-pill--active' : ''}`}
-                        onClick={() => setTopicTrimesterFilter('all')}
-                      >Todos</button>
-                      {getPeriodNumbers(periodMode).filter((t) => topicTrimesters.has(t)).map((t) => (
-                        <button
-                          key={t}
-                          className={`trimester-pill ${topicTrimesterFilter === String(t) ? 'trimester-pill--active' : ''}`}
-                          onClick={() => setTopicTrimesterFilter(String(t))}
-                        >{getPeriodLabel(periodMode, t)}</button>
-                      ))}
-                    </div>
-                  )}
-                  {filteredTopics.length === 0 ? (
-                    <div className="gen-topics__empty">
-                      <p>{topicTrimesterFilter !== 'all' ? 'No hay temas en este trimestre.' : 'No hay temas en esta asignatura.'}</p>
-                      {topicTrimesterFilter === 'all' && (
-                        <IonButton
-                          size="small"
-                          fill="outline"
-                          onClick={() => history.push(`/tabs/classes/${classId}/topics`)}
-                        >
-                          Añadir temas
-                        </IonButton>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="gen-topics__list">
-                      {filteredTopics.map((topic) => {
-                        const children = topic.children || [];
-                        const childIds = children.map(c => c.id);
-                        const allChildrenSelected = children.length > 0 && childIds.every(id => selectedTopicIds.includes(id));
-                        const someChildrenSelected = children.length > 0 && childIds.some(id => selectedTopicIds.includes(id));
-                        const parentSelected = selectedTopicIds.includes(topic.id);
-                        const isActive = parentSelected || allChildrenSelected;
-
-                        return (
-                          <div key={topic.id}>
-                            <div
-                              className={`gen-topic-chip ${isActive ? 'gen-topic-chip--active' : someChildrenSelected ? 'gen-topic-chip--partial' : ''}`}
-                              onClick={() => {
-                                if (children.length === 0) {
-                                  toggleTopic(topic.id);
-                                } else {
-                                  // Toggle parent + all children together
-                                  const allIds = [topic.id, ...childIds];
-                                  if (isActive) {
-                                    setSelectedTopicIds(prev => prev.filter(id => !allIds.includes(id)));
-                                  } else {
-                                    setSelectedTopicIds(prev => [...new Set([...prev, ...allIds])]);
-                                  }
-                                }
-                              }}
-                            >
-                              <IonCheckbox
-                                checked={isActive}
-                                indeterminate={!isActive && someChildrenSelected}
-                                className="gen-topic-chip__check"
-                              />
-                              <span className="gen-topic-chip__name">{topic.name}</span>
-                              {children.length > 0 && (
-                                <IonBadge color="light" style={{ fontSize: 10, fontWeight: 600 }}>{children.length} sub</IonBadge>
-                              )}
-                              <IonBadge color="medium" className="gen-topic-chip__materials">
-                                {topic.materialCount + children.reduce((s, c) => s + (c.materialCount || 0), 0)}
-                              </IonBadge>
-                            </div>
-                            {/* Subtopics — shown indented when parent has children */}
-                            {children.length > 0 && (parentSelected || someChildrenSelected) && (
-                              <div style={{ paddingLeft: 20, borderLeft: '2px solid var(--ion-color-primary-tint, #4d9a93)', marginLeft: 14, marginBottom: 4 }}>
-                                {children.map(child => (
-                                  <div
-                                    key={child.id}
-                                    className={`gen-topic-chip gen-topic-chip--sub ${selectedTopicIds.includes(child.id) ? 'gen-topic-chip--active' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); toggleTopic(child.id); }}
-                                    style={{ marginTop: 2, marginBottom: 2 }}
-                                  >
-                                    <IonCheckbox checked={selectedTopicIds.includes(child.id)} className="gen-topic-chip__check" />
-                                    <span className="gen-topic-chip__name" style={{ fontSize: 12 }}>{child.name}</span>
-                                    {child.materialCount > 0 && (
-                                      <IonBadge color="medium" className="gen-topic-chip__materials">{child.materialCount}</IonBadge>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {/* NOTE: material text budget is shared (30K chars total across all documents) */}
-                      <p className="gen-materials-note">
-                        <IonIcon icon={informationCircleOutline} />
-                        Se usarán hasta ~30.000 caracteres del material adjunto (repartidos entre todos los documentos).
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Configuration */}
-              {selectedTopicIds.length > 0 && (
-                <div className="gen-config">
-                  <span className="gen-config__label">Configuración</span>
-                  <div className="gen-config__row">
-                    <IonItem lines="none" className="form-item form-item-half">
-                      <IonLabel position="stacked">Preguntas</IonLabel>
-                      <IonSelect value={numQuestions} onIonChange={(e) => setNumQuestions(e.detail.value)} interface="popover">
-                        {[5, 8, 10, 12, 15, 20].map((n) => (
-                          <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                  <div className="gen-config-inline__row">
+                    <span className="gen-config-inline__label">Nivel</span>
+                    <Select value={educationLevel} onValueChange={setEducationLevel}>
+                      <SelectTrigger className="gen-config-inline__select"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {EDUCATION_LEVELS.map(({ value, label }) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
                         ))}
-                      </IonSelect>
-                    </IonItem>
-                    <IonItem lines="none" className="form-item form-item-half">
-                      <IonLabel position="stacked">Dificultad</IonLabel>
-                      <IonSelect value={difficulty} onIonChange={(e) => setDifficulty(e.detail.value)} interface="popover">
-                        <IonSelectOption value="easy">Fácil</IonSelectOption>
-                        <IonSelectOption value="medium">Media</IonSelectOption>
-                        <IonSelectOption value="hard">Difícil</IonSelectOption>
-                      </IonSelect>
-                    </IonItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
 
-                  {/* Date + max score above correction deadline */}
-                  <div className="gen-config__row">
-                    <IonItem lines="none" className="form-item form-item-half">
-                      <IonInput
-                        type="date"
-                        value={date}
-                        onIonInput={(e) => setDate(e.detail.value ?? '')}
-                        label="Fecha del examen"
-                        labelPlacement="stacked"
-                      />
-                    </IonItem>
-                    <IonItem lines="none" className="form-item form-item-half">
-                      <IonInput
-                        type="number"
-                        value={maxScore}
-                        min={1}
-                        onIonInput={(e) => {
-                          const v = parseFloat(e.detail.value ?? '');
-                          if (!isNaN(v) && v > 0) setMaxScore(v);
-                        }}
-                        label="Calificación máx."
-                        labelPlacement="stacked"
-                      />
-                    </IonItem>
+                <FormatSelector value={examFormat} onChange={setExamFormat} />
+
+                {/* MCQ-only: options-per-question + multi-answer count */}
+                {examFormat === 'test' && (
+                  <div className="gen-config-inline" style={{ marginTop: 'var(--space-sm)' }}>
+                    <div className="gen-config-inline__row">
+                      <span className="gen-config-inline__label">Opciones por pregunta</span>
+                      <div className="gen-config-stepper">
+                        {([3, 4, 5] as const).map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            className={`gen-config-stepper__btn${numOptions === n ? ' gen-config-stepper__btn--active' : ''}`}
+                            onClick={() => setNumOptions(n)}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="gen-config-inline__row">
+                      <span className="gen-config-inline__label">
+                        Preguntas multirespuesta
+                      </span>
+                      <div className="gen-config-stepper">
+                        <button
+                          type="button"
+                          className="gen-config-stepper__btn"
+                          onClick={() => setNumMultiAnswer(Math.max(0, numMultiAnswer - 1))}
+                          disabled={numMultiAnswer <= 0}
+                        >−</button>
+                        <span className="gen-config-stepper__value">{numMultiAnswer}</span>
+                        <button
+                          type="button"
+                          className="gen-config-stepper__btn"
+                          onClick={() => setNumMultiAnswer(Math.min(numQuestions, numMultiAnswer + 1))}
+                          disabled={numMultiAnswer >= numQuestions}
+                        >+</button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Las preguntas multirespuesta tendrán varias opciones correctas y se marcarán como tal en el enunciado.
+                    </p>
                   </div>
-
-                  {/* Correction deadline */}
-                  <IonItem lines="none" className="form-item">
-                    <IonInput
-                      type="date"
-                      value={correctionDeadline}
-                      min={date}
-                      onIonInput={(e) => setCorrectionDeadline(e.detail.value ?? '')}
-                      label="Fecha límite de corrección"
-                      labelPlacement="stacked"
-                    />
-                  </IonItem>
-
-                  <button
-                    type="button"
-                    className="exgen__instructions-toggle"
-                    onClick={() => setShowInstructions(v => !v)}
-                  >
-                    <IonIcon icon={chevronForwardOutline} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
-                    <span>Instrucciones adicionales</span>
-                    {!showInstructions && refinement && <IonBadge color="primary" className="exgen__instructions-dot">1</IonBadge>}
-                  </button>
-                  {showInstructions && (
-                    <IonItem lines="none" className="form-item">
-                      <IonTextarea
-                        value={refinement}
-                        onIonInput={(e) => setRefinement(e.detail.value ?? '')}
-                        placeholder="Describe lo que quieres que incluya o evite el examen..."
-                        rows={3}
-                        autoGrow
-                      />
-                    </IonItem>
-                  )}
-
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ─── SHARED FIELDS (upload mode) ─── */}
-          {mode === 'upload' && (
-            <div className="form-grid">
-              {isNew && (
-                <div className="form-item-standalone">
-                  <label className="form-item-label">Clase y asignatura</label>
-                  <ClassSubjectPicker
-                    pairs={urlClassId ? classPairs.filter(p => p.classId === urlClassId) : classPairs}
-                    loading={pairsLoading}
-                    value={classId && selectedSubjectId ? { classId, subjectId: selectedSubjectId } : null}
-                    onChange={(cId, sId) => {
-                      if (cId !== classId) setLectureId('');
-                      setClassId(cId);
-                      setSelectedSubjectId(sId);
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Recovery: Source exam selector (upload mode) */}
-              {examType === 'recovery' && classId && (
-                <div className="gen-recovery-source" style={{ marginTop: 'var(--space-md)' }}>
-                  <span className="gen-config__label">Examen de origen</span>
-                  <p className="gen-recovery-source__hint">
-                    Selecciona el examen corregido para el que subes la recuperación.
-                  </p>
-                  {correctedExams.length === 0 ? (
-                    <div className="gen-topics__empty">
-                      <p>No hay exámenes corregidos en esta clase.</p>
-                    </div>
-                  ) : (
-                    <div className="gen-topics__list">
-                      {correctedExams.map((e) => (
-                        <div
-                          key={e.id}
-                          className={`gen-topic-chip ${sourceExamId === e.id ? 'gen-topic-chip--active' : ''}`}
-                          onClick={() => setSourceExamId(sourceExamId === e.id ? '' : e.id)}
-                        >
-                          <IonCheckbox checked={sourceExamId === e.id} className="gen-topic-chip__check" />
-                          <span className="gen-topic-chip__name">{e.name}</span>
-                          <IonBadge color="medium">{new Date(e.date).toLocaleDateString('es-ES')}</IonBadge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {sourceExamId && (
-                    <div className="gen-recovery-students">
-                      {loadingFailingStudents ? (
-                        <div className="gen-topics__loading"><IonSpinner name="crescent" /></div>
-                      ) : failingStudents.length === 0 ? (
-                        <div className="gen-recovery-students__empty">
-                          <IonIcon icon={checkmarkCircleOutline} />
-                          <span>Todos los alumnos han aprobado este examen.</span>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="gen-recovery-students__label">
-                            <IonIcon icon={alertCircleOutline} />
-                            {failingStudents.length} alumno{failingStudents.length !== 1 ? 's' : ''} no ha{failingStudents.length !== 1 ? 'n' : ''} aprobado
-                          </span>
-                          <div className="gen-recovery-students__list">
-                            {failingStudents.map((s) => (
-                              <div key={s.id} className="gen-recovery-student">
-                                <span className="gen-recovery-student__name">{s.name}</span>
-                                <IonBadge color="danger">{s.grade} / {allExams.find((ex) => ex.id === sourceExamId)?.maxScore ?? 10}</IonBadge>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="form-row">
-                <IonItem lines="none" className="form-item form-item-half">
-                  <IonInput
-                    type="date"
-                    value={date}
-                    onIonInput={(e) => setDate(e.detail.value ?? '')}
-                    label="Fecha del examen"
-                    labelPlacement="stacked"
-                  />
-                </IonItem>
-                <IonItem lines="none" className="form-item form-item-half">
-                  <IonInput
-                    type="number"
-                    value={maxScore}
-                    min={1}
-                    onIonInput={(e) => {
-                      const v = parseFloat(e.detail.value ?? '');
-                      if (!isNaN(v) && v > 0) setMaxScore(v);
-                    }}
-                    label="Calificación máx."
-                    labelPlacement="stacked"
-                  />
-                </IonItem>
+                )}
               </div>
 
-              {/* Correction deadline */}
-              <IonItem lines="none" className="form-item">
-                <IonInput
-                  type="date"
-                  value={correctionDeadline}
-                  min={date}
-                  onIonInput={(e) => setCorrectionDeadline(e.detail.value ?? '')}
-                  label="Fecha límite de corrección"
-                  labelPlacement="stacked"
-                />
-              </IonItem>
+              {/* ── PERSONALIZACIÓN ── */}
+              <div className="gen-config">
+                <span className="gen-config__label">Personalización</span>
+                <LogoUploader logoUrl={logoUrl} uploading={uploadingLogo} onUpload={handleLogoUpload} />
 
-              {/* Instructions */}
-              <button
-                type="button"
-                className="exgen__instructions-toggle"
-                onClick={() => setShowInstructions(v => !v)}
-              >
-                <IonIcon icon={chevronForwardOutline} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
-                <span>Comentarios para la digitalización</span>
-                {!showInstructions && refinement && <IonBadge color="primary" className="exgen__instructions-dot">1</IonBadge>}
-              </button>
-              {showInstructions && (
-                <IonItem lines="none" className="form-item">
-                  <IonTextarea
+                {/* Instructions */}
+                <div className="form-item">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Instrucciones adicionales</label>
+                  <Textarea
                     value={refinement}
-                    onIonInput={(e) => setRefinement(e.detail.value ?? '')}
-                    placeholder="Ej: Añadir un ejercicio extra de fracciones, cambiar el ejercicio 3..."
+                    onChange={(e) => setRefinement(e.target.value)}
+                    placeholder="Ej: Incluye 2 ejercicios de derivadas, evita integrales..."
                     rows={3}
-                    autoGrow
                   />
-                </IonItem>
-              )}
-            </div>
-          )}
-
-
-          {/* ─── BLANK PAGES (both modes, new exams only) ─── */}
-          {isNew && classId && (
-            <div className="gen-personalize">
-              {selectedClass && (
-                <div className="gen-personalize__info">
-                  <IonIcon icon={sparklesOutline} />
-                  <span>
-                    Se generará 1 copia por alumno ({selectedClass.studentCount} alumnos) con su código impreso.
-                    Al corregir con subida masiva, la IA detectará los códigos automáticamente.
-                  </span>
-                </div>
-              )}
-              <div className="blank-pages-stepper">
-                <span className="blank-pages-stepper__label">Hojas en blanco por alumno</span>
-                <div className="blank-pages-stepper__controls">
-                  <button
-                    className="blank-pages-stepper__btn"
-                    onClick={() => setBlankPagesCount(Math.max(1, blankPagesCount - 1))}
-                    disabled={blankPagesCount <= 1}
-                  >
-                    &minus;
-                  </button>
-                  <span className="blank-pages-stepper__value">{blankPagesCount}</span>
-                  <button
-                    className="blank-pages-stepper__btn"
-                    onClick={() => setBlankPagesCount(Math.min(10, blankPagesCount + 1))}
-                    disabled={blankPagesCount >= 10}
-                  >
-                    +
-                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ─── DEADLINE STATUS (existing exams) ─── */}
+          {/* --- DEADLINE STATUS (existing exams) --- */}
           {exam && !isNew && exam.correctionDeadline && (
             <div className="exam-deadline-section">
               <div className="exam-deadline-header">
-                <IonIcon icon={timeOutline} />
-                <span>Plazo de corrección: {new Date(exam.correctionDeadline).toLocaleDateString('es-ES')}</span>
+                <Clock size={18} className="text-primary" />
+                <span>Plazo de correccion: {new Date(exam.correctionDeadline).toLocaleDateString('es-ES')}</span>
                 {exam.deadlineStatus && (
-                  <IonBadge color={getDeadlineStatusColor(exam.deadlineStatus)}>
+                  <Badge variant={exam.deadlineStatus === 'overdue' || exam.deadlineStatus === 'urgent' ? 'destructive' : exam.deadlineStatus === 'soon' ? 'outline' : 'default'} className="ml-auto">
                     {getDeadlineStatusText(exam.deadlineStatus)}
-                  </IonBadge>
+                  </Badge>
                 )}
               </div>
             </div>
           )}
 
-          {/* ─── DOWNLOAD SECTION (existing exams with documents) ─── */}
+          {/* --- DOWNLOAD SECTION (existing exams with documents) --- */}
           {exam && !isNew && (exam.documentUrl || exam.hasGeneratedQuestions) && (
             <div className="exam-downloads">
               <span className="exam-downloads__label">
                 Descargas disponibles
                 {exam.iterationHistory && exam.iterationHistory.length > 0 && (
-                  <IonBadge color="primary" style={{ marginLeft: '8px', verticalAlign: 'middle' }}>
-                    v{exam.iterationHistory.length + 1} — última versión
-                  </IonBadge>
+                  <Badge className="ml-2 align-middle">
+                    v{exam.iterationHistory.length + 1} -- ultima version
+                  </Badge>
                 )}
               </span>
               <div className="exam-downloads__buttons">
-                <IonButton
-                  fill="outline"
-                  size="small"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleDownload('exam')}
                 >
-                  <IonIcon icon={downloadOutline} slot="start" />
+                  <Download size={16} />
                   {exam.isPersonalized
                     ? 'Todas las copias (QR)'
                     : 'Examen'}
-                </IonButton>
+                </Button>
 
                 {exam.hasGeneratedQuestions && exam.documentUrl && (
-                  <IonButton
-                    fill="outline"
-                    size="small"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleDownload('digitalized')}
                   >
-                    <IonIcon icon={documentTextOutline} slot="start" />
+                    <FileText size={16} />
                     Digitalizado
-                  </IonButton>
+                  </Button>
                 )}
 
                 {exam.hasGeneratedQuestions && (
-                  <IonButton
-                    fill="outline"
-                    size="small"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleDownload('solutions')}
                   >
-                    <IonIcon icon={documentTextOutline} slot="start" />
+                    <FileText size={16} />
                     Solucionario
-                  </IonButton>
+                  </Button>
                 )}
               </div>
               {exam.isPersonalized && (
                 <p className="exam-downloads__hint">
-                  Este PDF incluye una copia del examen por cada alumno con su nombre y QR impresos. Imprímelo completo para repartir en clase.
+                  Este PDF incluye una copia del examen por cada alumno con su nombre y QR impresos. Imprimelo completo para repartir en clase.
                 </p>
               )}
               {exam.hasGeneratedQuestions && exam.documentUrl && (
                 <p className="exam-downloads__hint">
-                  El examen digitalizado es la versión escrita a ordenador generada a partir del documento original.
+                  El examen digitalizado es la version escrita a ordenador generada a partir del documento original.
                 </p>
               )}
             </div>
           )}
 
-          {/* ─── ITERATION SECTION (AI-generated exams) ─── */}
+          {/* --- ITERATION SECTION (AI-generated exams) --- */}
           {exam && !isNew && exam.hasGeneratedQuestions && exam.status !== 'corrected' && (
             <div className="exam-iteration-section">
               <div className="exam-iteration-header">
-                <IonIcon icon={createOutline} />
+                <Pencil size={20} />
                 <span>Ajustar examen</span>
               </div>
               <p className="exam-iteration-description">
-                Describe los cambios que quieres hacer y la IA ajustará el examen manteniendo la estructura.
+                Describe los cambios que quieres hacer y la IA ajustara el examen manteniendo la estructura.
               </p>
-              
+
               <div className="exam-iteration-quick">
-                <IonChip outline onClick={() => applyQuickIteration('Simplifica las preguntas')}>
+                <button className="inline-flex items-center px-3 py-1 rounded-full border text-xs cursor-pointer hover:bg-accent" onClick={() => applyQuickIteration('Simplifica las preguntas')}>
                   Simplificar
-                </IonChip>
-                <IonChip outline onClick={() => applyQuickIteration('Añade una pregunta más del mismo estilo')}>
+                </button>
+                <button className="inline-flex items-center px-3 py-1 rounded-full border text-xs cursor-pointer hover:bg-accent" onClick={() => applyQuickIteration('Anade una pregunta mas del mismo estilo')}>
                   +1 pregunta
-                </IonChip>
-                <IonChip outline onClick={() => applyQuickIteration('Convierte algunas preguntas a tipo test')}>
+                </button>
+                <button className="inline-flex items-center px-3 py-1 rounded-full border text-xs cursor-pointer hover:bg-accent" onClick={() => applyQuickIteration('Convierte algunas preguntas a tipo test')}>
                   Tipo test
-                </IonChip>
+                </button>
               </div>
 
-              <IonItem lines="none" className="form-item">
-                <IonTextarea
+              <div className="form-item">
+                <Textarea
                   value={iterationInstruction}
-                  onIonInput={(e) => setIterationInstruction(e.detail.value ?? '')}
-                  placeholder="Ej: Haz la pregunta 3 más fácil, añade más problemas de geometría..."
+                  onChange={(e) => setIterationInstruction(e.target.value)}
+                  placeholder="Ej: Haz la pregunta 3 mas facil, anade mas problemas de geometria..."
                   rows={3}
                 />
-              </IonItem>
+              </div>
 
               {iterationError && <p className="gen-error">{iterationError}</p>}
 
-              <IonButton
-                expand="block"
-                fill="outline"
+              <Button
+                className="w-full"
+                variant="outline"
                 onClick={handleIterate}
                 disabled={iterating || !iterationInstruction.trim()}
               >
                 {iterating ? (
-                  <><IonSpinner name="crescent" /> Aplicando cambios...</>
+                  <><Spinner size={18} /> Aplicando cambios...</>
                 ) : (
-                  <><IonIcon icon={refreshOutline} slot="start" /> Aplicar cambios</>
+                  <><RefreshCw size={16} /> Aplicar cambios</>
                 )}
-              </IonButton>
+              </Button>
 
               {/* Version history */}
               {exam.iterationHistory && exam.iterationHistory.length > 0 && (
-                <IonAccordionGroup className="exam-iteration-history">
-                  <IonAccordion value="history">
-                    <IonItem slot="header" lines="none">
-                      <IonLabel>
-                        Historial de versiones ({exam.iterationHistory.length + 1} versiones)
-                      </IonLabel>
-                    </IonItem>
-                    <div slot="content" className="iteration-history-content">
-                      {/* Current version */}
-                      <div className="iteration-history-item iteration-history-item--current">
-                        <div className="iteration-history-version">
-                          <IonBadge color="primary">v{exam.iterationHistory.length + 1}</IonBadge>
-                          <span className="iteration-history-label">Versión actual</span>
-                          <IonButton
-                            fill="clear"
-                            size="small"
-                            onClick={() => handleDownload('exam')}
-                            title="Descargar esta versión"
-                          >
-                            <IonIcon icon={downloadOutline} slot="icon-only" />
-                          </IonButton>
-                        </div>
-                        <p className="iteration-history-instruction">
-                          {exam.iterationHistory[exam.iterationHistory.length - 1].instruction}
-                        </p>
-                        {exam.iterationHistory[exam.iterationHistory.length - 1].changes_made &&
-                          exam.iterationHistory[exam.iterationHistory.length - 1].changes_made!.length > 0 && (
-                          <ul className="iteration-history-changes">
-                            {exam.iterationHistory[exam.iterationHistory.length - 1].changes_made!.map((change: string, cidx: number) => (
-                              <li key={cidx}>{change}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      {/* Previous versions */}
-                      {[...exam.iterationHistory].slice(0, -1).reverse().map((item: ExamIterationHistoryItem, idx: number) => (
-                        <div key={idx} className="iteration-history-item">
+                <Accordion type="single" collapsible className="exam-iteration-history">
+                  <AccordionItem value="history">
+                    <AccordionTrigger>
+                      Historial de versiones ({exam.iterationHistory.length + 1} versiones)
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="iteration-history-content">
+                        {/* Current version */}
+                        <div className="iteration-history-item iteration-history-item--current">
                           <div className="iteration-history-version">
-                            <IonBadge color="medium">v{item.version}</IonBadge>
-                            <span className="iteration-history-time">
-                              {new Date(item.timestamp).toLocaleString('es-ES')}
-                            </span>
+                            <Badge>v{exam.iterationHistory.length + 1}</Badge>
+                            <span className="iteration-history-label">Version actual</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownload('exam')}
+                              title="Descargar esta version"
+                            >
+                              <Download size={16} />
+                            </Button>
                           </div>
-                          <p className="iteration-history-instruction">{item.instruction}</p>
-                          {item.changes_made && item.changes_made.length > 0 && (
+                          <p className="iteration-history-instruction">
+                            {exam.iterationHistory[exam.iterationHistory.length - 1].instruction}
+                          </p>
+                          {exam.iterationHistory[exam.iterationHistory.length - 1].changes_made &&
+                            exam.iterationHistory[exam.iterationHistory.length - 1].changes_made!.length > 0 && (
                             <ul className="iteration-history-changes">
-                              {item.changes_made.map((change: string, cidx: number) => (
+                              {exam.iterationHistory[exam.iterationHistory.length - 1].changes_made!.map((change: string, cidx: number) => (
                                 <li key={cidx}>{change}</li>
                               ))}
                             </ul>
                           )}
                         </div>
-                      ))}
-                      {/* Original version */}
-                      <div className="iteration-history-item">
-                        <div className="iteration-history-version">
-                          <IonBadge color="medium">v1</IonBadge>
-                          <span className="iteration-history-label">Versión original</span>
+                        {/* Previous versions */}
+                        {[...exam.iterationHistory].slice(0, -1).reverse().map((item: ExamIterationHistoryItem, idx: number) => (
+                          <div key={idx} className="iteration-history-item">
+                            <div className="iteration-history-version">
+                              <Badge variant="secondary">v{item.version}</Badge>
+                              <span className="iteration-history-time">
+                                {new Date(item.timestamp).toLocaleString('es-ES')}
+                              </span>
+                            </div>
+                            <p className="iteration-history-instruction">{item.instruction}</p>
+                            {item.changes_made && item.changes_made.length > 0 && (
+                              <ul className="iteration-history-changes">
+                                {item.changes_made.map((change: string, cidx: number) => (
+                                  <li key={cidx}>{change}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                        {/* Original version */}
+                        <div className="iteration-history-item">
+                          <div className="iteration-history-version">
+                            <Badge variant="secondary">v1</Badge>
+                            <span className="iteration-history-label">Version original</span>
+                          </div>
+                          <p className="iteration-history-instruction">Generacion inicial del examen</p>
                         </div>
-                        <p className="iteration-history-instruction">Generación inicial del examen</p>
                       </div>
-                    </div>
-                  </IonAccordion>
-                </IonAccordionGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               )}
             </div>
           )}
         </div>
 
-        {/* ─── BOTTOM ACTIONS ─── */}
+        {/* --- BOTTOM ACTIONS --- */}
         <div className="exam-editor-actions">
           {/* Upload mode actions */}
           {mode === 'upload' && (
-            <IonButton
-              expand="block"
+            <Button
+              className="w-full save-btn"
               onClick={handleSave}
-              disabled={!name.trim() || !selectedSubjectId || saving}
-              className="save-btn"
+              disabled={!name.trim() || saving || duplicateName}
             >
-              {saving ? <><IonSpinner name="crescent" /> Guardando...</> : isNew ? (files.length > 0 ? 'Crear y preparar examen' : 'Crear examen') : 'Guardar cambios'}
-            </IonButton>
+              {saving ? <><Spinner size={18} /> Guardando...</> : isNew ? (files.length > 0 ? 'Digitalizar examen' : 'Crear examen') : 'Guardar cambios'}
+            </Button>
           )}
 
           {/* Generate mode actions */}
           {mode === 'generate' && isNew && (
-              <IonButton
-                expand="block"
+              <Button
+                className="w-full save-btn gen-btn"
                 onClick={handleGenerate}
-                disabled={
-                  !name.trim() ||
-                  (examType === 'recovery' ? !sourceExamId : selectedTopicIds.length === 0)
-                }
-                className="save-btn gen-btn"
+                disabled={!name.trim() || uploadingRefs || duplicateName}
               >
-                <IonIcon icon={sparklesOutline} slot="start" />
-                {examType === 'recovery' ? 'Generar recuperación' : 'Generar examen'}
-              </IonButton>
+                {uploadingRefs ? (
+                  <><Spinner size={16} /> Subiendo documentos...</>
+                ) : (
+                  <><Sparkles size={16} /> Generar examen</>
+                )}
+              </Button>
           )}
 
           {/* Existing exam actions (both modes) */}
-          {exam && exam.status === 'uploaded' && (
-            <IonButton expand="block" color="success" onClick={handleStartCorrection}>
-              <IonIcon icon={checkmarkCircleOutline} slot="start" />
+          {exam && exam.status === 'pending_validation' && (
+            <Button className="w-full" variant="default" onClick={handleStartCorrection}>
+              <CheckCircle size={16} />
               Asignar y corregir
-            </IonButton>
+            </Button>
           )}
-          {exam && exam.status === 'assigned' && (
-            <IonButton expand="block" color="success" onClick={handleStartCorrection}>
-              <IonIcon icon={checkmarkCircleOutline} slot="start" />
-              Continuar corrección
-            </IonButton>
+          {exam && exam.status === 'pending_schedule' && (
+            <Button className="w-full" variant="default" onClick={handleStartCorrection}>
+              <CheckCircle size={16} />
+              Continuar correccion
+            </Button>
           )}
           {exam && exam.status === 'corrected' && (
             <>
-              <IonButton expand="block" color="primary" onClick={() => history.push(`/correction/${exam.id}`)}>
-                <IonIcon icon={checkmarkCircleOutline} slot="start" />
+              <Button className="w-full" onClick={handleStartCorrection}>
+                <CheckCircle size={16} />
                 Ver correcciones
-              </IonButton>
-              <IonButton expand="block" fill="outline" onClick={() => setShowExerciseModal(true)}>
-                <IonIcon icon={sparklesOutline} slot="start" />
+              </Button>
+              <Button className="w-full" variant="outline" onClick={() => setShowExerciseModal(true)}>
+                <Sparkles size={16} />
                 Generar ejercicios
-              </IonButton>
+              </Button>
             </>
           )}
         </div>
@@ -1436,18 +1205,17 @@ const ExamEditor: React.FC = () => {
           />
         )}
 
-        <IonAlert
-          isOpen={showDeleteAlert}
-          onDidDismiss={() => setShowDeleteAlert(false)}
+        <AlertConfirm
+          open={showDeleteAlert}
+          onClose={() => setShowDeleteAlert(false)}
           header="Eliminar examen"
-          message={`¿Eliminar "${name}"? También se eliminarán las correcciones asociadas.`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Eliminar', role: 'destructive', handler: handleDelete }
-          ]}
+          message={`Eliminar "${name}"? Tambien se eliminaran las correcciones asociadas.`}
+          confirmText="Eliminar"
+          onConfirm={handleDelete}
+          variant="destructive"
         />
-      </IonContent>
-    </IonPage>
+      </div>
+    </PageShell>
   );
 };
 

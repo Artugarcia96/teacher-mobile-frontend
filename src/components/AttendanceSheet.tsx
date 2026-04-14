@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  IonModal, IonButton, IonIcon, IonSpinner,
-} from '@ionic/react';
-import { checkmarkCircleOutline, closeCircleOutline, timeOutline, shieldCheckmarkOutline, attachOutline } from 'ionicons/icons';
+import React from 'react';
+import { CheckCircle, Clock, Paperclip, ShieldCheck, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { useStudentsStore } from '../store/studentsStore';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
@@ -20,11 +21,11 @@ interface AttendanceSheetProps {
 
 type Status = 'present' | 'absent' | 'late' | 'justified';
 
-const STATUS_CONFIG: Record<Status, { icon: string; label: string; color: string }> = {
-  present: { icon: checkmarkCircleOutline, label: 'P', color: '#059669' },
-  absent: { icon: closeCircleOutline, label: 'A', color: '#DC2626' },
-  late: { icon: timeOutline, label: 'R', color: '#D97706' },
-  justified: { icon: shieldCheckmarkOutline, label: 'J', color: '#2563EB' },
+const STATUS_CONFIG: Record<Status, { icon: React.FC<{ size?: number; className?: string }>; label: string; color: string }> = {
+  present: { icon: CheckCircle, label: 'P', color: '#059669' },
+  absent: { icon: XCircle, label: 'A', color: '#DC2626' },
+  late: { icon: Clock, label: 'R', color: '#D97706' },
+  justified: { icon: ShieldCheck, label: 'J', color: '#2563EB' },
 };
 
 const AttendanceSheet: React.FC<AttendanceSheetProps> = ({
@@ -148,12 +149,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({
   const absentCount = Object.values(statuses).filter(s => s === 'absent').length;
 
   return (
-    <IonModal
-      isOpen={isOpen}
-      onDidDismiss={onDismiss}
-      initialBreakpoint={isDesktop ? 1 : 0.75}
-      breakpoints={isDesktop ? [0, 1] : [0, 0.75, 0.95]}
-    >
+    <Modal open={isOpen} onClose={onDismiss} sheetHeight="lg">
       <div className="att-sheet">
         <div className="att-sheet__header">
           <h2 className="att-sheet__title">Pasar lista</h2>
@@ -193,7 +189,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({
                       }}
                       title={hasFile ? justificationFiles[student.id].name : 'Adjuntar justificante'}
                     >
-                      <IonIcon icon={attachOutline} />
+                      <Paperclip size={18} />
                       {(hasFile || status === 'justified') && <span className="att-student__file-dot" />}
                     </button>
                   )}
@@ -202,7 +198,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({
                     style={{ background: config.color, color: '#fff' }}
                     onClick={() => toggleStatus(student.id)}
                   >
-                    <IonIcon icon={config.icon} />
+                    {/* icon: config.icon */}
                     <span>{config.label}</span>
                   </div>
                 </div>
@@ -211,9 +207,9 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({
           })}
 
           <div className="att-sheet__save">
-            <IonButton expand="block" onClick={handleSave} disabled={saving}>
-              {saving ? <IonSpinner name="crescent" /> : saved ? '✓ Guardado' : 'Guardar asistencia'}
-            </IonButton>
+            <Button className="w-full" onClick={handleSave} disabled={saving}>
+              {saving ? <Spinner size={18} /> : saved ? '✓ Guardado' : 'Guardar asistencia'}
+            </Button>
           </div>
         </div>
 
@@ -225,7 +221,7 @@ const AttendanceSheet: React.FC<AttendanceSheetProps> = ({
           onChange={handleFileSelect}
         />
       </div>
-    </IonModal>
+    </Modal>
   );
 };
 

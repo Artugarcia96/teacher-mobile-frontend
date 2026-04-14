@@ -31,7 +31,7 @@
   flex-wrap: wrap;
 }
 
-.qsb__legend ion-badge {
+.qsb__legend span {
   font-size: var(--font-size-xs);
   --padding-start: 6px;
   --padding-end: 6px;

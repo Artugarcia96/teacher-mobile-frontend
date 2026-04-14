@@ -6,7 +6,7 @@
   font-size: var(--font-size-md, 16px);
   font-weight: 600;
   margin: 0 0 var(--space-md, 12px);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .qc-sheet__textarea {

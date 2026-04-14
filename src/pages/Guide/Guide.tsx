@@ -1,24 +1,25 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  IonPage, IonContent, IonSearchbar, IonAccordionGroup, IonAccordion,
-  IonItem, IonLabel, IonIcon,
-} from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+  LogIn, Navigation, Calendar, GraduationCap,
+  Settings, Grid3X3, User, BookOpen,
+  FileText, CheckCheck, Pencil,
+  ClipboardList, Users, BarChart3, Sparkles,
+  RefreshCw, MessageCircle, Map, HelpCircle,
+  ArrowLeft, BookOpenText,
+  type LucideIcon,
+} from 'lucide-react';
 import {
-  logInOutline, navigateOutline, calendarOutline, schoolOutline,
-  settingsOutline, gridOutline, personOutline, bookOutline,
-  documentTextOutline, checkmarkDoneOutline, createOutline,
-  clipboardOutline, peopleOutline, statsChartOutline, sparklesOutline,
-  syncOutline, chatbubblesOutline, mapOutline, helpCircleOutline,
-  arrowBackOutline, readerOutline,
-} from 'ionicons/icons';
+  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+} from '@/components/ui/accordion';
+import Searchbar from '@/components/shared/Searchbar';
 import './Guide.css';
 
 /* ── Section data ── */
 interface Section {
   id: string;
   title: string;
-  icon: string;
+  icon: LucideIcon;
   keywords: string[];
   content: React.ReactNode;
 }
@@ -28,7 +29,7 @@ const sections: Section[] = [
   {
     id: 'intro',
     title: 'Primeros pasos',
-    icon: logInOutline,
+    icon: LogIn,
     keywords: ['registro', 'login', 'iniciar sesion', 'cuenta', 'contrasena', 'correo', 'acceso'],
     content: (
       <>
@@ -53,7 +54,7 @@ const sections: Section[] = [
   {
     id: 'nav',
     title: 'Navegacion',
-    icon: navigateOutline,
+    icon: Navigation,
     keywords: ['menu', 'pestanas', 'sidebar', 'lateral', 'barra', 'navegacion', 'movil', 'escritorio', 'feedback', 'tareas'],
     content: (
       <>
@@ -82,7 +83,7 @@ const sections: Section[] = [
   {
     id: 'calendar',
     title: 'Calendario y panel del dia',
-    icon: calendarOutline,
+    icon: Calendar,
     keywords: ['calendario', 'semanal', 'mensual', 'evento', 'clase', 'tutoria', 'prepara tu dia', 'briefing', 'pendientes', 'correccion'],
     content: (
       <>
@@ -135,7 +136,7 @@ const sections: Section[] = [
   {
     id: 'classes',
     title: 'Gestion de clases',
-    icon: schoolOutline,
+    icon: GraduationCap,
     keywords: ['clase', 'grupo', 'crear clase', 'nueva clase', 'eliminar', 'hub', 'asignatura', 'alumnos'],
     content: (
       <>
@@ -189,7 +190,7 @@ const sections: Section[] = [
   {
     id: 'class-settings',
     title: 'Configuracion de clase',
-    icon: settingsOutline,
+    icon: Settings,
     keywords: ['configuracion', 'horario', 'alumnos', 'importar', 'codigo', 'asignatura'],
     content: (
       <>
@@ -220,7 +221,7 @@ const sections: Section[] = [
   {
     id: 'gradebook',
     title: 'Libro de calificaciones',
-    icon: gridOutline,
+    icon: Grid3X3,
     keywords: ['calificaciones', 'notas', 'gradebook', 'csv', 'exportar', 'media', 'aprobado', 'suspenso', 'ponderado'],
     content: (
       <>
@@ -263,7 +264,7 @@ const sections: Section[] = [
   {
     id: 'student',
     title: 'Ficha del estudiante',
-    icon: personOutline,
+    icon: User,
     keywords: ['alumno', 'estudiante', 'ficha', 'perfil', 'tendencia', 'areas debiles', 'comentarios', 'notas', 'grafico'],
     content: (
       <>
@@ -317,7 +318,7 @@ const sections: Section[] = [
   {
     id: 'topics',
     title: 'Temas y materiales',
-    icon: bookOutline,
+    icon: BookOpen,
     keywords: ['temas', 'materiales', 'libro de texto', 'textbook', 'subtemas', 'trimestre', 'curriculum', 'pdf', 'generar'],
     content: (
       <>
@@ -363,7 +364,7 @@ const sections: Section[] = [
   {
     id: 'course-plan',
     title: 'Planificacion del curso',
-    icon: readerOutline,
+    icon: BookOpenText,
     keywords: ['planificacion', 'programacion', 'planificar', 'curso', 'calendario', 'sesiones', 'trimestre', 'curriculo', 'progreso', 'repaso', 'margen'],
     content: (
       <>
@@ -439,7 +440,7 @@ const sections: Section[] = [
   {
     id: 'exams',
     title: 'Gestion de examenes',
-    icon: documentTextOutline,
+    icon: FileText,
     keywords: ['examen', 'crear examen', 'subir', 'generar', 'preguntas', 'dificultad', 'deadline', 'asignar', 'iterar'],
     content: (
       <>
@@ -494,7 +495,7 @@ const sections: Section[] = [
   {
     id: 'correction',
     title: 'Correccion de examenes',
-    icon: checkmarkDoneOutline,
+    icon: CheckCheck,
     keywords: ['correccion', 'corregir', 'escanear', 'IA', 'analisis', 'nota', 'subir papeles', 'emparejar', 'QR', 'revision'],
     content: (
       <>
@@ -561,7 +562,7 @@ const sections: Section[] = [
   {
     id: 'exercises',
     title: 'Ejercicios personalizados',
-    icon: createOutline,
+    icon: Pencil,
     keywords: ['ejercicio', 'generar', 'personalizado', 'practica', 'recuperacion', 'debilidad', 'agrupar', 'pdf', 'descargar'],
     content: (
       <>
@@ -617,7 +618,7 @@ const sections: Section[] = [
   {
     id: 'exercise-correction',
     title: 'Correccion de ejercicios',
-    icon: clipboardOutline,
+    icon: ClipboardList,
     keywords: ['correccion', 'ejercicio', 'masiva', 'bulk', 'procesar', 'nota'],
     content: (
       <>
@@ -649,7 +650,7 @@ const sections: Section[] = [
   {
     id: 'attendance',
     title: 'Asistencia',
-    icon: peopleOutline,
+    icon: Users,
     keywords: ['asistencia', 'presente', 'ausente', 'tarde', 'justificado', 'justificacion', 'lista'],
     content: (
       <>
@@ -685,7 +686,7 @@ const sections: Section[] = [
   {
     id: 'reports',
     title: 'Informes y analiticas',
-    icon: statsChartOutline,
+    icon: BarChart3,
     keywords: ['informe', 'trimestral', 'analitica', 'reporte', 'comentario', 'boletin', 'tendencia', 'riesgo', 'exportar'],
     content: (
       <>
@@ -724,7 +725,7 @@ const sections: Section[] = [
   {
     id: 'ai',
     title: 'Generacion de contenido con IA',
-    icon: sparklesOutline,
+    icon: Sparkles,
     keywords: ['IA', 'inteligencia artificial', 'generar', 'libro de texto', 'textbook', 'vision', 'imagen', 'iteracion'],
     content: (
       <>
@@ -761,7 +762,7 @@ const sections: Section[] = [
   {
     id: 'background-tasks',
     title: 'Tareas en segundo plano',
-    icon: syncOutline,
+    icon: RefreshCw,
     keywords: ['tarea', 'segundo plano', 'progreso', 'cancelar', 'error', 'completada'],
     content: (
       <>
@@ -792,7 +793,7 @@ const sections: Section[] = [
   {
     id: 'comments',
     title: 'Comentarios y comunicacion',
-    icon: chatbubblesOutline,
+    icon: MessageCircle,
     keywords: ['comentario', 'mencion', '@', 'post-clase', 'feedback', 'sugerencia', 'bug'],
     content: (
       <>
@@ -829,7 +830,7 @@ const sections: Section[] = [
   {
     id: 'workflows',
     title: 'Flujos de trabajo completos',
-    icon: mapOutline,
+    icon: Map,
     keywords: ['flujo', 'workflow', 'configuracion inicial', 'evaluacion', 'dia a dia', 'trimestre', 'material'],
     content: (
       <>
@@ -890,7 +891,7 @@ const sections: Section[] = [
   {
     id: 'faq',
     title: 'Preguntas frecuentes',
-    icon: helpCircleOutline,
+    icon: HelpCircle,
     keywords: ['pregunta', 'FAQ', 'movil', 'error', 'seguridad', 'datos', 'formato', 'recuperar'],
     content: (
       <>
@@ -951,7 +952,7 @@ const sections: Section[] = [
 /* ── Component ── */
 const Guide: React.FC = () => {
   const [search, setSearch] = useState('');
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return sections;
@@ -964,52 +965,51 @@ const Guide: React.FC = () => {
   }, [search]);
 
   return (
-    <IonPage>
-      <IonContent className="guide-content" scrollY>
-        {/* Header — outside guide-body so it spans full width */}
-        <div className="guide-header">
-          <button className="guide-header__back" onClick={() => history.goBack()} aria-label="Volver">
-            <IonIcon icon={arrowBackOutline} />
-          </button>
-          <div className="guide-header__text">
-            <h1>Guia de uso</h1>
-            <p>Consulta como funciona cada parte de SEPIA</p>
+    <div className="flex flex-col h-full min-h-0 bg-background">
+      {/* Header */}
+      <div className="guide-header shrink-0">
+        <button className="guide-header__back" onClick={() => navigate(-1)} aria-label="Volver">
+          <ArrowLeft size={20} />
+        </button>
+        <div className="guide-header__text">
+          <h1>Guía de uso</h1>
+          <p>Consulta cómo funciona cada parte de SEPIA</p>
+        </div>
+      </div>
+
+      <div className="guide-body flex-1 overflow-y-auto">
+        <Searchbar
+          placeholder="Buscar tema..."
+          value={search}
+          onChange={setSearch}
+          className="mb-3"
+        />
+
+        {filtered.length === 0 && (
+          <div className="guide-empty">
+            <HelpCircle size={40} className="opacity-35 mx-auto mb-3" />
+            <p>No se encontraron resultados para &laquo;{search}&raquo;</p>
           </div>
-        </div>
+        )}
 
-        <div className="guide-body">
-          <IonSearchbar
-            placeholder="Buscar tema..."
-            debounce={200}
-            value={search}
-            onIonInput={(e) => setSearch(e.detail.value ?? '')}
-            className="guide-search"
-          />
-
-          {filtered.length === 0 && (
-            <div className="guide-empty">
-              <IonIcon icon={helpCircleOutline} />
-              <p>No se encontraron resultados para &laquo;{search}&raquo;</p>
-            </div>
-          )}
-
-          <IonAccordionGroup multiple className="guide-accordion">
-            {filtered.map((section, i) => (
-              <IonAccordion key={section.id} value={section.id}>
-                <IonItem slot="header" lines="none" className="guide-accordion__header">
+        <Accordion type="multiple" className="guide-accordion">
+          {filtered.map((section, i) => (
+            <AccordionItem key={section.id} value={section.id} className="guide-accordion-item">
+              <AccordionTrigger className="guide-accordion__header">
+                <div className="flex items-center gap-2.5">
                   <div className="guide-accordion__num">{i + 1}</div>
-                  <IonIcon icon={section.icon} className="guide-accordion__icon" />
-                  <IonLabel className="guide-accordion__title">{section.title}</IonLabel>
-                </IonItem>
-                <div className="guide-section" slot="content">
-                  {section.content}
+                  <section.icon size={20} className="guide-accordion__icon" />
+                  <span className="guide-accordion__title">{section.title}</span>
                 </div>
-              </IonAccordion>
-            ))}
-          </IonAccordionGroup>
-        </div>
-      </IonContent>
-    </IonPage>
+              </AccordionTrigger>
+              <AccordionContent className="guide-section">
+                {section.content}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </div>
   );
 };
 

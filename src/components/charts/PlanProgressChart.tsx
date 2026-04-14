@@ -13,7 +13,7 @@ const PlanProgressChart: React.FC<Props> = ({ trimesterProgress, periodMode }) =
   const maxPlanned = Math.max(...trimesterProgress.map((t) => t.planned), 1);
 
   return (
-    <div className="ppc">
+    <div className="ppc" role="figure" aria-label={`Progreso por período: ${trimesterProgress.map(t => `${getPeriodLabel(periodMode, t.trimester)} ${t.pct}%`).join(', ')}`}>
       <span className="ppc__title">Progreso por {getPeriodNoun(periodMode)}</span>
       <div className="ppc__bars">
         {trimesterProgress.map((tri, idx) => {

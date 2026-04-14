@@ -9,7 +9,7 @@
   gap: 8px;
   padding: 8px 14px 8px 10px;
   border-radius: 999px;
-  background: var(--ion-card-background, #fff);
+  background: var(--color-surface);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   transition: transform 0.15s ease, border-radius 0.15s ease;
@@ -74,7 +74,7 @@
 .bgtasks-pill__label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -83,7 +83,7 @@
 
 .bgtasks-pill__desc {
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -129,7 +129,7 @@
   min-width: 20px;
   height: 20px;
   border-radius: 10px;
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -147,7 +147,7 @@
   right: 16px;
   max-width: 380px;
   z-index: 100000;
-  background: var(--ion-card-background, #fff);
+  background: var(--color-surface);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   overflow: hidden;
@@ -170,13 +170,13 @@
 .bgtasks-panel__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .bgtasks-panel__close {
   background: none;
   border: none;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-size: 22px;
   display: flex;
   align-items: center;
@@ -230,7 +230,7 @@
   color: #6366F1;
 }
 
-.bgtasks-item--running .bgtasks-item__icon ion-spinner {
+.bgtasks-item--running .bgtasks-item__icon svg {
   width: 20px;
   height: 20px;
   color: #6366F1;
@@ -254,7 +254,7 @@
 
 .bgtasks-item__type {
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -262,7 +262,7 @@
 
 .bgtasks-item__label {
   font-size: 14px;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -270,7 +270,7 @@
 
 .bgtasks-item__desc {
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   line-height: 1.35;
   white-space: normal;
   margin-top: 2px;
@@ -317,14 +317,14 @@
 .bgtasks-item__nav {
   flex-shrink: 0;
   font-size: 18px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 .bgtasks-item__dismiss {
   flex-shrink: 0;
   background: none;
   border: none;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-size: 18px;
   display: flex;
   align-items: center;

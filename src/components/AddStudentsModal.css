@@ -1,33 +1,30 @@
 .add-students__progress {
   padding: 16px;
   text-align: center;
-  background: var(--ion-color-light);
+  background: var(--color-muted);
 }
 
 .add-students__progress span {
   display: block;
   margin-top: 8px;
   font-size: 14px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 .add-students__hint {
   padding: 16px;
   margin: 0;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-size: 14px;
 }
 
-.add-students__new ion-list {
-  margin-bottom: 8px;
-}
 
 .add-students__actions {
   padding: 16px;
   position: sticky;
   bottom: 0;
-  background: var(--ion-background-color);
-  border-top: 1px solid var(--ion-color-light);
+  background: var(--color-background);
+  border-top: 1px solid var(--color-muted);
 }
 
 .add-students__filters {
@@ -58,7 +55,7 @@
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
-  color: var(--ion-text-color, #0f172a);
+  color: var(--color-foreground);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   text-align: left;
@@ -91,8 +88,8 @@
   left: 0;
   right: 0;
   z-index: 101;
-  background: #fff;
-  border: 1.5px solid rgba(15, 23, 42, 0.1);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.06);
   overflow: hidden;
@@ -118,8 +115,8 @@
 }
 
 .add-students__class-filter-option--active {
-  color: var(--ion-color-primary, #4a9d8f);
-  background: rgba(var(--ion-color-primary-rgb, 74, 157, 143), 0.07);
+  color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.07);
   font-weight: 600;
 }
 
@@ -150,13 +147,13 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--ion-color-light);
-  border-bottom: 1px solid var(--ion-color-light-shade);
+  background: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .add-students__select-all span {
   font-size: 14px;
-  color: var(--ion-color-medium-shade);
+  color: var(--color-muted-foreground);
 }
 
 .add-students__loading {
@@ -174,20 +171,15 @@
   text-align: center;
 }
 
-.add-students__empty ion-icon {
-  font-size: 64px;
-  color: var(--ion-color-medium);
-  margin-bottom: 16px;
-}
 
 .add-students__empty h3 {
   margin: 0 0 8px;
   font-size: 18px;
-  color: var(--ion-color-dark);
+  color: var(--color-foreground);
 }
 
 .add-students__empty p {
   margin: 0;
   font-size: 14px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }

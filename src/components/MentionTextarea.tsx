@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { IonIcon } from '@ionic/react';
-import { personOutline } from 'ionicons/icons';
+import { User } from 'lucide-react';
 import { students as studentsApi } from '../services/api';
 import { MentionedStudent } from '../types';
 import './MentionTextarea.css';
@@ -273,7 +272,7 @@ const MentionTextarea: React.FC<Props> = ({
         />
         {showHelper && (
           <p className="mention-textarea__helper">
-            <IonIcon icon={personOutline} />
+            <User size={12} />
             {helperText}
           </p>
         )}

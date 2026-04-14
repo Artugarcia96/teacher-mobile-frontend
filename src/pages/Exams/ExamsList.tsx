@@ -1,14 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import {
-  IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon,
-  IonSpinner, IonAlert, IonSegment, IonSegmentButton, IonLabel,
-  IonSelect, IonSelectOption, useIonViewWillEnter,
-} from '@ionic/react';
-import { 
-  addOutline, chevronForwardOutline, trashOutline, timeOutline,
-  alertCircleOutline, checkmarkCircleOutline
-} from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+import { Plus, ChevronRight, Trash2, Clock, AlertCircle, CheckCircle, Sparkles, ScanLine, Filter } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useExamsStore } from '../../store/examsStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
@@ -19,26 +11,19 @@ import { ClassGroup, Exam } from '../../types';
 import EmptyState from '../../components/EmptyState';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useDashboardStore } from '../../store/dashboardStore';
+import PageShell from '@/components/shared/PageShell';
+import Spinner from '@/components/shared/Spinner';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { EXAM_STATUS_CONFIG, EXAM_DEADLINE_CONFIG, EXAM_ORIGIN_CONFIG, STATUS_FILTER_OPTIONS } from './examConstants';
 import './ExamsList.css';
 
-const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
-  uploaded: { color: '#64748B', label: 'Subido', bg: 'rgba(100, 116, 139, 0.1)' },
-  assigned: { color: '#D97706', label: 'Por corregir', bg: 'rgba(217, 119, 6, 0.1)' },
-  corrected: { color: '#059669', label: 'Corregido', bg: 'rgba(5, 150, 105, 0.1)' },
-};
-
-const deadlineConfig: Record<string, { color: string; label: string }> = {
-  ok: { color: '#059669', label: 'En plazo' },
-  soon: { color: '#D97706', label: 'Próximo' },
-  urgent: { color: '#DC2626', label: 'Urgente' },
-  overdue: { color: '#DC2626', label: 'Vencido' },
-  completed: { color: '#059669', label: 'Completado' },
-};
-
 const ExamsList: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId?: string }>();
-  const history = useHistory();
-  
+  const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
+  const navigate = useNavigate();
+
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
   const deleteExam = useExamsStore((s) => s.deleteExam);
@@ -47,17 +32,17 @@ const ExamsList: React.FC = () => {
 
   const allStudents = useStudentsStore((s) => s.students);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
-  
+
   const allCorrections = useCorrectionStore((s) => s.corrections);
   const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
-  
+
   const allClasses = useClassesStore((s) => s.classes);
   const fetchClasses = useClassesStore((s) => s.fetchClasses);
   const classSubjects = useClassesStore((s) => s.classSubjects);
   const fetchClassSubjects = useClassesStore((s) => s.fetchClassSubjects);
   const classSubjectsLoaded = useClassesStore((s) => s.classSubjectsLoaded);
 
-  const [statusFilter, setStatusFilter] = useState<'all' | 'uploaded' | 'assigned' | 'corrected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending_validation' | 'pending_schedule' | 'scheduled' | 'pending_correction' | 'corrected'>('all');
   const [lectureFilter, setLectureFilter] = useState<string>('all');
   const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
   const [classGroup, setClassGroup] = useState<ClassGroup | null>(null);
@@ -65,7 +50,12 @@ const ExamsList: React.FC = () => {
 
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
-  const exams = useMemo(() => allExams.filter((e) => e.classId === classId && (!subjectId || e.subjectId === subjectId)), [allExams, classId, subjectId]);
+  const exams = useMemo(() => allExams.filter((e) => {
+    // Match via direct fields OR via assignments
+    const directMatch = e.classId === classId && (!subjectId || e.subjectId === subjectId);
+    const assignmentMatch = e.assignments?.some(a => a.classId === classId && (!subjectId || a.subjectId === subjectId));
+    return directMatch || assignmentMatch;
+  }), [allExams, classId, subjectId]);
 
   const fetchClassDetails = useCallback(async () => {
     if (!classId) return;
@@ -100,23 +90,18 @@ const ExamsList: React.FC = () => {
     }
   }, [classId, subjectId, fetchClasses, fetchExams, fetchStudents, fetchAllCorrections, fetchClassDetails, fetchSubjectName, fetchClassSubjects]);
 
-  // Refresh exam data when returning to this screen (e.g. after correcting)
-  useIonViewWillEnter(() => {
-    fetchExams(classId, subjectId);
-    fetchAllCorrections();
-  });
 
   const filteredExams = useMemo(() => {
     let filtered = [...exams];
-    
+
     if (lectureFilter !== 'all') {
       filtered = filtered.filter(e => e.lectureId === lectureFilter);
     }
-    
+
     if (statusFilter !== 'all') {
       filtered = filtered.filter(e => e.status === statusFilter);
     }
-    
+
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [exams, lectureFilter, statusFilter]);
 
@@ -148,18 +133,23 @@ const ExamsList: React.FC = () => {
   const aulaLabel = currentSubjectSummary?.aula;
   const basePath = subjectId
     ? `/tabs/classes/${classId}/subjects/${subjectId}`
-    : `/tabs/classes/${classId}`;
+    : '/tabs/classes';
   const examsBasePath = `${basePath}/exams`;
 
   return (
-    <IonPage>
-      <IonContent className="exams-list-content" scrollY style={subjectThemeStyle(subjectColor)}>
+    <PageShell noPadding contentClassName="!p-0">
+      <div className="exams-list-scroll" style={subjectThemeStyle(subjectColor) as React.CSSProperties}>
         {/* Hero Header */}
         <div className="exams-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
           <div className="exams-list-hero__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={basePath} text="" color="light" />
-            </IonButtons>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate(basePath)}
+                className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/20 transition-colors text-white"
+              >
+                <ArrowLeft size={20} />
+              </button>
+            </div>
             <div className="exams-list-hero__center">
               <h1 className="exams-list-hero__title">Exámenes</h1>
               {(displayClass || subjectName) && (
@@ -168,57 +158,69 @@ const ExamsList: React.FC = () => {
                 </p>
               )}
             </div>
-            <IonButton 
-              fill="clear" 
-              size="small"
-              onClick={() => history.push(`${examsBasePath}/new`)}
-              className="exams-list-hero__add-btn"
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`${examsBasePath}/new`)}
+              className="text-white/90 hover:text-white hover:bg-white/20"
             >
-              <IonIcon icon={addOutline} slot="icon-only" />
-            </IonButton>
+              <Plus size={22} />
+            </Button>
           </div>
         </div>
 
-        {/* Compact Filters */}
-        <div className="exams-list-filters">
-          <IonSegment 
-            value={statusFilter} 
-            onIonChange={(e) => setStatusFilter(e.detail.value as any)}
-            className="exams-list-segment"
-          >
-            <IonSegmentButton value="all">
-              <IonLabel>Todos</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="assigned">
-              <IonLabel>Pendientes</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="corrected">
-              <IonLabel>Corregidos</IonLabel>
-            </IonSegmentButton>
-          </IonSegment>
-          
-          {!subjectId && displayClass?.lectures && displayClass.lectures.length > 1 && (
-            <IonSelect
-              value={lectureFilter}
-              onIonChange={(e) => setLectureFilter(e.detail.value)}
-              interface="popover"
-              className="exams-list-lecture-select"
-            >
-              <IonSelectOption value="all">Todas las asignaturas</IonSelectOption>
-              {displayClass.lectures.map((lecture) => (
-                <IonSelectOption key={lecture.id} value={lecture.id}>
-                  {lecture.name}
-                </IonSelectOption>
-              ))}
-            </IonSelect>
-          )}
+        {/* Status filter */}
+        <div className="exams-filter-bar">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="exams-filter-select">
+              <Filter size={14} className="text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTER_OPTIONS.map((f) => {
+                const count = f.value === 'all' ? exams.length : exams.filter(e => e.status === f.value).length;
+                return (
+                  <SelectItem key={f.value} value={f.value}>
+                    <span className="flex items-center justify-between gap-2 w-full">
+                      {f.label}
+                      {count > 0 && <span className="exams-filter-count">{count}</span>}
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          <span className="exams-filter-summary">
+            {filteredExams.length} {filteredExams.length === 1 ? 'examen' : 'exámenes'}
+          </span>
         </div>
+
+        {!subjectId && displayClass?.lectures && displayClass.lectures.length > 1 && (
+          <div className="exams-list-filters">
+            <Select
+              value={lectureFilter}
+              onValueChange={(v) => setLectureFilter(v)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las asignaturas</SelectItem>
+                {displayClass.lectures.map((lecture) => (
+                  <SelectItem key={lecture.id} value={lecture.id}>
+                    {lecture.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Exams List */}
         <div className="exams-list-container">
           {examsLoading ? (
             <div className="exams-list-loading">
-              <IonSpinner color="primary" />
+              <Spinner />
             </div>
           ) : filteredExams.length === 0 ? (
             <EmptyState
@@ -226,38 +228,52 @@ const ExamsList: React.FC = () => {
               title={exams.length === 0 ? 'Aún no hay exámenes' : 'Sin resultados'}
               subtitle={exams.length === 0 ? 'Crea tu primer examen para esta clase' : 'Prueba con otros filtros'}
               actionLabel={exams.length === 0 ? 'Crear examen' : undefined}
-              onAction={exams.length === 0 ? () => history.push(`${examsBasePath}/new`) : undefined}
+              onAction={exams.length === 0 ? () => navigate(`${examsBasePath}/new`) : undefined}
             />
           ) : (
             <div className="exams-list-items">
               {filteredExams.map((exam) => {
-                const status = statusConfig[exam.status] || statusConfig.uploaded;
+                const status = EXAM_STATUS_CONFIG[exam.status] || EXAM_STATUS_CONFIG.pending_validation;
                 const corrections = getExamCorrections(exam.id);
                 const correctedCount = corrections.filter(c => c.grade !== null || c.aiProcessed).length;
-                const deadline = exam.deadlineStatus ? deadlineConfig[exam.deadlineStatus] : null;
+                const deadline = exam.deadlineStatus ? EXAM_DEADLINE_CONFIG[exam.deadlineStatus] : null;
                 const lectureName = getLectureName(exam.lectureId);
-                
+
                 return (
-                  <div 
-                    key={exam.id} 
+                  <div
+                    key={exam.id}
                     className="exams-list-card"
-                    onClick={() => history.push(`${examsBasePath}/${exam.id}`)}
+                    onClick={() => navigate(`${examsBasePath}/${exam.id}`)}
                   >
                     <div className="exams-list-card__content">
                       <div className="exams-list-card__header">
                         <h3 className="exams-list-card__name">{exam.name}</h3>
-                        <span 
-                          className="exams-list-card__status"
-                          style={{ color: status.color, background: status.bg }}
-                        >
-                          {status.label}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {exam.examOrigin && EXAM_ORIGIN_CONFIG[exam.examOrigin] && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium"
+                              style={{
+                                color: EXAM_ORIGIN_CONFIG[exam.examOrigin].color,
+                                background: EXAM_ORIGIN_CONFIG[exam.examOrigin].bg,
+                              }}
+                            >
+                              {EXAM_ORIGIN_CONFIG[exam.examOrigin].icon === 'sparkles' ? <Sparkles size={11} /> : <ScanLine size={11} />}
+                              {EXAM_ORIGIN_CONFIG[exam.examOrigin].label}
+                            </span>
+                          )}
+                          <span
+                            className="exams-list-card__status"
+                            style={{ color: status.color, background: status.bg }}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
                       </div>
-                      
+
                       <div className="exams-list-card__meta">
                         <span className="exams-list-card__date">
-                          {new Date(exam.date).toLocaleDateString('es-ES', { 
-                            day: 'numeric', 
+                          {new Date(exam.date).toLocaleDateString('es-ES', {
+                            day: 'numeric',
                             month: 'short',
                             year: 'numeric'
                           })}
@@ -266,37 +282,37 @@ const ExamsList: React.FC = () => {
                           <span className="exams-list-card__lecture">{lectureName}</span>
                         )}
                       </div>
-                      
+
                       <div className="exams-list-card__footer">
-                        {exam.status !== 'uploaded' && (
+                        {(exam.status === 'scheduled' || exam.status === 'pending_correction' || exam.status === 'corrected') && (
                           <span className="exams-list-card__progress">
-                            <IonIcon icon={checkmarkCircleOutline} />
+                            <CheckCircle size={12} />
                             {correctedCount}/{students.length} corregidos
                           </span>
                         )}
                         {deadline && exam.status !== 'corrected' && exam.correctionDeadline && (
-                          <span 
+                          <span
                             className="exams-list-card__deadline"
                             style={{ color: deadline.color }}
                           >
-                            <IonIcon icon={deadline.label === 'Vencido' ? alertCircleOutline : timeOutline} />
+                            {deadline.label === 'Vencido' ? <AlertCircle size={12} /> : <Clock size={12} />}
                             {deadline.label}
                           </span>
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="exams-list-card__actions">
-                      <button 
+                      <button
                         className="exams-list-card__delete"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeleteTarget(exam);
                         }}
                       >
-                        <IonIcon icon={trashOutline} />
+                        <Trash2 size={16} />
                       </button>
-                      <IonIcon icon={chevronForwardOutline} className="exams-list-card__arrow" />
+                      <ChevronRight size={18} className="exams-list-card__arrow" />
                     </div>
                   </div>
                 );
@@ -306,18 +322,20 @@ const ExamsList: React.FC = () => {
         </div>
 
         {/* Delete Alert */}
-        <IonAlert
-          isOpen={!!deleteTarget}
-          onDidDismiss={() => setDeleteTarget(null)}
+        <AlertConfirm
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
           header="Eliminar examen"
-          message={`¿Eliminar "${deleteTarget?.name}"? También se eliminarán las correcciones asociadas.`}
-          buttons={[
-            { text: 'Cancelar', role: 'cancel' },
-            { text: 'Eliminar', role: 'destructive', handler: handleDelete }
-          ]}
+          message={
+            `¿Eliminar "${deleteTarget?.name}"? También se eliminarán todas las correcciones asociadas. Esta acción no se puede deshacer.`
+          }
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleDelete}
+          variant="destructive"
         />
-      </IonContent>
-    </IonPage>
+      </div>
+    </PageShell>
   );
 };
 

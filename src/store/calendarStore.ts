@@ -120,7 +120,7 @@ interface CalendarState {
   setView: (view: CalendarView) => void;
   fetchEvents: (startDate: string, endDate: string, classId?: string, studentId?: string) => Promise<void>;
   createEvent: (data: {
-    class_id?: string; student_id?: string; title: string; event_date: string;
+    class_id?: string; student_id?: string; exam_id?: string; title: string; event_date: string;
     start_time?: string; end_time?: string; event_type?: string; notes?: string;
     mentioned_student_ids?: string[];
   }) => Promise<CalendarEvent>;

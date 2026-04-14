@@ -1,16 +1,4 @@
-.rc-content {
-  --background: var(--color-neutral-light, #f8fafc);
-}
-
-.rc-header {
-  padding: calc(env(safe-area-inset-top, 0px) + var(--space-lg)) var(--space-lg) var(--space-md);
-  background: var(--ion-background-color, #fff);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.rc-header__nav { display: flex; align-items: center; gap: var(--space-sm); }
-.rc-header__title { flex: 1; font-size: 18px; font-weight: 700; margin: 0; }
-.rc-header__subtitle { font-size: 13px; color: var(--color-text-secondary, #64748b); margin: 4px 0 0; padding-left: 40px; }
+.rc-header__subtitle { font-size: 13px; color: var(--color-text-secondary, #64748b); margin: 4px 0 0; }
 
 .rc-empty {
   display: flex;
@@ -20,7 +8,7 @@
   padding: var(--space-4xl, 40px) var(--space-lg);
   text-align: center;
 }
-.rc-empty__icon { font-size: 48px; color: var(--color-primary); }
+.rc-empty__icon { color: var(--color-primary); }
 .rc-empty__title { font-size: 18px; font-weight: 600; }
 .rc-empty__subtitle { font-size: 13px; color: var(--color-text-secondary, #64748b); max-width: 280px; }
 
@@ -33,10 +21,10 @@
 }
 .rc-generating__sub { font-size: 13px; color: var(--color-text-secondary, #64748b); }
 
-.rc-list { padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); }
+.rc-list { display: flex; flex-direction: column; gap: var(--space-md); }
 
 .rc-card {
-  background: var(--ion-background-color, #fff);
+  background: var(--color-surface, #fff);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
@@ -60,11 +48,9 @@
 .rc-grade--fail { background: #FEE2E2; color: #991B1B; }
 
 .rc-card__textarea {
-  --padding-start: 0;
-  --padding-end: 0;
   font-size: 14px;
   line-height: 1.5;
-  --color: var(--color-text-primary);
+  min-height: 80px;
 }
 
 .rc-card__actions { display: flex; gap: var(--space-sm); margin-top: var(--space-sm); }
@@ -79,15 +65,15 @@
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   cursor: pointer;
+  font-family: inherit;
 }
 .rc-card__regen-btn:active { background: var(--color-neutral-light); }
-.rc-card__regen-btn ion-icon { font-size: 14px; }
 
 .rc-footer { padding-top: var(--space-lg); }
 
-/* ─── Desktop (≥992px) ─── */
+/* ─── Desktop (>=992px) ─── */
 @media (min-width: 992px) {
-  .rc-content {
+  .rc-list {
     max-width: 960px;
     margin-left: auto;
     margin-right: auto;

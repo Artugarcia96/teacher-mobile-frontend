@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
-import { IonIcon, IonSpinner } from '@ionic/react';
-import {
-  closeOutline,
-  checkmarkOutline,
-  chatbubbleOutline,
-} from 'ionicons/icons';
+import { X, Check, MessageCircle } from 'lucide-react';
+import Spinner from '@/components/shared/Spinner';
 import { MentionedStudent } from '../types';
 import { useCommentsStore, RecentSession } from '../store/commentsStore';
 import MentionTextarea from './MentionTextarea';
@@ -82,14 +78,14 @@ const PostClassCommentPrompt: React.FC = () => {
     <div className="post-class-prompt">
       <div className="post-class-prompt__header">
         <div className="post-class-prompt__icon">
-          <IonIcon icon={chatbubbleOutline} />
+          <MessageCircle size={20} />
         </div>
         <div className="post-class-prompt__title-area">
           <h3 className="post-class-prompt__title">¿Cómo ha ido la clase?</h3>
           <p className="post-class-prompt__class">{currentSession.title || currentSession.class_name}</p>
         </div>
         <button className="post-class-prompt__close" onClick={handleDismiss}>
-          <IonIcon icon={closeOutline} />
+          <X size={22} />
         </button>
       </div>
 
@@ -121,10 +117,10 @@ const PostClassCommentPrompt: React.FC = () => {
           disabled={saving || !commentText.trim()}
         >
           {saving ? (
-            <IonSpinner name="dots" />
+            <Spinner size={18} />
           ) : (
             <>
-              <IonIcon icon={checkmarkOutline} />
+              <Check size={18} />
               Guardar
             </>
           )}

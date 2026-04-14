@@ -1,4 +1,4 @@
-import { IonButton } from '@ionic/react';
+import { Button } from '@/components/ui/button';
 import './EmptyState.css';
 
 interface Props {
@@ -15,9 +15,9 @@ const EmptyState: React.FC<Props> = ({ icon, title, subtitle, actionLabel, onAct
     <h3 className="empty-state-title">{title}</h3>
     {subtitle && <p className="empty-state-subtitle">{subtitle}</p>}
     {actionLabel && onAction && (
-      <IonButton onClick={onAction} size="default" className="empty-state-action">
+      <Button onClick={onAction} className="empty-state-action">
         {actionLabel}
-      </IonButton>
+      </Button>
     )}
   </div>
 );

@@ -1,24 +1,26 @@
-import { IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonBadge, IonIcon } from '@ionic/react';
-import { documentTextOutline, timeOutline } from 'ionicons/icons';
+import { FileText, Clock, Sparkles } from 'lucide-react';
+import Spinner from '@/components/shared/Spinner';
+import { Badge } from '@/components/ui/badge';
 import { Textbook } from '../types';
+import './CoursePlanCard.css';
 
 interface TextbookCardProps {
   textbook: Textbook;
   onClick: () => void;
 }
 
-const enfoqueConfig: Record<string, { label: string; color: string }> = {
-  teorico: { label: 'Teorico', color: '#15665E' },
-  practico: { label: 'Practico', color: '#E87A1C' },
-  examen: { label: 'Examen', color: '#d33939' },
+const enfoqueConfig: Record<string, { label: string; emoji: string }> = {
+  teorico: { label: 'Teórico', emoji: '📖' },
+  practico: { label: 'Práctico', emoji: '🔧' },
+  examen: { label: 'Examen', emoji: '📝' },
 };
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pendiente', color: 'medium' },
-  processing: { label: 'Generando', color: 'warning' },
-  completed: { label: 'Completado', color: 'success' },
-  completed_no_pdf: { label: 'Sin PDF', color: 'warning' },
-  failed: { label: 'Error', color: 'danger' },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; isProcessing?: boolean }> = {
+  pending: { label: 'Pendiente', variant: 'secondary' },
+  processing: { label: 'Generando...', variant: 'outline', isProcessing: true },
+  completed: { label: 'Completado', variant: 'default' },
+  completed_no_pdf: { label: 'Sin PDF', variant: 'outline' },
+  failed: { label: 'Error', variant: 'destructive' },
 };
 
 const TextbookCard: React.FC<TextbookCardProps> = ({ textbook, onClick }) => {
@@ -37,62 +39,34 @@ const TextbookCard: React.FC<TextbookCardProps> = ({ textbook, onClick }) => {
   const pages = textbook.stats?.estimated_pages;
 
   return (
-    <IonCard
-      onClick={onClick}
-      button
-      style={{
-        borderRadius: 12,
-        margin: '0 0 12px 0',
-        cursor: 'pointer',
-        '--background': 'var(--ion-card-background, var(--ion-item-background, var(--ion-background-color, #fff)))',
-      }}
-    >
-      <IonCardHeader style={{ paddingBottom: 4 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <IonCardTitle style={{ fontSize: 16, fontWeight: 600, flex: 1 }}>
-            {title}
-          </IonCardTitle>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-            <span style={{
-              display: 'inline-block',
-              padding: '2px 8px',
-              borderRadius: 12,
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#fff',
-              background: enfoque.color,
-              whiteSpace: 'nowrap',
-            }}>
-              {enfoque.label}
-            </span>
-            <IonBadge color={status.color} style={{ fontSize: 11 }}>
-              {status.label}
-            </IonBadge>
-          </div>
+    <div className="cplan-card" onClick={onClick} role="button" tabIndex={0}>
+      <div className="cplan-card__header">
+        <div className="cplan-card__title-row">
+          <Sparkles size={20} className="cplan-card__icon" />
+          <span className="cplan-card__title">{title}</span>
         </div>
-      </IonCardHeader>
+        <Badge variant={status.variant} className="cplan-card__status">
+          {status.isProcessing && <Spinner size={14} />}
+          <span className={status.isProcessing ? 'ml-1' : ''}>{status.label}</span>
+        </Badge>
+      </div>
 
-      <IonCardContent style={{ paddingTop: 0 }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          fontSize: 13,
-          color: 'var(--ion-color-medium)',
-        }}>
-          {(textbook.status === 'completed' || textbook.status === 'completed_no_pdf') && pages != null && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <IonIcon icon={documentTextOutline} style={{ fontSize: 14 }} />
-              ~{pages} paginas
-            </span>
-          )}
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <IonIcon icon={timeOutline} style={{ fontSize: 14 }} />
-            {formatDate(textbook.createdAt)}
+      <div className="cplan-card__meta">
+        <span className="cplan-card__meta-item">
+          {enfoque.emoji} {enfoque.label}
+        </span>
+        {(textbook.status === 'completed' || textbook.status === 'completed_no_pdf') && pages != null && (
+          <span className="cplan-card__meta-item">
+            <FileText size={12} />
+            ~{pages} páginas
           </span>
-        </div>
-      </IonCardContent>
-    </IonCard>
+        )}
+        <span className="cplan-card__meta-item">
+          <Clock size={12} />
+          {formatDate(textbook.createdAt)}
+        </span>
+      </div>
+    </div>
   );
 };
 

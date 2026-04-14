@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
-import {
-  IonModal, IonHeader, IonToolbar, IonTitle, IonContent, IonButton,
-  IonButtons, IonIcon, IonSpinner, IonTextarea, IonItem, IonAlert,
-  IonBadge, IonInput, IonSegment, IonSegmentButton, IonLabel,
-} from '@ionic/react';
-import {
-  closeOutline, downloadOutline, trashOutline,
-  chevronDownOutline, chevronUpOutline, sparkles,
-  eyeOutline,
-} from 'ionicons/icons';
+import { ChevronDown, ChevronUp, Download, Eye, Sparkles, Trash2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
+import AlertConfirm from '@/components/shared/AlertConfirm';
 import { Textbook } from '../types';
 import { useTextbooksStore } from '../store/textbooksStore';
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
@@ -162,41 +158,31 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
 
   return (
     <>
-      <IonModal isOpen={isOpen} onDidDismiss={onClose}>
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle style={{ fontSize: 16 }}>{title}</IonTitle>
-            <IonButtons slot="end">
-              <IonButton onClick={onClose}>
-                <IonIcon icon={closeOutline} />
-              </IonButton>
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
+      <Modal open={isOpen} onClose={onClose} sheetHeight="lg">
+        <div className="flex items-center justify-between p-4 border-b">
+          
+            <h2 className="text-base font-semibold">{title}</h2>
+            <div className="flex items-center gap-1">
+              <Button onClick={onClose}>
+                <X size={18} />
+              </Button>
+            </div>
+          
+        </div>
 
-        <IonContent className="ion-padding">
+        <div>
 
           {/* ─── SECTION 1: Summary ─── */}
           {textbook.pdfUrl && textbook.status === 'completed' && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <IonButton
-                expand="block"
-                onClick={handlePreview}
-                style={{ flex: 1, '--border-radius': '10px', fontWeight: 600, '--background': 'var(--ion-color-primary, #15665E)' }}
-              >
-                <IonIcon icon={eyeOutline} slot="start" />
+              <Button className="w-full" onClick={handlePreview}>
+                <Eye size={18} />
                 Ver PDF
-              </IonButton>
-              <IonButton
-                expand="block"
-                color="medium"
-                fill="outline"
-                onClick={handleDownload}
-                style={{ flex: 1, '--border-radius': '10px', fontWeight: 600 }}
-              >
-                <IonIcon icon={downloadOutline} slot="start" />
+              </Button>
+              <Button variant="outline" className="w-full" onClick={handleDownload}>
+                <Download size={18} />
                 Descargar
-              </IonButton>
+              </Button>
             </div>
           )}
 
@@ -284,7 +270,7 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                           {sectionCount} {sectionCount === 1 ? 'seccion' : 'secciones'}
                         </div>
                       </div>
-                      <IonIcon icon={isExpanded ? chevronUpOutline : chevronDownOutline} style={{ fontSize: 18, color: 'var(--ion-color-medium)', flexShrink: 0 }} />
+                      {/* icon: isExpanded ? chevronUpOutline : chevronDownOutline */}
                     </div>
 
                     {/* Expanded: sections + editor */}
@@ -318,20 +304,10 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                             padding: 10, background: 'rgba(21, 102, 94, 0.02)',
                           }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ion-color-primary, #15665E)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <IonIcon icon={sparkles} style={{ fontSize: 13 }} />
+                              <Sparkles size={13} />
                               Editar con IA
                             </div>
-                            <IonTextarea
-                              value={iterationInstruction}
-                              onIonInput={(e) => setIterationInstruction(e.detail.value ?? '')}
-                              placeholder="Ej: Simplifica las explicaciones, añade ejemplos practicos..."
-                              rows={2}
-                              style={{
-                                '--background': '#fff', '--border-radius': '8px',
-                                '--padding-start': '10px', fontSize: '13px', marginBottom: 6,
-                                border: '1px solid var(--ion-color-light-shade)', borderRadius: 8,
-                              }}
-                            />
+                            <Textarea value={iterationInstruction} onChange={(e) => setIterationInstruction(e.target.value)} placeholder="Ej: Simplifica las explicaciones, añade ejemplos practicos..." rows={2} />
 
                             {/* Preset chips */}
                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -359,17 +335,15 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                               </div>
                             )}
 
-                            <IonButton
-                              expand="block" size="small"
-                              onClick={() => handleIterate(chapter.number)}
+                            <Button size="sm" className="w-full" onClick={() => handleIterate(chapter.number)}
                               disabled={iterating || !iterationInstruction.trim()}
-                              style={{ '--border-radius': '8px', '--background': 'var(--ion-color-primary, #15665E)', fontWeight: 600, fontSize: 13 }}
+                              style={{ borderRadius: '8px', background: 'var(--ion-color-primary, #15665E)', fontWeight: 600, fontSize: 13 }}
                             >
                               {iterating
-                                ? <><IonSpinner name="crescent" style={{ width: 14, height: 14, marginRight: 6 }} /> Editando...</>
-                                : <><IonIcon icon={sparkles} slot="start" /> Aplicar cambios</>
+                                ? <><Spinner size={14} className="mr-1.5" /> Editando...</>
+                                : <><Sparkles size={18} /> Aplicar cambios</>
                               }
-                            </IonButton>
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -393,54 +367,44 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
                   {assignResult}
                 </div>
               )}
-              <IonButton
-                expand="block"
-                onClick={handleAssignToPlanTopics}
-                disabled={assigning || !!assignResult?.startsWith('Contenido')}
-                style={{ '--border-radius': '10px', '--background': 'var(--ion-color-primary, #15665E)', fontWeight: 600 }}
-              >
+              <Button className="w-full" onClick={handleAssignToPlanTopics} disabled={assigning || !!assignResult?.startsWith('Contenido')}>
                 {assigning ? (
-                  <><IonSpinner name="crescent" style={{ marginRight: 8, width: 18, height: 18 }} /> Asignando...</>
+                  <><Spinner size={18} className="mr-2" /> Asignando...</>
                 ) : (
                   'Asignar contenido a temas del plan'
                 )}
-              </IonButton>
+              </Button>
             </div>
           )}
 
-          <IonButton expand="block" fill="outline" color="danger" onClick={() => setShowDeleteAlert(true)} disabled={deleting} style={{ marginTop: 8, '--border-radius': '10px' }}>
-            {deleting ? (<><IonSpinner name="crescent" style={{ marginRight: 6 }} /> Eliminando...</>) : (<><IonIcon icon={trashOutline} slot="start" /> Eliminar contenido</>)}
-          </IonButton>
-        </IonContent>
-      </IonModal>
+          <Button variant="destructive" className="w-full" onClick={() => setShowDeleteAlert(true)} disabled={deleting} style={{ marginTop: 8, borderRadius: '10px' }}>
+            {deleting ? (<><Spinner size={16} className="mr-1.5" /> Eliminando...</>) : (<><Trash2 size={18} /> Eliminar contenido</>)}
+          </Button>
+        </div>
+      </Modal>
 
-      <IonAlert
-        isOpen={showDeleteAlert}
-        onDidDismiss={() => setShowDeleteAlert(false)}
+      <AlertConfirm open={showDeleteAlert}
+        onClose={() => setShowDeleteAlert(false)}
         header="Eliminar contenido"
         message="Se eliminará este contenido y su PDF asociado. Esta acción no se puede deshacer."
-        buttons={[
-          { text: 'Cancelar', role: 'cancel' },
-          { text: 'Eliminar', role: 'destructive', handler: handleDelete },
-        ]}
+        onConfirm={handleDelete}
+        confirmText="Eliminar"
+        variant="destructive"
       />
 
       {/* PDF Preview Modal */}
-      <IonModal
-        isOpen={!!previewUrl}
-        onDidDismiss={() => { if (previewUrl?.startsWith('blob:')) window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}
-      >
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle style={{ fontSize: 16 }}>Vista previa</IonTitle>
-            <IonButtons slot="end">
-              <IonButton onClick={() => setPreviewUrl(null)}>
-                <IonIcon icon={closeOutline} />
-              </IonButton>
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent style={{ '--background': '#000' }}>
+      <Modal open={!!previewUrl} onClose={() => { if (previewUrl?.startsWith('blob:')) window.URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }} sheetHeight="lg">
+        <div className="flex items-center justify-between p-4 border-b">
+          
+            <h2 className="text-base font-semibold">Vista previa</h2>
+            <div className="flex items-center gap-1">
+              <Button onClick={() => setPreviewUrl(null)}>
+                <X size={18} />
+              </Button>
+            </div>
+          
+        </div>
+        <div>
           {previewUrl && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100%', padding: 8 }}>
               <iframe
@@ -450,8 +414,8 @@ const TextbookDetailModal: React.FC<TextbookDetailModalProps> = ({
               />
             </div>
           )}
-        </IonContent>
-      </IonModal>
+        </div>
+      </Modal>
     </>
   );
 };

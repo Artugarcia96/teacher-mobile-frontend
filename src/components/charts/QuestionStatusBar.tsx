@@ -1,4 +1,4 @@
-import { IonBadge } from '@ionic/react';
+import { Badge } from '@/components/ui/badge';
 import { AIQuestionFeedback } from '../../types';
 import { chartColors } from '../../utils/statusConfig';
 import './QuestionStatusBar.css';
@@ -65,10 +65,10 @@ const QuestionStatusBar: React.FC<Props> = ({ questions, compact, showLegend = t
 
       {showLegend && !compact && (
         <div className="qsb__legend">
-          {stats.correct > 0 && <IonBadge color="success">{stats.correct} ✓</IonBadge>}
-          {stats.partial > 0 && <IonBadge color="warning">{stats.partial} ~</IonBadge>}
-          {stats.incorrect > 0 && <IonBadge color="danger">{stats.incorrect} ✗</IonBadge>}
-          {stats.blank > 0 && <IonBadge color="medium">{stats.blank} —</IonBadge>}
+          {stats.correct > 0 && <Badge className="bg-success text-white">{stats.correct} ✓</Badge>}
+          {stats.partial > 0 && <Badge className="bg-warning text-white">{stats.partial} ~</Badge>}
+          {stats.incorrect > 0 && <Badge className="bg-danger text-white">{stats.incorrect} ✗</Badge>}
+          {stats.blank > 0 && <Badge variant="secondary">{stats.blank} —</Badge>}
         </div>
       )}
     </div>

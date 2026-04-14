@@ -1,18 +1,17 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-import { Redirect, Route } from 'react-router-dom';
-import {
-  IonApp, IonRouterOutlet, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel,
-  IonBadge, IonSpinner, IonSplitPane, setupIonicReact,
-} from '@ionic/react';
-import { IonReactRouter } from '@ionic/react-router';
-import { calendarOutline, schoolOutline } from 'ionicons/icons';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+
 import { useDashboardStore } from './store/dashboardStore';
+import AppLayout from './components/layout/AppLayout';
+import PostClassCommentPrompt from './components/PostClassCommentPrompt';
+import FeedbackFab from './components/FeedbackFab';
+import BackgroundTasksFab from './components/BackgroundTasksFab';
 
 import Login from './pages/Login/Login';
 import Calendar from './pages/Calendar/Calendar';
 import Classes from './pages/Classes/Classes';
 import ClassSettings from './pages/ClassSettings/ClassSettings';
-import GradeBook from './pages/GradeBook/GradeBook';
 import SubjectGradeBook from './pages/GradeBook/SubjectGradeBook';
 import StudentFile from './pages/StudentFile/StudentFile';
 import TopicsList from './pages/Topics/TopicsList';
@@ -20,207 +19,128 @@ import TopicDetail from './pages/Topics/TopicDetail';
 import ExamEditor from './pages/Exams/ExamEditor';
 import ExamDetail from './pages/Exams/ExamDetail';
 import ExamsList from './pages/Exams/ExamsList';
+import ExamsGlobal from './pages/Exams/ExamsGlobal';
 import ExercisesList from './pages/Exercises/ExercisesList';
 import ExerciseDetail from './pages/Exercises/ExerciseDetail';
 import AttendanceList from './pages/Attendance/AttendanceList';
-import Correction from './pages/Correction/Correction';
 import ExerciseCorrection from './pages/ExerciseCorrection/ExerciseCorrection';
 import ExerciseBulkCorrection from './pages/ExerciseCorrection/ExerciseBulkCorrection';
 import Guide from './pages/Guide/Guide';
-import PostClassCommentPrompt from './components/PostClassCommentPrompt';
-import FeedbackFab from './components/FeedbackFab';
-import BackgroundTasksFab from './components/BackgroundTasksFab';
-import SideMenu from './components/SideMenu';
 import { auth } from './services/api';
 
 const TrimesterSummary = lazy(() => import('./pages/GradeBook/TrimesterSummary'));
 const ReportComments = lazy(() => import('./pages/GradeBook/ReportComments'));
 const ClassReport = lazy(() => import('./pages/GradeBook/ClassReport'));
 
-import '@ionic/react/css/core.css';
-import '@ionic/react/css/normalize.css';
-import '@ionic/react/css/structure.css';
-import '@ionic/react/css/typography.css';
-import '@ionic/react/css/padding.css';
-import '@ionic/react/css/float-elements.css';
-import '@ionic/react/css/text-alignment.css';
-import '@ionic/react/css/text-transformation.css';
-import '@ionic/react/css/flex-utils.css';
-import '@ionic/react/css/display.css';
-import '@ionic/react/css/palettes/dark.system.css';
 import './theme/variables.css';
 import './theme/animations.css';
 
-setupIonicReact();
+/* Helper: renders ExamEditor for "new" or ExamDetail for existing */
+const ExamRoute: React.FC = () => {
+  const { examId } = useParams();
+  return examId === 'new' ? <ExamEditor /> : <ExamDetail />;
+};
 
-const PrivateRoute: React.FC<{ component: React.FC<any>; path: string; exact?: boolean }> = ({
-  component: Component,
-  ...rest
-}) => (
-  <Route
-    {...rest}
-    render={(props) =>
-      auth.isLoggedIn() ? <Component {...props} /> : <Redirect to="/login" />
-    }
-  />
+const LazyFallback = (
+  <div className="flex justify-center items-center h-64">
+    <Loader2 className="animate-spin text-primary" size={32} />
+  </div>
 );
 
-const MainTabs: React.FC = () => {
-  const pendingCount = useDashboardStore((s) => s.data?.stats?.pendingCorrectionsCount ?? 0);
+/* Auth guard — redirects to /login if not authenticated */
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return auth.isLoggedIn() ? <>{children}</> : <Navigate to="/login" replace />;
+};
 
+/* Wraps all authenticated routes with shared overlays */
+const AuthenticatedLayout: React.FC = () => {
   return (
-    <>
-      <IonTabs>
-        <IonRouterOutlet>
-                  {/* Main tabs */}
-                  <Route exact path="/tabs/calendar" component={Calendar} />
-                  <Route exact path="/tabs/classes" component={Classes} />
-                  <Route exact path="/tabs/guide" component={Guide} />
-                  
-                  {/* Class-specific routes */}
-                  <Route exact path="/tabs/classes/:classId" component={GradeBook} />
-                  <Route exact path="/tabs/classes/:classId/settings" component={ClassSettings} />
-                  <Route exact path="/tabs/classes/:classId/students/:id" component={StudentFile} />
-                  <Route exact path="/tabs/classes/:classId/topics" component={TopicsList} />
-                  <Route exact path="/tabs/classes/:classId/topics/:topicId" component={TopicDetail} />
-                  <Route exact path="/tabs/classes/:classId/exams" component={ExamsList} />
-                  <Route
-                    exact
-                    path="/tabs/classes/:classId/exams/:examId"
-                    render={({ match }) =>
-                      match.params.examId === 'new'
-                        ? <ExamEditor />
-                        : <ExamDetail />
-                    }
-                  />
-                  <Route exact path="/tabs/classes/:classId/exercises" component={ExercisesList} />
-                  <Route exact path="/tabs/classes/:classId/exercises/:exerciseId" component={ExerciseDetail} />
-                  <Route exact path="/tabs/classes/:classId/attendance" component={AttendanceList} />
-
-                  {/* Subject-scoped routes within a class */}
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId" component={SubjectGradeBook} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/topics" component={TopicsList} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/topics/:topicId" component={TopicDetail} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exams" component={ExamsList} />
-                  <Route
-                    exact
-                    path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId"
-                    render={({ match }) =>
-                      match.params.examId === 'new'
-                        ? <ExamEditor />
-                        : <ExamDetail />
-                    }
-                  />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exercises" component={ExercisesList} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exercises/:exerciseId" component={ExerciseDetail} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/attendance" component={AttendanceList} />
-
-                  {/* Trimester summary & report comments */}
-                  <Route exact path="/tabs/classes/:classId/trimester-summary" render={() => <Suspense fallback={<IonSpinner />}><TrimesterSummary /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/trimester-summary" render={() => <Suspense fallback={<IonSpinner />}><TrimesterSummary /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/reports" render={() => <Suspense fallback={<IonSpinner />}><ClassReport /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/reports" render={() => <Suspense fallback={<IonSpinner />}><ClassReport /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/report-comments" render={() => <Suspense fallback={<IonSpinner />}><ReportComments /></Suspense>} />
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/report-comments" render={() => <Suspense fallback={<IonSpinner />}><ReportComments /></Suspense>} />
-
-                  {/* Subject-scoped exam editor (edit existing exam with color context) */}
-                  <Route exact path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId/edit" component={ExamEditor} />
-                  <Route exact path="/tabs/classes/:classId/exams/:examId/edit" component={ExamEditor} />
-
-                  {/* Global exam editor (for backwards compatibility and calendar access) */}
-                  <Route exact path="/tabs/exams/new" component={ExamEditor} />
-                  <Route exact path="/tabs/exams/:examId" component={ExamEditor} />
-                  
-                  {/* Redirects for old routes */}
-                  <Route exact path="/tabs/home">
-                    <Redirect to="/tabs/calendar" />
-                  </Route>
-                  <Route exact path="/tabs/dashboard">
-                    <Redirect to="/tabs/calendar" />
-                  </Route>
-                  <Route exact path="/tabs/exams">
-                    <Redirect to="/tabs/classes" />
-                  </Route>
-                  <Route exact path="/tabs/exercises">
-                    <Redirect to="/tabs/classes" />
-                  </Route>
-                  <Route exact path="/tabs/materials">
-                    <Redirect to="/tabs/classes" />
-                  </Route>
-                  <Route exact path="/tabs">
-                    <Redirect to="/tabs/calendar" />
-                  </Route>
-                </IonRouterOutlet>
-
-                <IonTabBar slot="bottom">
-                  <IonTabButton tab="calendar" href="/tabs/calendar">
-                    <IonIcon icon={calendarOutline} />
-                    <IonLabel>Calendario</IonLabel>
-                    {pendingCount > 0 && (
-                      <IonBadge color="danger">{pendingCount > 9 ? '9+' : pendingCount}</IonBadge>
-                    )}
-                  </IonTabButton>
-                  <IonTabButton tab="classes" href="/tabs/classes">
-                    <IonIcon icon={schoolOutline} />
-                    <IonLabel>Clases</IonLabel>
-                  </IonTabButton>
-                </IonTabBar>
-              </IonTabs>
-              <PostClassCommentPrompt />
-              <BackgroundTasksFab />
-              <FeedbackFab />
-            </>
-          );
-        };
+    <RequireAuth>
+      <AppLayout />
+      <PostClassCommentPrompt />
+      <BackgroundTasksFab />
+      <FeedbackFab />
+    </RequireAuth>
+  );
+};
 
 const App: React.FC = () => {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // On cold load, verify with the server whether the httpOnly cookie is valid.
     auth.check().finally(() => setReady(true));
   }, []);
 
   if (!ready) {
     return (
-      <IonApp>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <IonSpinner name="crescent" />
-        </div>
-      </IonApp>
+      <div className="flex justify-center items-center h-screen bg-background">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
     );
   }
 
   return (
-    <IonApp>
-      <a href="#main" className="skip-nav">Saltar al contenido</a>
-      <IonReactRouter>
-        <IonSplitPane contentId="main" when="lg">
-          <SideMenu />
-          <IonRouterOutlet id="main">
-            <Route exact path="/login" component={Login} />
-            <PrivateRoute exact path="/correction/:examId" component={Correction} />
-            <PrivateRoute exact path="/exercise-correction/:exerciseId" component={ExerciseCorrection} />
-            <PrivateRoute exact path="/exercise-bulk-correction/:classId" component={ExerciseBulkCorrection} />
+    <BrowserRouter>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
 
-            <Route
-              path="/tabs"
-              render={() =>
-                auth.isLoggedIn() ? (
-                  <MainTabs />
-                ) : (
-                  <Redirect to="/login" />
-                )
-              }
-            />
+        {/* Standalone correction pages (no tabs) */}
+        <Route path="/exercise-correction/:exerciseId" element={<RequireAuth><ExerciseCorrection /></RequireAuth>} />
+        <Route path="/exercise-bulk-correction/:classId" element={<RequireAuth><ExerciseBulkCorrection /></RequireAuth>} />
 
-            <Route exact path="/">
-              <Redirect to={auth.isLoggedIn() ? '/tabs/calendar' : '/login'} />
-            </Route>
-          </IonRouterOutlet>
-        </IonSplitPane>
-      </IonReactRouter>
-    </IonApp>
+        {/* Main app with sidebar/tabs layout */}
+        <Route element={<AuthenticatedLayout />}>
+          {/* Main tabs */}
+          <Route path="/tabs/calendar" element={<Calendar />} />
+          <Route path="/tabs/classes" element={<Classes />} />
+          <Route path="/tabs/guide" element={<Guide />} />
+
+          {/* Global exam routes */}
+          <Route path="/tabs/exams" element={<ExamsGlobal />} />
+          <Route path="/tabs/exams/new" element={<ExamEditor />} />
+          <Route path="/tabs/exams/:examId" element={<ExamDetail />} />
+          <Route path="/tabs/exams/:examId/edit" element={<ExamEditor />} />
+
+          {/* Class-specific routes */}
+          <Route path="/tabs/classes/:classId" element={<Navigate to="/tabs/classes" replace />} />
+          <Route path="/tabs/classes/:classId/settings" element={<ClassSettings />} />
+          <Route path="/tabs/classes/:classId/students/:id" element={<StudentFile />} />
+          <Route path="/tabs/classes/:classId/topics" element={<TopicsList />} />
+          <Route path="/tabs/classes/:classId/topics/:topicId" element={<TopicDetail />} />
+          <Route path="/tabs/classes/:classId/exams" element={<ExamsList />} />
+          <Route path="/tabs/classes/:classId/exams/:examId" element={<ExamRoute />} />
+          <Route path="/tabs/classes/:classId/exercises" element={<ExercisesList />} />
+          <Route path="/tabs/classes/:classId/exercises/:exerciseId" element={<ExerciseDetail />} />
+          <Route path="/tabs/classes/:classId/attendance" element={<AttendanceList />} />
+
+          {/* Subject-scoped routes */}
+          <Route path="/tabs/classes/:classId/subjects/:subjectId" element={<SubjectGradeBook />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/topics" element={<TopicsList />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/topics/:topicId" element={<TopicDetail />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/exams" element={<ExamsList />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId" element={<ExamRoute />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/exercises" element={<ExercisesList />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/exercises/:exerciseId" element={<ExerciseDetail />} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/attendance" element={<AttendanceList />} />
+
+          {/* Trimester / reports (lazy, subject-scoped) */}
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/trimester-summary" element={<Suspense fallback={LazyFallback}><TrimesterSummary /></Suspense>} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/reports" element={<Suspense fallback={LazyFallback}><ClassReport /></Suspense>} />
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/report-comments" element={<Suspense fallback={LazyFallback}><ReportComments /></Suspense>} />
+
+          {/* Exam editor routes */}
+          <Route path="/tabs/classes/:classId/subjects/:subjectId/exams/:examId/edit" element={<ExamEditor />} />
+          <Route path="/tabs/classes/:classId/exams/:examId/edit" element={<ExamEditor />} />
+
+          <Route path="/tabs" element={<Navigate to="/tabs/calendar" replace />} />
+        </Route>
+
+        {/* Root redirect */}
+        <Route path="/" element={<Navigate to={auth.isLoggedIn() ? '/tabs/calendar' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 

@@ -1,20 +1,21 @@
 .scan-card {
   margin: var(--space-sm) 0;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-sm) !important;
-  border: 1px solid rgba(15, 23, 42, 0.04) !important;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  background: var(--color-card, #fff);
 }
 
 .scan-card-saved {
-  border-left: 3px solid var(--ion-color-success) !important;
+  border-left: 3px solid var(--color-success);
 }
 
 .scan-card-modified {
-  border-left: 3px solid var(--ion-color-warning) !important;
+  border-left: 3px solid var(--color-warning);
 }
 
 .scan-card-content {
-  padding: var(--space-sm) var(--space-md) !important;
+  padding: var(--space-sm) var(--space-md);
 }
 
 /* ─── Collapsed header: always visible, tappable ─── */
@@ -37,7 +38,7 @@
   flex: 1;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -57,6 +58,88 @@
   flex-shrink: 0;
 }
 
+/* Delivery dot — single 8px circle next to the student name. Communicates
+   "has paper / no paper / NP" without spending horizontal real estate. */
+.scan-card-delivery-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.scan-card-delivery-dot--delivered {
+  background: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.scan-card-delivery-dot--missing {
+  background: transparent;
+  border: 1.5px dashed #CBD5E1;
+}
+
+.scan-card-delivery-dot--np {
+  background: #94A3B8;
+}
+
+/* ─────── Kebab menu (replaces single-purpose trash icon) ─────── */
+.scan-card-kebab {
+  position: relative;
+  display: inline-block;
+}
+
+.scan-card-kebab > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-card-kebab > summary::-webkit-details-marker {
+  display: none;
+}
+
+.scan-card-kebab__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 220px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #E5E7EB);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+
+.scan-card-kebab__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--color-text, #1F2937);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.scan-card-kebab__item:hover {
+  background: var(--color-muted, #F3F4F6);
+}
+
+.scan-card-kebab__item--danger {
+  color: #DC2626;
+}
+
+.scan-card-kebab__item--danger:hover {
+  background: #FEE2E2;
+}
+
 .scan-card-collapsed-grade {
   font-size: var(--font-size-sm);
   font-weight: 700;
@@ -74,16 +157,7 @@
   color: #94A3B8;
 }
 
-.scan-card-collapsed-check {
-  font-size: 16px;
-}
-
-.scan-card-collapsed-ai {
-  font-size: 14px;
-}
-
 .scan-card-collapsed-chevron {
-  font-size: 16px;
   color: #94A3B8;
 }
 
@@ -119,27 +193,18 @@
 }
 
 .scan-card-preview-icon {
-  font-size: 12px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .scan-card-download-btn {
-  --padding-start: 4px;
-  --padding-end: 4px;
   margin: 0;
   height: 28px;
   width: 28px;
-}
-
-.scan-card-download-btn ion-icon {
-  font-size: 16px;
-  color: var(--ion-color-primary);
+  padding: 4px;
 }
 
 .scan-card-student-select {
   flex: 1;
-  --padding-start: var(--space-sm);
-  --padding-end: var(--space-sm);
   font-size: var(--font-size-sm);
   min-height: 36px;
   max-width: none;
@@ -153,19 +218,18 @@
 
 .scan-card-grade-modified {
   border-radius: var(--radius-sm);
-  background: rgba(var(--ion-color-warning-rgb), 0.1);
+  background: rgba(217, 119, 6, 0.1);
   padding: 2px 4px;
 }
 
 .scan-card-grade-modified .scan-card-grade-input {
-  --background: rgba(var(--ion-color-warning-rgb), 0.15);
+  background: rgba(217, 119, 6, 0.15);
 }
 
 .scan-card-grade-input {
   width: 48px;
-  --background: rgba(15, 23, 42, 0.04);
-  --padding-start: 6px;
-  --padding-end: 2px;
+  background: rgba(15, 23, 42, 0.04);
+  padding: 0 6px;
   border-radius: var(--radius-sm);
   font-weight: 700;
   font-size: var(--font-size-base);
@@ -187,17 +251,15 @@
 
 .scan-card-autosaved {
   font-size: 11px;
-  color: var(--ion-color-success);
+  color: var(--color-success);
   opacity: 0.85;
   white-space: nowrap;
 }
 
 .scan-card-save-btn {
-  --padding-start: var(--space-md);
-  --padding-end: var(--space-md);
   height: 32px;
   font-size: var(--font-size-sm);
-  --border-radius: var(--radius-sm);
+  padding: 0 var(--space-md);
 }
 
 /* ─── AI student hint ─── */
@@ -207,21 +269,19 @@
   gap: var(--space-xs);
   margin-top: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
-  background: rgba(var(--ion-color-tertiary-rgb), 0.08);
+  background: rgba(30, 138, 127, 0.08);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
-  color: var(--ion-color-tertiary-shade);
+  color: #1A7970;
 }
-
-.scan-card-ai-hint ion-icon { font-size: 14px; }
 
 /* ─── AI Results Section ─── */
 .scan-card-ai-section {
   margin-top: var(--space-md);
   padding: var(--space-md);
-  background: rgba(var(--ion-color-tertiary-rgb), 0.04);
+  background: rgba(30, 138, 127, 0.04);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(var(--ion-color-tertiary-rgb), 0.08);
+  border: 1px solid rgba(30, 138, 127, 0.08);
 }
 
 .scan-card-ai-header {
@@ -239,17 +299,10 @@
   flex-wrap: wrap;
 }
 
-.scan-card-ai-stats ion-icon { font-size: 14px; }
-.scan-card-ai-stats ion-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: var(--radius-full);
-}
-
 .scan-card-ai-label {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--ion-color-tertiary-shade);
+  color: #1A7970;
 }
 
 .scan-card-pct {
@@ -261,13 +314,13 @@
 }
 
 .scan-card-pct-pass {
-  color: var(--ion-color-success-shade);
-  background: rgba(var(--ion-color-success-rgb), 0.10);
+  color: #04845A;
+  background: rgba(5, 150, 105, 0.10);
 }
 
 .scan-card-pct-fail {
-  color: var(--ion-color-danger-shade);
-  background: rgba(var(--ion-color-danger-rgb), 0.10);
+  color: #C22121;
+  background: rgba(220, 38, 38, 0.10);
 }
 
 /* ─── Report link ─── */
@@ -276,9 +329,9 @@
   align-items: center;
   gap: 3px;
   font-size: var(--font-size-xs);
-  color: var(--ion-color-tertiary);
+  color: var(--color-tertiary);
   background: none;
-  border: 1px solid var(--ion-color-tertiary);
+  border: 1px solid var(--color-tertiary);
   border-radius: var(--radius-full);
   padding: 2px 10px;
   cursor: pointer;
@@ -286,10 +339,7 @@
   transition: background 0.15s;
 }
 .scan-card-report-link:hover {
-  background: rgba(var(--ion-color-tertiary-rgb), 0.08);
-}
-.scan-card-report-link ion-icon {
-  font-size: 14px;
+  background: rgba(30, 138, 127, 0.08);
 }
 
 /* ─── Blank questions warning ─── */
@@ -298,15 +348,13 @@
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
-  background: rgba(var(--ion-color-warning-rgb), 0.10);
+  background: rgba(217, 119, 6, 0.10);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
-  color: var(--ion-color-warning-shade);
+  color: #BF6905;
   font-weight: 500;
   margin-bottom: var(--space-sm);
 }
-
-.scan-card-blank-warning ion-icon { font-size: 14px; }
 
 /* ─── Question breakdown — card grid ─── */
 .scan-q-grid {
@@ -323,16 +371,16 @@
 }
 
 .scan-q-card--correct {
-  background: rgba(var(--ion-color-success-rgb), 0.05);
-  border-left-color: var(--ion-color-success);
+  background: rgba(5, 150, 105, 0.05);
+  border-left-color: var(--color-success);
 }
 .scan-q-card--partial {
-  background: rgba(var(--ion-color-warning-rgb), 0.05);
-  border-left-color: var(--ion-color-warning);
+  background: rgba(217, 119, 6, 0.05);
+  border-left-color: var(--color-warning);
 }
 .scan-q-card--incorrect {
-  background: rgba(var(--ion-color-danger-rgb), 0.05);
-  border-left-color: var(--ion-color-danger);
+  background: rgba(220, 38, 38, 0.05);
+  border-left-color: var(--color-danger);
 }
 .scan-q-card--blank {
   background: rgba(15, 23, 42, 0.03);
@@ -345,12 +393,12 @@
   gap: 6px;
 }
 
-.scan-q-card__icon { font-size: 14px; flex-shrink: 0; }
+.scan-q-card__icon { flex-shrink: 0; }
 
 .scan-q-card__id {
   font-weight: 700;
   font-size: var(--font-size-xs);
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .scan-q-card__badge {
@@ -361,9 +409,9 @@
   margin-left: auto;
 }
 
-.scan-q-card__badge--correct { background: rgba(var(--ion-color-success-rgb), 0.12); color: var(--ion-color-success-shade); }
-.scan-q-card__badge--partial { background: rgba(var(--ion-color-warning-rgb), 0.12); color: var(--ion-color-warning-shade); }
-.scan-q-card__badge--incorrect { background: rgba(var(--ion-color-danger-rgb), 0.12); color: var(--ion-color-danger-shade); }
+.scan-q-card__badge--correct { background: rgba(5, 150, 105, 0.12); color: #04845A; }
+.scan-q-card__badge--partial { background: rgba(217, 119, 6, 0.12); color: #BF6905; }
+.scan-q-card__badge--incorrect { background: rgba(220, 38, 38, 0.12); color: #C22121; }
 .scan-q-card__badge--blank { background: rgba(15, 23, 42, 0.06); color: #94A3B8; }
 
 .scan-q-card__feedback {
@@ -387,7 +435,7 @@
   margin-top: 2px;
   font-size: 10px;
   font-weight: 600;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   cursor: pointer;
 }
 
@@ -398,9 +446,9 @@
   gap: 5px;
   margin-top: var(--space-md);
   padding: 8px 10px;
-  background: rgba(var(--ion-color-danger-rgb), 0.04);
+  background: rgba(220, 38, 38, 0.04);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(var(--ion-color-danger-rgb), 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.08);
 }
 
 .scan-card-weak-areas::before {
@@ -411,7 +459,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--ion-color-danger-shade);
+  color: #C22121;
   margin-bottom: 2px;
 }
 
@@ -421,8 +469,8 @@
   font-weight: 500;
   padding: 3px 10px;
   border-radius: var(--radius-full);
-  background: rgba(var(--ion-color-danger-rgb), 0.10);
-  color: var(--ion-color-danger-shade);
+  background: rgba(220, 38, 38, 0.10);
+  color: #C22121;
 }
 
 /* ─── Summary ─── */
@@ -434,22 +482,21 @@
   line-height: 1.6;
   background: rgba(15, 23, 42, 0.03);
   border-radius: var(--radius-md);
-  border-left: 3px solid var(--ion-color-tertiary);
+  border-left: 3px solid var(--color-tertiary);
 }
 
-/* ─── AI button & error ─── */
 /* ─── AI Processing State ─── */
 .scan-card-ai-active {
-  border-left: 3px solid var(--ion-color-primary) !important;
-  box-shadow: 0 0 0 1px rgba(var(--ion-color-primary-rgb), 0.12), var(--shadow-sm) !important;
+  border-left: 3px solid var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(21, 102, 94, 0.12), var(--shadow-sm);
 }
 
 .scan-card-ai-processing {
   margin-top: var(--space-md);
   padding: var(--space-md);
-  background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.06) 0%, rgba(var(--ion-color-tertiary-rgb), 0.03) 100%);
+  background: linear-gradient(135deg, rgba(21, 102, 94, 0.06) 0%, rgba(30, 138, 127, 0.03) 100%);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.10);
+  border: 1px solid rgba(21, 102, 94, 0.10);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -466,9 +513,7 @@
   justify-content: center;
 }
 
-.scan-card-ai-processing-icon ion-icon {
-  font-size: 20px;
-  color: var(--ion-color-primary);
+.scan-card-ai-processing-icon svg {
   animation: aiGlow 2s ease-in-out infinite;
   z-index: 1;
 }
@@ -477,7 +522,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 1.5px solid var(--ion-color-primary);
+  border: 1.5px solid var(--color-primary);
   opacity: 0;
   animation: aiRipple 2s ease-out infinite;
 }
@@ -488,7 +533,7 @@
   gap: 4px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-color-primary-shade);
+  color: var(--color-primary-shade);
 }
 
 .scan-card-ai-processing-dots {
@@ -501,7 +546,7 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   animation: aiDotBounce 1.2s ease-in-out infinite;
 }
 
@@ -511,7 +556,7 @@
 .scan-card-ai-processing-bar {
   width: 100%;
   height: 3px;
-  background: rgba(var(--ion-color-primary-rgb), 0.10);
+  background: rgba(21, 102, 94, 0.10);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -519,7 +564,7 @@
 .scan-card-ai-processing-bar-fill {
   width: 40%;
   height: 100%;
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   border-radius: 2px;
   animation: aiProgressSlide 1.8s ease-in-out infinite;
 }
@@ -527,27 +572,13 @@
 .scan-card-ai-btn {
   margin-top: var(--space-sm);
   font-size: var(--font-size-xs);
-  --border-radius: var(--radius-md);
-  --padding-start: var(--space-md);
-  --padding-end: var(--space-md);
   height: 36px;
   font-weight: 600;
-  transition: all var(--transition-fast);
 }
-
-.scan-card-ai-btn:not(:disabled):hover {
-  --color: var(--ion-color-primary);
-  --border-color: var(--ion-color-primary);
-}
-
-.scan-card-ai-btn ion-icon {
-  font-size: 16px;
-}
-
 
 .scan-card-assign-hint {
   font-size: var(--font-size-xs);
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   margin: 4px 0 0;
   font-style: italic;
 }
@@ -558,28 +589,21 @@
   gap: var(--space-sm);
   margin-top: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  background: rgba(var(--ion-color-danger-rgb), 0.08);
+  background: rgba(220, 38, 38, 0.08);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
-  color: var(--ion-color-danger);
+  color: var(--color-danger);
 }
-
-.scan-card-ai-error ion-icon { font-size: 14px; flex-shrink: 0; }
 
 /* ─── Notes ─── */
 .scan-card-notes-item {
   margin-top: var(--space-sm);
-  --background: rgba(15, 23, 42, 0.03);
-  --padding-start: var(--space-md);
-  --padding-end: var(--space-md);
-  --min-height: 36px;
   border-radius: var(--radius-sm);
 }
 
-.scan-card-notes-item ion-textarea {
+.scan-card-notes-item textarea {
   font-size: var(--font-size-sm);
-  --padding-top: var(--space-sm);
-  --padding-bottom: var(--space-sm);
+  background: rgba(15, 23, 42, 0.03);
 }
 
 .scan-card-notes-display {
@@ -594,33 +618,33 @@
 /* ─── Dark theme ─── */
 @media (prefers-color-scheme: dark) {
   .scan-card {
-    background: #16161A !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: var(--color-surface);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  .scan-card-grade-input { --background: rgba(255, 255, 255, 0.06); }
+  .scan-card-grade-input { background: rgba(255, 255, 255, 0.06); }
   .scan-card-ai-section {
     background: rgba(139, 92, 246, 0.06);
     border-color: rgba(139, 92, 246, 0.10);
   }
   .scan-q-card--blank { background: rgba(255, 255, 255, 0.03); }
-  .scan-card-blank-warning { background: rgba(var(--ion-color-warning-rgb), 0.08); }
+  .scan-card-blank-warning { background: rgba(217, 119, 6, 0.08); }
   .scan-q-card__badge--blank { background: rgba(255, 255, 255, 0.06); }
   .scan-q-card__feedback { color: #94A3B8; }
-  .scan-card-weak-areas { background: rgba(var(--ion-color-danger-rgb), 0.06); border-color: rgba(var(--ion-color-danger-rgb), 0.10); }
-  .scan-card-weak-tag { background: rgba(var(--ion-color-danger-rgb), 0.12); }
+  .scan-card-weak-areas { background: rgba(220, 38, 38, 0.06); border-color: rgba(220, 38, 38, 0.10); }
+  .scan-card-weak-tag { background: rgba(220, 38, 38, 0.12); }
   .scan-card-summary { background: rgba(255, 255, 255, 0.04); color: #94A3B8; }
-  .scan-card-notes-item { --background: rgba(255, 255, 255, 0.04); }
+  .scan-card-notes-item textarea { background: rgba(255, 255, 255, 0.04); }
   .scan-card-notes-display { background: rgba(255, 255, 255, 0.04); }
   .scan-card-expanded { border-top-color: rgba(255, 255, 255, 0.06); }
   .scan-card-collapsed-chevron { color: #52525B; }
   .scan-card-ai-processing {
-    background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.10) 0%, rgba(var(--ion-color-tertiary-rgb), 0.05) 100%);
-    border-color: rgba(var(--ion-color-primary-rgb), 0.15);
+    background: linear-gradient(135deg, rgba(21, 102, 94, 0.10) 0%, rgba(30, 138, 127, 0.05) 100%);
+    border-color: rgba(21, 102, 94, 0.15);
   }
 }
 
 .scan-card:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

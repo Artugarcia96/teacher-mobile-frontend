@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import {
-  IonPage, IonContent, IonButtons, IonBackButton, IonButton, IonIcon, IonSpinner,
-} from '@ionic/react';
-import { statsChartOutline, downloadOutline, refreshOutline, checkmarkCircle } from 'ionicons/icons';
+import { BarChart3, Download, RefreshCw, CheckCircle } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { reports as reportsApi, classes as classesApi } from '../../services/api';
 import { hapticSuccess } from '../../utils/haptics';
+import PageShell from '@/components/shared/PageShell';
+import { Button } from '@/components/ui/button';
+import Spinner from '@/components/shared/Spinner';
 import './ClassReport.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -26,7 +26,7 @@ interface ReportResult {
 }
 
 const ClassReport: React.FC = () => {
-  const { classId, subjectId } = useParams<{ classId: string; subjectId?: string }>();
+  const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
   const [className, setClassName] = useState('');
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<ReportResult | null>(null);
@@ -62,97 +62,90 @@ const ClassReport: React.FC = () => {
   };
 
   return (
-    <IonPage>
-      <IonContent className="cr-content" scrollY>
-        <div className="cr-header">
-          <div className="cr-header__nav">
-            <IonButtons>
-              <IonBackButton defaultHref={`/tabs/classes/${classId}`} text="" />
-            </IonButtons>
-            <h1 className="cr-header__title">Informe de clase</h1>
+    <PageShell
+      title="Informe de clase"
+      backHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}` : '/tabs/classes'}
+    >
+      <div className="cr-body">
+        {className && <p className="cr-header__subtitle">{className}</p>}
+
+        {/* Initial empty state */}
+        {!generating && !result && !error && (
+          <div className="cr-empty">
+            <BarChart3 size={48} className="cr-empty__icon" />
+            <span className="cr-empty__title">Informe detallado de rendimiento</span>
+            <span className="cr-empty__subtitle">
+              Genera un documento PDF profesional con estadísticas, distribución de notas,
+              análisis por pregunta, tendencias y recomendaciones pedagógicas con IA.
+            </span>
+            <Button onClick={handleGenerate}>
+              <BarChart3 size={16} className="mr-2" />
+              Generar informe
+            </Button>
           </div>
-          {className && <p className="cr-header__subtitle">{className}</p>}
-        </div>
+        )}
 
-        <div className="cr-body">
-          {/* Initial empty state */}
-          {!generating && !result && !error && (
-            <div className="cr-empty">
-              <IonIcon icon={statsChartOutline} className="cr-empty__icon" />
-              <span className="cr-empty__title">Informe detallado de rendimiento</span>
-              <span className="cr-empty__subtitle">
-                Genera un documento PDF profesional con estadísticas, distribución de notas,
-                análisis por pregunta, tendencias y recomendaciones pedagógicas con IA.
-              </span>
-              <IonButton onClick={handleGenerate}>
-                <IonIcon icon={statsChartOutline} slot="start" />
-                Generar informe
-              </IonButton>
-            </div>
-          )}
+        {/* Generating state */}
+        {generating && (
+          <div className="cr-generating">
+            <Spinner />
+            <span>Generando informe...</span>
+            <span className="cr-generating__sub">
+              Analizando datos, generando gráficos y compilando PDF. Puede tardar hasta un minuto.
+            </span>
+          </div>
+        )}
 
-          {/* Generating state */}
-          {generating && (
-            <div className="cr-generating">
-              <IonSpinner color="primary" />
-              <span>Generando informe...</span>
-              <span className="cr-generating__sub">
-                Analizando datos, generando gráficos y compilando PDF. Puede tardar hasta un minuto.
-              </span>
-            </div>
-          )}
+        {/* Error state */}
+        {error && !generating && (
+          <div className="cr-empty">
+            <p className="cr-error">{error}</p>
+            <Button onClick={handleGenerate}>
+              <RefreshCw size={16} className="mr-2" />
+              Reintentar
+            </Button>
+          </div>
+        )}
 
-          {/* Error state */}
-          {error && !generating && (
-            <div className="cr-empty">
-              <p className="cr-error">{error}</p>
-              <IonButton onClick={handleGenerate}>
-                <IonIcon icon={refreshOutline} slot="start" />
-                Reintentar
-              </IonButton>
-            </div>
-          )}
-
-          {/* Result state */}
-          {result && !generating && (
-            <>
-              <div className="cr-stats">
-                <div className="cr-stat-card">
-                  <div className="cr-stat-card__value">{result.stats.class_average.toFixed(1)}</div>
-                  <div className="cr-stat-card__label">Media</div>
-                </div>
-                <div className="cr-stat-card">
-                  <div className="cr-stat-card__value">{result.stats.pass_rate}%</div>
-                  <div className="cr-stat-card__label">Aprobados</div>
-                </div>
-                <div className="cr-stat-card">
-                  <div className="cr-stat-card__value">{result.stats.num_exams}</div>
-                  <div className="cr-stat-card__label">Exámenes</div>
-                </div>
+        {/* Result state */}
+        {result && !generating && (
+          <>
+            <div className="cr-stats">
+              <div className="cr-stat-card">
+                <div className="cr-stat-card__value">{result.stats.class_average.toFixed(1)}</div>
+                <div className="cr-stat-card__label">Media</div>
               </div>
-
-              <div className="cr-result">
-                <IonIcon icon={checkmarkCircle} className="cr-result__check" />
-                <span className="cr-result__title">Informe generado</span>
-                <span className="cr-result__subtitle">
-                  {result.stats.num_students} alumnos · {result.stats.num_corrections} correcciones analizadas
-                </span>
-
-                <IonButton className="cr-download-btn" onClick={handleDownload}>
-                  <IonIcon icon={downloadOutline} slot="start" />
-                  Descargar PDF
-                </IonButton>
-
-                <IonButton fill="clear" className="cr-regen-btn" onClick={handleGenerate}>
-                  <IonIcon icon={refreshOutline} slot="start" />
-                  Regenerar informe
-                </IonButton>
+              <div className="cr-stat-card">
+                <div className="cr-stat-card__value">{result.stats.pass_rate}%</div>
+                <div className="cr-stat-card__label">Aprobados</div>
               </div>
-            </>
-          )}
-        </div>
-      </IonContent>
-    </IonPage>
+              <div className="cr-stat-card">
+                <div className="cr-stat-card__value">{result.stats.num_exams}</div>
+                <div className="cr-stat-card__label">Exámenes</div>
+              </div>
+            </div>
+
+            <div className="cr-result">
+              <CheckCircle size={48} className="cr-result__check" />
+              <span className="cr-result__title">Informe generado</span>
+              <span className="cr-result__subtitle">
+                {result.stats.num_students} alumnos · {result.stats.num_corrections} correcciones analizadas
+              </span>
+
+              <Button className="cr-download-btn" onClick={handleDownload}>
+                <Download size={16} className="mr-2" />
+                Descargar PDF
+              </Button>
+
+              <Button variant="ghost" className="cr-regen-btn" onClick={handleGenerate}>
+                <RefreshCw size={16} className="mr-2" />
+                Regenerar informe
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </PageShell>
   );
 };
 

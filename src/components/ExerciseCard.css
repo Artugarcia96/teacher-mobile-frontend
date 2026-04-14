@@ -38,13 +38,13 @@
 }
 
 .exercise-card-status--corrected {
-  background: rgba(var(--ion-color-success-rgb), 0.1);
-  color: var(--ion-color-success);
+  background: rgba(5, 150, 105, 0.1);
+  color: var(--color-success);
 }
 
 .exercise-card-status--in-progress {
-  background: rgba(var(--ion-color-warning-rgb), 0.1);
-  color: var(--ion-color-warning);
+  background: rgba(217, 119, 6, 0.1);
+  color: var(--color-warning);
 }
 
 .exercise-card-grade {
@@ -54,11 +54,11 @@
 }
 
 .exercise-card-grade--pass {
-  color: var(--ion-color-success);
+  color: var(--color-success);
 }
 
 .exercise-card-grade--fail {
-  color: var(--ion-color-danger);
+  color: var(--color-danger);
 }
 
 .exercise-card-meta {
@@ -99,7 +99,7 @@
 
 .exercise-card-q-num {
   font-weight: 700;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   min-width: 18px;
 }
 
@@ -129,7 +129,7 @@
   border-top: 1px solid var(--color-border);
 }
 
-.exercise-card-downloads ion-button {
+.exercise-card-downloads button {
   flex: 1;
   --padding-start: var(--space-sm);
   --padding-end: var(--space-sm);
@@ -164,7 +164,7 @@
   gap: var(--space-xs);
   margin-bottom: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: rgba(var(--ion-color-primary-rgb), 0.04);
+  background: rgba(21, 102, 94, 0.04);
   border-radius: var(--radius-sm);
 }
 
@@ -176,12 +176,12 @@
   color: var(--color-text-secondary);
 }
 
-.exercise-card-date ion-icon {
+.exercise-card-date svg {
   font-size: 14px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
-.exercise-card-date ion-badge {
+.exercise-card-date span {
   margin-left: auto;
   font-size: 10px;
   padding: 2px 6px;
@@ -200,15 +200,15 @@
   gap: var(--space-sm);
   width: 100%;
   padding: var(--space-sm);
-  background: rgba(var(--ion-color-tertiary-rgb), 0.06);
+  background: rgba(30, 138, 127, 0.06);
   border: none;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
-  color: var(--ion-color-tertiary);
+  color: var(--color-tertiary);
   cursor: pointer;
 }
 
-.exercise-card-iteration-toggle ion-icon:first-child {
+.exercise-card-iteration-toggle svg:first-child {
   font-size: 18px;
 }
 
@@ -235,9 +235,9 @@
   margin-bottom: var(--space-sm);
 }
 
-.exercise-card-iteration-quick ion-chip {
+.exercise-card-iteration-quick span {
   --background: transparent;
-  --color: var(--ion-color-tertiary);
+  --color: var(--color-tertiary);
   font-size: 11px;
   height: 24px;
   cursor: pointer;
@@ -251,13 +251,13 @@
   margin-bottom: var(--space-sm);
 }
 
-.exercise-card-iteration-input ion-textarea {
+.exercise-card-iteration-input textarea {
   font-size: var(--font-size-sm);
 }
 
 .exercise-card-iteration-error {
   font-size: var(--font-size-xs);
-  color: var(--ion-color-danger);
+  color: var(--color-danger);
   margin: 0 0 var(--space-sm);
   text-align: center;
 }
@@ -288,7 +288,7 @@
   }
 
   .exercise-card-dates {
-    background: rgba(var(--ion-color-primary-rgb), 0.08);
+    background: rgba(21, 102, 94, 0.08);
   }
 
   .exercise-card-iteration {
@@ -296,7 +296,7 @@
   }
 
   .exercise-card-iteration-toggle {
-    background: rgba(var(--ion-color-tertiary-rgb), 0.1);
+    background: rgba(30, 138, 127, 0.1);
   }
 
   .exercise-card-iteration-input {
@@ -305,6 +305,6 @@
 }
 
 .exercise-card:focus-visible {
-  outline: 2px solid var(--ion-color-primary);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

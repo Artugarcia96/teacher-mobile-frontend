@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { IonIcon, IonSearchbar, IonSpinner } from '@ionic/react';
-import { chevronDownOutline, checkmarkOutline, schoolOutline, bookOutline } from 'ionicons/icons';
+import { ChevronDown, Check, School, BookOpen } from 'lucide-react';
+import Spinner from '@/components/shared/Spinner';
+import Searchbar from '@/components/shared/Searchbar';
 import './ClassSubjectPicker.css';
 
 export interface ClassSubjectPair {
@@ -69,7 +70,7 @@ const ClassSubjectPicker: React.FC<Props> = ({
   if (loading) {
     return (
       <div className="csp__trigger csp__trigger--loading">
-        <IonSpinner name="dots" />
+        <Spinner size={20} />
       </div>
     );
   }
@@ -90,7 +91,7 @@ const ClassSubjectPicker: React.FC<Props> = ({
         ) : (
           <span className="csp__trigger-placeholder">{placeholder}</span>
         )}
-        <IonIcon icon={chevronDownOutline} className="csp__trigger-icon" />
+        <ChevronDown size={16} className="csp__trigger-icon" />
       </button>
 
       {open && (
@@ -101,13 +102,13 @@ const ClassSubjectPicker: React.FC<Props> = ({
               <span className="csp__sheet-title">Clase y asignatura</span>
             </div>
             {grouped.length > 4 && (
-              <IonSearchbar
-                value={search}
-                onIonInput={(e) => setSearch(e.detail.value ?? '')}
-                placeholder="Buscar..."
-                className="csp__search"
-                debounce={150}
-              />
+              <div className="csp__search">
+                <Searchbar
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Buscar..."
+                />
+              </div>
             )}
             <div className="csp__list">
               {filtered.length === 0 && (
@@ -116,7 +117,7 @@ const ClassSubjectPicker: React.FC<Props> = ({
               {filtered.map((group) => (
                 <div key={group.classId} className="csp__group">
                   <div className="csp__group-header">
-                    <IonIcon icon={schoolOutline} />
+                    <School size={14} />
                     <span>{group.className}</span>
                   </div>
                   {group.subjects.map((s) => (
@@ -126,10 +127,10 @@ const ClassSubjectPicker: React.FC<Props> = ({
                       onClick={() => handleSelect(group.classId, s.subjectId)}
                       type="button"
                     >
-                      <IonIcon icon={bookOutline} className="csp__option-icon" />
+                      <BookOpen size={18} className="csp__option-icon" />
                       <span className="csp__option-label">{s.subjectName}</span>
                       {isSelected(group.classId, s.subjectId) && (
-                        <IonIcon icon={checkmarkOutline} className="csp__option-check" />
+                        <Check size={20} className="csp__option-check" />
                       )}
                     </button>
                   ))}

@@ -49,8 +49,8 @@ const GradeTrendLine: React.FC<Props> = ({ data, height = 100, showLabels = true
     : 'var(--ion-color-primary, #15665E)';
 
   return (
-    <div className="gtl" style={{ maxWidth: width }}>
-      <svg viewBox={`0 0 ${width} ${height}`} className="gtl__svg">
+    <div className="gtl" style={{ maxWidth: width }} role="figure" aria-label={`Tendencia de calificaciones: ${data.map(d => `${d.label} ${d.value}`).join(', ')}`}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="gtl__svg" aria-hidden="true">
         <defs>
           <linearGradient id="gtl-grad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={trendColor} stopOpacity="0.2" />

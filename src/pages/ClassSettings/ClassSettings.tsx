@@ -1,14 +1,23 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton,
-  IonButton, IonIcon, IonList, IonItem, IonLabel, IonInput, IonModal, IonSelect,
-  IonSelectOption, IonSpinner, IonAlert, IonItemSliding, IonItemOptions, IonItemOption,
-  IonCheckbox, IonSearchbar, IonProgressBar,
-} from '@ionic/react';
-import { addOutline, timeOutline, trashOutline, closeOutline, checkboxOutline, squareOutline, warningOutline, createOutline, cloudUploadOutline } from 'ionicons/icons';
-import { useParams, useHistory } from 'react-router-dom';
+  Plus, Clock, Trash2, X, CheckSquare, Square, AlertTriangle, Pencil, Upload,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
+import Modal from '@/components/shared/Modal';
+import AlertConfirm from '@/components/shared/AlertConfirm';
+import Spinner from '@/components/shared/Spinner';
+import Searchbar from '@/components/shared/Searchbar';
+import PageShell from '@/components/shared/PageShell';
+import { useParams, useNavigate } from 'react-router-dom';
 import { classes as classesApi, lectures as lecturesApi, subjects as subjectsApi, academicConfig as academicConfigApi } from '../../services/api';
 import { Lecture, ScheduleSlot, EducationLevel } from '../../types';
+import { EDUCATION_LEVEL_OPTIONS } from '../../utils/educationLevels';
 import { useClassesStore, DeletePreview } from '../../store/classesStore';
 import { useStudentsStore, StudentPoolEntry } from '../../store/studentsStore';
 import { useIsDesktop } from '../../hooks/useIsDesktop';
@@ -58,14 +67,7 @@ function formatSchedule(schedule: ScheduleSlot[]): string {
   }).join(', ');
 }
 
-const EDUCATION_LEVELS: [EducationLevel, string, string][] = [
-  ['infantil', 'Infantil', '3-5'],
-  ['primaria_lower', 'Primaria Inf.', '6-8'],
-  ['primaria_upper', 'Primaria Sup.', '9-11'],
-  ['secundaria', 'Secundaria', '12-15'],
-  ['bachillerato', 'Bachillerato', '16-17'],
-  ['universidad', 'Universidad', '18+'],
-];
+const EDUCATION_LEVELS = EDUCATION_LEVEL_OPTIONS;
 
 function parseYearDates(yearStr: string): { from: string; to: string } {
   const full = yearStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
@@ -90,8 +92,8 @@ interface ClassDetail {
 }
 
 const ClassSettings: React.FC = () => {
-  const { classId } = useParams<{ classId: string }>();
-  const history = useHistory();
+  const { classId } = useParams() as { classId: string };
+  const navigate = useNavigate();
   const isDesktop = useIsDesktop();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -606,7 +608,7 @@ const ClassSettings: React.FC = () => {
 
   const filteredAvailableStudents = useMemo(() => availableStudents.filter((s) => {
     const matchSearch = !addSearch || s.name.toLowerCase().includes(addSearch.toLowerCase());
-    const matchClass = !addClassFilter || s.classes.some((c) => c.class_id === addClassFilter);
+    const matchClass = !addClassFilter || addClassFilter === '__all__' || s.classes.some((c) => c.class_id === addClassFilter);
     return matchSearch && matchClass;
   }), [availableStudents, addSearch, addClassFilter]);
 
@@ -709,7 +711,7 @@ const ClassSettings: React.FC = () => {
     try {
       await deleteClassPermanently(classId);
       await fetchClasses();
-      history.replace('/tabs/classes');
+      navigate('/tabs/classes', { replace: true });
     } catch (err) {
       console.error('Failed to delete class:', err);
     } finally {
@@ -726,702 +728,685 @@ const ClassSettings: React.FC = () => {
 
   if (loading) {
     return (
-      <IonPage>
-        <IonHeader>
-          <IonToolbar>
-            <IonButtons slot="start">
-              <IonBackButton defaultHref="/tabs/classes" />
-            </IonButtons>
-            <IonTitle>Configuración</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent>
-          <div className="settings-loading"><IonSpinner color="primary" /></div>
-        </IonContent>
-      </IonPage>
+      <PageShell title="Configuración" backHref="/tabs/classes">
+        <div className="settings-loading"><Spinner /></div>
+      </PageShell>
     );
   }
 
   return (
-    <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={`/tabs/classes/${classId}`} />
-          </IonButtons>
-          <IonTitle>{classData?.name || 'Clase'}</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-
-      <IonContent className="settings-content">
-        {/* Class Info */}
-        <div className="settings-section">
-          <div className="settings-section__header">
-            <h2 className="settings-section__title">Información</h2>
-          </div>
-          <div className="settings-info-card">
-            <div className="settings-info-row settings-info-row--editable" onClick={() => editingField !== 'name' && startEditing('name')}>
-              <span className="settings-info-label">Nombre</span>
-              {editingField === 'name' ? (
-                <input
-                  className="settings-info-inline-input"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={saveField}
-                  onKeyDown={handleEditKeyDown}
-                  autoFocus
-                  maxLength={100}
-                />
-              ) : (
-                <span className="settings-info-value settings-info-value--editable">
-                  {classData?.name}
-                  <IonIcon icon={createOutline} className="settings-info-edit-icon" />
-                </span>
-              )}
-            </div>
-            <div className="settings-info-row settings-info-row--vertical">
-              <span className="settings-info-label">Curso escolar</span>
-              <div className="cal-date-pair">
-                <input type="date" className="cal-date-input"
-                  value={yearFromDate}
-                  onChange={(e) => handleYearDateChange('from', e.target.value)}
-                />
-                <span className="cal-date-sep">→</span>
-                <input type="date" className="cal-date-input"
-                  value={yearToDate}
-                  onChange={(e) => handleYearDateChange('to', e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="settings-info-row settings-info-row--vertical">
-              <span className="settings-info-label">Nivel educativo</span>
-              <div className="education-level-chips">
-                {EDUCATION_LEVELS.map(([value, label, ages]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`education-level-chip ${classData?.educationLevel === value ? 'education-level-chip--active' : ''}`}
-                    onClick={async () => {
-                      if (value === classData?.educationLevel) return;
-                      try {
-                        await classesApi.update(classId, { education_level: value });
-                        setClassData((prev) => prev ? { ...prev, educationLevel: value } : prev);
-                        fetchClasses();
-                      } catch (err) {
-                        console.error('Failed to update education level:', err);
-                      }
-                    }}
-                  >
-                    <span className="education-level-chip__label">{label}</span>
-                    <span className="education-level-chip__ages">{ages}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+    <PageShell title={classData?.name || 'Clase'} backHref="/tabs/classes">
+      {/* Class Info */}
+      <div className="settings-section">
+        <div className="settings-section__header">
+          <h2 className="settings-section__title">Información</h2>
         </div>
-
-        {/* Academic Calendar */}
-        <div className="settings-section">
-          <div className="settings-section__header">
-            <h2 className="settings-section__title">Periodos</h2>
-            {calSaving && <IonSpinner name="crescent" style={{ width: 16, height: 16 }} />}
-          </div>
-          {!calLoaded ? (
-            <div style={{ textAlign: 'center', padding: 16 }}><IonSpinner name="crescent" /></div>
-          ) : (
-            <div className="settings-info-card">
-              <div className="cal-mode-toggle">
-                <button type="button"
-                  className={`cal-mode-btn ${calPeriodMode === 'trimester' ? 'cal-mode-btn--active' : ''}`}
-                  onClick={() => handleCalModeChange('trimester')}>
-                  Trimestres
-                </button>
-                <button type="button"
-                  className={`cal-mode-btn ${calPeriodMode === 'cuatrimester' ? 'cal-mode-btn--active' : ''}`}
-                  onClick={() => handleCalModeChange('cuatrimester')}>
-                  Cuatrimestres
-                </button>
-              </div>
-
-              <div className="cal-periods-compact">
-                {(calPeriodMode === 'trimester' ? [1, 2, 3] : [1, 2]).map((n) => (
-                  <div key={n} className="cal-period-compact">
-                    <span className="cal-period-label">{getPeriodLabel(calPeriodMode, n)}</span>
-                    <input type="date" className="cal-date-input cal-date-input--compact"
-                      value={calDates[`t${n}_start`] || ''}
-                      onChange={(e) => handleCalDateChange(`t${n}_start`, e.target.value)}
-                    />
-                    <span className="cal-date-sep">→</span>
-                    <input type="date" className="cal-date-input cal-date-input--compact"
-                      value={calDates[`t${n}_end`] || ''}
-                      onChange={(e) => handleCalDateChange(`t${n}_end`, e.target.value)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-
-        {/* Lectures — hidden until calendar is complete */}
-        {(!calLoaded || calComplete) && (
-        <>
-        {/* Lectures */}
-        <div className="settings-section">
-          <div className="settings-section__header">
-            <h2 className="settings-section__title">Asignaturas</h2>
-            <div className="settings-section__actions">
-              {selectionMode ? (
-                <>
-                  <IonButton fill="clear" size="small" onClick={exitSelectionMode}>
-                    <IonIcon icon={closeOutline} slot="icon-only" />
-                  </IonButton>
-                  <IonButton 
-                    fill="clear" 
-                    size="small" 
-                    color="danger" 
-                    onClick={handleDeleteSelected}
-                    disabled={selectedIds.size === 0}
-                  >
-                    <IonIcon icon={trashOutline} slot="icon-only" />
-                  </IonButton>
-                </>
-              ) : (
-                <>
-                  {classData?.lectures && classData.lectures.length > 0 && (
-                    <IonButton fill="clear" size="small" onClick={() => setSelectionMode(true)}>
-                      <IonIcon icon={trashOutline} slot="icon-only" />
-                    </IonButton>
-                  )}
-                  <IonButton fill="clear" size="small" onClick={openNewLecture}>
-                    <IonIcon icon={addOutline} slot="start" />
-                    Añadir
-                  </IonButton>
-                </>
-              )}
-            </div>
-          </div>
-
-          {classData?.lectures && classData.lectures.length > 0 ? (
-            <div className="settings-lectures">
-              {classData.lectures.map(lecture => {
-                const isSelected = selectedIds.has(lecture.id);
-                return (
-                  <IonItemSliding key={lecture.id} disabled={selectionMode}>
-                    <div
-                      className={`lecture-card ${selectionMode ? 'lecture-card--selectable' : ''} ${isSelected ? 'lecture-card--selected' : ''}`}
-                      onClick={() => {
-                        if (selectionMode) {
-                          toggleSelection(lecture.id);
-                        } else {
-                          openEditLecture(lecture);
-                        }
-                      }}
-                    >
-                      {selectionMode && (
-                        <div className="lecture-card__checkbox">
-                          <IonIcon 
-                            icon={isSelected ? checkboxOutline : squareOutline} 
-                            color={isSelected ? 'primary' : 'medium'}
-                          />
-                        </div>
-                      )}
-                      <div className="lecture-card__main">
-                        <span className="lecture-card__name">
-                          {lecture.name}
-                          {lecture.subjectId && aulaBySubject[lecture.subjectId] && (
-                            <span className="lecture-card__aula"> · {aulaBySubject[lecture.subjectId]}</span>
-                          )}
-                        </span>
-                        {lecture.subjectName && (
-                          <span className="lecture-card__subject">{lecture.subjectName}</span>
-                        )}
-                        <span className="lecture-card__schedule">
-                          <IonIcon icon={timeOutline} />
-                          {formatSchedule(lecture.schedule)}
-                        </span>
-                      </div>
-                    </div>
-                    <IonItemOptions side="end">
-                      <IonItemOption
-                        color="danger"
-                        onClick={() => setDeleteTarget({ id: lecture.id, name: lecture.name })}
-                      >
-                        Eliminar
-                      </IonItemOption>
-                    </IonItemOptions>
-                  </IonItemSliding>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="settings-empty-text">No hay asignaturas configuradas</p>
-          )}
-        </div>
-
-        {/* Students */}
-        <div className="settings-section">
-          <div className="settings-section__header">
-            <h2 className="settings-section__title">Alumnos</h2>
-            <div className="settings-section__actions">
-              <span className="settings-section__count">{students.length}</span>
-              <IonButton fill="clear" size="small" onClick={() => setShowAddStudents((v) => !v)}>
-                <IonIcon icon={showAddStudents ? closeOutline : addOutline} slot="start" />
-                {showAddStudents ? 'Cerrar' : 'Añadir'}
-              </IonButton>
-            </div>
-          </div>
-
-          {studentsLoading ? (
-            <div className="settings-students-loading"><IonSpinner color="primary" /></div>
-          ) : (
-            <>
-              {showAddStudents && (
-                <div className="settings-info-card students-add-card">
-                  {studentsSaving && (
-                    <div className="settings-add-students-progress">
-                      <IonProgressBar type="indeterminate" />
-                      <span>{studentsProgress}</span>
-                    </div>
-                  )}
-
-                  <div className="cal-mode-toggle">
-                    <button type="button"
-                      className={`cal-mode-btn ${addStudentsTab === 'new' ? 'cal-mode-btn--active' : ''}`}
-                      onClick={() => setAddStudentsTab('new')}>
-                      Nuevos
-                    </button>
-                    <button type="button"
-                      className={`cal-mode-btn ${addStudentsTab === 'existing' ? 'cal-mode-btn--active' : ''}`}
-                      onClick={() => setAddStudentsTab('existing')}>
-                      Existentes
-                    </button>
-                  </div>
-
-                  {addStudentsTab === 'new' && (
-                    <div className="students-add-new-compact">
-                      {studentInputs.map((value, index) => (
-                        <div key={index} className="student-input-row">
-                          <input
-                            className="student-input-compact"
-                            value={value}
-                            placeholder={`Alumno ${index + 1}`}
-                            onChange={(e) => handleStudentInputChange(index, e.target.value)}
-                          />
-                          {studentInputs.length > 1 && (
-                            <button type="button" className="student-input-remove" onClick={() => handleRemoveStudentRow(index)}>
-                              <IonIcon icon={closeOutline} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <div className="students-add-actions">
-                        <button type="button" className="students-add-more" onClick={handleAddStudentRow}>
-                          <IonIcon icon={addOutline} /> Otro
-                        </button>
-                        <button type="button" className="students-import-link" onClick={handleImportClick}>
-                          <IonIcon icon={cloudUploadOutline} /> CSV
-                        </button>
-                      </div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        style={{ display: 'none' }}
-                        accept=".csv,.txt"
-                        onChange={handleImportFile}
-                      />
-                      <IonButton
-                        expand="block"
-                        size="small"
-                        onClick={handleAddNewStudents}
-                        disabled={studentsSaving || validNewNames.length === 0}
-                      >
-                        {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${validNewNames.length || ''} alumnos`}
-                      </IonButton>
-                    </div>
-                  )}
-
-                  {addStudentsTab === 'existing' && (
-                    <div className="students-add-existing-compact">
-                      {availableStudents.length === 0 && !poolLoading ? (
-                        <p className="settings-empty-text">No hay alumnos de otras clases disponibles.</p>
-                      ) : (
-                        <>
-                          <IonSearchbar
-                            value={addSearch}
-                            onIonInput={(e) => setAddSearch(e.detail.value ?? '')}
-                            placeholder="Buscar..."
-                            className="settings-add-search"
-                          />
-                          {uniqueClassesForFilter.length > 0 && (
-                            <IonSelect
-                              value={addClassFilter}
-                              onIonChange={(e) => setAddClassFilter(e.detail.value)}
-                              interface="popover"
-                              placeholder="Todas las clases"
-                              className="settings-add-class-filter"
-                            >
-                              <IonSelectOption value="">Todas las clases</IonSelectOption>
-                              {uniqueClassesForFilter.map((c) => (
-                                <IonSelectOption key={c.class_id} value={c.class_id}>{c.class_name}</IonSelectOption>
-                              ))}
-                            </IonSelect>
-                          )}
-                          {poolLoading ? (
-                            <div className="settings-add-loading"><IonSpinner /></div>
-                          ) : (
-                            <>
-                              <div className="settings-add-select-all">
-                                <IonCheckbox
-                                  checked={selectedStudentIds.size === filteredAvailableStudents.length && filteredAvailableStudents.length > 0}
-                                  indeterminate={selectedStudentIds.size > 0 && selectedStudentIds.size < filteredAvailableStudents.length}
-                                  onIonChange={toggleAllAddStudents}
-                                />
-                                <span>Todos ({filteredAvailableStudents.length})</span>
-                              </div>
-                              <div className="students-existing-list">
-                                {filteredAvailableStudents.map((st) => (
-                                  <div key={st.id} className="student-existing-row" onClick={() => toggleAddStudent(st.id)}>
-                                    <IonCheckbox checked={selectedStudentIds.has(st.id)} />
-                                    <div className="student-existing-info">
-                                      <span>{st.name}</span>
-                                      {st.classes.length > 0 && (
-                                        <span className="student-existing-classes">{st.classes.map((c) => c.class_name).join(', ')}</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              <IonButton
-                                expand="block"
-                                size="small"
-                                onClick={handleAddExistingStudents}
-                                disabled={studentsSaving || selectedStudentIds.size === 0}
-                              >
-                                {studentsSaving ? <IonSpinner name="crescent" /> : `Añadir ${selectedStudentIds.size} seleccionados`}
-                              </IonButton>
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {students.length > 0 ? (
-                <div className="settings-students-list">
-                  {students.map((s) => (
-                    <div key={s.id} className="settings-student-row">
-                      <div className="settings-student-info">
-                        <span className="settings-student-name">{s.name}</span>
-                        {s.studentId && (
-                          <span className="settings-student-code">{s.studentId}</span>
-                        )}
-                      </div>
-                      <IonButton
-                        fill="clear"
-                        size="small"
-                        color="danger"
-                        onClick={() => setRemoveStudentTarget({ id: s.id, name: s.name })}
-                      >
-                        <IonIcon icon={trashOutline} slot="icon-only" />
-                      </IonButton>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="settings-students-empty">Aún no hay alumnos en esta clase.</p>
-              )}
-            </>
-          )}
-        </div>
-        </>
-        )}
-        {/* Class Actions */}
-        <div className="settings-actions">
-          <IonButton
-            expand="block"
-            onClick={() => history.push(`/tabs/classes/${classId}`)}
-            className="settings-actions__save"
-            disabled={calLoaded && !calComplete}
-          >
-            Guardar clase
-          </IonButton>
-          <IonButton
-            expand="block"
-            fill="outline"
-            color="danger"
-            onClick={handleStartDeleteClass}
-            className="settings-actions__delete"
-          >
-            <IonIcon icon={trashOutline} slot="start" />
-            Eliminar clase
-          </IonButton>
-        </div>
-      </IonContent>
-
-      {/* Delete Class Modal */}
-      <IonModal
-        isOpen={showDeleteClassModal}
-        onDidDismiss={handleCancelDeleteClass}
-        initialBreakpoint={isDesktop ? 1 : 0.5}
-        breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.75]}
-      >
-        <div className="modal-sheet">
-          <h2 className="modal-sheet__title">Eliminar clase</h2>
-          <p className="modal-sheet__subtitle">
-            ¿Seguro que quieres eliminar "{classData?.name}"?
-          </p>
-
-          {loadingDeletePreview ? (
-            <div className="delete-preview-loading">
-              <IonSpinner color="primary" />
-              <span>Calculando elementos...</span>
-            </div>
-          ) : deleteClassPreview && (
-            <div className="delete-preview">
-              <p className="delete-preview__warning">
-                <IonIcon icon={warningOutline} /> Se eliminarán permanentemente:
-              </p>
-              <ul className="delete-preview__list">
-                {deleteClassPreview.counts.students > 0 && (
-                  <li>{deleteClassPreview.counts.students} alumno{deleteClassPreview.counts.students !== 1 ? 's' : ''}</li>
-                )}
-                {deleteClassPreview.counts.lectures > 0 && (
-                  <li>{deleteClassPreview.counts.lectures} asignatura{deleteClassPreview.counts.lectures !== 1 ? 's' : ''}</li>
-                )}
-                {deleteClassPreview.counts.exams > 0 && (
-                  <li>{deleteClassPreview.counts.exams} examen{deleteClassPreview.counts.exams !== 1 ? 'es' : ''}</li>
-                )}
-                {deleteClassPreview.counts.corrections > 0 && (
-                  <li>{deleteClassPreview.counts.corrections} corrección{deleteClassPreview.counts.corrections !== 1 ? 'es' : ''}</li>
-                )}
-                {deleteClassPreview.counts.exercises > 0 && (
-                  <li>{deleteClassPreview.counts.exercises} ejercicio{deleteClassPreview.counts.exercises !== 1 ? 's' : ''}</li>
-                )}
-                {deleteClassPreview.counts.calendar_events > 0 && (
-                  <li>{deleteClassPreview.counts.calendar_events} evento{deleteClassPreview.counts.calendar_events !== 1 ? 's' : ''} del calendario</li>
-                )}
-                {deleteClassPreview.counts.notes > 0 && (
-                  <li>{deleteClassPreview.counts.notes} comentario{deleteClassPreview.counts.notes !== 1 ? 's' : ''}</li>
-                )}
-              </ul>
-              <p className="delete-preview__note">
-                Esta acción no se puede deshacer.
-              </p>
-            </div>
-          )}
-
-          <div className="delete-modal-buttons">
-            <IonButton expand="block" fill="outline" onClick={handleCancelDeleteClass}>
-              Cancelar
-            </IonButton>
-            <IonButton
-              expand="block"
-              color="danger"
-              onClick={handleDeleteClassConfirm}
-              disabled={loadingDeletePreview || deletingClass}
-            >
-              {deletingClass ? <IonSpinner name="crescent" /> : 'Eliminar permanentemente'}
-            </IonButton>
-          </div>
-        </div>
-      </IonModal>
-
-      {/* Lecture Modal */}
-      <IonModal
-        isOpen={showLectureModal}
-        onDidDismiss={() => setShowLectureModal(false)}
-        initialBreakpoint={isDesktop ? 1 : 0.75}
-        breakpoints={isDesktop ? [0, 1] : [0, 0.75, 0.95]}
-      >
-        <div className="modal-sheet modal-sheet--scrollable">
-          <h2 className="modal-sheet__title">
-            {editingLecture ? 'Editar asignatura' : 'Nueva asignatura'}
-          </h2>
-
-          <IonList>
-            <IonItem>
-              <IonLabel position="stacked">Nombre de la asignatura</IonLabel>
-              <IonInput
-                value={lectureName}
-                onIonInput={(e) => setLectureName(e.detail.value || '')}
-                placeholder="ej. Matemáticas"
+        <div className="settings-info-card">
+          <div className="settings-info-row settings-info-row--editable" onClick={() => editingField !== 'name' && startEditing('name')}>
+            <span className="settings-info-label">Nombre</span>
+            {editingField === 'name' ? (
+              <input
+                className="settings-info-inline-input"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={saveField}
+                onKeyDown={handleEditKeyDown}
+                autoFocus
+                maxLength={100}
               />
-            </IonItem>
-            {classSubjectsList.length > 0 && !editingLecture && (
-              <div className="subject-name-suggestions">
-                <span className="subject-name-suggestions__label">Sugerencias:</span>
-                <div className="subject-name-suggestions__list">
-                  {classSubjectsList
-                    .filter(s => !lectureName || s.name.toLowerCase().includes(lectureName.toLowerCase()))
-                    .filter((s, i, arr) => arr.findIndex(x => x.name.toLowerCase() === s.name.toLowerCase()) === i)
-                    .slice(0, 5)
-                    .map(s => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className={`subject-name-suggestion ${lectureName === s.name ? 'subject-name-suggestion--active' : ''}`}
-                        onClick={() => setLectureName(s.name)}
-                      >
-                        {s.name}
-                      </button>
-                    ))}
-                </div>
-              </div>
+            ) : (
+              <span className="settings-info-value settings-info-value--editable">
+                {classData?.name}
+                <Pencil size={14} className="settings-info-edit-icon" />
+              </span>
             )}
-            <IonItem>
-              <IonLabel position="stacked">Aula</IonLabel>
-              <IonInput
-                value={lectureAula}
-                onIonInput={(e) => setLectureAula(e.detail.value || '')}
-                placeholder="ej. A51"
+          </div>
+          <div className="settings-info-row settings-info-row--vertical">
+            <span className="settings-info-label">Curso escolar</span>
+            <div className="cal-date-pair">
+              <input type="date" className="cal-date-input"
+                value={yearFromDate}
+                onChange={(e) => handleYearDateChange('from', e.target.value)}
               />
-            </IonItem>
-          </IonList>
-
-          <div className="color-picker-section">
-            <span className="color-picker-section__label">Color</span>
-            <div className="color-picker-dots">
-              {PALETTE_COLORS.map((c) => (
+              <span className="cal-date-sep">&rarr;</span>
+              <input type="date" className="cal-date-input"
+                value={yearToDate}
+                onChange={(e) => handleYearDateChange('to', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="settings-info-row settings-info-row--vertical">
+            <span className="settings-info-label">Nivel educativo</span>
+            <div className="education-level-chips">
+              {EDUCATION_LEVELS.map(([value, label, ages]) => (
                 <button
-                  key={c}
-                  className={`color-picker-dot ${lectureColor === c ? 'color-picker-dot--active' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setLectureColor(c)}
+                  key={value}
                   type="button"
-                />
+                  className={`education-level-chip ${classData?.educationLevel === value ? 'education-level-chip--active' : ''}`}
+                  onClick={async () => {
+                    if (value === classData?.educationLevel) return;
+                    try {
+                      await classesApi.update(classId, { education_level: value });
+                      setClassData((prev) => prev ? { ...prev, educationLevel: value } : prev);
+                      fetchClasses();
+                    } catch (err) {
+                      console.error('Failed to update education level:', err);
+                    }
+                  }}
+                >
+                  <span className="education-level-chip__label">{label}</span>
+                  <span className="education-level-chip__ages">{ages}</span>
+                </button>
               ))}
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="schedule-section">
-            <div className="schedule-section__header">
-              <h3>Horario semanal</h3>
-              <IonButton fill="clear" size="small" onClick={addScheduleSlot}>
-                <IonIcon icon={addOutline} slot="start" />
-                Añadir
-              </IonButton>
+      {/* Academic Calendar */}
+      <div className="settings-section">
+        <div className="settings-section__header">
+          <h2 className="settings-section__title">Periodos</h2>
+          {calSaving && <Spinner size={16} />}
+        </div>
+        {!calLoaded ? (
+          <div style={{ textAlign: 'center', padding: 16 }}><Spinner /></div>
+        ) : (
+          <div className="settings-info-card">
+            <div className="cal-mode-toggle">
+              <button type="button"
+                className={`cal-mode-btn ${calPeriodMode === 'trimester' ? 'cal-mode-btn--active' : ''}`}
+                onClick={() => handleCalModeChange('trimester')}>
+                Trimestres
+              </button>
+              <button type="button"
+                className={`cal-mode-btn ${calPeriodMode === 'cuatrimester' ? 'cal-mode-btn--active' : ''}`}
+                onClick={() => handleCalModeChange('cuatrimester')}>
+                Cuatrimestres
+              </button>
             </div>
 
-            {lectureSchedule.length === 0 ? (
-              <p className="schedule-empty">Sin horario configurado</p>
+            <div className="cal-periods-compact">
+              {(calPeriodMode === 'trimester' ? [1, 2, 3] : [1, 2]).map((n) => (
+                <div key={n} className="cal-period-compact">
+                  <span className="cal-period-label">{getPeriodLabel(calPeriodMode, n)}</span>
+                  <input type="date" className="cal-date-input cal-date-input--compact"
+                    value={calDates[`t${n}_start`] || ''}
+                    onChange={(e) => handleCalDateChange(`t${n}_start`, e.target.value)}
+                  />
+                  <span className="cal-date-sep">&rarr;</span>
+                  <input type="date" className="cal-date-input cal-date-input--compact"
+                    value={calDates[`t${n}_end`] || ''}
+                    onChange={(e) => handleCalDateChange(`t${n}_end`, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+
+      {/* Lectures — hidden until calendar is complete */}
+      {(!calLoaded || calComplete) && (
+      <>
+      {/* Lectures */}
+      <div className="settings-section">
+        <div className="settings-section__header">
+          <h2 className="settings-section__title">Asignaturas</h2>
+          <div className="settings-section__actions">
+            {selectionMode ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={exitSelectionMode}>
+                  <X size={16} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedIds.size === 0}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </>
             ) : (
-              <div className="schedule-slots">
-                {lectureSchedule.map((slot, index) => {
-                  const conflict = scheduleConflicts.get(index);
-                  return (
-                    <div key={index}>
-                      <div className={`schedule-slot ${conflict ? 'schedule-slot--conflict' : ''}`}>
-                        <IonSelect
-                          value={slot.day}
-                          onIonChange={(e) => updateScheduleSlot(index, 'day', e.detail.value)}
-                          interface="popover"
-                          className="schedule-slot__day"
-                        >
-                          {WEEK_DAYS.map(d => (
-                            <IonSelectOption key={d.key} value={d.key}>{d.label}</IonSelectOption>
-                          ))}
-                        </IonSelect>
-                        <IonSelect
-                          value={slot.start_time}
-                          onIonChange={(e) => updateScheduleSlot(index, 'start_time', e.detail.value)}
-                          interface="popover"
-                          className="schedule-slot__time"
-                        >
-                          {TIME_SLOTS.map(t => (
-                            <IonSelectOption key={t} value={t}>{t}</IonSelectOption>
-                          ))}
-                        </IonSelect>
-                        <span className="schedule-slot__separator">-</span>
-                        <IonSelect
-                          value={slot.end_time}
-                          onIonChange={(e) => updateScheduleSlot(index, 'end_time', e.detail.value)}
-                          interface="popover"
-                          className="schedule-slot__time"
-                        >
-                          {TIME_SLOTS.map(t => (
-                            <IonSelectOption key={t} value={t}>{t}</IonSelectOption>
-                          ))}
-                        </IonSelect>
-                        <IonButton
-                          fill="clear"
-                          color="danger"
-                          size="small"
-                          onClick={() => removeScheduleSlot(index)}
-                        >
-                          <IonIcon icon={trashOutline} slot="icon-only" />
-                        </IonButton>
-                      </div>
-                      {conflict && (
-                        <p className="schedule-slot__conflict-msg">
-                          Conflicto con {conflict.lectureName}{conflict.className ? ` (${conflict.className})` : ''}
-                        </p>
-                      )}
+              <>
+                {classData?.lectures && classData.lectures.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectionMode(true)}>
+                    <Trash2 size={16} />
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={openNewLecture}>
+                  <Plus size={16} className="mr-1" />
+                  Añadir
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {classData?.lectures && classData.lectures.length > 0 ? (
+          <div className="settings-lectures">
+            {classData.lectures.map(lecture => {
+              const isSelected = selectedIds.has(lecture.id);
+              return (
+                <div
+                  key={lecture.id}
+                  className={`lecture-card ${selectionMode ? 'lecture-card--selectable' : ''} ${isSelected ? 'lecture-card--selected' : ''}`}
+                  onClick={() => {
+                    if (selectionMode) {
+                      toggleSelection(lecture.id);
+                    } else {
+                      openEditLecture(lecture);
+                    }
+                  }}
+                >
+                  {selectionMode && (
+                    <div className="lecture-card__checkbox">
+                      {isSelected
+                        ? <CheckSquare size={24} className="text-primary" />
+                        : <Square size={24} className="text-muted-foreground" />
+                      }
                     </div>
-                  );
-                })}
+                  )}
+                  <div className="lecture-card__main">
+                    <span className="lecture-card__name">
+                      {lecture.name}
+                      {lecture.subjectId && aulaBySubject[lecture.subjectId] && (
+                        <span className="lecture-card__aula"> · {aulaBySubject[lecture.subjectId]}</span>
+                      )}
+                    </span>
+                    {lecture.subjectName && (
+                      <span className="lecture-card__subject">{lecture.subjectName}</span>
+                    )}
+                    <span className="lecture-card__schedule">
+                      <Clock size={14} />
+                      {formatSchedule(lecture.schedule)}
+                    </span>
+                  </div>
+                  {!selectionMode && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive shrink-0 ml-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget({ id: lecture.id, name: lecture.name });
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="settings-empty-text">No hay asignaturas configuradas</p>
+        )}
+      </div>
+
+      {/* Students */}
+      <div className="settings-section">
+        <div className="settings-section__header">
+          <h2 className="settings-section__title">Alumnos</h2>
+          <div className="settings-section__actions">
+            <span className="settings-section__count">{students.length}</span>
+            <Button variant="ghost" size="sm" onClick={() => setShowAddStudents((v) => !v)}>
+              {showAddStudents ? <X size={16} className="mr-1" /> : <Plus size={16} className="mr-1" />}
+              {showAddStudents ? 'Cerrar' : 'Añadir'}
+            </Button>
+          </div>
+        </div>
+
+        {studentsLoading ? (
+          <div className="settings-students-loading"><Spinner /></div>
+        ) : (
+          <>
+            {showAddStudents && (
+              <div className="settings-info-card students-add-card">
+                {studentsSaving && (
+                  <div className="settings-add-students-progress">
+                    <Progress value={100} className="animate-pulse" />
+                    <span>{studentsProgress}</span>
+                  </div>
+                )}
+
+                <div className="cal-mode-toggle">
+                  <button type="button"
+                    className={`cal-mode-btn ${addStudentsTab === 'new' ? 'cal-mode-btn--active' : ''}`}
+                    onClick={() => setAddStudentsTab('new')}>
+                    Nuevos
+                  </button>
+                  <button type="button"
+                    className={`cal-mode-btn ${addStudentsTab === 'existing' ? 'cal-mode-btn--active' : ''}`}
+                    onClick={() => setAddStudentsTab('existing')}>
+                    Existentes
+                  </button>
+                </div>
+
+                {addStudentsTab === 'new' && (
+                  <div className="students-add-new-compact">
+                    {studentInputs.map((value, index) => (
+                      <div key={index} className="student-input-row">
+                        <input
+                          className="student-input-compact"
+                          value={value}
+                          placeholder={`Alumno ${index + 1}`}
+                          onChange={(e) => handleStudentInputChange(index, e.target.value)}
+                        />
+                        {studentInputs.length > 1 && (
+                          <button type="button" className="student-input-remove" onClick={() => handleRemoveStudentRow(index)}>
+                            <X size={18} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <div className="students-add-actions">
+                      <button type="button" className="students-add-more" onClick={handleAddStudentRow}>
+                        <Plus size={14} /> Otro
+                      </button>
+                      <button type="button" className="students-import-link" onClick={handleImportClick}>
+                        <Upload size={14} /> CSV
+                      </button>
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      style={{ display: 'none' }}
+                      accept=".csv,.txt"
+                      onChange={handleImportFile}
+                    />
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      onClick={handleAddNewStudents}
+                      disabled={studentsSaving || validNewNames.length === 0}
+                    >
+                      {studentsSaving ? <Spinner size={16} /> : `Añadir ${validNewNames.length || ''} alumnos`}
+                    </Button>
+                  </div>
+                )}
+
+                {addStudentsTab === 'existing' && (
+                  <div className="students-add-existing-compact">
+                    {availableStudents.length === 0 && !poolLoading ? (
+                      <p className="settings-empty-text">No hay alumnos de otras clases disponibles.</p>
+                    ) : (
+                      <>
+                        <Searchbar
+                          value={addSearch}
+                          onChange={setAddSearch}
+                          placeholder="Buscar..."
+                          className="settings-add-search"
+                        />
+                        {uniqueClassesForFilter.length > 0 && (
+                          <Select
+                            value={addClassFilter}
+                            onValueChange={setAddClassFilter}
+                          >
+                            <SelectTrigger className="settings-add-class-filter">
+                              <SelectValue placeholder="Todas las clases" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__all__">Todas las clases</SelectItem>
+                              {uniqueClassesForFilter.map((c) => (
+                                <SelectItem key={c.class_id} value={c.class_id}>{c.class_name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {poolLoading ? (
+                          <div className="settings-add-loading"><Spinner /></div>
+                        ) : (
+                          <>
+                            <div className="settings-add-select-all">
+                              <Checkbox
+                                checked={selectedStudentIds.size === filteredAvailableStudents.length && filteredAvailableStudents.length > 0
+                                  ? true
+                                  : selectedStudentIds.size > 0 && selectedStudentIds.size < filteredAvailableStudents.length
+                                    ? 'indeterminate'
+                                    : false
+                                }
+                                onCheckedChange={toggleAllAddStudents}
+                              />
+                              <span>Todos ({filteredAvailableStudents.length})</span>
+                            </div>
+                            <div className="students-existing-list">
+                              {filteredAvailableStudents.map((st) => (
+                                <div key={st.id} className="student-existing-row" onClick={() => toggleAddStudent(st.id)}>
+                                  <Checkbox checked={selectedStudentIds.has(st.id)} />
+                                  <div className="student-existing-info">
+                                    <span>{st.name}</span>
+                                    {st.classes.length > 0 && (
+                                      <span className="student-existing-classes">{st.classes.map((c) => c.class_name).join(', ')}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <Button
+                              className="w-full"
+                              size="sm"
+                              onClick={handleAddExistingStudents}
+                              disabled={studentsSaving || selectedStudentIds.size === 0}
+                            >
+                              {studentsSaving ? <Spinner size={16} /> : `Añadir ${selectedStudentIds.size} seleccionados`}
+                            </Button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
-            {hasConflicts && (
-              <p className="schedule-conflict-warning">
-                Resuelve los conflictos de horario antes de guardar
-              </p>
+            {students.length > 0 ? (
+              <div className="settings-students-list">
+                {students.map((s) => (
+                  <div key={s.id} className="settings-student-row">
+                    <div className="settings-student-info">
+                      <span className="settings-student-name">{s.name}</span>
+                      {s.studentId && (
+                        <span className="settings-student-code">{s.studentId}</span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setRemoveStudentTarget({ id: s.id, name: s.name })}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="settings-students-empty">Aún no hay alumnos en esta clase.</p>
             )}
+          </>
+        )}
+      </div>
+      </>
+      )}
+      {/* Class Actions */}
+      <div className="settings-actions">
+        <Button
+          className="w-full"
+          onClick={() => navigate('/tabs/classes')}
+          disabled={calLoaded && !calComplete}
+        >
+          Guardar clase
+        </Button>
+        <Button
+          className="w-full"
+          variant="outline"
+          onClick={handleStartDeleteClass}
+        >
+          <Trash2 size={16} className="mr-2 text-destructive" />
+          <span className="text-destructive">Eliminar clase</span>
+        </Button>
+      </div>
+
+      {/* Delete Class Modal */}
+      <Modal
+        open={showDeleteClassModal}
+        onClose={handleCancelDeleteClass}
+        title="Eliminar clase"
+      >
+        <p className="text-sm text-muted-foreground">
+          ¿Seguro que quieres eliminar &ldquo;{classData?.name}&rdquo;?
+        </p>
+
+        {loadingDeletePreview ? (
+          <div className="delete-preview-loading">
+            <Spinner />
+            <span>Calculando elementos...</span>
+          </div>
+        ) : deleteClassPreview && (
+          <div className="delete-preview">
+            <p className="delete-preview__warning">
+              <AlertTriangle size={16} /> Se eliminarán permanentemente:
+            </p>
+            <ul className="delete-preview__list">
+              {deleteClassPreview.counts.students > 0 && (
+                <li>{deleteClassPreview.counts.students} alumno{deleteClassPreview.counts.students !== 1 ? 's' : ''}</li>
+              )}
+              {deleteClassPreview.counts.lectures > 0 && (
+                <li>{deleteClassPreview.counts.lectures} asignatura{deleteClassPreview.counts.lectures !== 1 ? 's' : ''}</li>
+              )}
+              {deleteClassPreview.counts.exams > 0 && (
+                <li>{deleteClassPreview.counts.exams} examen{deleteClassPreview.counts.exams !== 1 ? 'es' : ''}</li>
+              )}
+              {deleteClassPreview.counts.corrections > 0 && (
+                <li>{deleteClassPreview.counts.corrections} corrección{deleteClassPreview.counts.corrections !== 1 ? 'es' : ''}</li>
+              )}
+              {deleteClassPreview.counts.exercises > 0 && (
+                <li>{deleteClassPreview.counts.exercises} ejercicio{deleteClassPreview.counts.exercises !== 1 ? 's' : ''}</li>
+              )}
+              {deleteClassPreview.counts.calendar_events > 0 && (
+                <li>{deleteClassPreview.counts.calendar_events} evento{deleteClassPreview.counts.calendar_events !== 1 ? 's' : ''} del calendario</li>
+              )}
+              {deleteClassPreview.counts.notes > 0 && (
+                <li>{deleteClassPreview.counts.notes} comentario{deleteClassPreview.counts.notes !== 1 ? 's' : ''}</li>
+              )}
+            </ul>
+            <p className="delete-preview__note">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+        )}
+
+        <div className="delete-modal-buttons">
+          <Button variant="outline" className="w-full" onClick={handleCancelDeleteClass}>
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={handleDeleteClassConfirm}
+            disabled={loadingDeletePreview || deletingClass}
+          >
+            {deletingClass ? <Spinner size={16} /> : 'Eliminar permanentemente'}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Lecture Modal */}
+      <Modal
+        open={showLectureModal}
+        onClose={() => setShowLectureModal(false)}
+        title={editingLecture ? 'Editar asignatura' : 'Nueva asignatura'}
+        sheetHeight="lg"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Nombre de la asignatura</label>
+            <Input
+              value={lectureName}
+              onChange={(e) => setLectureName(e.target.value)}
+              placeholder="ej. Matemáticas"
+            />
+          </div>
+          {classSubjectsList.length > 0 && !editingLecture && (
+            <div className="subject-name-suggestions">
+              <span className="subject-name-suggestions__label">Sugerencias:</span>
+              <div className="subject-name-suggestions__list">
+                {classSubjectsList
+                  .filter(s => !lectureName || s.name.toLowerCase().includes(lectureName.toLowerCase()))
+                  .filter((s, i, arr) => arr.findIndex(x => x.name.toLowerCase() === s.name.toLowerCase()) === i)
+                  .slice(0, 5)
+                  .map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className={`subject-name-suggestion ${lectureName === s.name ? 'subject-name-suggestion--active' : ''}`}
+                      onClick={() => setLectureName(s.name)}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Aula</label>
+            <Input
+              value={lectureAula}
+              onChange={(e) => setLectureAula(e.target.value)}
+              placeholder="ej. A51"
+            />
+          </div>
+        </div>
+
+        <div className="color-picker-section">
+          <span className="color-picker-section__label">Color</span>
+          <div className="color-picker-dots">
+            {PALETTE_COLORS.map((c) => (
+              <button
+                key={c}
+                className={`color-picker-dot ${lectureColor === c ? 'color-picker-dot--active' : ''}`}
+                style={{ background: c }}
+                onClick={() => setLectureColor(c)}
+                type="button"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="schedule-section">
+          <div className="schedule-section__header">
+            <h3>Horario semanal</h3>
+            <Button variant="ghost" size="sm" onClick={addScheduleSlot}>
+              <Plus size={16} className="mr-1" />
+              Añadir
+            </Button>
           </div>
 
-          <IonButton
-            expand="block"
-            onClick={handleSaveLecture}
-            disabled={saving || !lectureName.trim() || hasConflicts}
-            className="ion-margin-top"
-          >
-            {saving ? <IonSpinner name="crescent" /> : (editingLecture ? 'Guardar cambios' : 'Crear asignatura')}
-          </IonButton>
-          
-          <p className="schedule-note">
-            <small>El horario es opcional y se puede configurar más tarde</small>
-          </p>
+          {lectureSchedule.length === 0 ? (
+            <p className="schedule-empty">Sin horario configurado</p>
+          ) : (
+            <div className="schedule-slots">
+              {lectureSchedule.map((slot, index) => {
+                const conflict = scheduleConflicts.get(index);
+                return (
+                  <div key={index}>
+                    <div className={`schedule-slot ${conflict ? 'schedule-slot--conflict' : ''}`}>
+                      <Select
+                        value={slot.day}
+                        onValueChange={(v) => updateScheduleSlot(index, 'day', v)}
+                      >
+                        <SelectTrigger className="schedule-slot__day">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WEEK_DAYS.map(d => (
+                            <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={slot.start_time}
+                        onValueChange={(v) => updateScheduleSlot(index, 'start_time', v)}
+                      >
+                        <SelectTrigger className="schedule-slot__time">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_SLOTS.map(t => (
+                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="schedule-slot__separator">-</span>
+                      <Select
+                        value={slot.end_time}
+                        onValueChange={(v) => updateScheduleSlot(index, 'end_time', v)}
+                      >
+                        <SelectTrigger className="schedule-slot__time">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIME_SLOTS.map(t => (
+                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => removeScheduleSlot(index)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                    {conflict && (
+                      <p className="schedule-slot__conflict-msg">
+                        Conflicto con {conflict.lectureName}{conflict.className ? ` (${conflict.className})` : ''}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {hasConflicts && (
+            <p className="schedule-conflict-warning">
+              Resuelve los conflictos de horario antes de guardar
+            </p>
+          )}
         </div>
-      </IonModal>
+
+        <Button
+          className="w-full mt-4"
+          onClick={handleSaveLecture}
+          disabled={saving || !lectureName.trim() || hasConflicts}
+        >
+          {saving ? <Spinner size={16} /> : (editingLecture ? 'Guardar cambios' : 'Crear asignatura')}
+        </Button>
+
+        <p className="schedule-note">
+          <small>El horario es opcional y se puede configurar más tarde</small>
+        </p>
+      </Modal>
 
       {/* Delete Lecture Alert */}
-      <IonAlert
-        isOpen={!!deleteTarget}
+      <AlertConfirm
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
         header="Eliminar asignatura"
         message={`¿Seguro que quieres eliminar "${deleteTarget?.name}"? Se eliminará la asignatura y su horario asociado.`}
-        buttons={[
-          { text: 'Cancelar', role: 'cancel', handler: () => setDeleteTarget(null) },
-          { text: 'Eliminar', role: 'destructive', handler: handleDeleteLecture }
-        ]}
-        onDidDismiss={() => setDeleteTarget(null)}
+        confirmText="Eliminar"
+        onConfirm={handleDeleteLecture}
+        variant="destructive"
       />
 
       {/* Remove Student from Class Alert */}
-      <IonAlert
-        isOpen={!!removeStudentTarget}
+      <AlertConfirm
+        open={!!removeStudentTarget}
+        onClose={() => setRemoveStudentTarget(null)}
         header="Quitar de la clase"
         message={`¿Quitar a "${removeStudentTarget?.name}" de esta clase? El alumno seguirá existiendo en otras clases si está asignado.`}
-        buttons={[
-          { text: 'Cancelar', role: 'cancel', handler: () => setRemoveStudentTarget(null) },
-          { text: 'Quitar', role: 'destructive', handler: handleRemoveStudentFromClass }
-        ]}
-        onDidDismiss={() => setRemoveStudentTarget(null)}
+        confirmText="Quitar"
+        onConfirm={handleRemoveStudentFromClass}
+        variant="destructive"
       />
 
       {/* Import CSV feedback */}
-      <IonAlert
-        isOpen={!!importAlert}
+      <AlertConfirm
+        open={!!importAlert}
+        onClose={() => setImportAlert(null)}
         header={importAlert?.header || ''}
         message={importAlert?.message || ''}
-        buttons={['OK']}
-        onDidDismiss={() => setImportAlert(null)}
+        confirmText="OK"
+        onConfirm={() => setImportAlert(null)}
       />
-    </IonPage>
+    </PageShell>
   );
 };
 

@@ -4,8 +4,9 @@
   display: block;
   width: 100%;
   padding: var(--space-lg);
+  margin-bottom: var(--space-md);
   background: var(--color-surface, #fff);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--color-border, rgba(15, 23, 42, 0.06));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
@@ -37,14 +38,14 @@
 
 .cplan-card__icon {
   font-size: 20px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
 .cplan-card__title {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -57,7 +58,7 @@
   flex-shrink: 0;
 }
 
-.cplan-card__status ion-icon { font-size: 12px; }
+.cplan-card__status svg { font-size: 12px; }
 
 .cplan-card__meta {
   display: flex;
@@ -73,17 +74,17 @@
   color: var(--color-text-secondary);
 }
 
-.cplan-card__meta-item ion-icon { font-size: 12px; }
+.cplan-card__meta-item svg { font-size: 12px; }
 
 .cplan-card__meta-item--success {
-  color: var(--ion-color-success);
+  color: var(--color-success);
 }
 
 .cplan-card__active-badge {
   position: absolute;
   top: -1px;
   right: var(--space-lg);
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: #fff;
   font-size: 9px;
   font-weight: 700;
@@ -109,7 +110,7 @@
   transition: all 0.12s;
   -webkit-tap-highlight-color: transparent;
 }
-.cplan-card__delete:hover { color: var(--ion-color-danger); background: rgba(var(--ion-color-danger-rgb), 0.08); }
+.cplan-card__delete:hover { color: var(--color-danger); background: rgba(220, 38, 38, 0.08); }
 .cplan-card__delete:active { transform: scale(0.9); }
 
 /* ─── Dark theme ─── */

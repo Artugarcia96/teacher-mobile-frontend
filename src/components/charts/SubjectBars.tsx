@@ -24,7 +24,7 @@ const SubjectBars: React.FC<Props> = ({ subjects, maxScore = 10, onSubjectClick 
   if (filtered.length === 0) return null;
 
   return (
-    <div className="sbars">
+    <div className="sbars" role="figure" aria-label={`Media por asignatura: ${filtered.map(s => `${s.name} ${(s.averageGrade ?? 0).toFixed(1)}`).join(', ')}`}>
       {filtered.map((s, i) => {
         const pct = Math.min(((s.averageGrade ?? 0) / maxScore) * 100, 100);
         const passPct = maxScore > 0 ? (maxScore * 0.5 / maxScore) * 100 : 50;

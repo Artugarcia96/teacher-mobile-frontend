@@ -5,16 +5,16 @@
   min-height: 60vh;
 }
 
-/* ─── Topic header (below toolbar) ─── */
+/* ─── Topic header ─── */
 .topic-header {
-  padding: 12px var(--space-lg) 8px;
+  padding: 16px 24px 12px;
 }
 
 .topic-header p {
-  margin: 0 0 6px;
-  color: var(--ion-color-medium);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
+  margin: 0 0 8px;
+  color: var(--color-muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 /* Info strip (status + badges) */
@@ -22,9 +22,10 @@
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .td-status-pill {
-  border: none; padding: 3px 10px; border-radius: 999px; font: inherit;
+  border: none; padding: 4px 12px; border-radius: 999px; font: inherit;
   font-size: 11px; font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
 }
 .td-status-pill--draft { background: rgba(148,163,184,0.12); color: #64748B; }
 .td-status-pill--ready { background: rgba(37,99,235,0.1); color: #2563EB; }
@@ -36,29 +37,21 @@
 .td-info-badge--muted { background: rgba(148,163,184,0.1); color: #94A3B8; }
 
 /* Scheduled dates */
-.td-schedule { margin-top: 8px; }
+.td-schedule { margin-top: 10px; }
 .td-schedule-label {
-  display: block; font-size: 10px; font-weight: 600; color: var(--ion-color-medium);
-  text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px;
+  display: block; font-size: 10px; font-weight: 600; color: var(--color-muted-foreground);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
 }
-.td-schedule-dates { display: flex; gap: 4px; flex-wrap: wrap; }
+.td-schedule-dates { display: flex; gap: 5px; flex-wrap: wrap; }
 .td-schedule-chip {
-  padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 500;
-  background: rgba(var(--ion-color-primary-rgb), 0.06); color: var(--ion-color-primary);
+  padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 500;
+  background: rgba(21, 102, 94, 0.06); color: var(--color-primary);
   font-variant-numeric: tabular-nums;
 }
 
 /* ─── Edit panel ─── */
 .td-edit-panel {
-  padding: 12px 16px;
-}
-
-.td-edit-input {
-  --background: var(--ion-color-light);
-  --border-radius: 8px;
-  --padding-start: 12px;
-  font-size: 13px;
-  margin-bottom: 8px;
+  padding: 16px 24px;
 }
 
 .td-edit-option {
@@ -68,45 +61,145 @@
   padding: 10px 4px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   -webkit-tap-highlight-color: transparent;
 }
 
-.td-edit-checkbox {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  border: 2px solid var(--ion-color-medium-shade);
+/* ─── Content Card (generated PDF hero) ─── */
+.td-content-card {
+  margin: 0 24px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-card);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.td-content-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.td-content-card-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.td-content-card-body:active {
+  opacity: 0.85;
+}
+.td-content-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  color: white;
+}
+.td-content-info {
+  flex: 1;
+  min-width: 0;
+}
+.td-content-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-content-meta {
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.td-content-actions {
+  display: flex;
+  gap: 6px;
+}
+.td-content-action-btn {
+  background: none;
+  border: none;
+  color: var(--color-muted-foreground);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.td-content-action-btn:hover {
+  background: var(--color-muted);
 }
 
-.td-edit-checkbox--checked {
-  border-color: var(--ion-color-primary);
-  background: var(--ion-color-primary);
+/* ─── Generate CTA (empty state hero) ─── */
+.td-generate-cta {
+  margin: 0 24px 16px;
+  border-radius: 14px;
+  border: 2px dashed var(--color-border);
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.td-generate-cta:hover {
+  border-color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.02);
+}
+.td-generate-cta:active {
+  opacity: 0.85;
+}
+.td-generate-cta-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+.td-generate-cta h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.td-generate-cta p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted-foreground);
+  line-height: 1.5;
+  max-width: 280px;
 }
 
-/* ─── Action bar (Upload + Generate) ─── */
+/* ─── Action bar (Upload + Generate buttons) ─── */
 .td-action-bar {
   display: flex;
-  gap: 8px;
-  padding: 12px 16px 8px;
+  gap: 10px;
+  padding: 4px 24px 16px;
 }
 
 .td-action-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
 }
 
 .td-action-btn:active {
@@ -114,55 +207,67 @@
 }
 
 .td-action-upload {
-  background: var(--ion-color-light);
-  color: var(--ion-text-color);
-  border: 1px solid var(--ion-color-light-shade);
+  background: var(--color-muted);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
 }
 
 .td-action-generate {
-  background: var(--ion-color-primary);
   color: white;
 }
 
-.td-action-btn ion-icon {
-  font-size: 16px;
+.td-empty-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted-foreground);
+  padding: 0 24px 8px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.td-regen-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted-foreground);
+  padding: 4px 24px 0;
+  margin: 0;
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* ─── Section ─── */
 .td-section {
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .td-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px 6px;
+  padding: 14px 24px 8px;
 }
 
 .td-section-header h3 {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ion-color-medium);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted-foreground);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .td-section-count {
   font-size: 11px;
-  color: var(--ion-color-medium);
-  background: var(--ion-color-light);
-  padding: 1px 7px;
+  color: var(--color-muted-foreground);
+  background: var(--color-muted);
+  padding: 2px 8px;
   border-radius: 10px;
   font-weight: 500;
 }
 
 /* ─── Folder (subtopic) ─── */
 .td-folder {
-  margin: 0 16px 4px;
-  border-radius: 10px;
-  border: 1px solid var(--ion-color-light-shade);
+  margin: 0 24px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
   overflow: hidden;
 }
 
@@ -170,10 +275,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 12px;
+  padding: 12px 14px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  background: var(--ion-color-light);
+  background: var(--color-muted);
 }
 
 .td-folder-header:active {
@@ -181,7 +286,6 @@
 }
 
 .td-folder-chevron {
-  font-size: 14px;
   flex-shrink: 0;
 }
 
@@ -197,9 +301,9 @@
 
 .td-folder-count {
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   background: rgba(0,0,0,0.06);
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: 10px;
   font-weight: 500;
   flex-shrink: 0;
@@ -208,8 +312,7 @@
 .td-folder-menu {
   background: none;
   border: none;
-  color: var(--ion-color-medium);
-  font-size: 18px;
+  color: var(--color-muted-foreground);
   padding: 4px;
   display: flex;
   align-items: center;
@@ -224,34 +327,34 @@
 
 .td-folder-actions {
   display: flex;
-  gap: 4px;
-  padding: 4px 12px 8px;
+  gap: 6px;
+  padding: 4px 14px 10px;
 }
 
 /* ─── Material row ─── */
 .td-mat-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 11px 14px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.1s;
+  border-radius: 8px;
 }
 
 .td-mat-row:active {
-  background: var(--ion-color-light);
+  background: var(--color-muted);
 }
 
 /* Materials at topic level (not inside folder) */
 .td-section > .td-mat-row {
-  margin: 0 16px;
-  border-radius: 8px;
+  margin: 0 24px;
+  border-radius: 10px;
 }
 
 .td-mat-icon {
-  font-size: 22px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   flex-shrink: 0;
 }
 
@@ -273,7 +376,7 @@
 
 .td-mat-meta {
   font-size: 11px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -289,8 +392,7 @@
 .td-mat-menu-btn {
   background: none;
   border: none;
-  color: var(--ion-color-medium);
-  font-size: 20px;
+  color: var(--color-muted-foreground);
   padding: 6px;
   display: flex;
   align-items: center;
@@ -301,38 +403,30 @@
 }
 
 .td-mat-menu-btn:active {
-  background: var(--ion-color-light);
+  background: var(--color-muted);
 }
 
 /* ─── Add sub-tema inline ─── */
 .td-add-subtema {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
-  padding: 0 16px;
-  margin-bottom: 4px;
-}
-
-.td-add-subtema-input {
-  --background: var(--ion-color-light);
-  --border-radius: 8px;
-  --padding-start: 12px;
-  font-size: 13px;
-  flex: 1;
+  padding: 0 24px;
+  margin-bottom: 10px;
 }
 
 /* ─── Small action buttons inside folders ─── */
 .td-add-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 6px;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 7px;
   font-size: 12px;
   font-weight: 500;
   border: none;
-  background: var(--ion-color-light);
-  color: var(--ion-color-medium-shade);
+  background: var(--color-muted);
+  color: #586274;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -341,19 +435,15 @@
   opacity: 0.7;
 }
 
-.td-add-btn ion-icon {
-  font-size: 14px;
-}
-
 /* ─── Empty state ─── */
 .td-empty-state {
-  padding: 16px;
+  padding: 20px;
   text-align: center;
 }
 
 .td-empty-state p {
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   margin: 0;
   line-height: 1.5;
 }
@@ -364,34 +454,31 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin-bottom: 8px;
-  padding: 0 16px;
+  margin-bottom: 10px;
+  padding: 0 24px;
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
-.materials-upload-progress ion-progress-bar {
+.materials-upload-progress div {
   width: 100%;
   height: 3px;
   border-radius: 2px;
 }
 
-/* ─── PDF Preview ─── */
-.paper-preview-content { --background: #000; }
-.paper-preview-container { width: 100%; height: 100%; }
-.paper-preview-pdf { width: 100%; height: 100%; border: none; background: white; }
-
+/* ─── Responsive ─── */
 @media (min-width: 992px) {
-  .td-section { max-width: 960px; margin-left: auto; margin-right: auto; }
-  .td-action-bar { max-width: 960px; margin-left: auto; margin-right: auto; }
-  .td-add-subtema { max-width: 960px; margin-left: auto; margin-right: auto; }
+  .topic-header { max-width: 720px; margin-left: auto; margin-right: auto; }
+  .td-content-card { max-width: 720px; margin-left: auto; margin-right: auto; }
+  .td-generate-cta { max-width: 720px; margin-left: auto; margin-right: auto; }
+  .td-action-bar { max-width: 720px; margin-left: auto; margin-right: auto; }
+  .td-section { max-width: 720px; margin-left: auto; margin-right: auto; }
+  .td-add-subtema { max-width: 720px; margin-left: auto; margin-right: auto; }
 }
 
 @media (prefers-color-scheme: dark) {
-  .td-folder-header {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  .td-folder-count {
-    background: rgba(255, 255, 255, 0.1);
-  }
+  .td-folder-header { background: rgba(255, 255, 255, 0.05); }
+  .td-folder-count { background: rgba(255, 255, 255, 0.1); }
+  .td-content-card { border-color: rgba(255,255,255,0.1); }
+  .td-generate-cta { border-color: rgba(255,255,255,0.15); }
 }

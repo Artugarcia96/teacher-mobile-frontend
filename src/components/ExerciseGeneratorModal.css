@@ -14,7 +14,7 @@
   display: block;
   font-size: var(--font-size-xs);
   font-weight: 700;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: var(--space-sm);
@@ -34,38 +34,17 @@
   display: block;
   font-size: var(--font-size-xs, 12px);
   font-weight: 600;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
-.exgen__name-field ion-input.exgen__name-input {
-  font-size: var(--font-size-lg, 18px);
-  font-weight: 600;
-  --padding-start: var(--space-md);
-  --padding-end: var(--space-md);
-  --padding-top: var(--space-md);
-  --padding-bottom: var(--space-md);
-  --highlight-color-focused: var(--ion-color-primary);
-  --background: rgba(15, 23, 42, 0.04);
-  border: 1.5px solid rgba(15, 23, 42, 0.1);
-  border-radius: var(--radius-md);
-  letter-spacing: -0.01em;
-  transition: border-color 0.15s ease;
-}
 
-.exgen__name-field ion-input.exgen__name-input:hover {
-  border-color: rgba(15, 23, 42, 0.2);
-}
 
-.exgen__name-field ion-input.exgen__name-input.has-focus {
-  border-color: var(--ion-color-primary);
-  --background: rgba(var(--ion-color-primary-rgb), 0.03);
-}
 
 .exgen__name-warning {
-  color: var(--ion-color-warning, #F59E0B);
+  color: var(--color-warning);
   font-size: 13px;
   margin: var(--space-xs) 0 0;
   display: flex;
@@ -74,16 +53,16 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .exgen__name-field ion-input.exgen__name-input {
+  .exgen__name-field input.exgen__name-input {
     --background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.12);
   }
-  .exgen__name-field ion-input.exgen__name-input:hover {
+  .exgen__name-field input.exgen__name-input:hover {
     border-color: rgba(255, 255, 255, 0.2);
   }
-  .exgen__name-field ion-input.exgen__name-input.has-focus {
-    border-color: var(--ion-color-primary);
-    --background: rgba(var(--ion-color-primary-rgb), 0.08);
+  .exgen__name-field input.exgen__name-input.has-focus {
+    border-color: var(--color-primary);
+    --background: rgba(21, 102, 94, 0.08);
   }
 }
 
@@ -115,18 +94,17 @@
 .exgen__type-btn:active { transform: scale(0.98); }
 
 .exgen__type-btn--active {
-  border-color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.05);
-  color: var(--ion-color-primary);
+  border-color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.05);
+  color: var(--color-primary);
 }
 
 .exgen__type-btn--recovery.exgen__type-btn--active {
-  border-color: var(--ion-color-warning, #F59E0B);
-  background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.08);
-  color: var(--ion-color-warning, #F59E0B);
+  border-color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--color-warning);
 }
 
-.exgen__type-btn ion-icon { font-size: 18px; }
 
 /* ─── Mode toggle (transversal / por clase) ─── */
 .exgen__mode-toggle {
@@ -158,34 +136,25 @@
 }
 
 .exgen__mode-btn--active {
-  border-color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.05);
-  color: var(--ion-color-primary);
+  border-color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.05);
+  color: var(--color-primary);
 }
 
-.exgen__mode-btn ion-icon {
-  font-size: 18px;
-}
 
 /* ─── Source type toggle ─── */
 .exgen__source-toggle {
   margin-bottom: var(--space-lg);
 }
 
-.exgen__source-toggle ion-segment {
-  margin: 0;
-  width: 100%;
-  --background: rgba(var(--ion-color-primary-rgb, 37, 99, 235), 0.08);
-  border-radius: 12px;
-}
 
 /* ─── Areas ─── */
 .exgen__areas {
-  background: rgba(var(--ion-color-warning-rgb), 0.08);
+  background: rgba(245, 158, 11, 0.08);
   border-radius: var(--radius-md);
   padding: var(--space-md) var(--space-lg);
   margin-bottom: var(--space-lg);
-  border: 1px solid rgba(var(--ion-color-warning-rgb), 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.12);
 }
 
 .exgen__areas-label {
@@ -257,13 +226,13 @@
 }
 
 .exgen__picker-header:hover {
-  border-color: var(--ion-color-primary);
+  border-color: var(--color-primary);
 }
 
 .exgen__picker-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -318,10 +287,6 @@
   z-index: 1;
 }
 
-.exgen__picker-group-header ion-icon {
-  font-size: 14px;
-  color: var(--ion-color-primary);
-}
 
 .exgen__picker-group-toggle {
   margin-left: auto;
@@ -330,7 +295,7 @@
   font-family: inherit;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   cursor: pointer;
   padding: 2px 6px;
   text-transform: none;
@@ -350,13 +315,9 @@
 }
 
 .exgen__picker-item--selected {
-  background: rgba(var(--ion-color-primary-rgb), 0.04);
+  background: rgba(21, 102, 94, 0.04);
 }
 
-.exgen__picker-item ion-checkbox {
-  --size: 18px;
-  pointer-events: none;
-}
 
 .exgen__picker-item-info {
   flex: 1;
@@ -373,7 +334,7 @@
   flex: 1;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .exgen__picker-item-code {
@@ -400,7 +361,7 @@
   font-weight: 500;
   padding: 1px 7px;
   border-radius: 8px;
-  background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.1);
+  background: rgba(245, 158, 11, 0.1);
   color: #B45309;
   white-space: nowrap;
 }
@@ -432,7 +393,7 @@
   border-radius: var(--radius-full, 999px);
   border: 1.5px solid rgba(15, 23, 42, 0.1);
   background: transparent;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-size: var(--font-size-sm, 13px);
   font-weight: 500;
   cursor: pointer;
@@ -442,8 +403,8 @@
 }
 
 .trimester-pill--active {
-  background: var(--ion-color-primary);
-  border-color: var(--ion-color-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: #fff;
 }
 
@@ -472,14 +433,14 @@
 }
 
 .exgen__topic-chip--active {
-  border-color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.04);
+  border-color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.04);
 }
 
 .exgen__topic-chip--partial {
-  border-color: var(--ion-color-primary-tint);
+  border-color: var(--color-primary-tint);
   border-style: dashed;
-  background: rgba(var(--ion-color-primary-rgb), 0.02);
+  background: rgba(21, 102, 94, 0.02);
 }
 
 .exgen__topic-chip--sub {
@@ -538,14 +499,14 @@
 }
 
 .exgen__filter-chip--active {
-  background: var(--ion-color-primary);
-  border-color: var(--ion-color-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: #ffffff;
 }
 
 .exgen__filter-chip--warn.exgen__filter-chip--active {
-  background: var(--ion-color-warning);
-  border-color: var(--ion-color-warning);
+  background: var(--color-warning);
+  border-color: var(--color-warning);
 }
 
 .exgen__students-list {
@@ -591,7 +552,7 @@
   font-weight: 500;
 }
 
-.exgen__options-toggle:hover { color: var(--ion-color-primary); }
+.exgen__options-toggle:hover { color: var(--color-primary); }
 
 .exgen__options {
   background: var(--color-surface);
@@ -599,13 +560,13 @@
   padding: var(--space-md);
   margin-bottom: var(--space-md);
   box-shadow: var(--shadow-xs);
-  border: 1px solid rgba(var(--ion-color-primary-rgb, 15, 23, 42), 0.08);
+  border: 1px solid rgba(21, 102, 94, 0.08);
 }
 
 .exgen__options .exgen__select {
-  --background: rgba(var(--ion-color-primary-rgb, 15, 23, 42), 0.04);
+  --background: rgba(21, 102, 94, 0.04);
   box-shadow: none;
-  border: 1px solid rgba(var(--ion-color-primary-rgb, 15, 23, 42), 0.08);
+  border: 1px solid rgba(21, 102, 94, 0.08);
   margin: 0;
   --min-height: 42px;
   border-radius: var(--radius-md);
@@ -622,7 +583,7 @@
   font-family: inherit;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -647,7 +608,6 @@
   --padding-start: var(--space-md);
 }
 
-.exgen__textarea-item ion-textarea { font-size: var(--font-size-sm); }
 
 .exgen__options-grid {
   display: grid;
@@ -695,7 +655,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid var(--ion-color-primary);
+  border: 2px solid var(--color-primary);
   opacity: 0;
   animation: exgen-pulse 2.5s ease-out infinite;
 }
@@ -705,9 +665,9 @@
 
 .exgen__generating-icon {
   font-size: 36px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   animation: exgen-sparkle 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 10px rgba(var(--ion-color-primary-rgb), 0.4));
+  filter: drop-shadow(0 0 10px rgba(21, 102, 94, 0.4));
 }
 
 @keyframes exgen-pulse {
@@ -726,13 +686,13 @@
   margin: 0 0 6px;
   font-size: 17px;
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .exgen__generating-text p {
   margin: 0;
   font-size: 14px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 .exgen__generating-steps {
@@ -753,18 +713,18 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--ion-color-light-shade);
+  background: var(--color-border);
   transition: all 0.3s ease;
 }
 
 .exgen__step--active .exgen__step-dot {
-  background: var(--ion-color-primary);
-  box-shadow: 0 0 0 4px rgba(var(--ion-color-primary-rgb), 0.2);
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(21, 102, 94, 0.2);
   animation: exgen-dot-pulse 1s ease-in-out infinite;
 }
 
 .exgen__step--done .exgen__step-dot {
-  background: var(--ion-color-success);
+  background: var(--color-success);
   box-shadow: none;
   animation: none;
 }
@@ -777,17 +737,17 @@
 .exgen__step-label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .exgen__step--active .exgen__step-label {
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
 .exgen__step--done .exgen__step-label {
-  color: var(--ion-color-success);
+  color: var(--color-success);
 }
 
 /* ═══ Success State ═══ */
@@ -823,20 +783,20 @@
 
 .exgen__success-check {
   font-size: 38px;
-  color: var(--ion-color-success);
+  color: var(--color-success);
 }
 
 .exgen__success-title {
   margin: 0 0 6px;
   font-size: 20px;
   font-weight: 700;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .exgen__success-subtitle {
   margin: 0;
   font-size: 14px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 .exgen__success-downloads {
@@ -846,7 +806,7 @@
 .exgen__downloads-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 12px;
@@ -864,7 +824,7 @@
   align-items: center;
   gap: 8px;
   padding: 20px 16px;
-  background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.08) 0%, rgba(var(--ion-color-primary-rgb), 0.03) 100%);
+  background: linear-gradient(135deg, rgba(21, 102, 94, 0.08) 0%, rgba(21, 102, 94, 0.03) 100%);
   border: 2px solid transparent;
   border-radius: 14px;
   cursor: pointer;
@@ -873,7 +833,7 @@
 }
 
 .exgen__download-card:hover {
-  border-color: var(--ion-color-primary);
+  border-color: var(--color-primary);
   transform: translateY(-2px);
 }
 
@@ -886,7 +846,7 @@
 }
 
 .exgen__download-card--solutions:hover {
-  border-color: var(--ion-color-success);
+  border-color: var(--color-success);
 }
 
 .exgen__download-card--loading {
@@ -898,22 +858,18 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .exgen__download-card--solutions .exgen__download-icon {
-  background: var(--ion-color-success);
+  background: var(--color-success);
 }
 
-.exgen__download-icon ion-icon {
-  font-size: 22px;
-  color: white;
-}
 
-.exgen__download-icon ion-spinner {
+.exgen__download-icon svg {
   --color: white;
   width: 22px;
   height: 22px;
@@ -922,12 +878,12 @@
 .exgen__download-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
 }
 
 .exgen__download-desc {
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
 }
 
 .exgen__success-actions {
@@ -944,7 +900,7 @@
 }
 
 .exgen__success-btn--primary {
-  --background: linear-gradient(135deg, var(--ion-color-primary) 0%, var(--ion-color-tertiary) 100%);
+  --background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-tertiary) 100%);
 }
 
 .exgen__button {
@@ -954,48 +910,48 @@
   --border-radius: 14px;
   font-weight: 600;
   font-size: var(--font-size-base);
-  --background: var(--ion-color-primary);
-  --box-shadow: 0 4px 14px rgba(var(--ion-color-primary-rgb, 37, 99, 235), 0.3);
+  --background: var(--color-primary);
+  --box-shadow: 0 4px 14px rgba(21, 102, 94, 0.3);
 }
 
 /* ─── Dark theme ─── */
 @media (prefers-color-scheme: dark) {
   .exgen__type-btn {
-    background: #1E1E24;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.1);
     color: #A1A1AA;
   }
   .exgen__type-btn--active {
-    border-color: var(--ion-color-primary);
-    background: rgba(var(--ion-color-primary-rgb), 0.15);
-    color: var(--ion-color-primary);
+    border-color: var(--color-primary);
+    background: rgba(21, 102, 94, 0.15);
+    color: var(--color-primary);
   }
   .exgen__type-btn--recovery.exgen__type-btn--active {
-    border-color: var(--ion-color-warning, #F59E0B);
-    background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.12);
+    border-color: var(--color-warning);
+    background: rgba(245, 158, 11, 0.12);
     color: #FBBF24;
   }
   .exgen__mode-btn {
-    background: #1E1E24;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.1);
     color: #A1A1AA;
   }
   .exgen__mode-btn--active {
-    border-color: var(--ion-color-primary);
-    background: rgba(var(--ion-color-primary-rgb), 0.15);
-    color: var(--ion-color-primary);
+    border-color: var(--color-primary);
+    background: rgba(21, 102, 94, 0.15);
+    color: var(--color-primary);
   }
   .exgen__select {
-    --background: #1E1E24;
+    --background: var(--color-surface);
     border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .exgen__options {
-    background: #1E1E24;
+    background: var(--color-surface);
     border: 1px solid rgba(255, 255, 255, 0.06);
   }
   .exgen__areas {
-    background: rgba(var(--ion-color-warning-rgb), 0.12);
-    border: 1px solid rgba(var(--ion-color-warning-rgb), 0.2);
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.2);
   }
   .exgen__areas-label { color: #FBBF24; }
   .exgen__topic-chip {
@@ -1003,11 +959,11 @@
     border-color: rgba(255, 255, 255, 0.08);
   }
   .exgen__topic-chip--active {
-    border-color: var(--ion-color-primary);
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    border-color: var(--color-primary);
+    background: rgba(21, 102, 94, 0.1);
   }
   .exgen__picker-header {
-    background: #1E1E24;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.1);
   }
   .exgen__picker-dropdown {
@@ -1027,7 +983,7 @@
     background: rgba(255, 255, 255, 0.03);
   }
   .exgen__picker-item--selected {
-    background: rgba(var(--ion-color-primary-rgb), 0.1);
+    background: rgba(21, 102, 94, 0.1);
   }
   .exgen__students-list {
     background: var(--color-surface);
@@ -1058,7 +1014,7 @@
   }
   
   .exgen__download-card {
-    background: linear-gradient(135deg, rgba(var(--ion-color-primary-rgb), 0.15) 0%, rgba(var(--ion-color-primary-rgb), 0.05) 100%);
+    background: linear-gradient(135deg, rgba(21, 102, 94, 0.15) 0%, rgba(21, 102, 94, 0.05) 100%);
   }
   
   .exgen__download-card--solutions {
@@ -1086,21 +1042,7 @@
   margin-bottom: 18px;
 }
 
-.exgen__gen-section-icon {
-  width: 44px;
-  height: 44px;
-  background: linear-gradient(135deg, var(--ion-color-primary) 0%, var(--ion-color-primary-shade) 100%);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(var(--ion-color-primary-rgb), 0.25);
-}
 
-.exgen__gen-section-icon ion-icon {
-  font-size: 22px;
-  color: white;
-}
 
 .exgen__gen-section-title h4 {
   margin: 0;
@@ -1129,7 +1071,7 @@
   align-items: center;
   gap: 10px;
   padding: 16px 12px;
-  background: white;
+  background: var(--color-surface);
   border: 2px solid #e2e8f0;
   border-radius: 14px;
   cursor: pointer;
@@ -1155,13 +1097,13 @@
 }
 
 .exgen__gen-card--active {
-  border-color: var(--ion-color-primary);
-  background: rgba(var(--ion-color-primary-rgb), 0.03);
-  box-shadow: 0 4px 16px rgba(var(--ion-color-primary-rgb), 0.12);
+  border-color: var(--color-primary);
+  background: rgba(21, 102, 94, 0.03);
+  box-shadow: 0 4px 16px rgba(21, 102, 94, 0.12);
 }
 
 .exgen__gen-card--active::before {
-  background: linear-gradient(90deg, var(--ion-color-primary), var(--ion-color-primary-tint));
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-tint));
 }
 
 .exgen__gen-card-icon {
@@ -1176,18 +1118,10 @@
 }
 
 .exgen__gen-card--active .exgen__gen-card-icon {
-  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  background: rgba(21, 102, 94, 0.1);
 }
 
-.exgen__gen-card-icon ion-icon {
-  font-size: 24px;
-  color: #64748b;
-  transition: color 0.2s ease;
-}
 
-.exgen__gen-card--active .exgen__gen-card-icon ion-icon {
-  color: var(--ion-color-primary);
-}
 
 .exgen__gen-card-content {
   display: flex;
@@ -1218,9 +1152,6 @@
   letter-spacing: 0.02em;
 }
 
-.exgen__gen-card-badge ion-icon {
-  font-size: 12px;
-}
 
 .exgen__gen-card-badge--fast {
   background: rgba(16, 185, 129, 0.1);
@@ -1234,8 +1165,8 @@
 
 /* ─── Recovery: per-student weak areas summary ─── */
 .exgen__recovery-summary {
-  background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.06);
-  border: 1px solid rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.15);
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   margin-bottom: var(--space-lg);
@@ -1247,7 +1178,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--ion-color-warning, #D97706);
+  color: var(--color-warning);
   margin-bottom: 10px;
 }
 
@@ -1267,7 +1198,7 @@
 .exgen__recovery-student-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--ion-text-color);
+  color: var(--color-foreground);
   min-width: 80px;
   flex-shrink: 0;
 }
@@ -1291,18 +1222,14 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.08);
-  border: 1px solid rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.2);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: 10px;
   font-size: 13px;
-  color: var(--ion-color-warning, #D97706);
+  color: var(--color-warning);
   line-height: 1.4;
 }
 
-.exgen__gen-recovery-info ion-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
 
 .exgen__gen-preview-loading {
   display: flex;
@@ -1314,12 +1241,12 @@
   font-size: 13px;
 }
 
-.exgen__gen-preview-loading ion-spinner {
-  --color: var(--ion-color-primary);
+.exgen__gen-preview-loading svg {
+  --color: var(--color-primary);
 }
 
 .exgen__gen-preview {
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 16px;
   border: 1px solid #e2e8f0;
@@ -1347,7 +1274,7 @@
 .exgen__gen-stat-value {
   font-size: 24px;
   font-weight: 800;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   line-height: 1;
 }
 
@@ -1392,7 +1319,7 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  background: var(--ion-color-primary);
+  background: var(--color-primary);
   color: white;
   border-radius: 10px;
   font-size: 11px;
@@ -1401,7 +1328,7 @@
 
 /* Legacy group preview support */
 .exgen__group-preview {
-  background: var(--ion-color-light);
+  background: var(--color-muted);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
@@ -1413,31 +1340,27 @@
   gap: 8px;
   margin-bottom: 12px;
   font-weight: 600;
-  color: var(--ion-color-dark);
+  color: var(--color-foreground);
 }
 
-.exgen__group-header ion-icon {
-  font-size: 18px;
-  color: var(--ion-color-primary);
-}
 
 .exgen__group-loading {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 16px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   font-size: 14px;
 }
 
 /* ─── Dark theme: generation section, previews, area tags ─── */
 @media (prefers-color-scheme: dark) {
   .exgen__gen-section {
-    background: linear-gradient(135deg, #1E1E24 0%, #16161A 100%);
+    background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface) 100%);
     border-color: rgba(255, 255, 255, 0.08);
   }
   .exgen__gen-section-icon {
-    background: rgba(var(--ion-color-primary-rgb), 0.15);
+    background: rgba(21, 102, 94, 0.15);
   }
   .exgen__gen-section-title h4 {
     color: #E4E4E7;
@@ -1446,7 +1369,7 @@
     color: #71717A;
   }
   .exgen__gen-preview {
-    background: #16161A;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
   .exgen__gen-stat-label {
@@ -1460,23 +1383,23 @@
     color: #A1A1AA;
   }
   .exgen__gen-recovery-info {
-    background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.1);
-    border-color: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.2);
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.2);
     color: #FBBF24;
   }
   .exgen__picker-area-tag {
-    background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.15);
+    background: rgba(245, 158, 11, 0.15);
     color: #FBBF24;
   }
   .exgen__picker-area-more {
     color: #71717A;
   }
-  .exgen__name-field ion-input.exgen__name-primary {
+  .exgen__name-field input.exgen__name-primary {
     color: #E4E4E7;
   }
   .exgen__recovery-summary {
-    background: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.08);
-    border-color: rgba(var(--ion-color-warning-rgb, 245, 158, 11), 0.15);
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.15);
   }
   .exgen__recovery-summary-title {
     color: #FBBF24;
@@ -1500,34 +1423,31 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--ion-color-light-shade);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .exgen__groups-time {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
 }
 
-.exgen__groups-time ion-icon {
-  font-size: 14px;
-}
 
 .exgen__group-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: white;
+  background: var(--color-surface);
   border-radius: 8px;
 }
 
 .exgen__group-name {
   font-size: 14px;
-  color: var(--ion-color-dark);
+  color: var(--color-foreground);
 }
 
 .exgen__unique-warning {
@@ -1535,17 +1455,12 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  background: rgba(var(--ion-color-warning-rgb), 0.1);
+  background: rgba(245, 158, 11, 0.1);
   border-radius: 8px;
   font-size: 13px;
-  color: var(--ion-color-warning-shade);
+  color: #BF6905;
 }
 
-.exgen__unique-warning ion-icon {
-  font-size: 18px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
 
 @media (prefers-color-scheme: dark) {
   .exgen__group-preview {
@@ -1553,17 +1468,17 @@
   }
   
   .exgen__gen-mode {
-    background: #1E1E24;
+    background: var(--color-surface);
     border-color: rgba(255, 255, 255, 0.08);
   }
   
   .exgen__gen-mode:hover {
-    border-color: rgba(var(--ion-color-primary-rgb), 0.3);
+    border-color: rgba(21, 102, 94, 0.3);
   }
   
   .exgen__gen-mode--active {
-    border-color: var(--ion-color-primary);
-    background: rgba(var(--ion-color-primary-rgb), 0.15);
+    border-color: var(--color-primary);
+    background: rgba(21, 102, 94, 0.15);
   }
   
   .exgen__groups-summary {
@@ -1575,14 +1490,14 @@
   }
   
   .exgen__unique-warning {
-    background: rgba(var(--ion-color-warning-rgb), 0.15);
+    background: rgba(245, 158, 11, 0.15);
   }
 }
 
 .exgen__subject-header {
   font-size: var(--font-size-xs, 12px);
   font-weight: 700;
-  color: var(--ion-color-primary);
+  color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: var(--space-sm, 8px) 0 var(--space-xs, 4px);
@@ -1594,11 +1509,7 @@
   align-items: center;
   gap: 6px;
   font-size: 0.78rem;
-  color: var(--ion-color-medium);
+  color: var(--color-muted-foreground);
   margin: 8px 0 0;
   padding: 0;
-}
-.exgen__materials-note ion-icon {
-  font-size: 1rem;
-  flex-shrink: 0;
 }

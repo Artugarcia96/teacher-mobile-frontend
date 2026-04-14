@@ -16,8 +16,6 @@ export function subjectThemeStyle(color: string | undefined | null): React.CSSPr
 
   return {
     '--subject-color': color,
-    '--ion-color-primary': color,
-    '--ion-color-primary-rgb': `${r}, ${g}, ${b}`,
     '--gradient-primary': color,
   } as React.CSSProperties;
 }

@@ -1,25 +1,22 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import {
-  IonButton, IonIcon, IonProgressBar, IonBadge,
-  IonSpinner, IonChip, IonModal, IonAlert,
-  IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
-} from '@ionic/react';
-import {
-  closeOutline, checkmarkCircleOutline, cloudUploadOutline,
-  checkmarkOutline, warningOutline, helpOutline, sparkles,
-  peopleOutline, chevronDownOutline, chevronUpOutline,
-} from 'ionicons/icons';
+import { AlertTriangle, Check, CheckCircle, ChevronDown, ChevronUp, HelpCircle, Sparkles, Upload, Users, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
+import { Progress } from '@/components/ui/progress';
+import AlertConfirm from '@/components/shared/AlertConfirm';
 import { useStudentsStore } from '../store/studentsStore';
 import { useExerciseCorrectionStore } from '../store/exerciseCorrectionStore';
 import { useExercisesStore } from '../store/exercisesStore';
 import { exerciseCorrections as ecApi, batch, authenticatedFetch } from '../services/api';
+import { getFullPaperUrl } from '../utils/examUrls';
 import { BulkUploadResult } from '../types';
 import ScanCard from './ScanCard';
 import QRReviewTable from './QRReviewTable';
 import EmptyState from './EmptyState';
 import CelebrationOverlay from './CelebrationOverlay';
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
-import '../pages/Correction/Correction.css';
+import './CorrectionShared.css';
 
 interface ExerciseCorrectionPanelProps {
   classId: string;
@@ -176,19 +173,6 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [exerciseCorrections]);
 
-  const getFullPaperUrl = (paperUrl?: string) => {
-    if (!paperUrl) return null;
-    if (paperUrl.startsWith('http')) return paperUrl;
-    let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    baseUrl = baseUrl.replace(/\/+$/, '');
-    if (paperUrl.startsWith('/files/')) return `${baseUrl}${paperUrl}`;
-    if (paperUrl.startsWith('/uploads/'))
-      return `${baseUrl}/files${paperUrl.replace('/uploads', '')}`;
-    if (paperUrl.startsWith('uploads/'))
-      return `${baseUrl}/files/${paperUrl.replace('uploads/', '')}`;
-    if (!paperUrl.startsWith('/')) return `${baseUrl}/${paperUrl}`;
-    return `${baseUrl}${paperUrl}`;
-  };
 
   const assignedStudentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -675,21 +659,21 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
       {bulkResult && (
         <div className="bulk-review-section">
           <div className="bulk-review-stats">
-            <IonChip color="success">
-              <IonIcon icon={checkmarkOutline} />
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium">
+              <Check size={18} />
               {bulkResult.autoMatched.length} asignados
-            </IonChip>
+            </span>
             {bulkResult.needsReview.length > 0 && (
-              <IonChip color="warning">
-                <IonIcon icon={warningOutline} />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium">
+                <AlertTriangle size={18} />
                 {bulkResult.needsReview.length} pendientes
-              </IonChip>
+              </span>
             )}
             {bulkResult.studentsWithoutPapers.length > 0 && (
-              <IonChip color="medium">
-                <IonIcon icon={helpOutline} />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium">
+                <HelpCircle size={18} />
                 {bulkResult.studentsWithoutPapers.length} sin ejercicio
-              </IonChip>
+              </span>
             )}
           </div>
 
@@ -733,87 +717,65 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
               (item) => !reviewAssignments[item.correctionId]
             ) && (
               <p className="bulk-review-pending-hint">
-                <IonIcon icon={warningOutline} /> Asigna todos los ejercicios pendientes para
+                <AlertTriangle size={18} /> Asigna todos los ejercicios pendientes para
                 analizar con IA
               </p>
             )}
-            <IonButton
-              expand="block"
-              onClick={handleConfirmReviewAssignments}
-              disabled={
-                confirmingReview ||
-                bulkResult.needsReview.some((item) => !reviewAssignments[item.correctionId])
-              }
-              className="bulk-review-confirm-btn"
-            >
+            <Button className="w-full bulk-review-confirm-btn" onClick={handleConfirmReviewAssignments}>
               {confirmingReview ? (
                 <>
-                  <IonSpinner name="crescent" /> Asignando y analizando...
+                  <Spinner size={18} /> Asignando y analizando...
                 </>
               ) : (
                 <>
-                  <IonIcon icon={sparkles} slot="start" /> Confirmar y analizar con IA
+                  <Sparkles size={18} /> Confirmar y analizar con IA
                 </>
               )}
-            </IonButton>
-            <IonButton
-              expand="block"
-              fill="clear"
-              color="medium"
-              onClick={() => {
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => {
                 setBulkResult(null);
                 setReviewAssignments({});
               }}
               disabled={confirmingReview}
             >
               Omitir
-            </IonButton>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Toolbar */}
       <div className="correction-toolbar">
-        <IonButton
-          size="small"
-          fill="outline"
-          color="secondary"
-          onClick={handleBulkUploadClick}
-          disabled={bulkUploading}
-        >
+        <Button variant="outline" size="sm" onClick={handleBulkUploadClick} disabled={bulkUploading}>
           {bulkUploading ? (
-            <IonSpinner name="crescent" />
+            <Spinner size={18} />
           ) : (
             <>
-              <IonIcon icon={peopleOutline} slot="start" /> Subir PDF de toda la clase
+              <Users size={18} /> Subir PDF de toda la clase
             </>
           )}
-        </IonButton>
+        </Button>
 
         {!bulkResult && !Object.values(aiProcessing).some(Boolean) &&
           exerciseCorrections.filter((c) => !c.aiAnalysis && c.paperUrl).length > 1 && (
-            <IonButton
-              size="small"
-              color="tertiary"
-              onClick={handleBatchProcessAll}
-              className="batch-ai-btn"
-              disabled={exerciseCorrections.some((c) => c.paperUrl && !c.studentId)}
+            <Button size="sm" className="batch-ai-btn" onClick={handleBatchProcessAll}
+              disabled={exerciseCorrections.some(c => c.paperUrl && !c.studentId)}
               title={
                 exerciseCorrections.some((c) => c.paperUrl && !c.studentId)
                   ? 'Asigna todos los ejercicios a un alumno primero'
                   : undefined
               }
             >
-              <IonIcon icon={sparkles} slot="start" />
+              <Sparkles size={18} />
               Analizar todo (
               {exerciseCorrections.filter((c) => !c.aiAnalysis && c.paperUrl).length})
-            </IonButton>
+            </Button>
           )}
 
         {allSaved && (
-          <IonButton size="small" color="success" onClick={handleFinish}>
-            <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar
-          </IonButton>
+          <Button variant="outline" size="sm" onClick={handleFinish}>
+            <CheckCircle size={18} /> Finalizar
+          </Button>
         )}
       </div>
 
@@ -825,14 +787,12 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
             onClick={() => setShowStudentList(!showStudentList)}
           >
             <div className="student-list-header-left">
-              <IonIcon icon={peopleOutline} />
+              <Users size={18} />
               <span>Alumnos sin ejercicio ({missingCount})</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <IonBadge color="warning">{missingCount} sin ejercicio</IonBadge>
-              <IonIcon
-                icon={showStudentList ? chevronUpOutline : chevronDownOutline}
-              />
+              <span color="warning">{missingCount} sin ejercicio</span>
+              {/* icon: showStudentList ? chevronUpOutline : chevronDownOutline */}
             </div>
           </div>
 
@@ -853,20 +813,17 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
                         <div className="student-list-item-status">Sin ejercicio</div>
                       </div>
                       <div className="student-list-item-actions">
-                        <IonButton
-                          size="small"
-                          fill="outline"
-                          onClick={() => handleStudentUploadClick(student.id)}
+                        <Button variant="outline" size="sm" onClick={() => handleStudentUploadClick(student.id)}
                           disabled={isUploading}
                         >
                           {isUploading ? (
-                            <IonSpinner name="crescent" />
+                            <Spinner size={18} />
                           ) : (
                             <>
-                              <IonIcon icon={cloudUploadOutline} slot="start" /> Subir
+                              <Upload size={18} /> Subir
                             </>
                           )}
-                        </IonButton>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -879,7 +836,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
       {/* Loading */}
       {loading && exerciseCorrections.length === 0 && (
         <div className="correction-loading">
-          <IonSpinner />
+          <Spinner size={18} />
         </div>
       )}
 
@@ -900,25 +857,20 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
           <div className="assignment-status-summary">
             <div className="assignment-status-counts">
               <span className="assignment-count assignment-count--assigned">
-                <IonIcon icon={checkmarkOutline} /> {assignedExerciseCorrections.length}{' '}
+                <Check size={18} /> {assignedExerciseCorrections.length}{' '}
                 asignados
               </span>
               <span className="assignment-count assignment-count--unassigned">
-                <IonIcon icon={warningOutline} /> {unassignedExerciseCorrections.length} sin
+                <AlertTriangle size={18} /> {unassignedExerciseCorrections.length} sin
                 asignar
               </span>
             </div>
-            <IonProgressBar
-              value={assignedExerciseCorrections.length / exerciseCorrections.length}
+            <Progress value={assignedExerciseCorrections.length / exerciseCorrections.length}
               color="warning"
               className="assignment-progress"
             />
           </div>
-          <IonButton
-            size="small"
-            fill="outline"
-            color="warning"
-            onClick={() =>
+          <Button variant="outline" size="sm" onClick={() =>
               unassignedSectionRef.current?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start',
@@ -926,14 +878,14 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
             }
           >
             Ver sin asignar
-          </IonButton>
+          </Button>
         </div>
       )}
 
       {/* Assigned ScanCards */}
       {assignedExerciseCorrections.length > 0 && hasUnassignedCorrections && (
         <div className="assignment-section-header">
-          <IonIcon icon={checkmarkCircleOutline} color="success" />
+          <CheckCircle size={18} />
           <span>Asignados ({assignedExerciseCorrections.length})</span>
         </div>
       )}
@@ -1001,7 +953,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
             className="assignment-section-header assignment-section-header--unassigned"
             ref={unassignedSectionRef}
           >
-            <IonIcon icon={warningOutline} color="warning" />
+            <AlertTriangle size={18} />
             <span>Sin asignar ({unassignedExerciseCorrections.length})</span>
           </div>
           <div className="correction-scans correction-scans--unassigned">
@@ -1063,29 +1015,25 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
       {/* Bottom finish button */}
       {allSaved && exerciseCorrections.length > 0 && (
         <div className="correction-finish">
-          <IonButton expand="block" color="success" onClick={handleFinish}>
-            <IonIcon icon={checkmarkCircleOutline} slot="start" /> Finalizar corrección
-          </IonButton>
+          <Button variant="outline" className="w-full" onClick={handleFinish}>
+            <CheckCircle size={18} /> Finalizar corrección
+          </Button>
         </div>
       )}
 
       {/* Paper preview modal */}
-      <IonModal
-        isOpen={!!previewUrl}
-        onDidDismiss={() => setPreviewUrl(null)}
-        className="paper-preview-modal"
-      >
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>Vista previa</IonTitle>
-            <IonButtons slot="end">
-              <IonButton onClick={() => setPreviewUrl(null)}>
-                <IonIcon icon={closeOutline} />
-              </IonButton>
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="paper-preview-content" scrollY={false}>
+      <Modal open={!!previewUrl} onClose={() => setPreviewUrl(null)} sheetHeight="lg">
+        <div className="flex items-center justify-between p-4 border-b">
+          
+            <h2 className="text-base font-semibold">Vista previa</h2>
+            <div className="flex items-center gap-1">
+              <Button onClick={() => setPreviewUrl(null)}>
+                <X size={18} />
+              </Button>
+            </div>
+          
+        </div>
+        <div>
           {previewUrl && (
             <div className="paper-preview-container">
               {previewUrl.toLowerCase().endsWith('.pdf') ? (
@@ -1095,31 +1043,17 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
               )}
             </div>
           )}
-        </IonContent>
-      </IonModal>
+        </div>
+      </Modal>
 
       {/* Duplicate Assignment Conflict Dialog */}
-      <IonAlert
-        isOpen={!!duplicateConflict}
+      <AlertConfirm open={!!duplicateConflict}
         header="Ejercicio duplicado"
         message={`${duplicateConflict?.studentName} ya tiene un ejercicio asignado. ¿Qué quieres hacer?`}
-        buttons={[
-          {
-            text: 'Cancelar',
-            role: 'cancel',
-            handler: () => setDuplicateConflict(null),
-          },
-          {
-            text: 'Eliminar este nuevo',
-            cssClass: 'alert-button-danger',
-            handler: handleDuplicateKeepExisting,
-          },
-          {
-            text: 'Reemplazar el anterior',
-            handler: handleDuplicateReplace,
-          },
-        ]}
-        onDidDismiss={() => setDuplicateConflict(null)}
+        onConfirm={handleDuplicateReplace}
+        confirmText="Reemplazar el anterior"
+        variant="destructive"
+        onClose={() => setDuplicateConflict(null)}
       />
 
       <CelebrationOverlay show={showCelebration} onDismiss={handleCelebrationDismiss} />

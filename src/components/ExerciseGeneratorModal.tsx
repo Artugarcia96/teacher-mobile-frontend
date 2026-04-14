@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import {
-  IonModal, IonButton, IonSelect, IonSelectOption, IonItem, IonLabel,
-  IonBadge, IonTextarea, IonSpinner, IonIcon, IonCheckbox, IonToggle,
-  IonSegment, IonSegmentButton, IonInput, IonSearchbar, IonChip,
-  IonHeader, IonToolbar, IonTitle, IonButtons, IonContent,
-} from '@ionic/react';
-import { sparkles, chevronDownOutline, chevronUpOutline, chevronForwardOutline, downloadOutline, documentTextOutline, globeOutline, schoolOutline, timeOutline, layersOutline, checkmarkCircleOutline, closeCircleOutline, closeOutline, eyeOutline, informationCircleOutline, medkitOutline, barbellOutline } from 'ionicons/icons';
+import { CheckCircle, ChevronDown, ChevronRight, ChevronUp, Cross, Download, Dumbbell, Eye, FileText, Globe, Info, School, Sparkles, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
+import Searchbar from '@/components/shared/Searchbar';
 import { useExamsStore } from '../store/examsStore';
 import { useClassesStore } from '../store/classesStore';
 import { useStudentsStore } from '../store/studentsStore';
@@ -544,36 +544,25 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const toolbarStyle = activeSubjectColor ? { '--background': activeSubjectColor, '--color': 'white' } as React.CSSProperties : undefined;
 
   return (
-    <IonModal
-      isOpen={isOpen}
-      onDidDismiss={onDismiss}
-      className="exercise-generator-modal modal-fullscreen"
-      style={subjectThemeStyle(activeSubjectColor)}
-    >
-      <IonHeader>
-        <IonToolbar style={toolbarStyle}>
-          <IonTitle>{exerciseType === 'recovery' ? 'Ejercicios de repaso' : 'Generar ejercicios'}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={onDismiss} color={activeSubjectColor ? 'light' : undefined}>
-              <IonIcon icon={closeOutline} />
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent style={subjectThemeStyle(activeSubjectColor)}>
+    <Modal open={isOpen} onClose={onDismiss} sheetHeight="lg">
+      <div className="flex items-center justify-between p-4 border-b">
+        
+          <h2 className="text-base font-semibold">{exerciseType === 'recovery' ? 'Ejercicios de repaso' : 'Generar ejercicios'}</h2>
+          <div className="flex items-center gap-1">
+            <Button onClick={onDismiss}>
+              <X size={18} />
+            </Button>
+          </div>
+        
+      </div>
+      <div>
       <div className="exgen" style={subjectThemeStyle(activeSubjectColor)}>
 
         <div className="exgen__body">
         {/* Exercise name — always first */}
         <div className="exgen__name-field">
           <label className="exgen__name-label">Nombre del ejercicio</label>
-          <IonInput
-            value={exerciseName}
-            onIonInput={(e) => setExerciseName(e.detail.value ?? '')}
-            placeholder="Ej: Práctica ecuaciones T2"
-            className="exgen__name-input"
-            required
-          />
+          <Input value={exerciseName} onChange={(e) => setExerciseName(e.target.value)} placeholder="Ej: Práctica ecuaciones T2" className="exgen__name-input" required />
           {exerciseName.trim() && allExercises.some(e => e.name?.toLowerCase() === exerciseName.trim().toLowerCase()) && (
             <p className="exgen__name-warning">
               Ya existe un ejercicio con este nombre
@@ -587,14 +576,14 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             className={`exgen__type-btn ${exerciseType === 'practice' ? 'exgen__type-btn--active' : ''}`}
             onClick={() => setExerciseType('practice')}
           >
-            <IonIcon icon={barbellOutline} />
+            <Dumbbell size={18} />
             <span>Práctica</span>
           </button>
           <button
             className={`exgen__type-btn exgen__type-btn--recovery ${exerciseType === 'recovery' ? 'exgen__type-btn--active' : ''}`}
             onClick={() => setExerciseType('recovery')}
           >
-            <IonIcon icon={medkitOutline} />
+            <Cross size={18} />
             <span>Repaso</span>
           </button>
         </div>
@@ -606,14 +595,14 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               className={`exgen__mode-btn ${!isTransversal ? 'exgen__mode-btn--active' : ''}`}
               onClick={() => { setIsTransversal(false); setSelectedExamIds([]); setSelectedStudentIds([]); }}
             >
-              <IonIcon icon={schoolOutline} />
+              <School size={18} />
               <span>Por clase</span>
             </button>
             <button
               className={`exgen__mode-btn ${isTransversal ? 'exgen__mode-btn--active' : ''}`}
               onClick={() => { setIsTransversal(true); setClassId(''); setSelectedExamIds([]); setSelectedStudentIds([]); fetchAllStudents(); }}
             >
-              <IonIcon icon={globeOutline} />
+              <Globe size={18} />
               <span>Transversal</span>
             </button>
           </div>
@@ -621,12 +610,11 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
 
         {/* Class selector (multi-mode only, when not transversal and not pre-selected) */}
         {multiMode && !preClassId && !isTransversal && (
-          <IonItem lines="none" className="exgen__select">
-            <IonLabel>Clase</IonLabel>
-            <IonSelect
-              value={classId}
-              onIonChange={(e) => {
-                const newClassId = e.detail.value;
+          <div className="flex items-center gap-2">
+            <span>Clase</span>
+            <select value={classId}
+              onChange={(e) => {
+                const newClassId = e.target.value;
                 setClassId(newClassId);
                 setSelectedStudentIds([]);
                 setSelectedExamIds([]);
@@ -635,14 +623,13 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                   fetchStudents(newClassId);
                 }
               }}
-              interface="popover"
-              placeholder="Seleccionar clase"
             >
+              <option value="" disabled>Seleccionar clase</option>
               {classes.map((c) => (
-                <IonSelectOption key={c.id} value={c.id}>{c.name} — {c.subject}</IonSelectOption>
+                <option key={c.id} value={c.id}>{c.name} — {c.subject}</option>
               ))}
-            </IonSelect>
-          </IonItem>
+            </select>
+          </div>
         )}
 
         {/* Weak areas (single-student only) */}
@@ -659,7 +646,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
           return (
             <div className="exgen__recovery-summary">
               <span className="exgen__recovery-summary-title">
-                <IonIcon icon={medkitOutline} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                <Cross size={18} />
                 Áreas débiles de {studentName || 'alumno'}
               </span>
               <div className="exgen__recovery-student-areas" style={{ marginTop: 6 }}>
@@ -680,7 +667,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
             <span className="exgen__areas-label">Areas a reforzar</span>
             <div className="exgen__areas-list">
               {weakAreas.map((a, i) => (
-                <IonBadge key={i} color="warning" className="exgen__area-badge">{a.topic}</IonBadge>
+                <span key={i} color="warning" className="exgen__area-badge">{a.topic}</span>
               ))}
             </div>
           </div>
@@ -690,10 +677,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
           <>
             {/* Source type toggle */}
             <div className="exgen__source-toggle">
-              <IonSegment value={sourceType} onIonChange={(e) => { const v = e.detail.value as 'exam' | 'topic'; setSourceType(v); if (v === 'topic') { setSelectedExamIds([]); } else { setSelectedTopicIds([]); } }}>
-                <IonSegmentButton value="exam"><IonLabel>Examen corregido</IonLabel></IonSegmentButton>
-                <IonSegmentButton value="topic"><IonLabel>Temario</IonLabel></IonSegmentButton>
-              </IonSegment>
+              <div className="flex rounded-lg bg-muted p-1">
+                <button onClick={() => { setSourceType('exam'); setSelectedTopicIds([]); }} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${sourceType === 'exam' ? 'bg-background shadow-sm' : ''}`}><span>Examen corregido</span></button>
+                <button onClick={() => { setSourceType('topic'); setSelectedExamIds([]); }} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${sourceType === 'topic' ? 'bg-background shadow-sm' : ''}`}><span>Temario</span></button>
+              </div>
             </div>
 
             {/* Source: Exam */}
@@ -713,18 +700,13 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         ? 'Seleccionar exámenes' 
                         : `${selectedExamIds.length} examen${selectedExamIds.length !== 1 ? 'es' : ''} seleccionado${selectedExamIds.length !== 1 ? 's' : ''}`}
                     </span>
-                    <IonIcon icon={showExamPicker ? chevronUpOutline : chevronDownOutline} />
+                    {/* icon: showExamPicker ? chevronUpOutline : chevronDownOutline */}
                   </div>
                   
                   {showExamPicker && (
                     <div className="exgen__picker-dropdown">
                       {correctedExams.length > 5 && (
-                        <IonSearchbar
-                          value={examSearch}
-                          onIonInput={(e) => setExamSearch(e.detail.value ?? '')}
-                          placeholder="Buscar examen..."
-                          className="exgen__picker-search"
-                        />
+                        <Searchbar value={examSearch} onChange={(v) => setExamSearch(v ?? '')} placeholder="Buscar examen..." className="exgen__picker-search" />
                       )}
                       <div className="exgen__picker-list">
                         {isTransversal ? (
@@ -737,7 +719,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                             return (
                               <div key={clsId} className="exgen__picker-group">
                                 <div className="exgen__picker-group-header">
-                                  <IonIcon icon={schoolOutline} />
+                                  <School size={18} />
                                   <span>{getClassName(clsId)}</span>
                                 </div>
                                 {clsExams.map((exam) => (
@@ -746,7 +728,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                                     className={`exgen__picker-item ${selectedExamIds.includes(exam.id) ? 'exgen__picker-item--selected' : ''}`}
                                     onClick={() => toggleExam(exam.id)}
                                   >
-                                    <IonCheckbox checked={selectedExamIds.includes(exam.id)} />
+                                    <input type="checkbox" checked={selectedExamIds.includes(exam.id)} />
                                     <span className="exgen__picker-item-name">{exam.name}</span>
                                   </div>
                                 ))}
@@ -760,7 +742,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                               className={`exgen__picker-item ${selectedExamIds.includes(exam.id) ? 'exgen__picker-item--selected' : ''}`}
                               onClick={() => toggleExam(exam.id)}
                             >
-                              <IonCheckbox checked={selectedExamIds.includes(exam.id)} />
+                              <input type="checkbox" checked={selectedExamIds.includes(exam.id)} />
                               <span className="exgen__picker-item-name">{exam.name}</span>
                             </div>
                           ))
@@ -781,21 +763,18 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               ) : (
                 <>
                   {/* Subject selector */}
-                  <IonItem lines="none" className="exgen__select">
-                    <IonLabel>Asignatura</IonLabel>
-                    <IonSelect
-                      value={selectedSubjectId}
-                      onIonChange={(e) => { setSelectedSubjectId(e.detail.value || ''); setSelectedTopicIds([]); setExerciseTrimesterFilter('all'); }}
-                      interface="popover"
-                      placeholder="Seleccionar asignatura"
+                  <div className="flex items-center gap-2">
+                    <span>Asignatura</span>
+                    <select value={selectedSubjectId}
+                      onChange={(e) => { setSelectedSubjectId(e.target.value || ''); setSelectedTopicIds([]); setExerciseTrimesterFilter('all'); }}
                     >
                       {topicsBySubject.map((s) => (
-                        <IonSelectOption key={s.subjectId} value={s.subjectId}>
+                        <option key={s.subjectId} value={s.subjectId}>
                           {s.subjectName} ({s.topics.length})
-                        </IonSelectOption>
+                        </option>
                       ))}
-                    </IonSelect>
-                  </IonItem>
+                    </select>
+                  </div>
 
                   {/* Trimester filter for topics */}
                   {selectedSubjectId && allSubjectTopicsForExercise.length > 0 && exerciseTopicTrimesters.size > 1 && (
@@ -847,18 +826,16 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                                   }
                                 }}
                               >
-                                <IonCheckbox
-                                  checked={isActive}
-                                  indeterminate={!isActive && someChildrenSelected}
-                                  className="exgen__topic-check"
-                                />
+                                <input type="checkbox" checked={isActive}
+                                  ref={(el) => { if (el) el.indeterminate = !isActive && someChildrenSelected; }}
+                                  className="exgen__topic-check" />
                                 <span className="exgen__topic-name">{topic.name}</span>
                                 {children.length > 0 && (
-                                  <IonBadge color="light" style={{ fontSize: 10, fontWeight: 600 }}>{children.length} sub</IonBadge>
+                                  <span color="light" style={{ fontSize: 10, fontWeight: 600 }}>{children.length} sub</span>
                                 )}
-                                <IonBadge color="medium" className="exgen__topic-count">
+                                <span color="medium" className="exgen__topic-count">
                                   {topic.materialCount + children.reduce((s, c) => s + (c.materialCount || 0), 0)}
-                                </IonBadge>
+                                </span>
                               </div>
                               {children.length > 0 && (parentSelected || someChildrenSelected) && (
                                 <div style={{ paddingLeft: 20, borderLeft: '2px solid var(--ion-color-primary-tint, #4d9a93)', marginLeft: 14, marginBottom: 4 }}>
@@ -869,10 +846,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                                       onClick={(e) => { e.stopPropagation(); toggleTopic(child.id); }}
                                       style={{ marginTop: 2, marginBottom: 2 }}
                                     >
-                                      <IonCheckbox checked={selectedTopicIds.includes(child.id)} className="exgen__topic-check" />
+                                      <input type="checkbox" checked={selectedTopicIds.includes(child.id)} className="exgen__topic-check" />
                                       <span className="exgen__topic-name" style={{ fontSize: 12 }}>{child.name}</span>
                                       {child.materialCount > 0 && (
-                                        <IonBadge color="medium" className="exgen__topic-count">{child.materialCount}</IonBadge>
+                                        <span color="medium" className="exgen__topic-count">{child.materialCount}</span>
                                       )}
                                     </div>
                                   ))}
@@ -883,7 +860,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         })}
                         {/* NOTE: material text budget is shared (30K chars total across all documents) */}
                         <p className="exgen__materials-note">
-                          <IonIcon icon={informationCircleOutline} />
+                          <Info size={18} />
                           Se usarán hasta ~30.000 caracteres del material adjunto (repartidos entre todos los documentos).
                         </p>
                       </div>
@@ -902,9 +879,9 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                 >
                   <span className="exgen__picker-label">
                     Alumnos
-                    <IonBadge color="primary" className="exgen__students-count">{selectedStudentIds.length}</IonBadge>
+                    <span color="primary" className="exgen__students-count">{selectedStudentIds.length}</span>
                   </span>
-                  <IonIcon icon={showStudentPicker ? chevronUpOutline : chevronDownOutline} />
+                  {/* icon: showStudentPicker ? chevronUpOutline : chevronDownOutline */}
                 </div>
                 
                 {showStudentPicker && (
@@ -933,12 +910,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                     </div>
                     
                     {classStudents.length > 10 && (
-                      <IonSearchbar
-                        value={studentSearch}
-                        onIonInput={(e) => setStudentSearch(e.detail.value ?? '')}
-                        placeholder="Buscar alumno..."
-                        className="exgen__picker-search"
-                      />
+                      <Searchbar value={studentSearch} onChange={(v) => setStudentSearch(v ?? '')} placeholder="Buscar alumno..." className="exgen__picker-search" />
                     )}
                     
                     <div className="exgen__picker-list exgen__picker-list--students">
@@ -948,7 +920,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                           return (
                             <div key={clsId} className="exgen__picker-group">
                               <div className="exgen__picker-group-header">
-                                <IonIcon icon={schoolOutline} />
+                                <School size={18} />
                                 <span>{getClassName(clsId)}</span>
                                 <button 
                                   className="exgen__picker-group-toggle"
@@ -974,10 +946,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                                     className={`exgen__picker-item ${selectedStudentIds.includes(student.id) ? 'exgen__picker-item--selected' : ''}`}
                                     onClick={() => toggleStudent(student.id)}
                                   >
-                                    <IonCheckbox checked={selectedStudentIds.includes(student.id)} />
+                                    <input type="checkbox" checked={selectedStudentIds.includes(student.id)} />
                                     <span className="exgen__picker-item-name">{student.name}</span>
                                     {student.studentId && <span className="exgen__picker-item-code">{student.studentId}</span>}
-                                    {hasIssues && <IonBadge color="warning" className="exgen__picker-item-warn">!</IonBadge>}
+                                    {hasIssues && <span color="warning" className="exgen__picker-item-warn">!</span>}
                                   </div>
                                 );
                               })}
@@ -993,10 +965,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                               className={`exgen__picker-item ${selectedStudentIds.includes(student.id) ? 'exgen__picker-item--selected' : ''}`}
                               onClick={() => toggleStudent(student.id)}
                             >
-                              <IonCheckbox checked={selectedStudentIds.includes(student.id)} />
+                              <input type="checkbox" checked={selectedStudentIds.includes(student.id)} />
                               <span className="exgen__picker-item-name">{student.name}</span>
                               {student.studentId && <span className="exgen__picker-item-code">{student.studentId}</span>}
-                              {hasIssues && <IonBadge color="warning" className="exgen__picker-item-warn">!</IonBadge>}
+                              {hasIssues && <span color="warning" className="exgen__picker-item-warn">!</span>}
                             </div>
                           );
                         })
@@ -1042,7 +1014,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               <div className="exgen__gen-section">
                 <div className="exgen__gen-section-header">
                   <div className="exgen__gen-section-icon">
-                    <IonIcon icon={sparkles} />
+                    <Sparkles size={18} />
                   </div>
                   <div className="exgen__gen-section-title">
                     <h4>Configuración de generación</h4>
@@ -1052,12 +1024,12 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                 
                 {uniquePerStudent ? (
                   <div className="exgen__gen-recovery-info">
-                    <IonIcon icon={medkitOutline} />
+                    <Cross size={18} />
                     <span>Cada alumno recibirá ejercicios únicos basados en sus áreas débiles individuales.</span>
                   </div>
                 ) : loadingPreview ? (
                   <div className="exgen__gen-preview-loading">
-                    <IonSpinner name="dots" />
+                    <Spinner size={18} />
                     <span>Calculando grupos...</span>
                   </div>
                 ) : groupPreview ? (
@@ -1095,83 +1067,65 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               <div className="exgen__options">
                 <span className="exgen__section-label">Configuración</span>
                 <div className="exgen__options-grid">
-                  <IonItem lines="none" className="exgen__select exgen__select-half">
-                    <IonLabel>Preguntas</IonLabel>
-                    <IonSelect value={numQuestions} onIonChange={(e) => setNumQuestions(e.detail.value)} interface="popover">
+                  <div className="flex items-center gap-2">
+                    <span>Preguntas</span>
+                    <select value={numQuestions} onChange={(e) => setNumQuestions(parseInt(e.target.value))}>
                       {[3, 4, 5, 6, 7, 8, 10].map((n) => (
-                        <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                        <option key={n} value={n}>{n}</option>
                       ))}
-                    </IonSelect>
-                  </IonItem>
-                  <IonItem lines="none" className="exgen__select exgen__select-half">
-                    <IonLabel>Dificultad</IonLabel>
-                    <IonSelect value={difficulty} onIonChange={(e) => setDifficulty(e.detail.value)} interface="popover">
-                      <IonSelectOption value="easier">Más fácil</IonSelectOption>
-                      <IonSelectOption value="same">Mismo nivel</IonSelectOption>
-                      <IonSelectOption value="harder">Más difícil</IonSelectOption>
-                    </IonSelect>
-                  </IonItem>
-                  <IonItem lines="none" className="exgen__select exgen__select-half">
-                    <IonLabel>Nota máx.</IonLabel>
-                    <IonSelect value={maxScore} onIonChange={(e) => setMaxScore(e.detail.value)} interface="popover">
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>Dificultad</span>
+                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as 'easier' | 'same' | 'harder')}>
+                      <option value="easier">Más fácil</option>
+                      <option value="same">Mismo nivel</option>
+                      <option value="harder">Más difícil</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>Nota máx.</span>
+                    <select value={maxScore} onChange={(e) => setMaxScore(parseInt(e.target.value))}>
                       {[5, 10, 15, 20].map((n) => (
-                        <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                        <option key={n} value={n}>{n}</option>
                       ))}
-                    </IonSelect>
-                  </IonItem>
-                  <IonItem lines="none" className="exgen__select exgen__select-half">
-                    <IonLabel>Hojas resp.</IonLabel>
-                    <IonSelect value={numBlankPages} onIonChange={(e) => setNumBlankPages(e.detail.value)} interface="popover">
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>Hojas resp.</span>
+                    <select value={numBlankPages} onChange={(e) => setNumBlankPages(parseInt(e.target.value))}>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                        <IonSelectOption key={n} value={n}>{n}</IonSelectOption>
+                        <option key={n} value={n}>{n}</option>
                       ))}
-                    </IonSelect>
-                  </IonItem>
+                    </select>
+                  </div>
                 </div>
                 <div className="exgen__dates-row">
-                  <IonItem lines="none" className="exgen__select exgen__select-half">
-                    <IonInput
-                      type="date"
-                      value={deliveryDate}
-                      onIonInput={(e) => setDeliveryDate(e.detail.value ?? '')}
-                      label="Fecha de entrega"
-                      labelPlacement="stacked"
-                    />
-                  </IonItem>
-                  <IonItem lines="none" className="exgen__select exgen__select-half">
-                    <IonInput
-                      type="date"
-                      value={correctionDate}
-                      onIonInput={(e) => setCorrectionDate(e.detail.value ?? '')}
-                      label="Fecha de recogida"
-                      labelPlacement="stacked"
-                    />
-                  </IonItem>
+                  <div className="flex items-center gap-2">
+                    <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="date" value={correctionDate} onChange={(e) => setCorrectionDate(e.target.value)} />
+                  </div>
                 </div>
                 <button
                   type="button"
                   className="exgen__instructions-toggle"
                   onClick={() => setShowInstructions(v => !v)}
                 >
-                  <IonIcon icon={chevronForwardOutline} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
+                  <ChevronRight size={18} className={`exgen__instructions-chevron ${showInstructions ? 'exgen__instructions-chevron--open' : ''}`} />
                   <span>Instrucciones adicionales</span>
-                  {!showInstructions && refinement && <IonBadge color="primary" className="exgen__instructions-dot">1</IonBadge>}
+                  {!showInstructions && refinement && <span color="primary" className="exgen__instructions-dot">1</span>}
                 </button>
                 {showInstructions && (
-                  <IonItem lines="none" className="exgen__textarea-item">
-                    <IonTextarea
-                      value={refinement}
-                      onIonInput={(e) => setRefinement(e.detail.value ?? '')}
-                      placeholder="Describe lo que quieres que incluya o evite el ejercicio..."
-                      rows={3}
-                      autoGrow
-                    />
-                  </IonItem>
+                  <div className="flex items-center gap-2">
+                    <Textarea value={refinement} onChange={(e) => setRefinement(e.target.value)} placeholder="Describe lo que quieres que incluya o evite el ejercicio..." rows={3} />
+                  </div>
                 )}
               </div>
 
             {error && (
-              <div className="exgen__error"><IonBadge color="danger">{error}</IonBadge></div>
+              <div className="exgen__error"><span color="danger">{error}</span></div>
             )}
 
             {/* Generation Loading State */}
@@ -1182,7 +1136,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                     <div className="exgen__generating-pulse"></div>
                     <div className="exgen__generating-pulse delay-1"></div>
                     <div className="exgen__generating-pulse delay-2"></div>
-                    <IonIcon icon={sparkles} className="exgen__generating-icon" />
+                    <Sparkles size={18} className="exgen__generating-icon" />
                   </div>
                 </div>
                 <div className="exgen__generating-text">
@@ -1220,7 +1174,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               <div className="exgen__success-container">
                 <div className="exgen__success-header">
                   <div className="exgen__success-icon-wrapper">
-                    <IonIcon icon={checkmarkCircleOutline} className="exgen__success-check" />
+                    <CheckCircle size={18} className="exgen__success-check" />
                   </div>
                   <h3 className="exgen__success-title">
                     {generatedIds.length === 1 ? '¡Ejercicio creado!' : `¡${generatedIds.length} ejercicios creados!`}
@@ -1244,7 +1198,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         disabled={!!downloading}
                       >
                         <div className="exgen__download-icon">
-                          <IonIcon icon={downloadOutline} />
+                          <Download size={18} />
                         </div>
                         <span className="exgen__download-title">Ejercicios</span>
                         <span className="exgen__download-desc">PDF para el alumno</span>
@@ -1259,7 +1213,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         disabled={!!downloading}
                       >
                         <div className="exgen__download-icon">
-                          <IonIcon icon={documentTextOutline} />
+                          <FileText size={18} />
                         </div>
                         <span className="exgen__download-title">Soluciones</span>
                         <span className="exgen__download-desc">PDF con respuestas</span>
@@ -1288,7 +1242,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         disabled={!!downloading}
                       >
                         <div className="exgen__download-icon">
-                          {downloading === 'all-ex' ? <IonSpinner name="crescent" /> : <IonIcon icon={downloadOutline} />}
+                          {downloading === 'all-ex' ? <Spinner size={18} /> : <Download size={18} />}
                         </div>
                         <span className="exgen__download-title">Todos los ejercicios</span>
                         <span className="exgen__download-desc">{generatedIds.length} PDFs en uno</span>
@@ -1315,7 +1269,7 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
                         disabled={!!downloading}
                       >
                         <div className="exgen__download-icon">
-                          {downloading === 'all-sol' ? <IonSpinner name="crescent" /> : <IonIcon icon={documentTextOutline} />}
+                          {downloading === 'all-sol' ? <Spinner size={18} /> : <FileText size={18} />}
                         </div>
                         <span className="exgen__download-title">Con soluciones</span>
                         <span className="exgen__download-desc">Incluye respuestas</span>
@@ -1326,47 +1280,39 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
 
                 <div className="exgen__success-actions">
                   {generatedIds.length === 1 && (
-                    <IonButton 
-                      expand="block" 
-                      fill="outline"
-                      onClick={() => {
+                    <Button variant="outline" className="w-full exgen__success-btn" onClick={() => {
                         onDismiss();
                         // Navigate to the exercise detail if we have the info
                         if (generatedExercises.length > 0 && generatedExercises[0].classId) {
                           window.location.href = `/tabs/classes/${generatedExercises[0].classId}/exercises/${generatedIds[0]}`;
                         }
                       }}
-                      className="exgen__success-btn"
                     >
-                      <IonIcon icon={eyeOutline} slot="start" />
+                      <Eye size={18} />
                       Ver ejercicio
-                    </IonButton>
+                    </Button>
                   )}
-                  <IonButton 
-                    expand="block" 
-                    onClick={onDismiss}
-                    className="exgen__success-btn exgen__success-btn--primary"
-                  >
+                  <Button className="w-full exgen__success-btn exgen__success-btn--primary" onClick={onDismiss}>
                     Listo
-                  </IonButton>
+                  </Button>
                 </div>
               </div>
             )}
 
             {/* Generate Button */}
             {!generating && !success && (
-              <IonButton expand="block" className="exgen__button" onClick={handleGenerate} disabled={!canGenerate}>
-                <IonIcon icon={sparkles} slot="start" /> 
+              <Button className="w-full exgen__button" onClick={handleGenerate} disabled={!canGenerate}>
+                <Sparkles size={18} /> 
                 Generar ejercicios{multiMode && selectedStudentIds.length > 0 ? ` (${selectedStudentIds.length})` : ''}
-              </IonButton>
+              </Button>
             )}
           </>
         )}
         </div>
       </div>
-      </IonContent>
+      </div>
 
-    </IonModal>
+    </Modal>
   );
 };
 

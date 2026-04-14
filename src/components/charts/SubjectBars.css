@@ -19,7 +19,7 @@
   width: 64px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--ion-color-dark);
+  color: #0F172A;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -29,7 +29,7 @@
 .sbars__track {
   flex: 1;
   height: 14px;
-  background: var(--ion-color-light);
+  background: var(--color-muted);
   border-radius: 7px;
   position: relative;
   overflow: hidden;
@@ -60,11 +60,11 @@
 }
 
 .sbars__value--pass {
-  color: var(--ion-color-success);
+  color: var(--color-success);
 }
 
 .sbars__value--fail {
-  color: var(--ion-color-danger);
+  color: var(--color-danger);
 }
 
 /* Dark mode */

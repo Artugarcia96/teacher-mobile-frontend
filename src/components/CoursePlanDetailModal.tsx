@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  IonModal, IonButton, IonSpinner, IonCheckbox,
-  IonSegment, IonSegmentButton, IonLabel, IonProgressBar,
-} from '@ionic/react';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
 import { useCoursePlanStore } from '../store/coursePlanStore';
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
 import { useClassesStore } from '../store/classesStore';
@@ -292,10 +290,10 @@ const CoursePlanDetailModal: React.FC<Props> = ({
   };
 
   return (
-    <IonModal isOpen={isOpen} onDidDismiss={onClose} className="cpd-modal">
+    <Modal open={isOpen} onClose={onClose} sheetHeight="lg">
       <div className="cpd">
         {loading ? (
-          <div className="cpd__loading"><IonSpinner name="crescent" /><span>Cargando...</span></div>
+          <div className="cpd__loading"><Spinner size={18} /><span>Cargando...</span></div>
         ) : !coursePlan ? (
           <div className="cpd__empty"><p>La planificación aún no está lista.</p></div>
         ) : (
@@ -315,10 +313,10 @@ const CoursePlanDetailModal: React.FC<Props> = ({
 
             {/* ── View toggle (only show progress tab if plan is accepted) ── */}
             {planAccepted ? (
-              <IonSegment value={view} onIonChange={(e) => setView(e.detail.value as any)} className="cpd__tabs">
-                <IonSegmentButton value="timeline"><IonLabel>Planificación</IonLabel></IonSegmentButton>
-                <IonSegmentButton value="progress"><IonLabel>Progreso</IonLabel></IonSegmentButton>
-              </IonSegment>
+              <div className="flex rounded-lg bg-muted p-1 cpd__tabs">
+                <button onClick={() => setView('timeline')} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'timeline' ? 'bg-background shadow-sm' : ''}`}><span>Planificación</span></button>
+                <button onClick={() => setView('progress')} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'progress' ? 'bg-background shadow-sm' : ''}`}><span>Progreso</span></button>
+              </div>
             ) : null}
 
             {/* ── Timeline ── */}
@@ -633,8 +631,8 @@ const CoursePlanDetailModal: React.FC<Props> = ({
 
                   {/* Content generation toggle — prominent, above exams */}
                   <label className="cpd__accept-content-toggle cpd__accept-content-toggle--prominent">
-                    <IonCheckbox checked={generateOnAccept}
-                      onIonChange={() => setGenerateOnAccept(p => !p)} />
+                    <input type="checkbox" checked={generateOnAccept}
+                      onChange={() => setGenerateOnAccept(p => !p)} />
                     <div>
                       <span className="cpd__accept-content-title">Generar material para cada tema</span>
                       <span className="cpd__accept-content-desc">
@@ -648,8 +646,8 @@ const CoursePlanDetailModal: React.FC<Props> = ({
                       <span className="cpd__accept-label">EXÁMENES DEL PLAN</span>
                       {acceptSummary.exams.map((exam) => (
                         <label key={exam.key} className="cpd__accept-exam">
-                          <IonCheckbox checked={examToggles[exam.key] !== false}
-                            onIonChange={() => setExamToggles(p => ({...p, [exam.key]: !(p[exam.key] ?? true)}))} />
+                          <input type="checkbox" checked={examToggles[exam.key] !== false}
+                            onChange={() => setExamToggles(p => ({...p, [exam.key]: !(p[exam.key] ?? true)}))} />
                           <span>{exam.name}</span>
                           <span className="cpd__accept-exam-d">{fmtDate(exam.date)}</span>
                         </label>
@@ -696,7 +694,7 @@ const CoursePlanDetailModal: React.FC<Props> = ({
           </>
         )}
       </div>
-    </IonModal>
+    </Modal>
   );
 };
 

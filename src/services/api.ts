@@ -189,17 +189,17 @@ export const students = {
 export const exams = {
   list: (classId?: string, subjectId?: string) => api.get('/exams/', { params: { ...(classId ? { class_id: classId } : {}), ...(subjectId ? { subject_id: subjectId } : {}) } }),
   get: (id: string) => api.get(`/exams/${id}`),
-  create: (data: { name: string; class_id?: string; lecture_id?: string; subject_id?: string; exam_date: string; max_score: number; is_personalized?: boolean; correction_deadline?: string; blank_pages_count?: number }, files?: File | File[]) => {
+  create: (data: Record<string, any>, files?: File | File[]) => {
     const formData = new FormData();
     formData.append('name', data.name);
-    if (data.class_id && data.class_id.trim()) formData.append('class_id', data.class_id);
-    if (data.lecture_id && data.lecture_id.trim()) formData.append('lecture_id', data.lecture_id);
-    if (data.subject_id && data.subject_id.trim()) formData.append('subject_id', data.subject_id);
-    formData.append('exam_date', data.exam_date);
-    formData.append('max_score', String(data.max_score));
-    if (data.is_personalized) formData.append('is_personalized', 'true');
+    if (data.class_id && String(data.class_id).trim()) formData.append('class_id', data.class_id);
+    if (data.lecture_id && String(data.lecture_id).trim()) formData.append('lecture_id', data.lecture_id);
+    if (data.subject_id && String(data.subject_id).trim()) formData.append('subject_id', data.subject_id);
+    if (data.exam_date) formData.append('exam_date', data.exam_date);
+    if (data.max_score != null) formData.append('max_score', String(data.max_score));
+    if (data.exam_format) formData.append('exam_format', data.exam_format);
     if (data.correction_deadline) formData.append('correction_deadline', data.correction_deadline);
-    if (data.blank_pages_count) formData.append('blank_pages_count', String(data.blank_pages_count));
+    if (data.refinement_prompt) formData.append('refinement_prompt', data.refinement_prompt);
     const fileList = files ? (Array.isArray(files) ? files : [files]) : [];
     if (fileList.length === 1) {
       formData.append('document', fileList[0]);
@@ -213,15 +213,37 @@ export const exams = {
     });
   },
   update: (id: string, data: any) => api.put(`/exams/${id}`, data),
-  delete: (id: string) => api.delete(`/exams/${id}`),
-  assign: (id: string) => api.post(`/exams/${id}/assign`),
+  delete: (id: string, force?: boolean) =>
+    api.delete(`/exams/${id}`, { params: force ? { force: true } : undefined }),
+  assign: (id: string, data?: { student_ids?: string[]; blank_pages_count?: number; exam_date?: string; correction_deadline?: string; per_class_dates?: Record<string, string> }) =>
+    api.post(`/exams/${id}/assign`, data || {}, { timeout: 120000 }),
+  validate: (id: string) => api.post(`/exams/${id}/validate`, {}, { timeout: 120000 }),
+  uploadReferenceMaterials: (files: File[]) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    return api.post('/exams/upload-reference-materials', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+  },
   generate: (data: {
-    class_id?: string; lecture_id?: string; subject_id?: string; topic_ids?: string[]; name: string; exam_date: string;
+    class_id?: string; lecture_id?: string; subject_id?: string; subject_name?: string;
+    topic_ids?: string[]; reference_material_paths?: string[];
+    name: string; exam_date?: string;
     num_questions?: number; max_score?: number; difficulty?: string;
-    question_types?: string[]; refinement_prompt?: string; is_personalized?: boolean;
-    correction_deadline?: string; blank_pages_count?: number;
-    exam_type?: string; source_exam_id?: string;
+    question_types?: string[]; refinement_prompt?: string;
+    is_test_format?: boolean; exam_format?: string; education_level?: string; trimester?: number;
+    num_options?: number; num_multi_answer?: number;
   }) => api.post('/exams/generate', data),
+  uploadLogo: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/exams/upload-logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+  },
+  getLogo: () => api.get('/exams/logo'),
   iterate: (id: string, data: { instruction: string; preserve_questions?: number[] }) => 
     api.post(`/exams/${id}/iterate`, data, { timeout: 120000 }),
   updateWeight: (id: string, weight: number) => api.patch(`/exams/${id}/weight`, { weight }),
@@ -229,23 +251,39 @@ export const exams = {
   downloadExamUrl: (id: string) => `${getBaseUrl()}/exams/${id}/download`,
   downloadSolutionsUrl: (id: string) => `${getBaseUrl()}/exams/${id}/solutions`,
   downloadDigitalizedUrl: (id: string) => `${getBaseUrl()}/exams/${id}/digitalized`,
+  downloadOriginalUrl: (id: string) => `${getBaseUrl()}/exams/${id}/original`,
+  downloadExamByClassUrl: (id: string, classId: string) => `${getBaseUrl()}/exams/${id}/download/class/${classId}`,
 };
 
 export const corrections = {
-  upload: (examId: string, files: File[], studentId?: string) => {
+  upload: (examId: string, files: File[], studentId?: string, group?: boolean, classId?: string) => {
     const formData = new FormData();
     files.forEach((f) => formData.append('papers', f));
     if (studentId) formData.append('student_id', studentId);
+    if (classId) formData.append('class_id', classId);
+    if (group) formData.append('group', 'true');
     return api.post(`/corrections/${examId}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  bulkUpload: (examId: string, files: File[]) => {
+  bulkUpload: (examId: string, files: File[], classId?: string, overwrite?: boolean) => {
     const formData = new FormData();
     files.forEach((f) => formData.append('papers', f));
+    if (classId) formData.append('class_id', classId);
+    if (overwrite) formData.append('overwrite', 'true');
     return api.post(`/corrections/${examId}/bulk-upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 600000
+    });
+  },
+  markNotTaken: (correctionId: string, notTaken: boolean) =>
+    api.patch(`/corrections/${correctionId}/not-taken`, { not_taken: notTaken }),
+  replacePaper: (correctionId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('paper', file);
+    return api.post(`/corrections/${correctionId}/replace-paper`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
     });
   },
   listAll: () => api.get('/corrections/'),
@@ -436,8 +474,10 @@ export const materials = {
 };
 
 export const calendar = {
-  list: (startDate: string, endDate: string, classId?: string, studentId?: string) =>
-    api.get('/calendar/', { params: { start_date: startDate, end_date: endDate, ...(classId ? { class_id: classId } : {}), ...(studentId ? { student_id: studentId } : {}) } }),
+  list: (startDate: string, endDate: string, classId?: string, studentId?: string, examId?: string) =>
+    api.get('/calendar/', { params: { start_date: startDate, end_date: endDate, ...(classId ? { class_id: classId } : {}), ...(studentId ? { student_id: studentId } : {}), ...(examId ? { exam_id: examId } : {}) } }),
+  listByExam: (examId: string) =>
+    api.get('/calendar/', { params: { start_date: '2020-01-01', end_date: '2030-12-31', exam_id: examId } }),
   create: (data: {
     class_id?: string; student_id?: string; title: string; event_date: string;
     start_time?: string; end_time?: string; event_type?: string; notes?: string;

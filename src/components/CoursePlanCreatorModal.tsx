@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  IonModal, IonButton, IonIcon, IonSpinner, IonTextarea, IonItem, IonToggle,
-} from '@ionic/react';
-import { sparkles, cloudUploadOutline, checkmarkCircleOutline, closeCircleOutline } from 'ionicons/icons';
+import { CheckCircle, Sparkles, Upload, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import Spinner from '@/components/shared/Spinner';
+import Modal from '@/components/shared/Modal';
+import { Switch } from '@/components/ui/switch';
 import { useCoursePlanStore } from '../store/coursePlanStore';
 import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
 import { useAcademicConfigStore } from '../store/academicConfigStore';
@@ -120,10 +122,7 @@ const CoursePlanCreatorModal: React.FC<Props> = ({
   };
 
   return (
-    <IonModal isOpen={isOpen} onDidDismiss={handleClose}
-      initialBreakpoint={isDesktop ? 1 : 0.92}
-      breakpoints={isDesktop ? [0, 1] : [0, 0.5, 0.92, 1]}
-      className="content-creator-modal">
+    <Modal open={isOpen} onClose={handleClose} sheetHeight="lg">
       <div className="cpc">
 
         {/* ── Header ── */}
@@ -143,14 +142,14 @@ const CoursePlanCreatorModal: React.FC<Props> = ({
 
         {guidePdfs.length === 0 ? (
           <button className="cpc__upload" onClick={() => fileInputRef.current?.click()}>
-            <IonIcon icon={cloudUploadOutline} className="cpc__upload-icon" />
+            <Upload size={18} className="cpc__upload-icon" />
             <span className="cpc__upload-title">Sube la programación del curso</span>
             <span className="cpc__upload-hint">PDF con el temario oficial</span>
           </button>
         ) : (
           <div className="cpc__files">
             <div className="cpc__files-header">
-              <IonIcon icon={checkmarkCircleOutline} />
+              <CheckCircle size={18} />
               <span>{guidePdfs.length} PDF{guidePdfs.length > 1 ? 's' : ''} cargado{guidePdfs.length > 1 ? 's' : ''}</span>
               <button className="cpc__files-add" onClick={() => fileInputRef.current?.click()}>+ Añadir</button>
             </div>
@@ -158,7 +157,7 @@ const CoursePlanCreatorModal: React.FC<Props> = ({
               <div key={i} className="cpc__file-tag">
                 <span>{f.name}</span>
                 <button onClick={() => setGuidePdfs((p) => p.filter((_, j) => j !== i))}>
-                  <IonIcon icon={closeCircleOutline} />
+                  <XCircle size={18} />
                 </button>
               </div>
             ))}
@@ -190,7 +189,7 @@ const CoursePlanCreatorModal: React.FC<Props> = ({
         <div className="cpc__options">
           <div className="cpc__opt-row">
             <span>Repaso antes de exámenes</span>
-            <IonToggle checked={reviewSessions} onIonChange={(e) => setReviewSessions(e.detail.checked)} />
+            <Switch checked={reviewSessions} onChange={(e) => setReviewSessions((e.target as HTMLInputElement).checked)} />
           </div>
           <div className="cpc__opt-row">
             <span>Margen por trimestre</span>
@@ -200,31 +199,25 @@ const CoursePlanCreatorModal: React.FC<Props> = ({
               <button disabled={bufferSessions >= 5} onClick={() => setBufferSessions(Math.min(5, bufferSessions + 1))}>+</button>
             </div>
           </div>
-          <IonItem lines="none" className="cpc__textarea">
-            <IonTextarea value={priorityNotes}
-              onIonInput={(e) => setPriorityNotes(e.detail.value ?? '')}
-              placeholder="Notas para la IA: ej. dedicar más tiempo a fracciones, saltar combinatoria..."
-              rows={2} autoGrow />
-          </IonItem>
+          <div className="flex items-center gap-2">
+            <Textarea value={priorityNotes} onChange={(e) => setPriorityNotes(e.target.value)} placeholder="Notas para la IA: ej. dedicar más tiempo a fracciones, saltar combinatoria..." rows={2} />
+          </div>
         </div>
 
         {/* ── Error ── */}
-        {error && <div className="cpc__error"><IonIcon icon={closeCircleOutline} />{error}</div>}
+        {error && <div className="cpc__error"><XCircle size={18} />{error}</div>}
 
         {/* ── Action ── */}
-        <IonButton expand="block" color="primary"
-          onClick={handleGenerate}
-          disabled={loading || !guidePdfs.length}
-          className="cpc__btn">
+        <Button className="w-full cpc__btn" onClick={handleGenerate} disabled={loading || !guidePdfs.length}>
           {loading ? (
-            <><IonSpinner name="crescent" style={{ marginRight: 8 }} />Generando...</>
+            <><Spinner size={16} className="mr-2" />Generando...</>
           ) : (
-            <><IonIcon icon={sparkles} slot="start" />Generar planificación</>
+            <><Sparkles size={18} />Generar planificación</>
           )}
-        </IonButton>
+        </Button>
 
       </div>
-    </IonModal>
+    </Modal>
   );
 };
 
