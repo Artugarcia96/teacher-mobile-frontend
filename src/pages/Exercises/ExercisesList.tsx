@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Plus, Trash2, ChevronRight, CheckCircle, Users, Cross, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, CheckCircle, Users, Cross } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useExercisesStore } from '../../store/exercisesStore';
 import { useStudentsStore } from '../../store/studentsStore';
@@ -13,7 +13,7 @@ import { subjectThemeStyle } from '../../utils/subjectTheme';
 import Spinner from '@/components/shared/Spinner';
 import AlertConfirm from '@/components/shared/AlertConfirm';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import SubjectPageHeader from '../../components/SubjectPageHeader';
 import './ExercisesList.css';
 
 const statusConfig: Record<string, { color: string; label: string; bg: string }> = {
@@ -172,33 +172,22 @@ const ExercisesList: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full min-h-0" style={subjectThemeStyle(subjectColor)}>
-      {/* Hero Header */}
-      <div className="exercises-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
-        <div className="exercises-list-hero__nav">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(basePath)}
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/20 transition-colors"
-            >
-              <ArrowLeft size={20} className="text-white" />
-            </button>
-          </div>
-          <div className="exercises-list-hero__center">
-            <h1 className="exercises-list-hero__title">Ejercicios</h1>
-            <p className="exercises-list-hero__subtitle">
-              {subjectName ? `${displayClass?.name} — ${subjectName}` : displayClass?.name}{aulaLabel ? ` · ${aulaLabel}` : ''}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
+      <SubjectPageHeader
+        eyebrow={displayClass?.name || (subjectName ? '' : 'Clases')}
+        title={`${subjectName || displayClass?.name || ''}${subjectName ? ' · ' : ''}Ejercicios`}
+        sub={aulaLabel || undefined}
+        backHref={basePath}
+        actions={(
+          <button
+            type="button"
             onClick={() => setShowGenerateModal(true)}
-            className="text-white/90 hover:bg-white/20 hover:text-white"
+            aria-label="Nuevo ejercicio"
           >
-            <Plus size={22} />
-          </Button>
-        </div>
-      </div>
+            <Plus size={14} />
+            Nuevo
+          </button>
+        )}
+      />
 
       {/* Compact Filters */}
       <div className="exercises-list-filters">

@@ -19,11 +19,16 @@ import { useBackgroundTasksStore } from '../store/backgroundTasksStore';
 import './CorrectionShared.css';
 
 interface ExerciseCorrectionPanelProps {
-  classId: string;
+  /** Optional in standalone mode — exercises without a student roster. */
+  classId?: string;
   exerciseIds: string[];
   exerciseName: string;
   maxScore: number;
   onFinished?: () => void;
+  /** Correct a standalone exercise (no student roster). Each upload creates
+   *  an anonymous correction the teacher labels with free text. Mirrors the
+   *  exam-side CorrectionPanel standalone mode. */
+  standalone?: boolean;
 }
 
 const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
@@ -32,6 +37,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
   exerciseName,
   maxScore,
   onFinished,
+  standalone = false,
 }) => {
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
 
@@ -69,6 +75,11 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
   const localGradesRef = useRef(localGrades);
   localGradesRef.current = localGrades;
   const [saving, setSaving] = useState<Record<string, boolean>>({});
+
+  // Standalone mode: free-text label per correction (not linked to student DB).
+  const [standaloneNames, setStandaloneNames] = useState<Record<string, string>>({});
+  const [standaloneUploading, setStandaloneUploading] = useState(false);
+  const standaloneInputRef = useRef<HTMLInputElement>(null);
 
   const [bulkResult, setBulkResult] = useState<BulkUploadResult | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -120,7 +131,17 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
       });
       return next;
     });
-  }, [exerciseCorrections]);
+    // Restore standalone names from anonymousLabel (authoritative field).
+    if (standalone) {
+      setStandaloneNames((prev) => {
+        const next = { ...prev };
+        exerciseCorrections.forEach((c) => {
+          if (!next[c.id] && c.anonymousLabel) next[c.id] = c.anonymousLabel;
+        });
+        return next;
+      });
+    }
+  }, [exerciseCorrections, standalone]);
 
   // Cleanup auto-save timers on unmount
   useEffect(() => {
@@ -196,7 +217,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
     autoSaveTimers.current[correctionId] = setTimeout(() => {
       setLocalGrades((current) => {
         const local = current[correctionId];
-        if (local && local.grade !== null && local.studentId) {
+        if (local && local.grade !== null && (standalone || local.studentId)) {
           handleSavePaper(correctionId).then(() => {
             setAutoSavedIds((prev) => new Set(prev).add(correctionId));
           });
@@ -237,11 +258,15 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
 
     setSaving((prev) => ({ ...prev, [correctionId]: true }));
     try {
-      await updateCorrection(correctionId, {
+      const payload: Parameters<typeof updateCorrection>[1] = {
         student_id: local.studentId || undefined,
         grade: local.grade,
         teacher_notes: local.teacherComments,
-      });
+      };
+      if (standalone) {
+        payload.anonymous_label = standaloneNames[correctionId] || '';
+      }
+      await updateCorrection(correctionId, payload);
     } catch (err) {
       console.error('Failed to save correction:', err);
     } finally {
@@ -358,6 +383,42 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
     }
   };
 
+  // ── Standalone single upload ──
+  // Each click uploads one paper against the (single) standalone exercise.
+  // The backend creates a new anonymous correction per upload; the teacher
+  // labels it afterwards on the ScanCard.
+  const handleStandaloneUploadClick = () => {
+    standaloneInputRef.current?.click();
+  };
+
+  const handleStandaloneFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const exerciseId = exerciseIds[0];
+    if (!exerciseId) return;
+    setStandaloneUploading(true);
+    try {
+      const newIds: string[] = [];
+      for (const file of Array.from(files)) {
+        const res = await ecApi.upload(exerciseId, file);
+        if (res?.data?.id) newIds.push(res.data.id);
+      }
+      await refetchAll();
+      // Fire AI analysis in the background for each new upload.
+      for (let i = 0; i < newIds.length; i++) {
+        handleProcessAI(newIds[i]);
+        if (i < newIds.length - 1) {
+          await new Promise((r) => setTimeout(r, 800));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to upload standalone exercise:', err);
+    } finally {
+      setStandaloneUploading(false);
+      e.target.value = '';
+    }
+  };
+
   // ── Bulk upload ──
   const handleBulkUploadClick = () => {
     bulkInputRef.current?.click();
@@ -365,7 +426,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
 
   const handleBulkFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !classId) return;
     setBulkUploading(true);
     try {
       const response = await ecApi.classBulkUpload(classId, Array.from(files), exerciseIds);
@@ -654,9 +715,18 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
         multiple
         onChange={handleStudentFileSelected}
       />
+      <input
+        type="file"
+        ref={standaloneInputRef}
+        style={{ display: 'none' }}
+        accept=".jpg,.jpeg,.png,.pdf"
+        multiple
+        onChange={handleStandaloneFileSelected}
+      />
 
-      {/* Bulk review results */}
-      {bulkResult && (
+      {/* Bulk review results (class mode only — standalone corrections are
+          labelled manually, there's no QR to match). */}
+      {!standalone && bulkResult && (
         <div className="bulk-review-section">
           <div className="bulk-review-stats">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium">
@@ -746,17 +816,23 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
 
       {/* Toolbar */}
       <div className="correction-toolbar">
-        <Button variant="outline" size="sm" onClick={handleBulkUploadClick} disabled={bulkUploading}>
-          {bulkUploading ? (
-            <Spinner size={18} />
-          ) : (
-            <>
-              <Users size={18} /> Subir PDF de toda la clase
-            </>
-          )}
-        </Button>
+        {standalone ? (
+          <Button variant="outline" size="sm" onClick={handleStandaloneUploadClick} disabled={standaloneUploading}>
+            {standaloneUploading ? <Spinner size={18} /> : (<><Upload size={18} /> Subir ejercicio</>)}
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={handleBulkUploadClick} disabled={bulkUploading}>
+            {bulkUploading ? (
+              <Spinner size={18} />
+            ) : (
+              <>
+                <Users size={18} /> Subir PDF de toda la clase
+              </>
+            )}
+          </Button>
+        )}
 
-        {!bulkResult && !Object.values(aiProcessing).some(Boolean) &&
+        {!standalone && !bulkResult && !Object.values(aiProcessing).some(Boolean) &&
           exerciseCorrections.filter((c) => !c.aiAnalysis && c.paperUrl).length > 1 && (
             <Button size="sm" className="batch-ai-btn" onClick={handleBatchProcessAll}
               disabled={exerciseCorrections.some(c => c.paperUrl && !c.studentId)}
@@ -779,8 +855,8 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
         )}
       </div>
 
-      {/* Students without exercise */}
-      {missingCount > 0 && (
+      {/* Students without exercise (class mode only — standalone has no roster). */}
+      {!standalone && missingCount > 0 && (
         <div className="student-list-section">
           <div
             className="student-list-header"
@@ -842,17 +918,28 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
 
       {/* Empty state */}
       {exerciseCorrections.length === 0 && !loading && (
-        <EmptyState
-          icon="📷"
-          title="Sin ejercicios"
-          subtitle="Sube los ejercicios de los alumnos (PDF de toda la clase o uno por uno)"
-          actionLabel="Subir PDF de toda la clase"
-          onAction={handleBulkUploadClick}
-        />
+        standalone ? (
+          <EmptyState
+            icon="📷"
+            title="Sin ejercicios"
+            subtitle="Sube el ejercicio de un alumno para corregirlo con IA"
+            actionLabel="Subir ejercicio"
+            onAction={handleStandaloneUploadClick}
+          />
+        ) : (
+          <EmptyState
+            icon="📷"
+            title="Sin ejercicios"
+            subtitle="Sube los ejercicios de los alumnos (PDF de toda la clase o uno por uno)"
+            actionLabel="Subir PDF de toda la clase"
+            onAction={handleBulkUploadClick}
+          />
+        )
       )}
 
-      {/* Assignment status banner */}
-      {exerciseCorrections.length > 0 && hasUnassignedCorrections && (
+      {/* Assignment status banner (hidden in standalone — every correction is
+          anonymous by definition, so "asignados vs sin asignar" doesn't apply). */}
+      {!standalone && exerciseCorrections.length > 0 && hasUnassignedCorrections && (
         <div className="assignment-status-banner assignment-status-banner--warning">
           <div className="assignment-status-summary">
             <div className="assignment-status-counts">
@@ -882,16 +969,19 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
         </div>
       )}
 
-      {/* Assigned ScanCards */}
-      {assignedExerciseCorrections.length > 0 && hasUnassignedCorrections && (
+      {/* Assigned ScanCards (class mode) — or all ScanCards in standalone
+          mode (no split). */}
+      {!standalone && assignedExerciseCorrections.length > 0 && hasUnassignedCorrections && (
         <div className="assignment-section-header">
           <CheckCircle size={18} />
           <span>Asignados ({assignedExerciseCorrections.length})</span>
         </div>
       )}
       <div className="correction-scans">
-        {(hasUnassignedCorrections ? assignedExerciseCorrections : exerciseCorrections).map(
-          (correction, i) => {
+        {(standalone
+          ? exerciseCorrections
+          : (hasUnassignedCorrections ? assignedExerciseCorrections : exerciseCorrections)
+        ).map((correction, i) => {
             const local = localGrades[correction.id] || {
               grade: correction.grade,
               teacherComments: '',
@@ -903,7 +993,7 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
               <div key={correction.id} id={`correction-${correction.id}`}>
                 <ScanCard
                   index={
-                    hasUnassignedCorrections
+                    hasUnassignedCorrections && !standalone
                       ? exerciseCorrections.indexOf(correction)
                       : i
                   }
@@ -917,6 +1007,9 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
                   saved={isSaved}
                   autoSaved={autoSavedIds.has(correction.id)}
                   paperUrl={getFullPaperUrl(correction.paperUrl) || undefined}
+                  standalone={standalone}
+                  studentName={standalone ? (standaloneNames[correction.id] || correction.aiAnalysis?.suggestedStudentName || '') : undefined}
+                  onStudentNameChange={standalone ? (name) => setStandaloneNames((prev) => ({ ...prev, [correction.id]: name })) : undefined}
                   onStudentChange={(sid) =>
                     handleStudentChangeWithDuplicateCheck(correction.id, sid)
                   }
@@ -946,8 +1039,9 @@ const ExerciseCorrectionPanel: React.FC<ExerciseCorrectionPanelProps> = ({
         )}
       </div>
 
-      {/* Unassigned ScanCards */}
-      {hasUnassignedCorrections && (
+      {/* Unassigned ScanCards (class mode only — standalone collapses both
+          lists into the single loop above). */}
+      {!standalone && hasUnassignedCorrections && (
         <>
           <div
             className="assignment-section-header assignment-section-header--unassigned"

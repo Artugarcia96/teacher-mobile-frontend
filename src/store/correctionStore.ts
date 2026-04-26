@@ -3,6 +3,21 @@ import { CorrectionResult, WeakArea, AIAnalysis } from '../types';
 import { corrections as correctionsApi } from '../services/api';
 import { useExamsStore } from './examsStore';
 
+/** Mirrors the backend response from POST /corrections/{exam_id}/finish.
+ *  Tells the caller whether the exam moved to "corrected" or whether some
+ *  classes still have ungraded students, so the UI can react accordingly. */
+export interface FinishCorrectionResult {
+  scope: 'class' | 'global';
+  classId?: string;
+  classCorrected: boolean;
+  allGraded: boolean;
+  total: number;
+  resolved: number;
+  pending: number;
+  pendingByClass: { classId: string; className: string; count: number }[];
+  status: string;
+}
+
 function mapAIResult(aiResult: any): AIAnalysis | undefined {
   if (!aiResult) return undefined;
   
@@ -35,10 +50,10 @@ interface CorrectionState {
   loading: boolean;
   fetchAllCorrections: () => Promise<void>;
   fetchCorrections: (examId: string) => Promise<void>;
-  uploadPapers: (examId: string, files: File[], studentId?: string, group?: boolean, classId?: string) => Promise<CorrectionResult[]>;
-  updateCorrection: (id: string, data: { student_id?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) => Promise<void>;
+  uploadPapers: (examId: string, files: File[], studentId?: string, group?: boolean, classId?: string, anonymousLabel?: string) => Promise<CorrectionResult[]>;
+  updateCorrection: (id: string, data: { student_id?: string; anonymous_label?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) => Promise<void>;
   processAI: (correctionId: string) => Promise<any>;
-  finishCorrection: (examId: string) => Promise<void>;
+  finishCorrection: (examId: string, classId?: string) => Promise<FinishCorrectionResult>;
   markNotTaken: (correctionId: string, notTaken: boolean) => Promise<void>;
   replacePaper: (correctionId: string, file: File) => Promise<CorrectionResult | null>;
   getWeakAreasForStudent: (studentId: string) => WeakArea[];
@@ -51,6 +66,7 @@ function mapCorrection(c: any): CorrectionResult {
     examId: c.exam_id,
     studentId: c.student_id,
     studentName: c.student_name,
+    anonymousLabel: c.anonymous_label ?? undefined,
     classId: c.class_id,
     className: c.class_name,
     paperUrl: c.paper_url,
@@ -93,8 +109,8 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
     }
   },
 
-  uploadPapers: async (examId, files, studentId?, group?, classId?) => {
-    const res = await correctionsApi.upload(examId, files, studentId, group, classId);
+  uploadPapers: async (examId, files, studentId?, group?, classId?, anonymousLabel?) => {
+    const res = await correctionsApi.upload(examId, files, studentId, group, classId, anonymousLabel);
     const returned: CorrectionResult[] = res.data.map(mapCorrection);
     // The backend reuses existing Corrections for already-assigned students,
     // so merge by id rather than blindly appending to avoid duplicate rows in
@@ -196,8 +212,9 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
     return updated;
   },
 
-  finishCorrection: async (examId) => {
-    await correctionsApi.finish(examId);
+  finishCorrection: async (examId, classId) => {
+    const res = await correctionsApi.finish(examId, classId);
+    const data = res.data || {};
     // Refresh exams to update status - use exam's classId to preserve filters
     const exam = useExamsStore.getState().exams.find(e => e.id === examId);
     if (exam?.classId) {
@@ -205,6 +222,21 @@ export const useCorrectionStore = create<CorrectionState>((set, get) => ({
     } else {
       useExamsStore.getState().fetchExams();
     }
+    return {
+      scope: data.scope === 'class' ? 'class' : 'global',
+      classId: data.class_id ?? undefined,
+      classCorrected: !!data.class_corrected,
+      allGraded: !!data.all_graded,
+      total: data.total ?? 0,
+      resolved: data.resolved ?? 0,
+      pending: data.pending ?? 0,
+      pendingByClass: (data.pending_by_class || []).map((p: any) => ({
+        classId: p.class_id,
+        className: p.class_name,
+        count: p.count,
+      })),
+      status: data.status || 'pending_correction',
+    };
   },
 
   getWeakAreasForStudent: (studentId) => {

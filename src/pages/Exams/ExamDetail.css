@@ -1257,3 +1257,64 @@
     margin-right: auto !important;
   }
 }
+
+/* ── Validar CTA ──────────────────────────────────────────────────── */
+
+.ed-validate {
+  margin-top: 0.75rem;
+}
+
+.ed-validate__bar {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.15);
+}
+
+.ed-validate__primary {
+  flex: 1;
+  background: #059669 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  height: auto;
+  min-height: 2.5rem;
+  font-weight: 600;
+}
+
+.ed-validate__primary:hover {
+  background: #047857 !important;
+}
+
+.ed-validate__options {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.75rem;
+  background: #047857;
+  color: rgba(255, 255, 255, 0.9);
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.12s ease;
+}
+
+.ed-validate__options:hover {
+  background: #065f46;
+  color: #fff;
+}
+
+.ed-validate__options-label {
+  white-space: nowrap;
+}
+
+.ed-validate__caption {
+  margin: 0.5rem 0 0;
+  font-size: 0.68rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}

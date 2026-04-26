@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  Trash2, Download, CheckCircle, Pencil,
+  Trash2, Download, CheckCircle,
   Clock, AlertCircle, Sparkles,
   FileText, Users, X, Eye,
   FileIcon, ScanLine, CheckSquare, Copy, BarChart3,
-  Lock, RefreshCw, ChevronDown, ChevronRight, Minus, Plus,
+  Lock, RefreshCw, ChevronDown, ChevronRight,
   CalendarDays,
 } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -13,13 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import AlertConfirm from '@/components/shared/AlertConfirm';
+import { useExamDeleteFlow } from '../../hooks/useExamDeleteFlow';
 import Spinner from '@/components/shared/Spinner';
 import PageShell from '@/components/shared/PageShell';
 import PdfViewer from '@/components/shared/PdfViewer';
@@ -35,9 +29,15 @@ import CorrectionPanel from '../../components/CorrectionPanel';
 import { GradeDonut } from '../../components/charts';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useDashboardStore } from '../../store/dashboardStore';
-import type { ExamIterationHistoryItem } from '../../types';
+import type { ExamContent } from '../../types';
 import { getFullPaperUrl } from '../../utils/examUrls';
 import { EXAM_STATUS_CONFIG, EXAM_STATUS_VERBOSE, EXAM_DEADLINE_CONFIG, EXAM_ORIGIN_CONFIG } from './examConstants';
+import ExamSheet from './ExamSheet';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import './ExamDetail.css';
 import '../../components/CorrectionShared.css';
 
@@ -55,12 +55,14 @@ const ExamDetail: React.FC = () => {
   /* ── stores ── */
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
-  const deleteExam = useExamsStore((s) => s.deleteExam);
+  const { requestDelete: requestDeleteExam, DeleteDialogs: ExamDeleteDialogs } = useExamDeleteFlow();
   const validateExam = useExamsStore((s) => s.validateExam);
   const iterateExam = useExamsStore((s) => s.iterateExam);
   const assignExam = useExamsStore((s) => s.assignExam);
+  const finalizeExam = useExamsStore((s) => s.finalizeExam);
   const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
   const updateExam = useExamsStore((s) => s.updateExam);
+  const updateExamContent = useExamsStore((s) => s.updateExamContent);
 
   const allStudents = useStudentsStore((s) => s.students);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
@@ -78,8 +80,6 @@ const ExamDetail: React.FC = () => {
   const bulkDeleteCalendarEvents = useCalendarStore((s) => s.bulkDelete);
 
   /* ── local state ── */
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const [forceDeletePrompt, setForceDeletePrompt] = useState<{ gradedCount: number } | null>(null);
   // Filter / sort state for the corrections list (review mode).
   // 'all' shows everyone including NP; 'pending' = no grade & not NP;
   // 'passed' / 'failed' = grade against passing threshold.
@@ -93,14 +93,19 @@ const ExamDetail: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [savingGrade, setSavingGrade] = useState<Record<string, boolean>>({});
-  const [iterationText, setIterationText] = useState('');
+  // Live content shown in the Validar preview. Fetched lazily on mount and
+  // refreshed whenever the iteration history grows (signal that questions
+  // changed on the backend).
+  const [generatedContent, setGeneratedContent] = useState<ExamContent | null>(null);
+  const [loadingContent, setLoadingContent] = useState(false);
+  // Iteration instruction for the PDF-preview drawer (a secondary surface
+  // that lets the teacher tweak from inside the preview overlay).
+  const [previewIterationText, setPreviewIterationText] = useState('');
   const [section1Expanded, setSection1Expanded] = useState(false);
   const [section2Expanded, setSection2Expanded] = useState(true);
   const [downloadingReports, setDownloadingReports] = useState(false);
 
   // Inline date editing state
-  const [editingDate, setEditingDate] = useState(false);
-  const [editDate, setEditDate] = useState('');
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [editDeadline, setEditDeadline] = useState('');
 
@@ -126,11 +131,16 @@ const ExamDetail: React.FC = () => {
 
 
   const isNewExam = examId === 'new';
+  // When the URL is under /tabs/exercises, keep the back link inside that
+  // tab so the Ejercicios nav entry stays active.
+  const isExercisesUrl = location.pathname.startsWith('/tabs/exercises');
   const backPath = classId && subjectId
     ? `/tabs/classes/${classId}/subjects/${subjectId}/exams`
     : classId
     ? `/tabs/classes/${classId}/exams`
-    : '/tabs/exams';
+    : isExercisesUrl
+      ? '/tabs/exercises'
+      : '/tabs/exams';
 
   /* ── derived data ── */
   const exam = useMemo(() => isNewExam ? null : allExams.find((e) => e.id === examId), [allExams, examId, isNewExam]);
@@ -185,6 +195,30 @@ const ExamDetail: React.FC = () => {
     }
   }, [assignmentList, urlPinnedKey, tabKey]);
 
+  // Fetch the exam's generated_questions so we can show a live preview in the
+  // Validar section. Re-fetch when the iteration_history grows — that's the
+  // signal that the backend has new content (AI iteration, manual edit, or
+  // validation with solutions merged).
+  const iterationVersion = exam?.iterationHistory?.length ?? 0;
+  useEffect(() => {
+    if (!examId || !exam?.hasGeneratedQuestions) {
+      setGeneratedContent(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingContent(true);
+    examsApi.getQuestions(examId)
+      .then((res) => {
+        if (cancelled) return;
+        const data = (res.data?.questions || null) as ExamContent | null;
+        if (data && !Array.isArray(data.sections)) data.sections = [];
+        setGeneratedContent(data);
+      })
+      .catch(() => { if (!cancelled) setGeneratedContent(null); })
+      .finally(() => { if (!cancelled) setLoadingContent(false); });
+    return () => { cancelled = true; };
+  }, [examId, exam?.hasGeneratedQuestions, iterationVersion]);
+
   // Assignments shown in Step 2 (downloads / deadlines): when the URL pins a
   // (class, subject) pair we show ONLY that one. From the global view we show
   // all of them because the teacher came in to see everything at once.
@@ -219,7 +253,26 @@ const ExamDetail: React.FC = () => {
   // Status checks
   const isValidated = exam?.status !== 'pending_validation'; // pending_schedule, scheduled, pending_correction, or corrected
   const isAssigned = exam?.status === 'scheduled' || exam?.status === 'pending_correction' || exam?.status === 'corrected';
+  // Practice/recovery sheets don't go through the solver validation cycle —
+  // the "Validar examen" CTA and blank-pages counter only make sense for
+  // classic evaluation exams.
+  const isEvaluation = !exam?.purpose || exam?.purpose === 'evaluation';
+  const isContentLocked = exam?.status === 'pending_correction' || exam?.status === 'corrected';
+  // URL prefix mirrors the route segment we came in through (/tabs/exams/...
+  // vs /tabs/exercises/...) so manual-edit navigation keeps the active nav
+  // tab highlighted.
+  const exerciseSegment = isExercisesUrl ? 'exercises' : 'exams';
+  const contentEditorHref = classId && exam?.subjectId
+    ? `/tabs/classes/${classId}/subjects/${exam.subjectId}/${exerciseSegment}/${examId}/content`
+    : classId
+      ? `/tabs/classes/${classId}/${exerciseSegment}/${examId}/content`
+      : `/tabs/${exerciseSegment}/${examId}/content`;
   const isCorrected = exam?.status === 'corrected';
+  // Per-assignment view: teacher can finalize a single class independently of
+  // the rest. When scoped to one assignment, reflect that class's own state.
+  const isActiveCorrected = activeAssignment
+    ? !!activeAssignment.corrected
+    : isCorrected;
   const isAiGenerated = exam?.examOrigin === 'ai_generated';
   const isDigitalized = exam?.examOrigin === 'digitalized';
   const hasClass = !!exam?.classId;
@@ -421,28 +474,17 @@ const ExamDetail: React.FC = () => {
      HANDLERS
      ═══════════════════════════════════════════════════════════════════════ */
 
-  const handleDelete = async (force = false) => {
-    try {
-      await deleteExam(examId, force);
-      fetchDashboard();
-      navigate(backPath, { replace: true });
-    } catch (err: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const e = err as any;
-      // Backend blocks delete with 409 when any correction already has a grade.
-      // We surface that as a second, stronger confirmation rather than a silent
-      // failure (the user saw the old 409 in devtools and couldn't delete).
-      if (e?.response?.status === 409 && !force) {
-        const match = String(e?.response?.data?.detail || '').match(/(\d+)/);
-        const count = match ? parseInt(match[1], 10) : 1;
-        setShowDeleteAlert(false);
-        setForceDeletePrompt({ gradedCount: count });
-        return;
-      }
-      console.error('Failed to delete exam:', err);
-      toast.error('No se pudo eliminar el examen.');
-    }
-    setShowDeleteAlert(false);
+  const handleDelete = () => {
+    if (!exam) return;
+    requestDeleteExam({
+      id: examId,
+      name: exam.name,
+      gradedCount: exam.gradedCount ?? 0,
+      onSuccess: () => {
+        fetchDashboard();
+        navigate(backPath, { replace: true });
+      },
+    });
   };
 
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
@@ -490,22 +532,29 @@ const ExamDetail: React.FC = () => {
     toast.success('Validacion iniciada — puedes seguir navegando');
   };
 
-  const handleIterate = () => {
-    if (!exam || !iterationText.trim()) return;
-    const instruction = iterationText.trim();
+  // Shared dispatcher for AI iterate jobs. `preserveQuestions` lets the
+  // per-question flow keep every other question intact — the backend only
+  // regenerates the targeted one. Without it, the AI may rewrite anything.
+  const dispatchIterate = (rawInstruction: string, preserveQuestions?: number[]) => {
+    if (!exam) return;
+    const instruction = rawInstruction.trim();
+    if (!instruction) return;
     const capturedExamId = examId;
     const capturedClassId = classId;
-    setIterationText('');
+    const isScoped = !!preserveQuestions && preserveQuestions.length > 0;
     addBackgroundTask({
       type: 'exam',
-      label: `Editar: ${exam.name}`,
+      label: isScoped ? `Editar pregunta: ${exam.name}` : `Editar: ${exam.name}`,
       description: `Aplicando: "${instruction.slice(0, 60)}${instruction.length > 60 ? '...' : ''}"`,
       expectedResultUrl: capturedClassId
         ? `/tabs/classes/${capturedClassId}/exams/${capturedExamId}`
         : `/tabs/exams/${capturedExamId}`,
       execute: async () => {
         try {
-          await iterateExam(capturedExamId, { instruction });
+          await iterateExam(capturedExamId, {
+            instruction,
+            ...(isScoped ? { preserve_questions: preserveQuestions } : {}),
+          });
         } catch (err) {
           // 409 = changes were saved but the solver step failed. Refresh so the
           // UI reflects the new questions + downgraded status, then re-throw so
@@ -524,6 +573,20 @@ const ExamDetail: React.FC = () => {
       },
     });
     toast.success('Cambios en proceso — puedes seguir navegando');
+  };
+
+  const handleIterate = (rawInstruction: string) => dispatchIterate(rawInstruction);
+
+  // Per-question AI: scope the iterate call so only the targeted question is
+  // regenerated. We collect every OTHER numeric question id from the current
+  // content snapshot and pass them as preserve_questions.
+  const handleIterateQuestion = (questionId: string, rawInstruction: string) => {
+    const allIds = (generatedContent?.sections || [])
+      .flatMap((s) => s.questions.map((q) => Number(q.id)))
+      .filter((n) => Number.isFinite(n));
+    const preserve = allIds.filter((id) => String(id) !== questionId);
+    const prefix = `En la pregunta ${questionId}: `;
+    dispatchIterate(prefix + rawInstruction, preserve);
   };
 
   const handleDownloadByClass = async (classId: string, className: string) => {
@@ -646,6 +709,27 @@ const ExamDetail: React.FC = () => {
     }
   };
 
+  /** Finalize without assigning to any class.
+   *
+   *  "Continuar sin clase" path: the teacher generated a standalone exam,
+   *  wants to download the generic PDF and later upload anonymous
+   *  corrections. Transitions the exam to `scheduled` without creating
+   *  ExamAssignment rows. */
+  const handleFinalize = async () => {
+    setAssigning(true);
+    toast.loading('Finalizando examen...', { id: 'assign' });
+    try {
+      await finalizeExam(examId);
+      fetchExams(classId);
+      fetchCorrections(examId);
+      toast.success('Examen listo. Ya puedes subir correcciones.', { id: 'assign' });
+    } catch (err) {
+      toast.error('Error al finalizar', { id: 'assign' });
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const handleAssign = async () => {
     setAssigning(true);
     toast.loading('Asignando examen...', { id: 'assign' });
@@ -692,6 +776,7 @@ const ExamDetail: React.FC = () => {
         if (a.deadline) {
           try {
             await createCalendarEvent({
+              exam_id: examId,
               class_id: a.classId,
               title: `Corregir: ${exam!.name}`,
               event_date: a.deadline,
@@ -814,7 +899,7 @@ const ExamDetail: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowDeleteAlert(true)}
+              onClick={handleDelete}
               className="ed-hero__action-btn text-red-400 hover:text-red-300 hover:bg-red-500/20"
             >
               <Trash2 size={20} />
@@ -823,71 +908,20 @@ const ExamDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Info Ribbon ─── */}
+      {/* ─── Info Ribbon ─────────────────────────────────────────────────
+          The "Fecha examen" cell used to live here, but with multi-class
+          assignments each (class, subject) can have its own date. Showing
+          a single date at the top was misleading — the real per-class dates
+          live in the Planificar step. We keep the date persisted internally
+          (calendar / reports rely on it) but stop competing for header space. */}
+      {/* The class-association UI used to live here as a top banner. It
+          belongs inside the "Planificar" step of the lifecycle (assignments)
+          rather than as a persistent notice — the teacher opts into it when
+          ready, instead of being nagged on every open. */}
       <div className="ed-ribbon">
-        <div className="ed-ribbon__item">
-          {editingDate ? (
-            <input
-              type="date"
-              className="ed-schedule-input text-xs"
-              style={{ width: 'auto', maxWidth: '140px' }}
-              value={editDate}
-              autoFocus
-              onChange={(e) => setEditDate(e.target.value)}
-              onBlur={async () => {
-                setEditingDate(false);
-                if (editDate && editDate !== exam.date?.slice(0, 10)) {
-                  try {
-                    await updateExam(examId, { date: editDate });
-                    if (isAssigned) {
-                      toast.warning('Fecha actualizada. Revisa los eventos del calendario manualmente.');
-                    } else {
-                      toast.success('Fecha actualizada');
-                    }
-                    fetchExams(classId);
-                  } catch {
-                    toast.error('Error al actualizar la fecha');
-                  }
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') { setEditingDate(false); }
-              }}
-            />
-          ) : (
-            <span
-              className="ed-ribbon__value"
-              style={(!isAssigned && !isCorrected) ? { cursor: 'pointer' } : undefined}
-              title={isAssigned ? 'Cambiar fecha requiere re-asignación' : 'Clic para editar fecha'}
-              onClick={() => {
-                if (isCorrected) return;
-                if (isAssigned) {
-                  toast.warning('Para cambiar la fecha, primero itera el examen y re-asigna.');
-                  return;
-                }
-                setEditDate(exam.date?.slice(0, 10) || '');
-                setEditingDate(true);
-              }}
-            >
-              {new Date(exam.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-            </span>
-          )}
-          <span className="ed-ribbon__label">Fecha examen</span>
-        </div>
-        <div className="ed-ribbon__divider" />
         <div className="ed-ribbon__item">
           <span className="ed-ribbon__value">{exam.maxScore}</span>
           <span className="ed-ribbon__label">Max.</span>
-        </div>
-        <div className="ed-ribbon__divider" />
-        <div className="ed-ribbon__item">
-          <span
-            className="ed-ribbon__status"
-            style={{ color: status.color, background: status.bg }}
-          >
-            {status.label}
-          </span>
         </div>
         {exam.correctionDeadline && (
           <>
@@ -1085,51 +1119,102 @@ const ExamDetail: React.FC = () => {
               </div>
             )}
 
-            {/* Iteration textarea + action buttons — only in pending_validation or when step 1 is explicitly expanded */}
-            {(!isValidated || (section1Expanded && !isAssigned)) && (
-              examTaskRunning ? (
-                <div className="ed-processing-banner">
-                  <Spinner size={16} />
-                  <div>
-                    <p className="ed-processing-banner__title">{runningExamTask?.label || 'Procesando con IA...'}</p>
-                    <p className="ed-processing-banner__desc">{runningExamTask?.description || 'Puedes seguir navegando.'}</p>
+            {/* Instrucciones aplicadas — if the teacher gave AI prompt instructions
+                at creation, show them here as reference throughout the lifecycle. */}
+            {exam.refinementPrompt && (
+              <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs">
+                <Sparkles size={14} className="flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-[11px] uppercase tracking-wide text-indigo-700 mb-0.5">
+                    Instrucciones aplicadas
                   </div>
+                  <em className="not-italic">"{exam.refinementPrompt}"</em>
                 </div>
-              ) : (
-                <div className="mt-4">
-                  <Textarea
-                    value={iterationText}
-                    onChange={(e) => setIterationText(e.target.value)}
-                    placeholder="Ej: Anade mas espacio entre la pregunta 3 y 4. Modifica la pregunta 2..."
-                    rows={3}
-                    className="w-full"
-                  />
+              </div>
+            )}
 
-                  {/* Instrucciones que el profesor pidió al generar/digitalizar */}
-                  {exam.refinementPrompt && (
-                    <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs">
-                      <Sparkles size={14} className="flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-[11px] uppercase tracking-wide text-indigo-700 mb-0.5">
-                          Instrucciones aplicadas
-                        </div>
-                        <em className="not-italic">"{exam.refinementPrompt}"</em>
-                      </div>
-                    </div>
-                  )}
+            {/* AI task in progress */}
+            {examTaskRunning && (
+              <div className="ed-processing-banner mt-3">
+                <Spinner size={16} />
+                <div>
+                  <p className="ed-processing-banner__title">{runningExamTask?.label || 'Procesando con IA...'}</p>
+                  <p className="ed-processing-banner__desc">{runningExamTask?.description || 'Puedes seguir navegando.'}</p>
+                </div>
+              </div>
+            )}
 
-                  {/* Blank answer pages — moved from Planificar to this step
-                      because it's a formatting decision that belongs to
-                      "preparar el examen", not to "distribuirlo". */}
-                  {exam.status === 'pending_validation' && (
-                    <div className="mt-3 flex items-center justify-between px-3 py-2.5 rounded-md bg-muted/40 border border-border">
-                      <div className="flex-1 min-w-0 pr-3">
-                        <div className="text-xs font-medium">Páginas en blanco</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          Se añadirán al final del examen para que el alumno responda
-                        </div>
+            {/* ── Unified editor: preview + inline edit + AI refine in one
+                   surface. Replaces the old triad (preview + two mode cards
+                   + separate editor page). The sheet autosaves inline edits
+                   and forwards AI instructions to handleIterate. */}
+            {exam.hasGeneratedQuestions && !examTaskRunning && (
+              <div className="mt-4">
+                <ExamSheet
+                  content={generatedContent}
+                  loading={loadingContent}
+                  readOnly={isContentLocked}
+                  aiBusy={examTaskRunning}
+                  onChange={async (next) => {
+                    try {
+                      const updated = await updateExamContent(examId, next);
+                      setGeneratedContent(next);
+                      if (updated.status !== exam.status) fetchExams(classId);
+                    } catch (e: any) {
+                      const msg = e?.response?.data?.detail || 'No se pudo guardar';
+                      toast.error(msg);
+                      throw e;
+                    }
+                  }}
+                  onAiRefine={handleIterate}
+                  onAiRefineQuestion={handleIterateQuestion}
+                  onOpenAdvancedEditor={isContentLocked ? undefined : () => navigate(contentEditorHref)}
+                  history={exam.iterationHistory && exam.iterationHistory.length > 0 ? {
+                    items: exam.iterationHistory,
+                    onDownloadCurrent: () => handleDownload('exam'),
+                    onDownloadVersion: (version) => {
+                      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/exams/${examId}/download/version/${version}`;
+                      authenticatedFetch(url).then(r => r.blob()).then(blob => {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `${exam.name}_v${version}.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                      });
+                    },
+                  } : undefined}
+                />
+              </div>
+            )}
+
+            {/* ── Validar CTA — single primary button for evaluation exams.
+                   Blank-pages setting is folded into a popover on the right
+                   side of the button so it stops competing for attention. */}
+            {isEvaluation && exam.status === 'pending_validation' && !examTaskRunning && (
+              <div className="ed-validate">
+                <div className="ed-validate__bar">
+                  <Button
+                    className="ed-validate__primary"
+                    onClick={handleValidate}
+                  >
+                    <CheckCircle size={16} />
+                    <span className="ml-2">Validar examen</span>
+                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="ed-validate__options" title="Opciones de validación">
+                        <ChevronDown size={14} />
+                        <span className="ed-validate__options-label">
+                          {blankPages === 0 ? 'Sin páginas' : `${blankPages} pág.`}
+                        </span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-60">
+                      <div className="text-xs font-medium mb-1">Páginas en blanco</div>
+                      <div className="text-[11px] text-muted-foreground mb-2.5">
+                        Se añadirán al final para que el alumno responda.
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           className="inline-flex items-center justify-center w-7 h-7 rounded border border-border text-sm hover:bg-muted"
@@ -1144,136 +1229,18 @@ const ExamDetail: React.FC = () => {
                           disabled={blankPages >= 20}
                         >+</button>
                       </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3">
-                    {iterationText.trim() ? (
-                      <Button className="w-full" variant="outline" onClick={handleIterate}>
-                        <RefreshCw size={16} />
-                        <span className="ml-2">Aplicar cambios</span>
-                      </Button>
-                    ) : exam.status === 'pending_validation' ? (
-                      <div>
-                        <Button
-                          className="w-full"
-                          onClick={handleValidate}
-                          style={{ background: '#059669', color: '#fff', borderColor: '#059669' }}
-                        >
-                          <CheckCircle size={16} />
-                          <span className="ml-2">Validar examen</span>
-                        </Button>
-                        <p className="text-[11px] text-muted-foreground mt-2 text-center">
-                          Se generaran las soluciones de los ejercicios con IA. Puede tardar unos segundos.
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )
+                <p className="ed-validate__caption">
+                  Se generarán las soluciones con IA. Puede tardar unos segundos.
+                </p>
+              </div>
             )}
 
-            {/* Version history accordion */}
-            {exam.iterationHistory && exam.iterationHistory.length > 0 && (
-              <Accordion type="single" collapsible className="mt-4">
-                <AccordionItem value="history">
-                  <AccordionTrigger>
-                    Historial de versiones ({exam.iterationHistory.length + 1} versiones)
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="iteration-history-content">
-                      {/* Current version */}
-                      <div className="iteration-history-item iteration-history-item--current">
-                        <div className="iteration-history-version">
-                          <Badge>v{exam.iterationHistory.length + 1}</Badge>
-                          <span className="iteration-history-label">Version actual</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownload('exam')}
-                            title="Descargar esta version"
-                          >
-                            <Download size={16} />
-                          </Button>
-                        </div>
-                        <p className="iteration-history-instruction">
-                          {exam.iterationHistory[exam.iterationHistory.length - 1].instruction}
-                        </p>
-                        {exam.iterationHistory[exam.iterationHistory.length - 1].changes_made &&
-                          exam.iterationHistory[exam.iterationHistory.length - 1].changes_made!.length > 0 && (
-                          <ul className="iteration-history-changes">
-                            {exam.iterationHistory[exam.iterationHistory.length - 1].changes_made!.map((change: string, cidx: number) => (
-                              <li key={cidx}>{change}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      {/* Previous versions */}
-                      {[...exam.iterationHistory].slice(0, -1).reverse().map((item: ExamIterationHistoryItem, idx: number) => (
-                        <div key={idx} className="iteration-history-item">
-                          <div className="iteration-history-version">
-                            <Badge variant="secondary">v{item.version}</Badge>
-                            <span className="iteration-history-time">
-                              {new Date(item.timestamp).toLocaleString('es-ES')}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/exams/${examId}/download/version/${item.version}`;
-                                authenticatedFetch(url).then(r => r.blob()).then(blob => {
-                                  const a = document.createElement('a');
-                                  a.href = URL.createObjectURL(blob);
-                                  a.download = `${exam.name}_v${item.version}.pdf`;
-                                  a.click();
-                                  URL.revokeObjectURL(a.href);
-                                });
-                              }}
-                              title={`Descargar v${item.version}`}
-                            >
-                              <Download size={14} />
-                            </Button>
-                          </div>
-                          <p className="iteration-history-instruction">{item.instruction}</p>
-                          {item.changes_made && item.changes_made.length > 0 && (
-                            <ul className="iteration-history-changes">
-                              {item.changes_made.map((change: string, cidx: number) => (
-                                <li key={cidx}>{change}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                      {/* Original version */}
-                      <div className="iteration-history-item">
-                        <div className="iteration-history-version">
-                          <Badge variant="secondary">v1</Badge>
-                          <span className="iteration-history-label">Version original</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/exams/${examId}/download/version/1`;
-                              authenticatedFetch(url).then(r => r.blob()).then(blob => {
-                                const a = document.createElement('a');
-                                a.href = URL.createObjectURL(blob);
-                                a.download = `${exam.name}_v1.pdf`;
-                                a.click();
-                                URL.revokeObjectURL(a.href);
-                              });
-                            }}
-                            title="Descargar v1"
-                          >
-                            <Download size={14} />
-                          </Button>
-                        </div>
-                        <p className="iteration-history-instruction">Generacion inicial del examen</p>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            )}
+            {/* Version history now lives inside ExamSheet as a side drawer
+                triggered from the sheet's meta bar — fewer surfaces at once,
+                and history is consulted rarely. */}
           </>
         )}
       </div>
@@ -1297,12 +1264,17 @@ const ExamDetail: React.FC = () => {
                 {isAssigned ? <CheckCircle size={14} /> : '2'}
               </div>
               <h2 className="ed-section__title">Planificar</h2>
-              {isAssigned && (
-                <span className="ml-auto flex items-center gap-1.5 text-xs font-medium" style={{ color: '#059669' }}>
-                  <CheckCircle size={14} />
-                  Asignado — {examCorrections.length} alumnos
-                </span>
-              )}
+              {isAssigned && (() => {
+                const standaloneExam = !hasClass && (exam?.assignments?.length ?? 0) === 0;
+                return (
+                  <span className="ml-auto flex items-center gap-1.5 text-xs font-medium" style={{ color: '#059669' }}>
+                    <CheckCircle size={14} />
+                    {standaloneExam
+                      ? 'Sin clase asignada'
+                      : `Asignado — ${examCorrections.length} alumnos`}
+                  </span>
+                );
+              })()}
             </div>
 
             {/* Assigned: show downloads (collapsed hides, expanded shows) */}
@@ -1383,7 +1355,9 @@ const ExamDetail: React.FC = () => {
                     disabled={downloading}
                   >
                     <Download size={16} className="mr-2" />
-                    Descargar examenes ({examCorrections.length} alumnos)
+                    {!hasClass && (exam?.assignments?.length ?? 0) === 0
+                      ? 'Descargar examen'
+                      : `Descargar examenes (${examCorrections.length} alumnos)`}
                   </Button>
                 )}
               </div>
@@ -1518,19 +1492,43 @@ const ExamDetail: React.FC = () => {
                   </div>
                 )}
 
-                {/* Assign button */}
-                <Button
-                  className="w-full mt-4"
-                  onClick={handleAssign}
-                  disabled={assigning || (selectedAssignments.length === 0 && !classId)}
-                  style={{ background: '#2563EB', color: '#fff', borderColor: '#2563EB' }}
-                >
-                  {assigning ? (
-                    <><Spinner size={16} className="mr-2" /> Asignando...</>
-                  ) : (
-                    <><Users size={16} className="mr-2" /> Confirmar planificación ({selectedStudentIds.length} alumnos)</>
-                  )}
-                </Button>
+                {/* Primary action — morphs based on whether any class is
+                    selected. No selection → "Continuar sin clase" finalizes
+                    the exam without assignments (anonymous corrections flow).
+                    Any selection → the regular assign flow. */}
+                {(() => {
+                  const hasPicked = selectedAssignments.length > 0 || !!classId;
+                  if (hasPicked) {
+                    return (
+                      <Button
+                        className="w-full mt-4"
+                        onClick={handleAssign}
+                        disabled={assigning}
+                        style={{ background: '#2563EB', color: '#fff', borderColor: '#2563EB' }}
+                      >
+                        {assigning ? (
+                          <><Spinner size={16} className="mr-2" /> Asignando...</>
+                        ) : (
+                          <><Users size={16} className="mr-2" /> Asignar a {selectedStudentIds.length} alumno{selectedStudentIds.length === 1 ? '' : 's'}</>
+                        )}
+                      </Button>
+                    );
+                  }
+                  return (
+                    <Button
+                      className="w-full mt-4"
+                      variant="outline"
+                      onClick={handleFinalize}
+                      disabled={assigning}
+                    >
+                      {assigning ? (
+                        <><Spinner size={16} className="mr-2" /> Finalizando...</>
+                      ) : (
+                        <>No asignar a ninguna asignatura</>
+                      )}
+                    </Button>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1556,9 +1554,9 @@ const ExamDetail: React.FC = () => {
           <div className="ed-section__header">
             <div
               className="ed-section__number"
-              style={{ background: isCorrected ? '#059669' : '#2563EB', color: '#fff', width: 28, height: 28, fontSize: 13 }}
+              style={{ background: isActiveCorrected ? '#059669' : '#2563EB', color: '#fff', width: 28, height: 28, fontSize: 13 }}
             >
-              {isCorrected ? <CheckCircle size={14} /> : correctionStepNumber}
+              {isActiveCorrected ? <CheckCircle size={14} /> : correctionStepNumber}
             </div>
             <h2 className="ed-section__title">Corregir</h2>
           </div>
@@ -1582,7 +1580,10 @@ const ExamDetail: React.FC = () => {
                     className={`ed-class-tab${active ? ' ed-class-tab--active' : ''}`}
                     onClick={() => setTabKey(key)}
                   >
-                    <span className="ed-class-tab__name">{summary?.className || a.className}</span>
+                    <span className="ed-class-tab__name" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {a.corrected && <CheckCircle size={12} color="#059669" />}
+                      {summary?.className || a.className}
+                    </span>
                     <span className="ed-class-tab__meta">
                       {hasAvg
                         ? <>media <strong>{summary!.average!.toFixed(1)}</strong></>
@@ -1614,11 +1615,36 @@ const ExamDetail: React.FC = () => {
             </div>
           )}
 
+          {/* Generate-recovery CTA — only for evaluation exams that have been
+              corrected. Navigates to the Ejercicios wizard with purpose=recovery
+              and sourceExamId preset; the wizard auto-preselects students who
+              failed or have detected weak_areas. Keeps the repaso one click
+              away from the grading view where the teacher forms the intent. */}
+          {isActiveCorrected && (exam.purpose ?? 'evaluation') === 'evaluation' && (
+            <div style={{ margin: 'var(--space-md) 0 0' }}>
+              <Button
+                className="w-full"
+                variant="default"
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    purpose: 'recovery',
+                    sourceExamId: exam.id,
+                  });
+                  if (exam.classId) params.set('classId', exam.classId);
+                  navigate(`/tabs/exercises/new?${params.toString()}`);
+                }}
+              >
+                <Sparkles size={16} />
+                Generar repaso para estos alumnos
+              </Button>
+            </div>
+          )}
+
           {/* Stats Summary — only after the exam is fully corrected.
              Showing partial averages mid-grading misleads the teacher: a single
              5/10 doesn't represent the class. We wait until "Finalizar" so the
              panel only ever reflects final results. */}
-          {isCorrected && stats.totalGraded > 0 && (
+          {isActiveCorrected && stats.totalGraded > 0 && (
             <div className="ed-stats" style={{ margin: 'var(--space-md) 0 0' }}>
               <div className="ed-stat-card">
                 <div className="ed-stat-icon ed-stat-icon--primary">
@@ -1644,7 +1670,7 @@ const ExamDetail: React.FC = () => {
           )}
 
           {/* Performance Charts — same gate as stats above */}
-          {isCorrected && stats.totalGraded > 0 && (
+          {isActiveCorrected && stats.totalGraded > 0 && (
             <div className="ed-performance" style={{ margin: 'var(--space-md) 0' }}>
               <div className="ed-performance__charts">
                 <GradeDonut
@@ -1672,7 +1698,7 @@ const ExamDetail: React.FC = () => {
           )}
 
           {/* Post-correction actions */}
-          {exam.status === 'corrected' && (
+          {isActiveCorrected && (
             <div className="flex flex-col gap-2 mb-3">
               <Button
                 variant="outline"
@@ -1692,8 +1718,8 @@ const ExamDetail: React.FC = () => {
               When status === 'corrected': review cards with filter+sort.
               Otherwise: CorrectionPanel (the full edit workflow), which
               degrades to standalone mode when there's no class attached. */}
-          <div className={`ed-corrections-section${exam.status !== 'corrected' ? ' ed-corrections-section--inline' : ''}`} style={{ padding: 0 }}>
-            {exam.status === 'corrected' ? (
+          <div className={`ed-corrections-section${!isActiveCorrected ? ' ed-corrections-section--inline' : ''}`} style={{ padding: 0 }}>
+            {isActiveCorrected ? (
               <>
                 <div className="ed-corrections-header">
                   <h2 className="ed-section-title">
@@ -1800,9 +1826,17 @@ const ExamDetail: React.FC = () => {
                 <div className="ed-corrections-header" style={{ padding: '0 var(--space-md)' }}>
                   <h2 className="ed-section-title">Correcciones</h2>
                 </div>
+                {/* standalone mode fires when there's no class roster driving
+                    the upload — either because the exam was never tied to a
+                    class OR it was finalized with "No asignar a ninguna
+                    asignatura" (scheduled status, zero assignments). In both
+                    cases CorrectionPanel renders: free-text name input per
+                    correction, single "Subir examen" upload instead of the
+                    bulk QR-match flow, and a "+ añadir" row at the empty
+                    state. */}
                 <CorrectionPanel
                   examId={examId}
-                  standalone={!hasClass && !isAssigned}
+                  standalone={!hasClass && (exam?.assignments?.length ?? 0) === 0}
                   filterClassId={activeClassId || undefined}
                   filterSubjectId={activeSubjectId || undefined}
                   onFinished={() => {
@@ -1854,23 +1888,32 @@ const ExamDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Bottom iteration drawer — only for AI-generated, pre-assignment exams */}
-          {isAiGenerated && !isAssigned && !examTaskRunning && (
-            <div className={`ed-preview-drawer${iterationText.trim() || exam.status === 'pending_validation' ? ' ed-preview-drawer--expanded' : ''}`}>
+          {/* Bottom iteration drawer — only for AI-generated exams that are
+              still in pending_validation. Lets the teacher tweak from inside
+              the preview overlay without closing it. Uses its own local
+              state (previewIterationText) to stay independent of the main
+              sheet's AI bar on the detail page. */}
+          {isAiGenerated && !isValidated && !examTaskRunning && (
+            <div className={`ed-preview-drawer${previewIterationText.trim() || exam.status === 'pending_validation' ? ' ed-preview-drawer--expanded' : ''}`}>
               <div className="ed-preview-drawer__handle" />
               <div className="ed-preview-drawer__content">
                 <Textarea
-                  value={iterationText}
-                  onChange={(e) => setIterationText(e.target.value)}
+                  value={previewIterationText}
+                  onChange={(e) => setPreviewIterationText(e.target.value)}
                   placeholder="Modifica la pregunta 2, anade mas espacio..."
                   rows={1}
                   className="ed-preview-drawer__input"
                 />
-                {iterationText.trim() ? (
+                {previewIterationText.trim() ? (
                   <Button
                     size="sm"
                     className="ed-preview-drawer__btn"
-                    onClick={() => { handleIterate(); setPreviewUrl(null); }}
+                    onClick={() => {
+                      const instruction = previewIterationText;
+                      setPreviewIterationText('');
+                      handleIterate(instruction);
+                      setPreviewUrl(null);
+                    }}
                   >
                     <RefreshCw size={14} />
                   </Button>
@@ -1900,40 +1943,8 @@ const ExamDetail: React.FC = () => {
         </div>
       )}
 
-      {/* ─── Delete Alert (primary) ─── */}
-      <AlertConfirm
-        open={showDeleteAlert}
-        onClose={() => setShowDeleteAlert(false)}
-        header="Eliminar examen"
-        message={
-          `¿Eliminar "${exam.name}"? También se eliminarán todas las correcciones asociadas. Esta acción no se puede deshacer.`
-        }
-        cancelText="Cancelar"
-        confirmText="Eliminar"
-        variant="destructive"
-        onConfirm={() => handleDelete(false)}
-      />
-
-      {/* ─── Force-delete alert: appears if the first attempt 409'd
-             because there are graded corrections the teacher might lose. */}
-      <AlertConfirm
-        open={!!forceDeletePrompt}
-        onClose={() => setForceDeletePrompt(null)}
-        header="Confirmar eliminación con notas"
-        message={
-          forceDeletePrompt
-            ? `Este examen tiene ${forceDeletePrompt.gradedCount} ${forceDeletePrompt.gradedCount === 1 ? 'corrección calificada' : 'correcciones calificadas'}. Si lo eliminas perderás esas notas de forma permanente.`
-            : ''
-        }
-        cancelText="Cancelar"
-        confirmText="Sí, eliminar todo"
-        variant="destructive"
-        onConfirm={() => {
-          setForceDeletePrompt(null);
-          handleDelete(true);
-        }}
-      />
-
+      {/* Two-step delete flow (primary confirm + 409 force-confirm) */}
+      <ExamDeleteDialogs />
     </PageShell>
   );
 };

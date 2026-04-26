@@ -24,6 +24,8 @@ const mapPlan = (d: any): CoursePlan => ({
   status: d.status,
   errorMessage: d.error_message,
   isActive: d.is_active,
+  validatedAt: d.validated_at,
+  plannedAt: d.planned_at,
   createdAt: d.created_at,
   completedAt: d.completed_at,
 });
@@ -38,6 +40,8 @@ const mapListItem = (d: any): CoursePlanListItem => ({
   title: d.title,
   totalSessions: d.total_sessions,
   topicsCreated: d.topics_created,
+  validatedAt: d.validated_at,
+  plannedAt: d.planned_at,
   createdAt: d.created_at,
   completedAt: d.completed_at,
 });
@@ -62,6 +66,11 @@ interface CoursePlanState {
   fetchPlans: (subjectId?: string, classId?: string) => Promise<void>;
   fetchPlan: (id: string) => Promise<CoursePlan>;
   createPlan: (data: Parameters<typeof coursePlans.create>[0]) => Promise<{ id: string; batchJobId: string }>;
+  /** Fase 1 — guarda edición inline del currículo. Resetea validated_at. */
+  updateCurriculum: (id: string, curriculum: any) => Promise<CoursePlan>;
+  /** Fase 1 — valida la programación. Habilita la planificación. */
+  validatePlan: (id: string) => Promise<CoursePlan>;
+  /** Fase 2 — confirma la planificación: crea topics + sesiones de calendario. */
   acceptPlan: (id: string, options?: { skip_exam_units?: string[]; extra_exams?: { name: string; date: string }[] }) => Promise<{ topics_created: number; events_created: number }>;
   generateContent: (id: string) => Promise<{ textbook_id: string; batch_job_id: string }>;
   regeneratePlan: (id: string, data: any) => Promise<{ id: string; batchJobId: string }>;
@@ -99,6 +108,23 @@ export const useCoursePlanStore = create<CoursePlanState>((set, get) => ({
     const plan = mapPlan(res.data);
     set((s) => ({ plans: [mapListItem(res.data), ...s.plans], currentPlan: plan }));
     return { id: plan.id, batchJobId: plan.batchJobId! };
+  },
+
+  updateCurriculum: async (id, curriculum) => {
+    const res = await coursePlans.updateCurriculum(id, curriculum);
+    const plan = mapPlan(res.data);
+    set({ currentPlan: plan });
+    return plan;
+  },
+
+  validatePlan: async (id) => {
+    const res = await coursePlans.validate(id);
+    const plan = mapPlan(res.data);
+    set((s) => ({
+      currentPlan: plan,
+      plans: s.plans.map((p) => (p.id === id ? mapListItem({ ...p, validated_at: plan.validatedAt }) : p)),
+    }));
+    return plan;
   },
 
   acceptPlan: async (id, options) => {

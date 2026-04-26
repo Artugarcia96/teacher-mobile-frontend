@@ -11,6 +11,7 @@ import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useClassesStore } from '../../store/classesStore';
+import { useTallerStore } from '../../store/tallerStore';
 import EmptyState from '../../components/EmptyState';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useAcademicConfigStore } from '../../store/academicConfigStore';
@@ -369,7 +370,7 @@ const TopicDetail: React.FC = () => {
   return (
     <PageShell
       title={currentTopic.name}
-      backHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}/topics` : `/tabs/classes/${classId}/topics`}
+      backHref={subjectId ? `/tabs/classes/${classId}/subjects/${subjectId}/syllabus` : `/tabs/classes/${classId}`}
       noPadding
       headerActions={
         isEditing
@@ -377,6 +378,27 @@ const TopicDetail: React.FC = () => {
               {saving ? <Spinner size={18} /> : <Check size={18} />}
             </Button>
           : <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const classGroup = useClassesStore.getState().classes.find((c) => c.id === classId);
+                  useTallerStore.getState().openTaller({
+                    limitTo: 'content',
+                    defaultType: 'presentation',
+                    classId,
+                    subjectId,
+                    subjectName: selectedSubject?.subjectName || undefined,
+                    educationLevel: classGroup?.educationLevel || undefined,
+                    topicName: currentTopic.name,
+                    promptHint: `Material sobre "${currentTopic.name}"${selectedSubject?.subjectName ? ` de ${selectedSubject.subjectName}` : ''}${classGroup?.educationLevel ? `, nivel ${classGroup.educationLevel}` : ''}.`,
+                  });
+                }}
+                title="Crear material sobre este tema"
+              >
+                <Sparkles size={16} />
+                <span className="hidden md:inline">Crear material</span>
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowDeleteTopic(true)}><Trash2 size={18} /></Button>
               <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)}><Pencil size={18} /></Button>
             </>

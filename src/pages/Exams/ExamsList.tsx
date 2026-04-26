@@ -7,28 +7,39 @@ import { useCorrectionStore } from '../../store/correctionStore';
 import { useClassesStore } from '../../store/classesStore';
 import { fetchRegistry } from '../../store/fetchRegistry';
 import { classes as classesApi, subjects as subjectsApi } from '../../services/api';
-import { ClassGroup, Exam } from '../../types';
+import { ClassGroup, Exam, ExamPurpose } from '../../types';
 import EmptyState from '../../components/EmptyState';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useDashboardStore } from '../../store/dashboardStore';
 import PageShell from '@/components/shared/PageShell';
 import Spinner from '@/components/shared/Spinner';
-import AlertConfirm from '@/components/shared/AlertConfirm';
+import { useExamDeleteFlow } from '../../hooks/useExamDeleteFlow';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import SubjectPageHeader from '../../components/SubjectPageHeader';
 import { EXAM_STATUS_CONFIG, EXAM_DEADLINE_CONFIG, EXAM_ORIGIN_CONFIG, STATUS_FILTER_OPTIONS } from './examConstants';
 import './ExamsList.css';
 
-const ExamsList: React.FC = () => {
+interface ExamsListProps {
+  /** Purposes shown in this view. Class/subject-scoped Exámenes tab defaults
+   *  to evaluation; the Ejercicios variant passes ['practice','recovery']. */
+  purposes?: ExamPurpose[];
+}
+
+const DEFAULT_LIST_PURPOSES: ExamPurpose[] = ['evaluation'];
+
+const ExamsList: React.FC<ExamsListProps> = ({ purposes = DEFAULT_LIST_PURPOSES }) => {
   const { classId, subjectId } = useParams() as { classId: string; subjectId?: string };
   const navigate = useNavigate();
+  const isExercisesView = !purposes.includes('evaluation');
+  const nounPluralUpper = isExercisesView ? 'Ejercicios' : 'Exámenes';
+  const nounPluralLower = isExercisesView ? 'ejercicios' : 'exámenes';
+  const nounSingularLower = isExercisesView ? 'ejercicio' : 'examen';
 
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
-  const deleteExam = useExamsStore((s) => s.deleteExam);
   const examsLoading = useExamsStore((s) => s.loading);
   const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
+  const { requestDelete: requestDeleteExam, DeleteDialogs: ExamDeleteDialogs } = useExamDeleteFlow();
 
   const allStudents = useStudentsStore((s) => s.students);
   const fetchStudents = useStudentsStore((s) => s.fetchStudents);
@@ -44,18 +55,21 @@ const ExamsList: React.FC = () => {
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending_validation' | 'pending_schedule' | 'scheduled' | 'pending_correction' | 'corrected'>('all');
   const [lectureFilter, setLectureFilter] = useState<string>('all');
-  const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
   const [classGroup, setClassGroup] = useState<ClassGroup | null>(null);
   const [subjectName, setSubjectName] = useState<string | null>(null);
 
   const basicClassGroup = useMemo(() => allClasses.find((c) => c.id === classId), [allClasses, classId]);
   const students = useMemo(() => allStudents.filter((st) => st.classId === classId), [allStudents, classId]);
   const exams = useMemo(() => allExams.filter((e) => {
+    // Purpose filter first — Exámenes and Ejercicios use the same list but
+    // render different subsets of exams (evaluation vs practice/recovery).
+    const p = (e.purpose ?? 'evaluation') as ExamPurpose;
+    if (!purposes.includes(p)) return false;
     // Match via direct fields OR via assignments
     const directMatch = e.classId === classId && (!subjectId || e.subjectId === subjectId);
     const assignmentMatch = e.assignments?.some(a => a.classId === classId && (!subjectId || a.subjectId === subjectId));
     return directMatch || assignmentMatch;
-  }), [allExams, classId, subjectId]);
+  }), [allExams, classId, subjectId, purposes]);
 
   const fetchClassDetails = useCallback(async () => {
     if (!classId) return;
@@ -115,16 +129,16 @@ const ExamsList: React.FC = () => {
     return cg?.lectures?.find(l => l.id === lectureId)?.name;
   }, [classGroup, basicClassGroup]);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteExam(deleteTarget.id);
-      await fetchExams(classId, subjectId);
-      fetchDashboard();
-    } catch (err) {
-      console.error('Failed to delete exam:', err);
-    }
-    setDeleteTarget(null);
+  const requestDelete = (exam: Exam) => {
+    requestDeleteExam({
+      id: exam.id,
+      name: exam.name,
+      gradedCount: exam.gradedCount ?? 0,
+      onSuccess: () => {
+        fetchExams(classId, subjectId);
+        fetchDashboard();
+      },
+    });
   };
 
   const displayClass = classGroup || basicClassGroup;
@@ -134,40 +148,27 @@ const ExamsList: React.FC = () => {
   const basePath = subjectId
     ? `/tabs/classes/${classId}/subjects/${subjectId}`
     : '/tabs/classes';
-  const examsBasePath = `${basePath}/exams`;
+  const examsBasePath = `${basePath}/${isExercisesView ? 'exercises' : 'exams'}`;
 
   return (
     <PageShell noPadding contentClassName="!p-0">
       <div className="exams-list-scroll" style={subjectThemeStyle(subjectColor) as React.CSSProperties}>
-        {/* Hero Header */}
-        <div className="exams-list-hero" style={subjectColor ? { background: subjectColor } : undefined}>
-          <div className="exams-list-hero__nav">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate(basePath)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/20 transition-colors text-white"
-              >
-                <ArrowLeft size={20} />
-              </button>
-            </div>
-            <div className="exams-list-hero__center">
-              <h1 className="exams-list-hero__title">Exámenes</h1>
-              {(displayClass || subjectName) && (
-                <p className="exams-list-hero__subtitle">
-                  {displayClass?.name}{subjectName ? ` — ${subjectName}` : ''}{aulaLabel ? ` · ${aulaLabel}` : ''}
-                </p>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
+        <SubjectPageHeader
+          eyebrow={displayClass?.name || (subjectName ? '' : 'Clases')}
+          title={`${subjectName || displayClass?.name || ''}${subjectName ? ' · ' : ''}${nounPluralUpper}`}
+          sub={aulaLabel || undefined}
+          backHref={basePath}
+          actions={(
+            <button
+              type="button"
               onClick={() => navigate(`${examsBasePath}/new`)}
-              className="text-white/90 hover:text-white hover:bg-white/20"
+              aria-label={`Nuevo ${nounSingularLower}`}
             >
-              <Plus size={22} />
-            </Button>
-          </div>
-        </div>
+              <Plus size={14} />
+              Nuevo
+            </button>
+          )}
+        />
 
         {/* Status filter */}
         <div className="exams-filter-bar">
@@ -191,7 +192,7 @@ const ExamsList: React.FC = () => {
             </SelectContent>
           </Select>
           <span className="exams-filter-summary">
-            {filteredExams.length} {filteredExams.length === 1 ? 'examen' : 'exámenes'}
+            {filteredExams.length} {filteredExams.length === 1 ? nounSingularLower : nounPluralLower}
           </span>
         </div>
 
@@ -225,9 +226,9 @@ const ExamsList: React.FC = () => {
           ) : filteredExams.length === 0 ? (
             <EmptyState
               icon="📝"
-              title={exams.length === 0 ? 'Aún no hay exámenes' : 'Sin resultados'}
-              subtitle={exams.length === 0 ? 'Crea tu primer examen para esta clase' : 'Prueba con otros filtros'}
-              actionLabel={exams.length === 0 ? 'Crear examen' : undefined}
+              title={exams.length === 0 ? `Aún no hay ${nounPluralLower}` : 'Sin resultados'}
+              subtitle={exams.length === 0 ? `Crea tu primer ${nounSingularLower} para esta clase` : 'Prueba con otros filtros'}
+              actionLabel={exams.length === 0 ? `Crear ${nounSingularLower}` : undefined}
               onAction={exams.length === 0 ? () => navigate(`${examsBasePath}/new`) : undefined}
             />
           ) : (
@@ -307,7 +308,7 @@ const ExamsList: React.FC = () => {
                         className="exams-list-card__delete"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteTarget(exam);
+                          requestDelete(exam);
                         }}
                       >
                         <Trash2 size={16} />
@@ -321,19 +322,8 @@ const ExamsList: React.FC = () => {
           )}
         </div>
 
-        {/* Delete Alert */}
-        <AlertConfirm
-          open={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          header="Eliminar examen"
-          message={
-            `¿Eliminar "${deleteTarget?.name}"? También se eliminarán todas las correcciones asociadas. Esta acción no se puede deshacer.`
-          }
-          confirmText="Eliminar"
-          cancelText="Cancelar"
-          onConfirm={handleDelete}
-          variant="destructive"
-        />
+        {/* Two-step delete flow (handles 409 graded-corrections case) */}
+        <ExamDeleteDialogs />
       </div>
     </PageShell>
   );

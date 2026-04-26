@@ -28,6 +28,7 @@ function mapCorrection(c: any): ExerciseCorrectionResult {
     id: c.id,
     exerciseId: c.exercise_id,
     studentId: c.student_id,
+    anonymousLabel: c.anonymous_label ?? undefined,
     paperUrl: c.paper_url,
     aiAnalysis: mapAIResult(c.ai_result),
     grade: c.grade,
@@ -44,7 +45,7 @@ interface ExerciseCorrectionState {
   fetchAllCorrections: () => Promise<void>;
   fetchCorrections: (exerciseId: string) => Promise<void>;
   bulkUpload: (exerciseId: string, files: File[]) => Promise<BulkUploadResult>;
-  updateCorrection: (id: string, data: { student_id?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) => Promise<void>;
+  updateCorrection: (id: string, data: { student_id?: string; anonymous_label?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) => Promise<void>;
   processAI: (correctionId: string) => Promise<AIAnalysis | undefined>;
   finishCorrection: (exerciseId: string) => Promise<void>;
   clearCorrections: () => void;
@@ -119,6 +120,7 @@ export const useExerciseCorrectionStore = create<ExerciseCorrectionState>((set, 
           ? {
               ...c,
               studentId: res.data.student_id || c.studentId,
+              anonymousLabel: res.data.anonymous_label ?? c.anonymousLabel,
               grade: res.data.grade ?? c.grade,
               teacherComments: res.data.teacher_notes ?? c.teacherComments,
               weakAreas: res.data.weak_areas ?? c.weakAreas,

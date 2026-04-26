@@ -1,5 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { useDashboardStore } from '../../store/dashboardStore';
+import { useTallerStore } from '../../store/tallerStore';
 import SepiaLogo from '../SepiaLogo';
 import { NAV_ITEMS } from './navItems';
 
@@ -7,6 +9,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const pendingCount = useDashboardStore((s) => s.data?.stats?.pendingCorrectionsCount ?? 0);
+  const openTaller = useTallerStore((s) => s.openTaller);
 
   const isActive = (href: string) => location.pathname.startsWith(href);
   const isLoginPage = location.pathname === '/login';
@@ -17,6 +20,17 @@ const Sidebar: React.FC = () => {
     <aside className="hidden lg:flex flex-col w-[260px] border-r border-border bg-card shrink-0">
       <div className="px-5 py-6 border-b border-border">
         <SepiaLogo size={36} showText variant="colored" />
+      </div>
+
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => openTaller({ limitTo: 'content', defaultType: 'presentation' })}
+          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm shadow-sm hover:bg-primary/90 transition-colors"
+        >
+          <Sparkles size={16} />
+          Crear material
+        </button>
       </div>
 
       <nav className="flex flex-col gap-1 p-3" aria-label="Navegación principal">

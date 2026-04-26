@@ -19,11 +19,13 @@ import { useNavigate } from 'react-router-dom';
 import PageShell from '@/components/shared/PageShell';
 import { useClassesStore } from '../../store/classesStore';
 import { useExamsStore } from '../../store/examsStore';
+import { useTallerStore } from '../../store/tallerStore';
 import { useCalendarStore, CalendarView } from '../../store/calendarStore';
 import { useStudentsStore } from '../../store/studentsStore';
 import { useDashboardStore } from '../../store/dashboardStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import EventEditorSheet from '../../components/EventEditorSheet';
+import SessionDetailDrawer from '../../components/SessionDetailDrawer';
 import PrepareYourDayModal from '../../components/PrepareYourDayModal';
 import AttendanceSheet from '../../components/AttendanceSheet';
 import { CalendarEvent } from '../../types';
@@ -138,6 +140,7 @@ const Calendar: React.FC = () => {
 
   const [showEventEditor, setShowEventEditor] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [openSessionId, setOpenSessionId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayStr);
 
   const [showPrepareModal, setShowPrepareModal] = useState(false);
@@ -311,6 +314,13 @@ const Calendar: React.FC = () => {
   const isCurrentWeek = weekOffset === 0;
 
   const handleEventClick = (ev: CalendarEvent) => {
+    // Sesiones de clase abren el hub operativo (materiales + pasar lista +
+    // notas). Eventos custom/tutoría siguen abriendo el editor clásico para
+    // permitir mover fecha, cancelar, etc.
+    if (ev.eventType === 'class_session') {
+      setOpenSessionId(ev.id);
+      return;
+    }
     setEditingEvent(ev);
     setShowEventEditor(true);
   };
@@ -326,14 +336,37 @@ const Calendar: React.FC = () => {
   };
 
 
+  const handleCreateMaterialForDay = () => {
+    // Construye el hint con la fecha seleccionada en formato legible
+    const d = new Date(selectedDate + 'T00:00:00');
+    const human = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    useTallerStore.getState().openTaller({
+      limitTo: 'content',
+      defaultType: 'presentation',
+      date: selectedDate,
+      promptHint: `Material para la clase del ${human}. `,
+    });
+  };
+
   const headerActions = (
-    <button
-      onClick={() => navigate('/tabs/guide')}
-      aria-label="Guía de uso"
-      className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-accent transition-colors"
-    >
-      <HelpCircle size={20} />
-    </button>
+    <div className="flex items-center gap-1">
+      <button
+        onClick={handleCreateMaterialForDay}
+        aria-label="Crear material para este día"
+        title="Crear material para este día"
+        className="flex items-center gap-1 px-2 h-8 rounded-lg hover:bg-accent transition-colors text-primary font-medium text-xs"
+      >
+        <Sparkles size={16} />
+        <span className="hidden sm:inline">Material</span>
+      </button>
+      <button
+        onClick={() => navigate('/tabs/guide')}
+        aria-label="Guía de uso"
+        className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-accent transition-colors"
+      >
+        <HelpCircle size={20} />
+      </button>
+    </div>
   );
 
   return (
@@ -696,6 +729,16 @@ const Calendar: React.FC = () => {
         eventId={attendanceData?.eventId}
         subjectId={attendanceData?.subjectId}
         onDismiss={() => setAttendanceData(null)}
+      />
+
+      <SessionDetailDrawer
+        eventId={openSessionId}
+        open={!!openSessionId}
+        onClose={() => {
+          setOpenSessionId(null);
+          // Refresca por si cambió título/notas/asistencia inline
+          view === 'week' ? loadWeek() : loadMonth();
+        }}
       />
     </PageShell>
   );

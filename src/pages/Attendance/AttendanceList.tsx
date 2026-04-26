@@ -16,8 +16,7 @@ import Searchbar from '@/components/shared/Searchbar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import SubjectPageHeader from '../../components/SubjectPageHeader';
 import './AttendanceList.css';
 
 function formatDate(d: string) {
@@ -210,29 +209,11 @@ const AttendanceList: React.FC = () => {
 
   return (
     <PageShell noPadding className="att-list-page" contentClassName="!p-0">
-      {/* Hero Header */}
-      <div className="att-list-hero" style={subjectColor ? { background: subjectColor, ...(subjectThemeStyle(subjectColor) as React.CSSProperties) } : subjectThemeStyle(subjectColor) as React.CSSProperties}>
-        <div className="att-list-hero__nav">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(basePath)}
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/20 transition-colors text-white"
-            >
-              <ArrowLeft size={20} />
-            </button>
-          </div>
-          <div className="att-list-hero__center">
-            <h1 className="att-list-hero__title">Asistencia</h1>
-            {(displayClass || subjectName) && (
-              <p className="att-list-hero__subtitle">
-                {displayClass?.name}{subjectName ? ` — ${subjectName}` : ''}
-              </p>
-            )}
-          </div>
-          {/* Spacer to balance back button */}
-          <div style={{ width: 40 }} />
-        </div>
-      </div>
+      <SubjectPageHeader
+        eyebrow={displayClass?.name || (subjectName ? '' : 'Clases')}
+        title={`${subjectName || displayClass?.name || ''}${subjectName ? ' · ' : ''}Asistencia`}
+        backHref={basePath}
+      />
 
       {/* Filters */}
       <div className="att-list-filters">

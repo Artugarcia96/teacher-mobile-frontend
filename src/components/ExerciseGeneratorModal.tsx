@@ -64,6 +64,10 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const [selectedExamIds, setSelectedExamIds] = useState<string[]>([]);
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  // "Sin alumnos" mode — generates a single generic worksheet (no QR, no
+  // student header). Mirrors the exam-side "No asignar a ninguna asignatura"
+  // flow. Any student selection is ignored while this is on.
+  const [generateStandalone, setGenerateStandalone] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [difficulty, setDifficulty] = useState<'easier' | 'same' | 'harder'>('same');
   const [numQuestions, setNumQuestions] = useState(5);
@@ -419,6 +423,17 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
 
   const handleGenerate = async () => {
+    // "Sin alumnos" path: skip the class/student pipeline and send an empty
+    // student_ids list. The backend creates a single generic worksheet owned
+    // by the teacher (no QR, no student header).
+    if (generateStandalone) {
+      if (sourceType === 'exam' && selectedExamIds.length === 0) return;
+      if (sourceType === 'topic' && selectedTopicIds.length === 0) return;
+      setError('');
+      handleDirectGenerateBackground([]);
+      return;
+    }
+
     const sIds = multiMode ? [...selectedStudentIds] : [studentId!];
     if (sIds.length === 0) return;
     if (sourceType === 'exam' && selectedExamIds.length === 0) return;
@@ -529,9 +544,12 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
   };
   
   const canGenerate = (() => {
-    const hasStudents = multiMode ? selectedStudentIds.length > 0 : !!studentId;
     const hasSource = sourceType === 'exam' ? selectedExamIds.length > 0 : selectedTopicIds.length > 0;
     const hasName = exerciseName.trim().length > 0;
+    // Standalone mode: no student picker needed. The backend generates a
+    // single generic worksheet owned by the teacher.
+    if (generateStandalone) return hasSource && hasName && !generating;
+    const hasStudents = multiMode ? selectedStudentIds.length > 0 : !!studentId;
     return hasStudents && hasSource && hasName && !generating;
   })();
 
@@ -870,8 +888,30 @@ const ExerciseGeneratorModal: React.FC<Props> = ({
               )
             )}
 
-            {/* Student selector (multi-mode only) */}
+            {/* "Sin alumnos" toggle — generates a single generic worksheet
+                 owned by the teacher. Only shown in multi-mode (the per-
+                 student flow is explicit about a student). */}
             {multiMode && (sourceType === 'topic' ? selectedTopicIds.length > 0 : selectedExamIds.length > 0) && (
+              <label className="exgen__standalone-toggle" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.25rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="checkbox"
+                  checked={generateStandalone}
+                  onChange={(e) => {
+                    setGenerateStandalone(e.target.checked);
+                    if (e.target.checked) setSelectedStudentIds([]);
+                  }}
+                />
+                <span>
+                  <strong>No asignar a ningún alumno</strong>
+                  <span style={{ color: 'var(--muted-foreground)', marginLeft: '0.35rem', fontSize: '0.78rem' }}>
+                    Genera una ficha genérica sin nombre ni QR.
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {/* Student selector (multi-mode only, hidden in standalone) */}
+            {!generateStandalone && multiMode && (sourceType === 'topic' ? selectedTopicIds.length > 0 : selectedExamIds.length > 0) && (
               <div className="exgen__students">
                 <div 
                   className="exgen__picker-header"

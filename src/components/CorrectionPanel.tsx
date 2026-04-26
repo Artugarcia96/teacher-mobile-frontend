@@ -135,12 +135,19 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished, s
       });
       return next;
     });
-    // Restore standalone names from persisted teacher_notes prefix
+    // Restore standalone names — prefer the dedicated anonymous_label field
+    // (new storage), fall back to the legacy "[Alumno: X]" prefix stored in
+    // teacher_notes for corrections created before the field existed.
     if (standalone) {
       setStandaloneNames((prev) => {
         const next = { ...prev };
         examCorrections.forEach((c) => {
-          if (!next[c.id] && c.teacherComments) {
+          if (next[c.id]) return;
+          if (c.anonymousLabel) {
+            next[c.id] = c.anonymousLabel;
+            return;
+          }
+          if (c.teacherComments) {
             const match = c.teacherComments.match(/^\[Alumno: (.+?)\]/);
             if (match) next[c.id] = match[1];
           }
@@ -264,19 +271,18 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished, s
 
     setSaving((prev) => ({ ...prev, [correctionId]: true }));
     try {
-      // In standalone mode, prepend student name to teacher_notes if provided
-      let notes = local.teacherComments;
-      if (standalone && standaloneNames[correctionId]) {
-        const namePrefix = `[Alumno: ${standaloneNames[correctionId]}]`;
-        if (!notes.startsWith(namePrefix)) {
-          notes = notes ? `${namePrefix} ${notes}` : namePrefix;
-        }
-      }
-      await updateCorrection(correctionId, {
+      // Standalone mode: persist the typed name into the dedicated
+      // anonymous_label field (the legacy "[Alumno: X]" teacher_notes prefix
+      // is still read for back-compat but we no longer write it).
+      const payload: Parameters<typeof updateCorrection>[1] = {
         student_id: local.studentId || undefined,
         grade: local.grade,
-        teacher_notes: notes,
-      });
+        teacher_notes: local.teacherComments,
+      };
+      if (standalone) {
+        payload.anonymous_label = standaloneNames[correctionId] || '';
+      }
+      await updateCorrection(correctionId, payload);
     } catch (err) {
       console.error('Failed to save correction:', err);
       toast.error('Error al guardar la corrección. Inténtalo de nuevo.');
@@ -778,12 +784,32 @@ const CorrectionPanel: React.FC<CorrectionPanelProps> = ({ examId, onFinished, s
 
   const handleFinish = async () => {
     try {
-      // /corrections/{exam_id}/finish already moves the exam to "corrected"
-      // server-side. Calling updateExam afterwards with the same status hit
-      // the PUT VALID_TRANSITIONS check (corrected → corrected = 400) and
-      // the redundant call was the source of the recent 400 the teacher saw.
-      await finishCorrection(examId);
-      setShowCelebration(true);
+      // The backend evaluates the exam GLOBALLY across every class it's
+      // assigned to. From this view the teacher only sees ONE class at a
+      // time, so a "1/1 graded here" can still leave the exam pending in
+      // other classes. We surface the breakdown as a clear toast/celebration.
+      const result = await finishCorrection(examId, effectiveClassId);
+      // Per-class scope: celebrate if this class got finalized, even if other
+      // classes are still pending in the global exam.
+      if (result.scope === 'class' ? result.classCorrected : result.allGraded) {
+        setShowCelebration(true);
+      } else {
+        const lines = result.pendingByClass.map(
+          (p) => `${p.className}: ${p.count} sin calificar`
+        );
+        const description = lines.length
+          ? lines.join(' · ')
+          : `${result.pending} alumnos sin calificar`;
+        toast.warning(
+          `Quedan ${result.pending} de ${result.total} alumnos por calificar`,
+          {
+            description: lines.length > 1
+              ? `${description}. Corrige el resto de clases para finalizar el examen.`
+              : `${description}.`,
+            duration: 8000,
+          }
+        );
+      }
     } catch (err) {
       console.error('Failed to finish:', err);
       toast.error('No se pudo finalizar la corrección. Revisa la conexión.');

@@ -18,7 +18,7 @@ interface TopicsState {
   linkSubjectToClass: (subjectId: string, classId: string) => Promise<void>;
   unlinkSubjectFromClass: (subjectId: string, classId: string) => Promise<void>;
   fetchTopic: (topicId: string) => Promise<Topic | null>;
-  createTopic: (subjectId: string, data: { name: string; description?: string; trimester?: number; parent_id?: string }) => Promise<Topic>;
+  createTopic: (subjectId: string, data: { name: string; description?: string; trimester?: number; parent_id?: string; class_id?: string }) => Promise<Topic>;
   updateTopic: (topicId: string, data: { name?: string; description?: string; trimester?: number; order?: number; include_in_generation?: boolean }) => Promise<void>;
   deleteTopic: (topicId: string) => Promise<void>;
   uploadMaterial: (topicId: string, file: File) => Promise<TopicMaterial>;
@@ -89,6 +89,9 @@ const mapTopicListResponse = (data: any): TopicListItem => ({
   status: data.status || 'draft',
   pageCount: data.page_count,
   pdfUrl: data.pdf_url,
+  presentations: data.presentations,
+  textbooks: data.textbooks,
+  children: Array.isArray(data.children) ? data.children.map(mapTopicListResponse) : undefined,
 });
 
 export const useTopicsStore = create<TopicsState>((set, get) => ({
@@ -111,7 +114,7 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
       const grouped: SubjectWithTopics[] = topicsRes.data.map((s: any) => ({
         subjectId: s.subject_id,
         subjectName: s.subject_name,
-        topics: (s.topics || []).map((t: any) => ({
+        topics: (s.topics || []).map((t: any): TopicListItem => ({
           id: t.id,
           subjectId: s.subject_id,
           subjectName: s.subject_name,
@@ -124,6 +127,26 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
           status: t.status || 'draft',
           pageCount: t.page_count,
           pdfUrl: t.pdf_url,
+          presentations: t.presentations,
+          textbooks: t.textbooks,
+          children: Array.isArray(t.children)
+            ? t.children.map((c: any): TopicListItem => ({
+                id: c.id,
+                subjectId: s.subject_id,
+                subjectName: s.subject_name,
+                name: c.name,
+                description: c.description,
+                trimester: c.trimester ?? null,
+                order: c.order,
+                materialCount: c.material_count || 0,
+                hasContent: c.has_content || false,
+                status: c.status || 'draft',
+                pageCount: c.page_count,
+                pdfUrl: c.pdf_url,
+                presentations: c.presentations,
+                textbooks: c.textbooks,
+              }))
+            : undefined,
         })),
       }));
 
@@ -208,7 +231,7 @@ export const useTopicsStore = create<TopicsState>((set, get) => ({
     }
   },
 
-  createTopic: async (subjectId: string, data: { name: string; description?: string; trimester?: number; parent_id?: string }) => {
+  createTopic: async (subjectId: string, data: { name: string; description?: string; trimester?: number; parent_id?: string; class_id?: string }) => {
     const res = await topicsApi.create(subjectId, data);
     const topic = mapTopicResponse(res.data);
     // Only add to global lists if it's a top-level topic (not a sub-topic)

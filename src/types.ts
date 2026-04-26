@@ -55,17 +55,113 @@ export interface ExamIterationHistoryItem {
   instruction: string;
   timestamp: string;
   changes_made?: string[];
+  /** "manual_edit" when the teacher edited content through the inline editor,
+   *  absent (or "ai") for AI-driven iterations. */
+  kind?: string;
 }
+
+// ── Exam content (editable JSON inside Exam.generated_questions) ──────
+
+export type ExamQuestionType =
+  | 'computational'
+  | 'conceptual'
+  | 'application'
+  | 'multi-step'
+  | 'mcq';
+
+export type ExamAnswerSpace =
+  | 'small'
+  | 'medium'
+  | 'large'
+  | 'number_box'
+  | 'drawing';
+
+export type ExamVisual =
+  | { kind: 'clock'; hour: number; minute: number }
+  | { kind: 'empty_clock' }
+  | {
+      kind: 'number_line';
+      min: number;
+      max: number;
+      step?: number;
+      highlights?: number[];
+      arrow_at?: number;
+    }
+  | {
+      kind: 'object_grid';
+      object: string;
+      count: number;
+      columns?: number;
+    }
+  | {
+      kind: 'shapes';
+      items: { shape: string; color?: string }[];
+    }
+  | { kind: 'fraction_bar'; numerator: number; denominator: number }
+  | { kind: 'dot_pattern'; count: number };
+
+export interface ExamSubquestion {
+  label: string;
+  text: string;
+  points?: number;
+  answer_space?: ExamAnswerSpace;
+  solution_steps?: string[];
+}
+
+export interface ExamOption {
+  label?: string;
+  text: string;
+  correct?: boolean;
+}
+
+export interface ExamQuestion {
+  id: string;
+  text: string;
+  points?: number;
+  type?: ExamQuestionType;
+  answer_space?: ExamAnswerSpace;
+  solution_steps?: string[];
+  subquestions?: ExamSubquestion[];
+  options?: ExamOption[];
+  visual?: ExamVisual | null;
+}
+
+export interface ExamSection {
+  title: string;
+  points?: number;
+  questions: ExamQuestion[];
+}
+
+export interface ExamContent {
+  title?: string;
+  subtitle?: string;
+  instructions?: {
+    time?: string;
+    materials?: string;
+    notes?: string;
+  };
+  sections: ExamSection[];
+  total_points?: number;
+}
+
+export type ExamPurpose = 'evaluation' | 'practice' | 'recovery';
 
 export interface ExamAssignment {
   classId: string;
   className: string;
   subjectId: string;
   subjectName: string;
+  /** When set, this assignment targets a single student (practice/recovery).
+   *  When undefined, the assignment applies to the whole class (evaluation). */
+  studentId?: string;
+  studentName?: string;
+  dueDate?: string;
   correctionDeadline?: string;
   deadlineStatus?: 'ok' | 'soon' | 'urgent' | 'overdue' | 'completed';
   studentCount?: number;
   hasClassPdf?: boolean;
+  corrected?: boolean;
+  correctedAt?: string;
 }
 
 export interface Exam {
@@ -101,6 +197,14 @@ export interface Exam {
    *  Used both on backend (to guide AI generation / digitisation) and on
    *  the Validar UI (to show the teacher what they asked for). */
   refinementPrompt?: string;
+  /** How many corrections of this exam already carry a teacher-set grade.
+   *  Used to skip the optimistic DELETE → 409 flow and jump straight to the
+   *  strong "this will lose N grades" confirmation. */
+  gradedCount?: number;
+  /** evaluation (classic exam) | practice (sheet) | recovery (per-student remedial) */
+  purpose?: ExamPurpose;
+  /** For purpose=recovery: IDs of the source evaluation exams whose weak_areas drove this recovery. */
+  sourceExamIds?: string[];
 }
 
 export interface AIQuestionFeedback {
@@ -120,8 +224,12 @@ export interface AIAnalysis {
 export interface CorrectionResult {
   id: string;
   examId: string;
-  studentId: string;
+  /** Null for anonymous corrections uploaded without a class/roster (the
+   *  "sin clase" flow). In that case `anonymousLabel` holds whatever the
+   *  teacher typed (e.g. "Juan", "prueba 1"). */
+  studentId: string | null;
   studentName?: string;
+  anonymousLabel?: string;
   classId?: string;
   className?: string;
   paperUrl?: string;
@@ -147,7 +255,9 @@ export interface ExerciseIterationHistoryItem {
 export interface Exercise {
   id: string;
   name?: string;
-  studentId: string;
+  /** Null when the exercise was generated as a standalone worksheet (teacher
+   *  has no class roster or deliberately wanted a generic ficha). */
+  studentId?: string;
   sourceExamId?: string;
   sourceExamIds?: string[];
   weakAreas: string[];
@@ -175,6 +285,9 @@ export interface ExerciseCorrectionResult {
   id: string;
   exerciseId: string;
   studentId: string | null;
+  /** Free-text label for anonymous corrections against a standalone
+   *  (student-less) exercise. Mirrors the exam-side field. */
+  anonymousLabel?: string;
   paperUrl?: string;
   aiAnalysis?: AIAnalysis;
   grade: number | null;
@@ -265,6 +378,21 @@ export interface TopicListItem {
   pageCount?: number;
   pdfUrl?: string;
   children?: TopicListItem[];
+  // Materiales generados vinculados al tema (presentaciones, libros)
+  presentations?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    slide_count?: number;
+    updated_at?: string | null;
+  }>;
+  textbooks?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    pdf_url?: string | null;
+    target_pages?: number;
+  }>;
 }
 
 export interface SubjectWithTopics {
@@ -351,6 +479,39 @@ export interface StudentMentionEntry {
   event_date?: string;
   class_name?: string;
   comment_note_type?: string;
+}
+
+/** Material vinculado a una sesión (presentación, examen, ejercicio, libro). */
+export interface SessionMaterial {
+  id: string;
+  type: 'presentation' | 'exam' | 'exercise' | 'textbook';
+  title: string;
+  status?: string | null;
+  purpose?: 'evaluation' | 'practice' | 'recovery' | null;
+  href: string;
+  /** Si true, el href es una URL externa (PDF) — abrir en nueva pestaña. */
+  external?: boolean;
+}
+
+/** Detalle completo de una sesión: el evento del calendario + todos los
+ *  materiales que se han vinculado a él. Es el modelo que alimenta el
+ *  drawer/hub de sesión. */
+export interface SessionDetail {
+  id: string;
+  title: string;
+  eventDate: string;
+  eventType: 'class_session' | 'custom' | 'tutoring' | 'exam';
+  startTime?: string | null;
+  endTime?: string | null;
+  notes?: string | null;
+  isCancelled: boolean;
+  classId?: string | null;
+  className?: string | null;
+  subjectId?: string | null;
+  subjectName?: string | null;
+  topicId?: string | null;
+  topicName?: string | null;
+  materials: SessionMaterial[];
 }
 
 export interface CalendarEvent {
@@ -674,9 +835,12 @@ export interface CoursePlan {
     review_suggestions?: string[];
     review_summary?: string;
   };
-  status: string; // pending | analyzing | generating | completed | failed
+  // pending | analyzing | review | generating | completed | planned | failed
+  status: string;
   errorMessage?: string;
   isActive: boolean;
+  validatedAt?: string;
+  plannedAt?: string;
   createdAt: string;
   completedAt?: string;
 }
@@ -691,6 +855,8 @@ export interface CoursePlanListItem {
   title?: string;
   totalSessions?: number;
   topicsCreated: boolean;
+  validatedAt?: string;
+  plannedAt?: string;
   createdAt: string;
   completedAt?: string;
 }

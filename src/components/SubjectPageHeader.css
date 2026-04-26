@@ -1,0 +1,113 @@
+/* SubjectPageHeader — patrón unificado para páginas internas de asignatura */
+
+.sph-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.95rem 1.25rem;
+  border-bottom: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.08));
+  background: var(--color-card, #ffffff);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* Anula --subject-color que pueda haber dejado puesto un padre: este
+     header debe ser neutro independientemente de la asignatura activa. */
+  --subject-color: var(--color-primary, #15665e);
+}
+
+.sph-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-foreground, #0f172a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.sph-back:hover { background: var(--color-accent, #f1f5f9); }
+
+.sph-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sph-eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted-foreground, #64748b);
+  font-weight: 500;
+}
+
+.sph-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground, #0f172a);
+  margin: 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sph-sub {
+  font-size: 0.78rem;
+  color: var(--color-muted-foreground, #64748b);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sph-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Acciones consistentes (botones secundarios en cabecera) */
+.sph-actions > button,
+.sph-actions > a {
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.1));
+  background: transparent;
+  color: var(--color-muted-foreground, #64748b);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms, background 120ms;
+  font-family: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sph-actions > button:hover,
+.sph-actions > a:hover {
+  color: var(--color-foreground, #0f172a);
+  border-color: var(--color-border-strong, rgba(15, 23, 42, 0.2));
+  background: var(--color-accent, #f1f5f9);
+}
+
+@media (max-width: 640px) {
+  .sph-header { padding: 0.85rem 1rem; }
+  .sph-title { font-size: 1rem; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .sph-header {
+    background: var(--color-card, #1e293b);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+}

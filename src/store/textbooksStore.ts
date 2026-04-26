@@ -15,6 +15,8 @@ interface GenerateTextbookParams {
   depth?: number;
   visual_density?: string;
   guide_pdfs?: File[];
+  topic_id?: string;
+  calendar_event_id?: string;
 }
 
 interface TextbooksState {

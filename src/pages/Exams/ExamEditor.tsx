@@ -2,17 +2,19 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Upload, File as FileIconLucide, CheckCircle, Sparkles,
   Download, FileText, Trash2, RefreshCw, Clock,
-  Pencil, AlertCircle,
+  Pencil, ScanLine, BookOpen, Settings2, Layers,
+  Users, User, GraduationCap, ListChecks, Wand2,
 } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useExamsStore } from '../../store/examsStore';
 import { useClassesStore } from '../../store/classesStore';
+import { useStudentsStore } from '../../store/studentsStore';
+import { useCorrectionStore } from '../../store/correctionStore';
 import { useTopicsStore } from '../../store/topicsStore';
 import { useBackgroundTasksStore } from '../../store/backgroundTasksStore';
 import api, { exams as examsApi, classes as classesApi, subjects as subjectsApi } from '../../services/api';
 import { Lecture, ExamIterationHistoryItem, SubjectWithTopics } from '../../types';
-import ExerciseGeneratorModal from '../../components/ExerciseGeneratorModal';
 import ClassSubjectPicker from '../../components/ClassSubjectPicker';
 import { subjectThemeStyle } from '../../utils/subjectTheme';
 import { useAcademicConfigStore } from '../../store/academicConfigStore';
@@ -22,7 +24,7 @@ import FormatSelector from './FormatSelector';
 import LogoUploader from './LogoUploader';
 import TopicSelector from './TopicSelector';
 import PageShell from '@/components/shared/PageShell';
-import AlertConfirm from '@/components/shared/AlertConfirm';
+import { useExamDeleteFlow } from '../../hooks/useExamDeleteFlow';
 import Spinner from '@/components/shared/Spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +34,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import './ExamEditor.css';
 
-const ExamEditor: React.FC = () => {
+interface ExamEditorProps {
+  /** Default purpose for newly created exams. "evaluation" by default
+   *  (the classic /tabs/exams/new flow); "practice" or "recovery" when
+   *  entering from the Ejercicios tab. Can be overridden via ?purpose= URL param. */
+  defaultPurpose?: 'evaluation' | 'practice' | 'recovery';
+}
+
+const ExamEditor: React.FC<ExamEditorProps> = ({ defaultPurpose = 'evaluation' }) => {
   const { examId, classId: urlClassId, subjectId: urlSubjectId } = useParams() as { examId: string; classId?: string; subjectId?: string };
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,10 +49,47 @@ const ExamEditor: React.FC = () => {
   const isNew = examId === 'new' || examId === undefined;
 
   // Query params from calendar: ?topicIds=id1,id2&date=2026-04-05
+  // Also accepts: ?purpose=practice|recovery&sourceExamId=...&studentIds=...,...
   const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const qTopicIds = useMemo(() => queryParams.get('topicIds')?.split(',').filter(Boolean) || [], [queryParams]);
   const qDate = queryParams.get('date');
   const qName = queryParams.get('name');
+  const qPurpose = (queryParams.get('purpose') as 'evaluation' | 'practice' | 'recovery' | null);
+  const qSourceExamId = queryParams.get('sourceExamId');
+  const qStudentIds = useMemo(() => queryParams.get('studentIds')?.split(',').filter(Boolean) || [], [queryParams]);
+  const [purpose, setPurpose] = useState<'evaluation' | 'practice' | 'recovery'>(qPurpose || defaultPurpose);
+  // Derive noun/label variants from purpose so a single component renders
+  // both "Nuevo examen" and "Nuevo ejercicio" flows naturally. Recovery still
+  // uses "ejercicio" copy — the word "recuperación" only appears in CTAs.
+  const isExerciseFlow = purpose !== 'evaluation';
+  const nounUpper = isExerciseFlow ? 'Ejercicio' : 'Examen';
+  const nounLower = isExerciseFlow ? 'ejercicio' : 'examen';
+
+  // Target-student state (only meaningful when isExerciseFlow). When the
+  // teacher chooses "a la clase entera" we submit no targets and the backend
+  // creates a single class-level ExamAssignment. When "a alumnos concretos"
+  // we submit targets[] with student_id set per entry.
+  type TargetMode = 'class' | 'selected';
+  const [targetMode, setTargetMode] = useState<TargetMode>(
+    // Preselect "selected" when arriving with a source exam (recovery flow)
+    // because the whole point there is cherry-picking struggling students.
+    qPurpose === 'recovery' || qStudentIds.length > 0 ? 'selected' : 'class'
+  );
+  const [targetStudentIds, setTargetStudentIds] = useState<string[]>(qStudentIds);
+  // True once we've applied the auto-preselection based on source-exam grades
+  // — prevents overwriting the teacher's manual toggles.
+  const [autoSelectApplied, setAutoSelectApplied] = useState(false);
+
+  // Sources of the generation prompt (combinable). Only meaningful when
+  // isExerciseFlow. The teacher can pick any combination of:
+  //   - corrected exams → drive weak_areas aggregation + auto-target failing students
+  //   - selectedTopicIds → topic material fed to the AI
+  //   - referenceFiles  → extra documents uploaded
+  // All three coexist freely. ?sourceExamId= preselects an exam from the
+  // "Generar repaso" entry point on a corrected exam page.
+  const [pickedSourceExamIds, setPickedSourceExamIds] = useState<string[]>(
+    qSourceExamId ? [qSourceExamId] : []
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allClasses = useClassesStore((s) => s.classes);
@@ -60,7 +106,15 @@ const ExamEditor: React.FC = () => {
   const generateExam = useExamsStore((s) => s.generateExam);
   const updateExam = useExamsStore((s) => s.updateExam);
   const assignExam = useExamsStore((s) => s.assignExam);
-  const deleteExam = useExamsStore((s) => s.deleteExam);
+  const { requestDelete: requestDeleteExam, DeleteDialogs: ExamDeleteDialogs } = useExamDeleteFlow();
+
+  // Student list + correction data — only loaded on demand for the exercise
+  // flow (target picker + recovery grade/weak_areas overlay). For regular
+  // evaluation exams these stay empty and cost nothing.
+  const allStudents = useStudentsStore((s) => s.students);
+  const fetchStudents = useStudentsStore((s) => s.fetchStudents);
+  const allCorrections = useCorrectionStore((s) => s.corrections);
+  const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
 
   const topicsLoading = useTopicsStore((s) => s.loading);
   const [topicsBySubject, setTopicsBySubject] = useState<SubjectWithTopics[]>([]);
@@ -84,7 +138,11 @@ const ExamEditor: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   // Mode toggle (new exams only)
-  const [mode, setMode] = useState<'upload' | 'generate'>('upload');
+  // Si el editor se abre desde el Taller (con prompt en location.state)
+  // arranca directamente en modo "generate" — el profesor ya quiere generar.
+  const _initialMode: 'upload' | 'generate' =
+    (location.state as { prompt?: string } | null)?.prompt ? 'generate' : 'upload';
+  const [mode, setMode] = useState<'upload' | 'generate'>(_initialMode);
 
   // Upload mode (supports multiple files for multi-page handwritten exams)
   const [files, setFiles] = useState<File[]>([]);
@@ -93,7 +151,6 @@ const ExamEditor: React.FC = () => {
   const isPersonalized = true;
 
   // Delete confirmation
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   // Generate mode
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
@@ -101,8 +158,11 @@ const ExamEditor: React.FC = () => {
   const [topicTrimesterFilter, setTopicTrimesterFilter] = useState<string>('all');
   const [numQuestions, setNumQuestions] = useState(10);
   const [difficulty, setDifficulty] = useState('medium');
-  const [refinement, setRefinement] = useState('');
-  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  // Pre-rellena el prompt + el modo "generate" cuando el editor se abre desde
+  // el Taller (Programación / Sesión / Tema). El state.location.prompt llega
+  // como sugerencia y el profesor puede ajustarla antes de generar.
+  const initialPrompt = (location.state as { prompt?: string } | null)?.prompt || '';
+  const [refinement, setRefinement] = useState(initialPrompt);
 
   // Exam format: boxes (default), compact, test
   const [examFormat, setExamFormat] = useState<'boxes' | 'compact' | 'test'>('boxes');
@@ -125,6 +185,16 @@ const ExamEditor: React.FC = () => {
 
   // Education level
   const [educationLevel, setEducationLevel] = useState('secundaria');
+
+  // Personalisation card is collapsed by default — most teachers don't tweak
+  // logo or extra instructions, so we keep them out of the main flow.
+  const [personalizationOpen, setPersonalizationOpen] = useState(false);
+  // Each sub-source in the "¿Sobre qué contenido?" card is collapsed by
+  // default. Auto-opens if there's preselected data so the teacher sees what
+  // came in without having to expand manually.
+  const [examsSectionOpen, setExamsSectionOpen] = useState<boolean>(!!qSourceExamId);
+  const [topicsSectionOpen, setTopicsSectionOpen] = useState<boolean>(qTopicIds.length > 0);
+  const [materialsSectionOpen, setMaterialsSectionOpen] = useState<boolean>(false);
 
   // Blank answer pages per student
   const [blankPages, setBlankPages] = useState(1);
@@ -166,8 +236,147 @@ const ExamEditor: React.FC = () => {
   const fetchAcademicConfig = useAcademicConfigStore((s) => s.fetchConfig);
   useEffect(() => { if (classId) fetchAcademicConfig(classId); }, [classId, fetchAcademicConfig]);
 
+  // Exercise flow needs the class roster to render the target picker.
+  // Evaluation flow skips this call (no picker rendered).
+  useEffect(() => {
+    if (isExerciseFlow && classId) fetchStudents(classId);
+  }, [isExerciseFlow, classId, fetchStudents]);
+
+  // Load all corrections once so we can overlay source-exam grades/weak_areas
+  // onto the student rows. Cached by the store so re-opens are free.
+  useEffect(() => {
+    if (isExerciseFlow && pickedSourceExamIds.length > 0) fetchAllCorrections();
+  }, [isExerciseFlow, pickedSourceExamIds.length, fetchAllCorrections]);
+  // Fetch the teacher's exams up-front in the exercise flow so the
+  // exam multi-select has data ready as soon as the section opens.
+  useEffect(() => {
+    if (isExerciseFlow) fetchExams();
+  }, [isExerciseFlow, fetchExams]);
+
+  // Students of the currently-selected class, used by the picker.
+  const classStudents = useMemo(
+    () => (classId ? allStudents.filter((s) => s.classId === classId) : []),
+    [allStudents, classId]
+  );
+
+  // Map studentId → (grade, weakAreas) aggregated across all picked source
+  // exams. When the same student appears in multiple exams we keep the lowest
+  // grade and merge the weak_areas — that combination drives both the overlay
+  // in the student picker and the difficulty preview.
+  const sourceStudentInfo = useMemo(() => {
+    const m = new Map<string, { grade: number | null; weakAreas: string[] }>();
+    if (pickedSourceExamIds.length === 0) return m;
+    for (const c of allCorrections) {
+      if (!c.studentId || !pickedSourceExamIds.includes(c.examId)) continue;
+      const prev = m.get(c.studentId);
+      if (!prev) {
+        m.set(c.studentId, { grade: c.grade ?? null, weakAreas: [...(c.weakAreas ?? [])] });
+      } else {
+        const minGrade = (() => {
+          if (prev.grade === null) return c.grade ?? null;
+          if (c.grade === null || c.grade === undefined) return prev.grade;
+          return Math.min(prev.grade, c.grade);
+        })();
+        m.set(c.studentId, {
+          grade: minGrade,
+          weakAreas: Array.from(new Set([...prev.weakAreas, ...(c.weakAreas ?? [])])),
+        });
+      }
+    }
+    return m;
+  }, [allCorrections, pickedSourceExamIds]);
+
+  // Corrected evaluation exams of the current class+subject — source-exam picker.
+  // We always filter by class; when a subject is selected we also filter by
+  // subject so the teacher only sees exams of that subject (otherwise an
+  // English exam would appear when generating a Maths repaso).
+  const sourceExamCandidates = useMemo(() => {
+    if (!isExerciseFlow || !classId) return [];
+    return allExams
+      .filter((e) => (e.purpose ?? 'evaluation') === 'evaluation')
+      .filter((e) => {
+        const matchesClass = e.classId === classId
+          || e.assignments?.some((a) => a.classId === classId);
+        if (!matchesClass) return false;
+        if (!selectedSubjectId) return true;
+        return e.subjectId === selectedSubjectId
+          || e.assignments?.some((a) => a.classId === classId && a.subjectId === selectedSubjectId);
+      })
+      .filter((e) => e.status === 'corrected' || e.status === 'pending_correction')
+      .sort((a, b) => (a.date && b.date ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0));
+  }, [allExams, isExerciseFlow, classId, selectedSubjectId]);
+
+  // Drop any picked source-exam IDs that fall out of the candidate list when
+  // the class/subject changes — otherwise stale IDs would still be submitted.
+  useEffect(() => {
+    if (pickedSourceExamIds.length === 0) return;
+    const valid = new Set(sourceExamCandidates.map((e) => e.id));
+    const filtered = pickedSourceExamIds.filter((id) => valid.has(id));
+    if (filtered.length !== pickedSourceExamIds.length) {
+      setPickedSourceExamIds(filtered);
+    }
+  }, [sourceExamCandidates, pickedSourceExamIds]);
+
+  // Same hygiene for topic selection: when the subject changes (or the
+  // topics-by-subject map reloads), drop any selected topics that no longer
+  // belong to the active subject.
+  useEffect(() => {
+    if (selectedTopicIds.length === 0) return;
+    if (!selectedSubjectId) return;
+    const subj = topicsBySubject.find((s) => s.subjectId === selectedSubjectId);
+    if (!subj) return;
+    const collectIds = (ts: { id: string; children?: any[] }[]): string[] =>
+      ts.flatMap((t) => [t.id, ...collectIds(t.children || [])]);
+    const valid = new Set(collectIds(subj.topics));
+    const filtered = selectedTopicIds.filter((id) => valid.has(id));
+    if (filtered.length !== selectedTopicIds.length) {
+      setSelectedTopicIds(filtered);
+    }
+  }, [selectedSubjectId, topicsBySubject, selectedTopicIds]);
+
+  // One-shot auto-selection when the source-exam data arrives: preselect the
+  // students who failed or have flagged weak_areas. Only runs once per
+  // source-exam change so manual toggles aren't reverted.
+  useEffect(() => {
+    if (autoSelectApplied || pickedSourceExamIds.length === 0 || sourceStudentInfo.size === 0) return;
+    if (targetStudentIds.length > 0) {
+      setAutoSelectApplied(true);
+      return; // query-string or previous picker state already populated
+    }
+    const auto: string[] = [];
+    sourceStudentInfo.forEach((info, sid) => {
+      const failed = info.grade !== null && info.grade < 5;
+      const hasWeak = info.weakAreas.length > 0;
+      if (failed || hasWeak) auto.push(sid);
+    });
+    if (auto.length > 0) {
+      setTargetStudentIds(auto);
+      setTargetMode('selected');
+    }
+    setAutoSelectApplied(true);
+  }, [pickedSourceExamIds, sourceStudentInfo, autoSelectApplied, targetStudentIds.length]);
+
+  // Reset auto-select flag when the source-exam picks change, so the
+  // next selection's low-grade students get auto-selected too.
+  const sourceExamKey = pickedSourceExamIds.join(',');
+  useEffect(() => { setAutoSelectApplied(false); }, [sourceExamKey]);
+
+  // Aggregated weak_areas across selected students — the exact input the
+  // backend will use to seed the generation prompt. Shown in the preview so
+  // the teacher sees upfront the focus areas.
+  const aggregatedWeakAreas = useMemo(() => {
+    if (pickedSourceExamIds.length === 0 || targetStudentIds.length === 0) return [] as string[];
+    const collected: string[] = [];
+    for (const sid of targetStudentIds) {
+      const info = sourceStudentInfo.get(sid);
+      if (info?.weakAreas) collected.push(...info.weakAreas);
+    }
+    // Stable de-dup preserving first occurrence, cap at 8 like the backend.
+    return Array.from(new Set(collected)).slice(0, 8);
+  }, [pickedSourceExamIds, targetStudentIds, sourceStudentInfo]);
+
   // Unsaved changes guard — warn on browser back/close when form has data
-  const hasUnsavedChanges = isNew && (name.trim().length > 0 || files.length > 0 || selectedTopicIds.length > 0 || referenceFiles.length > 0);
+  const hasUnsavedChanges = isNew && (name.trim().length > 0 || files.length > 0 || selectedTopicIds.length > 0 || referenceFiles.length > 0 || pickedSourceExamIds.length > 0);
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -419,7 +628,7 @@ const ExamEditor: React.FC = () => {
           addBackgroundTask({
             type: 'exam',
             label: taskName,
-            description: 'Extrayendo preguntas del documento y generando el examen digitalizado.',
+            description: `Extrayendo preguntas del documento y generando el ${nounLower} digitalizado.`,
             batchJobId: jobId,
             expectedResultUrl: detailUrl,
             execute: async () => detailUrl,
@@ -461,14 +670,14 @@ const ExamEditor: React.FC = () => {
       .catch((err) => console.error('Download error:', err));
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!exam) return;
-    try {
-      await deleteExam(exam.id);
-      navigate(backHref, { replace: true });
-    } catch (err) {
-      console.error('Failed to delete exam:', err);
-    }
+    requestDeleteExam({
+      id: exam.id,
+      name: exam.name,
+      gradedCount: exam.gradedCount ?? 0,
+      onSuccess: () => navigate(backHref, { replace: true }),
+    });
   };
 
   const addBackgroundTask = useBackgroundTasksStore((s) => s.addTask);
@@ -513,30 +722,48 @@ const ExamEditor: React.FC = () => {
       // MCQ-only params, always sent — backend ignores them unless test
       num_options: numOptions,
       num_multi_answer: numMultiAnswer,
+      // Unified model: purpose + optional recovery metadata
+      purpose,
+      source_exam_ids: (isExerciseFlow && pickedSourceExamIds.length > 0)
+        ? [...pickedSourceExamIds]
+        : undefined,
+      // Per-student targets from the in-form picker (takes precedence over
+      // query-string preselection). When targetMode='class' we send no
+      // targets and the backend creates a single class-level assignment —
+      // the simpler "whole class" path.
+      targets: (isExerciseFlow && targetMode === 'selected' && targetStudentIds.length > 0)
+        ? targetStudentIds.map((sid) => ({ student_id: sid }))
+        : undefined,
     };
 
     generateExam(genData as any).then(({ id: newExamId, batchJobId: jobId }) => {
-      // Build destination URL using form-selected values (not URL params)
+      // Build destination URL using form-selected values (not URL params).
+      // Exercises (practice/recovery) have their own top-level route so the
+      // Ejercicios tab stays active after creation; evaluation keeps the
+      // existing class/subject-scoped URLs.
       const tCId = classId || urlClassId;
       const tSId = selectedSubjectId || urlSubjectId;
-      const detailUrl = tCId && tSId
-        ? `/tabs/classes/${tCId}/subjects/${tSId}/exams/${newExamId}`
-        : tCId
-          ? `/tabs/classes/${tCId}/exams/${newExamId}`
-          : `/tabs/exams/${newExamId}`;
+      const detailUrl = isExerciseFlow
+        ? `/tabs/exercises/${newExamId}`
+        : (tCId && tSId
+          ? `/tabs/classes/${tCId}/subjects/${tSId}/exams/${newExamId}`
+          : tCId
+            ? `/tabs/classes/${tCId}/exams/${newExamId}`
+            : `/tabs/exams/${newExamId}`);
       addBackgroundTask({
         type: 'exam',
         label: taskName,
-        description: 'La IA genera preguntas a partir del material proporcionado y compone el examen en PDF.',
+        description: `La IA genera preguntas a partir del material proporcionado y compone el ${nounLower} en PDF.`,
         batchJobId: jobId,
         expectedResultUrl: detailUrl,
         execute: async () => detailUrl,
       });
-      // Navigate to exam detail so teacher sees processing state
+      // Navigate to detail so teacher sees processing state
       navigate(detailUrl, { replace: true });
     }).catch((err) => {
       console.error('[ExamEditor] Failed to start exam generation:', err);
-      toast.error('Error al iniciar la generacion');
+      const detail = err?.response?.data?.detail;
+      toast.error(typeof detail === 'string' ? detail : 'Error al iniciar la generación');
     });
   };
 
@@ -591,11 +818,11 @@ const ExamEditor: React.FC = () => {
 
   return (
     <PageShell
-      title={isNew ? 'Nuevo examen' : name || 'Editar'}
+      title={isNew ? `Nuevo ${nounLower}` : name || 'Editar'}
       backHref={backHref}
       headerActions={
         !isNew ? (
-          <Button variant="destructive" size="icon" onClick={() => setShowDeleteAlert(true)}>
+          <Button variant="destructive" size="icon" onClick={handleDelete}>
             <Trash2 size={18} />
           </Button>
         ) : undefined
@@ -603,24 +830,30 @@ const ExamEditor: React.FC = () => {
       noPadding
       className={editorSubjectColor ? `[--color-primary:${editorSubjectColor}]` : undefined}
     >
-      {/* Mode toggle (new exams only) */}
+      {/* Mode toggle (new exams only): two large choice cards with icon + sub */}
       {isNew && (
-        <div className="exam-mode-toggle">
+        <div className="exam-mode-toggle" role="tablist" aria-label="Modo de creación">
           <button
             type="button"
+            role="tab"
+            aria-selected={mode === 'upload'}
             className={`exam-mode-btn ${mode === 'upload' ? 'exam-mode-btn--active' : ''}`}
             onClick={() => setMode('upload')}
           >
-            <Upload size={16} />
-            <span>Digitalizar</span>
+            <span className="exam-mode-btn__icon"><ScanLine size={16} /></span>
+            <span className="exam-mode-btn__title">Digitalizar</span>
+            <span className="exam-mode-btn__sub">Sube tu {nounLower} en PDF o foto</span>
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={mode === 'generate'}
             className={`exam-mode-btn ${mode === 'generate' ? 'exam-mode-btn--active' : ''}`}
             onClick={() => setMode('generate')}
           >
-            <Sparkles size={16} />
-            <span>Generar con IA</span>
+            <span className="exam-mode-btn__icon"><Sparkles size={16} /></span>
+            <span className="exam-mode-btn__title">Generar con IA</span>
+            <span className="exam-mode-btn__sub">A partir de temas o material</span>
           </button>
         </div>
       )}
@@ -636,8 +869,12 @@ const ExamEditor: React.FC = () => {
         />
 
         <div className="exam-editor-form">
-          {/* --- CLASS/SUBJECT PICKER (top of form, both modes) --- */}
-          {isNew && hasClassContext && (
+          {/* --- CLASS/SUBJECT PICKER (top of form, both modes) ---
+              Always shown in the exercise flow so the teacher can pick who
+              receives the ejercicio. Evaluation keeps the legacy behaviour:
+              only shown when the URL already has a class context, otherwise
+              a free-text subject field is offered for "global exams". */}
+          {isNew && (hasClassContext || isExerciseFlow) && (
             <div className="form-item-standalone">
               <label className="form-item-label">Clase y asignatura</label>
               <ClassSubjectPicker
@@ -654,24 +891,169 @@ const ExamEditor: React.FC = () => {
             </div>
           )}
 
-          {/* --- EXAM IDENTITY --- */}
-          <div className="exam-name-field">
-            <label className="exam-name-label">Nombre del examen</label>
-            <Input
+          {/* --- DESTINATARIOS (exercise flow only) ---
+              Two big segmented cards make the choice between "whole class"
+              and "specific students" obvious at a glance. The student list
+              expands below when "concretos" is active, with weak-area overlays
+              from any selected source exam. */}
+          {isNew && isExerciseFlow && classId && (
+            <div className="ex-card">
+              <div className="ex-card__header">
+                <div className="ex-card__icon"><Users size={14} /></div>
+                <div>
+                  <h3 className="ex-card__title">¿A quién va dirigido?</h3>
+                  <p className="ex-card__sub">
+                    {targetMode === 'class'
+                      ? `A todos los alumnos de ${selectedClass?.name ?? 'la clase'}.`
+                      : `A ${targetStudentIds.length} alumno${targetStudentIds.length === 1 ? '' : 's'} concreto${targetStudentIds.length === 1 ? '' : 's'}.`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="recipient-toggle" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={targetMode === 'class'}
+                  className={`recipient-card ${targetMode === 'class' ? 'recipient-card--active' : ''}`}
+                  onClick={() => setTargetMode('class')}
+                >
+                  <span className="recipient-card__icon"><Users size={18} /></span>
+                  <span className="recipient-card__title">Toda la clase</span>
+                  <span className="recipient-card__sub">{classStudents.length} alumnos</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={targetMode === 'selected'}
+                  className={`recipient-card ${targetMode === 'selected' ? 'recipient-card--active' : ''}`}
+                  onClick={() => setTargetMode('selected')}
+                >
+                  <span className="recipient-card__icon"><User size={18} /></span>
+                  <span className="recipient-card__title">Alumnos concretos</span>
+                  <span className="recipient-card__sub">
+                    {targetStudentIds.length > 0 ? `${targetStudentIds.length} seleccionado${targetStudentIds.length === 1 ? '' : 's'}` : 'Eliges quiénes'}
+                  </span>
+                </button>
+              </div>
+
+              {targetMode === 'selected' && (
+                <div className="recipient-list">
+                  {classStudents.length === 0 ? (
+                    <p className="recipient-list__empty">
+                      Aún no hay alumnos en esta clase.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="recipient-list__quick">
+                        <button type="button" onClick={() => setTargetStudentIds(classStudents.map(s => s.id))}>Todos</button>
+                        <button type="button" onClick={() => setTargetStudentIds([])}>Ninguno</button>
+                        {pickedSourceExamIds.length > 0 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const failing = classStudents
+                                  .filter(s => {
+                                    const info = sourceStudentInfo.get(s.id);
+                                    return info && info.grade !== null && info.grade < 5;
+                                  })
+                                  .map(s => s.id);
+                                setTargetStudentIds(failing);
+                              }}
+                            >
+                              Solo suspensos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const weak = classStudents
+                                  .filter(s => (sourceStudentInfo.get(s.id)?.weakAreas.length ?? 0) > 0)
+                                  .map(s => s.id);
+                                setTargetStudentIds(weak);
+                              }}
+                            >
+                              Con dificultades
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <div className="recipient-list__items">
+                        {classStudents.map((student) => {
+                          const checked = targetStudentIds.includes(student.id);
+                          const info = sourceStudentInfo.get(student.id);
+                          return (
+                            <label
+                              key={student.id}
+                              className={`recipient-row ${checked ? 'recipient-row--active' : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setTargetStudentIds([...targetStudentIds, student.id]);
+                                  } else {
+                                    setTargetStudentIds(targetStudentIds.filter(id => id !== student.id));
+                                  }
+                                }}
+                              />
+                              <div className="recipient-row__main">
+                                <div className="recipient-row__name">{student.name}</div>
+                                {info && (info.grade !== null || info.weakAreas.length > 0) && (
+                                  <div className="recipient-row__meta">
+                                    {info.grade !== null && (
+                                      <span className={`recipient-row__grade ${info.grade < 5 ? 'recipient-row__grade--fail' : ''}`}>
+                                        {info.grade.toFixed(1)}
+                                      </span>
+                                    )}
+                                    {info.weakAreas.length > 0 && (
+                                      <span className="recipient-row__weak" title={info.weakAreas.join(', ')}>
+                                        {info.weakAreas.slice(0, 2).join(', ')}
+                                        {info.weakAreas.length > 2 && ` +${info.weakAreas.length - 2}`}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* --- EXAM IDENTITY (hero) ---
+              Title-style input rendered larger and with stronger contrast so
+              the teacher immediately sees this is the primary field. Same
+              treatment for both examen and ejercicio flows. */}
+          <div className="hero-name">
+            <label htmlFor="exam-name-input" className="hero-name__label">
+              {isExerciseFlow ? '¿Cómo se llamará este ejercicio?' : '¿Cómo se llamará este examen?'}
+            </label>
+            <input
+              id="exam-name-input"
+              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Examen T2 Ecuaciones"
-              className="text-lg font-semibold"
+              placeholder={isExerciseFlow ? 'Repaso de ecuaciones' : 'Examen T2 — Ecuaciones'}
+              className={`hero-name__input ${duplicateName ? 'hero-name__input--error' : ''}`}
+              autoComplete="off"
             />
             {duplicateName && (
-              <p className="exam-name-warning">
-                Ya existe un examen con este nombre en esta clase
+              <p className="hero-name__warning">
+                Ya existe un {nounLower} con este nombre en esta clase
               </p>
             )}
           </div>
 
-          {/* Global context: subject name (shown for both modes when no class context) */}
-          {isNew && !hasClassContext && (
+          {/* Global context: subject name (only for evaluation exams without
+              a class context — exercises always require a real class). */}
+          {isNew && !hasClassContext && !isExerciseFlow && (
             <div className="form-item" style={{ marginTop: '-8px', marginBottom: 'var(--space-lg)' }}>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Asignatura o materia</label>
               <Input
@@ -686,25 +1068,29 @@ const ExamEditor: React.FC = () => {
           {(mode === 'upload' || !isNew) && (
             <>
               <label htmlFor="exam-file-input" className="upload-item">
-                {files.length > 0 || exam?.documentUrl ? (
-                  <FileIconLucide size={24} className="upload-item-icon" />
-                ) : (
-                  <Upload size={24} className="upload-item-icon" />
-                )}
+                <div className="upload-item-icon">
+                  {files.length > 0 || exam?.documentUrl ? <FileIconLucide size={22} /> : <Upload size={22} />}
+                </div>
                 <div className="upload-item-text">
-                  <h3>{files.length > 0
-                    ? (files.length === 1 ? files[0].name : `${files.length} paginas anadidas`)
-                    : (exam?.documentUrl ? 'Documento subido' : 'Sube tu examen')}</h3>
-                  <p>{files.length > 0 ? 'Toca para anadir mas paginas' : (exam?.documentUrl ? 'Toca para cambiar' : 'Sube un PDF o fotos para digitalizarlo')}</p>
+                  {(() => {
+                    const label = files.length > 0
+                      ? (files.length === 1 ? files[0].name : `${files.length} páginas añadidas`)
+                      : (exam?.documentUrl ? 'Documento subido' : `Sube tu ${nounLower}`);
+                    return <h3 title={label}>{label}</h3>;
+                  })()}
+                  <p>{files.length > 0
+                    ? 'Toca para añadir más páginas'
+                    : (exam?.documentUrl ? 'Toca para cambiar' : 'PDF o fotos · varias páginas se combinan')}</p>
                 </div>
                 {(files.length > 0 || exam?.documentUrl) && (
-                  <CheckCircle size={20} className="upload-success-icon" />
+                  <CheckCircle size={22} className="upload-success-icon" />
                 )}
               </label>
               {files.length > 1 && (
                 <div className="upload-file-list">
                   {files.map((f, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs">
+                    <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-muted text-xs">
+                      <FileText size={11} className="text-muted-foreground" />
                       <span>{f.name.length > 20 ? f.name.slice(0, 17) + '...' : f.name}</span>
                       <Trash2 size={12} className="cursor-pointer text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleRemoveFile(i); }} />
                     </span>
@@ -731,16 +1117,21 @@ const ExamEditor: React.FC = () => {
 
           {/* Format + Logo — visible in both new and edit for upload mode */}
           {mode === 'upload' && (
-            <div className="gen-config" style={{ marginTop: 'var(--space-md)' }}>
-              <span className="gen-config__label">Formato y personalización</span>
-              <FormatSelector value={examFormat} onChange={setExamFormat} />
+            <div className="gen-config">
+              <span className="gen-config__label">
+                <Layers size={12} /> Formato y personalización
+              </span>
+              <FormatSelector value={examFormat} onChange={setExamFormat} noun={nounLower} />
               {isNew && <LogoUploader logoUrl={logoUrl} uploading={uploadingLogo} onUpload={handleLogoUpload} />}
             </div>
           )}
 
           {/* --- MAX SCORE (new exams in upload mode only — generate mode has it in config section) --- */}
           {isNew && mode === 'upload' && (
-            <div className="gen-config" style={{ marginTop: 'var(--space-md)' }}>
+            <div className="gen-config">
+              <span className="gen-config__label">
+                <Settings2 size={12} /> Evaluación
+              </span>
               <div className="gen-config-inline__row">
                 <span className="gen-config-inline__label">Calificación máxima</span>
                 <div className="gen-config-stepper">
@@ -766,83 +1157,262 @@ const ExamEditor: React.FC = () => {
             </div>
           )}
 
-          {/* --- GENERATE MODE --- */}
+          {/* --- GENERATE MODE — Unified content + config + personalisation ---
+              Three cards in a clear hierarchy:
+                1. Contenido — combinable sources (exámenes + temas + material extra)
+                2. Configuración — numeric and format options
+                3. Personalización — collapsible: logo + extra instructions
+          */}
           {mode === 'generate' && isNew && (
             <div className="gen-section">
-              {/* Topics selection */}
-              {selectedSubjectId && (
-                <TopicSelector
-                  classId={classId}
-                  topics={allSubjectTopics}
-                  selectedTopicIds={selectedTopicIds}
-                  onToggle={toggleTopic}
-                  onBulkToggle={(ids, selected) => {
-                    if (selected) {
-                      setSelectedTopicIds(prev => [...new Set([...prev, ...ids])]);
-                    } else {
-                      setSelectedTopicIds(prev => prev.filter(id => !ids.includes(id)));
-                    }
-                  }}
-                  trimesterFilter={topicTrimesterFilter}
-                  onTrimesterFilterChange={setTopicTrimesterFilter}
-                  periodMode={periodMode}
-                />
-              )}
-
-              {/* ── MATERIAL DE REFERENCIA ── */}
-              <div className="gen-config">
-                <span className="gen-config__label">{selectedTopicIds.length > 0 ? 'Material adicional' : 'Material de referencia'}</span>
-                <p className="text-xs text-muted-foreground" style={{ marginTop: '-4px', marginBottom: '8px' }}>
-                  {selectedTopicIds.length > 0
-                    ? 'La IA ya usará el material de los temas seleccionados. Añade documentos extra si quieres más detalle.'
-                    : 'Sube documentos que la IA usará como base para generar las preguntas.'
-                  }
-                </p>
-                <input
-                  ref={refInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt,.md,.html"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      setReferenceFiles(prev => [...prev, ...Array.from(e.target.files!)]);
-                    }
-                    e.target.value = '';
-                  }}
-                />
-                <button
-                  type="button"
-                  className="upload-item"
-                  onClick={() => refInputRef.current?.click()}
-                >
-                  <Upload size={20} className="upload-item-icon" />
-                  <div className="upload-item-text">
-                    <h3>{referenceFiles.length > 0 ? `${referenceFiles.length} archivo${referenceFiles.length !== 1 ? 's' : ''}` : 'Subir documentos'}</h3>
-                    <p>PDF, imágenes, Word, texto</p>
+              {/* ──────────────────────  CONTENIDO  ────────────────────── */}
+              <div className="ex-card">
+                <div className="ex-card__header">
+                  <div className="ex-card__icon"><BookOpen size={14} /></div>
+                  <div className="ex-card__head-text">
+                    <h3 className="ex-card__title">¿Sobre qué contenido?</h3>
+                    <p className="ex-card__sub">
+                      {isExerciseFlow
+                        ? 'Combina exámenes anteriores, temas del temario y material propio. La IA usará todo lo que selecciones.'
+                        : 'Selecciona los temas a cubrir y, si quieres, añade tu propio material como referencia.'}
+                    </p>
                   </div>
-                  {referenceFiles.length > 0 && <CheckCircle size={18} className="upload-success-icon" />}
-                </button>
-                {referenceFiles.length > 0 && (
-                  <div className="upload-file-list">
-                    {referenceFiles.map((f, i) => (
-                      <Badge key={i} variant="outline" className="gap-1">
-                        <FileText size={12} />
-                        {f.name.length > 25 ? f.name.slice(0, 22) + '...' : f.name}
-                        <button onClick={() => setReferenceFiles(prev => prev.filter((_, j) => j !== i))} className="ml-1 hover:text-destructive">
-                          <Trash2 size={12} />
+                </div>
+
+                  {/* Summary chips of every active source — gives an at-a-glance
+                      view of what will feed the prompt */}
+                  {(pickedSourceExamIds.length > 0 || selectedTopicIds.length > 0 || referenceFiles.length > 0) && (
+                    <div className="content-summary">
+                      {pickedSourceExamIds.length > 0 && (
+                        <span className="content-summary__chip">
+                          <FileText size={12} />
+                          {pickedSourceExamIds.length} examen{pickedSourceExamIds.length === 1 ? '' : 'es'}
+                        </span>
+                      )}
+                      {selectedTopicIds.length > 0 && (
+                        <span className="content-summary__chip">
+                          <ListChecks size={12} />
+                          {selectedTopicIds.length} tema{selectedTopicIds.length === 1 ? '' : 's'}
+                        </span>
+                      )}
+                      {referenceFiles.length > 0 && (
+                        <span className="content-summary__chip">
+                          <Upload size={12} />
+                          {referenceFiles.length} archivo{referenceFiles.length === 1 ? '' : 's'}
+                        </span>
+                      )}
+                      {aggregatedWeakAreas.length > 0 && (
+                        <span className="content-summary__chip content-summary__chip--accent">
+                          <Wand2 size={12} />
+                          {aggregatedWeakAreas.length} área{aggregatedWeakAreas.length === 1 ? '' : 's'} de mejora
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Source 1: Exámenes anteriores (only ejercicios) ── */}
+                  {isExerciseFlow && (
+                    <div className="content-source">
+                      <button
+                        type="button"
+                        className="content-source__head"
+                        onClick={() => setExamsSectionOpen((v) => !v)}
+                        aria-expanded={examsSectionOpen}
+                      >
+                        <span className="content-source__head-left">
+                          <span className="content-source__icon"><GraduationCap size={14} /></span>
+                          <span>
+                            <span className="content-source__title">Exámenes anteriores</span>
+                            <span className="content-source__sub">
+                              {pickedSourceExamIds.length > 0
+                                ? `${pickedSourceExamIds.length} seleccionado${pickedSourceExamIds.length === 1 ? '' : 's'} · la IA detectará áreas de mejora`
+                                : 'Genera repaso a partir de exámenes corregidos'}
+                            </span>
+                          </span>
+                        </span>
+                        <span className={`content-source__chevron ${examsSectionOpen ? 'content-source__chevron--open' : ''}`}>›</span>
+                      </button>
+
+                      {examsSectionOpen && (
+                        <div className="content-source__body">
+                          {sourceExamCandidates.length === 0 ? (
+                            <p className="content-source__empty">
+                              Aún no hay exámenes corregidos en esta clase.
+                            </p>
+                          ) : (
+                            <div className="exam-pick-list">
+                              {sourceExamCandidates.map((e) => {
+                                const checked = pickedSourceExamIds.includes(e.id);
+                                return (
+                                  <label key={e.id} className={`exam-pick-row ${checked ? 'exam-pick-row--active' : ''}`}>
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(ev) => {
+                                        if (ev.target.checked) setPickedSourceExamIds([...pickedSourceExamIds, e.id]);
+                                        else setPickedSourceExamIds(pickedSourceExamIds.filter(id => id !== e.id));
+                                      }}
+                                    />
+                                    <div className="exam-pick-row__main">
+                                      <div className="exam-pick-row__name">{e.name}</div>
+                                      {e.date && (
+                                        <div className="exam-pick-row__meta">
+                                          {new Date(e.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Aggregated focus areas — shown as soon as exams + students are picked */}
+                          {pickedSourceExamIds.length > 0 && targetStudentIds.length > 0 && (
+                            <div className="content-source__preview">
+                              <div className="content-source__preview-label">
+                                Áreas de mejora detectadas
+                              </div>
+                              {aggregatedWeakAreas.length > 0 ? (
+                                <div className="content-source__preview-chips">
+                                  {aggregatedWeakAreas.map((w) => (
+                                    <Badge key={w} variant="secondary" className="text-xs">{w}</Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="content-source__preview-empty">
+                                  Los alumnos seleccionados no tienen debilidades marcadas — la IA usará repaso general.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Source 2: Temas del temario ── */}
+                  {selectedSubjectId && (
+                    <div className="content-source">
+                      <button
+                        type="button"
+                        className="content-source__head"
+                        onClick={() => setTopicsSectionOpen((v) => !v)}
+                        aria-expanded={topicsSectionOpen}
+                      >
+                        <span className="content-source__head-left">
+                          <span className="content-source__icon"><ListChecks size={14} /></span>
+                          <span>
+                            <span className="content-source__title">Temas del temario</span>
+                            <span className="content-source__sub">
+                              {selectedTopicIds.length > 0
+                                ? `${selectedTopicIds.length} tema${selectedTopicIds.length === 1 ? '' : 's'} con su material asociado`
+                                : 'Selecciona los temas que quieres cubrir'}
+                            </span>
+                          </span>
+                        </span>
+                        <span className={`content-source__chevron ${topicsSectionOpen ? 'content-source__chevron--open' : ''}`}>›</span>
+                      </button>
+                      {topicsSectionOpen && (
+                        <div className="content-source__body">
+                          <TopicSelector
+                            classId={classId}
+                            topics={allSubjectTopics}
+                            selectedTopicIds={selectedTopicIds}
+                            onToggle={toggleTopic}
+                            onBulkToggle={(ids, selected) => {
+                              if (selected) {
+                                setSelectedTopicIds(prev => [...new Set([...prev, ...ids])]);
+                              } else {
+                                setSelectedTopicIds(prev => prev.filter(id => !ids.includes(id)));
+                              }
+                            }}
+                            trimesterFilter={topicTrimesterFilter}
+                            onTrimesterFilterChange={setTopicTrimesterFilter}
+                            periodMode={periodMode}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Source 3: Material extra subido por el profesor ── */}
+                  <div className="content-source">
+                    <button
+                      type="button"
+                      className="content-source__head"
+                      onClick={() => setMaterialsSectionOpen((v) => !v)}
+                      aria-expanded={materialsSectionOpen}
+                    >
+                      <span className="content-source__head-left">
+                        <span className="content-source__icon"><FileText size={14} /></span>
+                        <span>
+                          <span className="content-source__title">Material extra</span>
+                          <span className="content-source__sub">
+                            {referenceFiles.length > 0
+                              ? `${referenceFiles.length} archivo${referenceFiles.length === 1 ? '' : 's'} subido${referenceFiles.length === 1 ? '' : 's'}`
+                              : 'Sube tus propios documentos (opcional)'}
+                          </span>
+                        </span>
+                      </span>
+                      <span className={`content-source__chevron ${materialsSectionOpen ? 'content-source__chevron--open' : ''}`}>›</span>
+                    </button>
+                    {materialsSectionOpen && (
+                      <div className="content-source__body">
+                        <input
+                          ref={refInputRef}
+                          type="file"
+                          multiple
+                          accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt,.md,.html"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            if (e.target.files) {
+                              setReferenceFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="upload-item upload-item--compact"
+                          onClick={() => refInputRef.current?.click()}
+                        >
+                          <div className="upload-item-icon"><Upload size={20} /></div>
+                          <div className="upload-item-text">
+                            <h3>{referenceFiles.length > 0 ? 'Añadir más archivos' : 'Subir documentos'}</h3>
+                            <p>PDF, imágenes, Word o texto</p>
+                          </div>
+                          {referenceFiles.length > 0 && <CheckCircle size={20} className="upload-success-icon" />}
                         </button>
-                      </Badge>
-                    ))}
+                        {referenceFiles.length > 0 && (
+                          <div className="upload-file-list">
+                            {referenceFiles.map((f, i) => (
+                              <Badge key={i} variant="outline" className="gap-1">
+                                <FileText size={12} />
+                                {f.name.length > 25 ? f.name.slice(0, 22) + '...' : f.name}
+                                <button type="button" onClick={() => setReferenceFiles(prev => prev.filter((_, j) => j !== i))} className="ml-1 hover:text-destructive">
+                                  <Trash2 size={12} />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
               </div>
+              {/* /Contenido */}
 
-              {/* ── CONFIGURACIÓN ── */}
-              <div className="gen-config">
-                <span className="gen-config__label">Configuración</span>
+              {/* ──────────────────────  CONFIGURACIÓN  ────────────────────── */}
+              <div className="ex-card">
+                <div className="ex-card__header">
+                  <div className="ex-card__icon"><Settings2 size={14} /></div>
+                  <div className="ex-card__head-text">
+                    <h3 className="ex-card__title">Configuración</h3>
+                    <p className="ex-card__sub">Ajusta el formato y la dificultad del {nounLower}</p>
+                  </div>
+                </div>
 
-                {/* Inline stepper rows */}
                 <div className="gen-config-inline">
                   <div className="gen-config-inline__row">
                     <span className="gen-config-inline__label">Nº preguntas</span>
@@ -884,9 +1454,8 @@ const ExamEditor: React.FC = () => {
                   </div>
                 </div>
 
-                <FormatSelector value={examFormat} onChange={setExamFormat} />
+                <FormatSelector value={examFormat} onChange={setExamFormat} noun={nounLower} />
 
-                {/* MCQ-only: options-per-question + multi-answer count */}
                 {examFormat === 'test' && (
                   <div className="gen-config-inline" style={{ marginTop: 'var(--space-sm)' }}>
                     <div className="gen-config-inline__row">
@@ -905,23 +1474,11 @@ const ExamEditor: React.FC = () => {
                       </div>
                     </div>
                     <div className="gen-config-inline__row">
-                      <span className="gen-config-inline__label">
-                        Preguntas multirespuesta
-                      </span>
+                      <span className="gen-config-inline__label">Preguntas multirespuesta</span>
                       <div className="gen-config-stepper">
-                        <button
-                          type="button"
-                          className="gen-config-stepper__btn"
-                          onClick={() => setNumMultiAnswer(Math.max(0, numMultiAnswer - 1))}
-                          disabled={numMultiAnswer <= 0}
-                        >−</button>
+                        <button type="button" className="gen-config-stepper__btn" onClick={() => setNumMultiAnswer(Math.max(0, numMultiAnswer - 1))} disabled={numMultiAnswer <= 0}>−</button>
                         <span className="gen-config-stepper__value">{numMultiAnswer}</span>
-                        <button
-                          type="button"
-                          className="gen-config-stepper__btn"
-                          onClick={() => setNumMultiAnswer(Math.min(numQuestions, numMultiAnswer + 1))}
-                          disabled={numMultiAnswer >= numQuestions}
-                        >+</button>
+                        <button type="button" className="gen-config-stepper__btn" onClick={() => setNumMultiAnswer(Math.min(numQuestions, numMultiAnswer + 1))} disabled={numMultiAnswer >= numQuestions}>+</button>
                       </div>
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">
@@ -931,21 +1488,56 @@ const ExamEditor: React.FC = () => {
                 )}
               </div>
 
-              {/* ── PERSONALIZACIÓN ── */}
-              <div className="gen-config">
-                <span className="gen-config__label">Personalización</span>
-                <LogoUploader logoUrl={logoUrl} uploading={uploadingLogo} onUpload={handleLogoUpload} />
-
-                {/* Instructions */}
-                <div className="form-item">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Instrucciones adicionales</label>
-                  <Textarea
-                    value={refinement}
-                    onChange={(e) => setRefinement(e.target.value)}
-                    placeholder="Ej: Incluye 2 ejercicios de derivadas, evita integrales..."
-                    rows={3}
-                  />
+              {/* ──────────────────────  INDICACIONES IA (siempre visible)  ──────────────────────
+                   Free-text textarea that lets the teacher steer the model. The
+                   backend treats this as a valid source (along with topics,
+                   materials and source exams) so it's always reachable here —
+                   never hidden inside a collapsed card. */}
+              <div className="ex-card">
+                <div className="ex-card__header">
+                  <div className="ex-card__icon"><Wand2 size={14} /></div>
+                  <div className="ex-card__head-text">
+                    <h3 className="ex-card__title">Indicaciones para la IA</h3>
+                    <p className="ex-card__sub">
+                      Cuéntale qué quieres en este {nounLower}: temas a enfatizar, qué evitar, estilo de preguntas…
+                    </p>
+                  </div>
                 </div>
+                <Textarea
+                  value={refinement}
+                  onChange={(e) => setRefinement(e.target.value)}
+                  placeholder={isExerciseFlow
+                    ? 'Ej: Repaso muy básico de fracciones, sin pasar a decimales. Que cada ejercicio explique paso a paso.'
+                    : 'Ej: Incluye 2 problemas de derivadas, evita integrales, dificultad creciente.'}
+                  rows={4}
+                  className="ai-instructions"
+                />
+              </div>
+
+              {/* ──────────────────────  PERSONALIZACIÓN (colapsable)  ────────────────────── */}
+              <div className={`ex-card ex-card--collapsible ${personalizationOpen ? 'ex-card--open' : ''}`}>
+                <button
+                  type="button"
+                  className="ex-card__toggle"
+                  onClick={() => setPersonalizationOpen((v) => !v)}
+                  aria-expanded={personalizationOpen}
+                >
+                  <span className="ex-card__icon"><Layers size={14} /></span>
+                  <span className="ex-card__head-text">
+                    <span className="ex-card__title">Logo del centro</span>
+                    <span className="ex-card__sub">
+                      Imprime tu logo en cada {nounLower}
+                      {logoUrl && ' · subido'}
+                    </span>
+                  </span>
+                  <span className={`ex-card__chevron ${personalizationOpen ? 'ex-card__chevron--open' : ''}`}>›</span>
+                </button>
+
+                {personalizationOpen && (
+                  <div className="ex-card__body">
+                    <LogoUploader logoUrl={logoUrl} uploading={uploadingLogo} onUpload={handleLogoUpload} />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -985,7 +1577,7 @@ const ExamEditor: React.FC = () => {
                   <Download size={16} />
                   {exam.isPersonalized
                     ? 'Todas las copias (QR)'
-                    : 'Examen'}
+                    : nounUpper}
                 </Button>
 
                 {exam.hasGeneratedQuestions && exam.documentUrl && (
@@ -1012,12 +1604,12 @@ const ExamEditor: React.FC = () => {
               </div>
               {exam.isPersonalized && (
                 <p className="exam-downloads__hint">
-                  Este PDF incluye una copia del examen por cada alumno con su nombre y QR impresos. Imprimelo completo para repartir en clase.
+                  Este PDF incluye una copia del {nounLower} por cada alumno con su nombre y QR impresos. Imprímelo completo para repartir en clase.
                 </p>
               )}
               {exam.hasGeneratedQuestions && exam.documentUrl && (
                 <p className="exam-downloads__hint">
-                  El examen digitalizado es la version escrita a ordenador generada a partir del documento original.
+                  El {nounLower} digitalizado es la versión escrita a ordenador generada a partir del documento original.
                 </p>
               )}
             </div>
@@ -1028,10 +1620,10 @@ const ExamEditor: React.FC = () => {
             <div className="exam-iteration-section">
               <div className="exam-iteration-header">
                 <Pencil size={20} />
-                <span>Ajustar examen</span>
+                <span>Ajustar {nounLower}</span>
               </div>
               <p className="exam-iteration-description">
-                Describe los cambios que quieres hacer y la IA ajustara el examen manteniendo la estructura.
+                Describe los cambios que quieres hacer y la IA ajustará el {nounLower} manteniendo la estructura.
               </p>
 
               <div className="exam-iteration-quick">
@@ -1130,7 +1722,7 @@ const ExamEditor: React.FC = () => {
                             <Badge variant="secondary">v1</Badge>
                             <span className="iteration-history-label">Version original</span>
                           </div>
-                          <p className="iteration-history-instruction">Generacion inicial del examen</p>
+                          <p className="iteration-history-instruction">Generación inicial del {nounLower}</p>
                         </div>
                       </div>
                     </AccordionContent>
@@ -1150,24 +1742,33 @@ const ExamEditor: React.FC = () => {
               onClick={handleSave}
               disabled={!name.trim() || saving || duplicateName}
             >
-              {saving ? <><Spinner size={18} /> Guardando...</> : isNew ? (files.length > 0 ? 'Digitalizar examen' : 'Crear examen') : 'Guardar cambios'}
+              {saving ? <><Spinner size={18} /> Guardando...</> : isNew ? (files.length > 0 ? `Digitalizar ${nounLower}` : `Crear ${nounLower}`) : 'Guardar cambios'}
             </Button>
           )}
 
-          {/* Generate mode actions */}
-          {mode === 'generate' && isNew && (
+          {/* Generate mode actions — disabled when no source provided so the
+              teacher gets immediate feedback instead of a backend 400. */}
+          {mode === 'generate' && isNew && (() => {
+            const hasSource =
+              selectedTopicIds.length > 0 ||
+              referenceFiles.length > 0 ||
+              refinement.trim().length > 0 ||
+              (isExerciseFlow && pickedSourceExamIds.length > 0);
+            return (
               <Button
                 className="w-full save-btn gen-btn"
                 onClick={handleGenerate}
-                disabled={!name.trim() || uploadingRefs || duplicateName}
+                disabled={!name.trim() || uploadingRefs || duplicateName || !hasSource}
+                title={!hasSource ? 'Selecciona temas, exámenes, material o escribe indicaciones para la IA' : undefined}
               >
                 {uploadingRefs ? (
                   <><Spinner size={16} /> Subiendo documentos...</>
                 ) : (
-                  <><Sparkles size={16} /> Generar examen</>
+                  <><Sparkles size={16} /> Generar {nounLower}</>
                 )}
               </Button>
-          )}
+            );
+          })()}
 
           {/* Existing exam actions (both modes) */}
           {exam && exam.status === 'pending_validation' && (
@@ -1188,32 +1789,28 @@ const ExamEditor: React.FC = () => {
                 <CheckCircle size={16} />
                 Ver correcciones
               </Button>
-              <Button className="w-full" variant="outline" onClick={() => setShowExerciseModal(true)}>
-                <Sparkles size={16} />
-                Generar ejercicios
-              </Button>
+              {exam.purpose === 'evaluation' && (
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => {
+                    const weakStudentIds = encodeURIComponent(
+                      (exam.id)
+                    );
+                    navigate(
+                      `/tabs/exercises/new?purpose=recovery&sourceExamId=${exam.id}&classId=${exam.classId ?? ''}&studentIds=${weakStudentIds}`
+                    );
+                  }}
+                >
+                  <Sparkles size={16} />
+                  Generar recuperación
+                </Button>
+              )}
             </>
           )}
         </div>
 
-        {exam && exam.status === 'corrected' && (
-          <ExerciseGeneratorModal
-            isOpen={showExerciseModal}
-            onDismiss={() => setShowExerciseModal(false)}
-            classId={exam.classId}
-            preselectedExamId={exam.id}
-          />
-        )}
-
-        <AlertConfirm
-          open={showDeleteAlert}
-          onClose={() => setShowDeleteAlert(false)}
-          header="Eliminar examen"
-          message={`Eliminar "${name}"? Tambien se eliminaran las correcciones asociadas.`}
-          confirmText="Eliminar"
-          onConfirm={handleDelete}
-          variant="destructive"
-        />
+        <ExamDeleteDialogs />
       </div>
     </PageShell>
   );

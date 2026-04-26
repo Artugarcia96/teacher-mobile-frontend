@@ -264,7 +264,17 @@ const ExerciseDetail: React.FC = () => {
           {groupStatus === 'corrected' ? (
             <><div className="exd-corrections-header"><h2 className="exd-section-title">Correcciones ({correctionsList.length})</h2></div><div className="correction-review-list">{correctionsList.map((correction, i) => (<CorrectionReviewCard key={correction.id} index={i} studentName={correction.studentName} grade={correction.grade} maxScore={exercise.maxScore} teacherComments={correction.teacherComments} weakAreas={correction.weakAreas} aiAnalysis={correction.aiAnalysis} aiProcessed={!!correction.aiAnalysis} paperUrl={getFullPaperUrl(correction.paperUrl) || undefined} onPreviewPaper={correction.paperUrl ? () => setPreviewUrl(getFullPaperUrl(correction.paperUrl)!) : undefined} onDownloadPaper={correction.paperUrl ? () => handleDownloadPaper(correction.paperUrl!, correction.studentName) : undefined} onGradeChange={(newGrade) => handleGradeChange(correction.id, newGrade)} savingGrade={savingGrade[correction.id]} />))}</div></>
           ) : (
-            <ExerciseCorrectionPanel classId={classId} exerciseIds={siblingExercises.map(e => e.id)} exerciseName={exercise.name || exerciseName} maxScore={exercise.maxScore} onFinished={() => { fetchExercises(); siblingExercises.forEach(e => fetchCorrections(e.id)); }} />
+            <ExerciseCorrectionPanel
+              classId={classId}
+              exerciseIds={siblingExercises.map(e => e.id)}
+              exerciseName={exercise.name || exerciseName}
+              maxScore={exercise.maxScore}
+              /* Standalone mode: the exercise was generated without a student
+                 (teacher-owned generic ficha). Every correction uploaded is
+                 anonymous and labelled by the teacher. */
+              standalone={!exercise.studentId}
+              onFinished={() => { fetchExercises(); siblingExercises.forEach(e => fetchCorrections(e.id)); }}
+            />
           )}
         </div>
 

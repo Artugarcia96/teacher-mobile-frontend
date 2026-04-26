@@ -1,0 +1,1053 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXAM SHEET — unified preview + inline editor.
+   Cada pregunta arranca COLAPSADA: una línea de preview con chips de meta.
+   Click expande a la edición completa. ✨ abre un mini-prompt inline para
+   reescribir solo esa pregunta. La barra AI inferior cubre cambios globales.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.es {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Meta bar ─────────────────────────────────────────────────────── */
+
+.es__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.es__meta-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.es__meta-count strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.es__meta-sep {
+  opacity: 0.45;
+}
+
+.es__meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.es__meta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.35rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.es__meta-link:hover {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+/* ── Save indicator chip ─────────────────────────────────────────── */
+
+.es-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1;
+  height: 1.25rem;
+}
+
+.es-save--dirty,
+.es-save--saving {
+  background: color-mix(in oklab, #f59e0b 15%, transparent);
+  color: #a16207;
+}
+
+.es-save--saved {
+  background: color-mix(in oklab, #059669 15%, transparent);
+  color: #047857;
+}
+
+.es-save--error {
+  background: color-mix(in oklab, #dc2626 15%, transparent);
+  color: #b91c1c;
+}
+
+/* ── Sheet body ──────────────────────────────────────────────────── */
+
+.es__sheet {
+  padding: 0.6rem 0.9rem 0.7rem;
+}
+
+.es-section + .es-section {
+  margin-top: 0.5rem;
+}
+
+.es-section__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.es-section__marker {
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  min-width: 1.4rem;
+}
+
+.es-section__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.es-section__title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.25;
+  color: var(--foreground);
+  flex: 1;
+  min-width: 0;
+}
+
+.es-section__pts {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.es-section__add-row {
+  padding: 0.15rem 0;
+}
+
+/* ── Question list ───────────────────────────────────────────────── */
+
+.es-q-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.es-q-list__empty {
+  padding: 0.4rem 0;
+}
+
+.es-q-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inline "+" between rows — Notion-style. Hover-revealed on desktop, ghost
+   on touch. Lets the teacher insert a question EXACTLY where they want
+   instead of hunting for the "+ Añadir pregunta" button at section bottom. */
+
+.es-add-between {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  height: 0.6rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, height 0.18s ease;
+  overflow: hidden;
+}
+
+.es-q-wrap:hover .es-add-between,
+.es-add-between:focus-visible {
+  opacity: 1;
+  height: 1.4rem;
+}
+
+@media (hover: none) {
+  .es-add-between {
+    opacity: 0.55;
+    height: 1.1rem;
+  }
+}
+
+.es-add-between__line {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in oklab, var(--primary, #6366f1) 30%, var(--border));
+}
+
+.es-add-between__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--primary, #6366f1) 10%, var(--card));
+  color: color-mix(in oklab, var(--primary, #6366f1) 90%, var(--foreground));
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 30%, var(--border));
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  flex-shrink: 0;
+}
+
+.es-add-between:hover .es-add-between__chip {
+  background: color-mix(in oklab, var(--primary, #6366f1) 18%, var(--card));
+}
+
+/* Cross-section variant: a touch warmer to distinguish from question +. */
+.es-add-between--section {
+  height: 0.7rem;
+  margin-top: 0.4rem;
+}
+
+.es-q-wrap:hover .es-add-between--section,
+.es-add-between--section:focus-visible {
+  height: 1.4rem;
+}
+
+.es-add-between__chip--section {
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+}
+
+@media (hover: none) {
+  .es-add-between--section {
+    height: 1.1rem;
+    opacity: 0.55;
+  }
+}
+
+/* ── Question card — base shared between collapsed and expanded ──── */
+
+.es-q {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  gap: 0.45rem;
+  padding: 0.35rem 0.25rem;
+  align-items: start;
+  border-radius: 0.45rem;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  margin: 0.05rem 0;
+}
+
+.es-q:hover {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+.es-q--collapsed {
+  align-items: center;
+  cursor: pointer;
+  padding: 0.45rem 0.35rem;
+}
+
+.es-q--expanded {
+  background: var(--background);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 25%, var(--border));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  padding: 0.55rem 0.5rem 0.65rem;
+}
+
+.es-q--ai {
+  background: color-mix(in oklab, var(--primary, #6366f1) 7%, var(--card));
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+  align-items: center;
+  padding: 0.45rem 0.35rem;
+}
+
+.es-q__num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-align: right;
+  padding: 0.1rem 0.15rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.es-q--collapsed .es-q__num,
+.es-q--ai .es-q__num {
+  padding-top: 0;
+  align-self: center;
+}
+
+/* ── Collapsed preview row ───────────────────────────────────────── */
+
+.es-q__preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0.05rem 0.1rem;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  border-radius: 0.3rem;
+}
+
+.es-q__preview:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 5%, transparent);
+}
+
+.es-q__preview-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.es-q__preview-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.es-q__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.08rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.es-q__chip--test {
+  background: color-mix(in oklab, #14b8a6 14%, transparent);
+  color: #0f766e;
+}
+
+.es-q__chip--pts {
+  background: color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+  color: color-mix(in oklab, var(--primary, #6366f1) 85%, var(--foreground));
+}
+
+.es-q__chip small {
+  font-size: 0.52rem;
+  font-weight: 500;
+  opacity: 0.7;
+  margin-left: 0.1rem;
+}
+
+/* En móvil escondemos los chips informativos (apartados/figura) — el de
+   puntos y test se quedan porque son los que el profe escanea. */
+@media (max-width: 539px) {
+  .es-q__chip:not(.es-q__chip--pts):not(.es-q__chip--test) {
+    display: none;
+  }
+}
+
+.es-q__row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+  flex-shrink: 0;
+}
+
+.es-q__ai-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.35rem;
+  border: none;
+  background: transparent;
+  color: color-mix(in oklab, var(--primary, #6366f1) 75%, var(--muted-foreground));
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.es-q__ai-btn:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 12%, transparent);
+  color: color-mix(in oklab, var(--primary, #6366f1) 95%, var(--foreground));
+}
+
+/* ── Expanded body (full editor) ─────────────────────────────────── */
+
+.es-q__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.es-q__text {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--foreground);
+}
+
+.es-q__side {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  padding-top: 0.05rem;
+}
+
+/* ── Visual chip ────────────────────────────────────────────────── */
+
+.es-q__visual-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  background: color-mix(in oklab, var(--primary, #6366f1) 6%, transparent);
+  color: var(--muted-foreground);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  width: fit-content;
+}
+
+.es-q__visual-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary, #6366f1);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Sub-questions ──────────────────────────────────────────────── */
+
+.es-sub-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.15rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.es-sub {
+  display: grid;
+  grid-template-columns: 1.2rem 1fr auto;
+  gap: 0.4rem;
+  align-items: start;
+  padding: 0.2rem 0.25rem;
+  border-radius: 0.3rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.es-sub:hover {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.es-sub__label {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+  font-weight: 500;
+  text-align: right;
+}
+
+/* ── Options (multiple choice) ──────────────────────────────────── */
+
+.es-opt-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.15rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.es-opt {
+  display: grid;
+  grid-template-columns: 1.1rem 1.1rem 1fr;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.2rem 0.25rem;
+  border-radius: 0.3rem;
+  font-size: 0.78rem;
+}
+
+.es-opt--correct {
+  background: color-mix(in oklab, #059669 6%, transparent);
+}
+
+.es-opt__radio {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.es-opt__radio:disabled {
+  cursor: default;
+}
+
+.es-opt--correct .es-opt__radio {
+  background: #059669;
+  border-color: #059669;
+}
+
+.es-opt__label {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+/* ── Add buttons (legacy + first-question CTA) ──────────────────── */
+
+.es-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 0.35rem;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.es-add-btn:hover {
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 40%, var(--border));
+  color: var(--primary, #6366f1);
+  background: color-mix(in oklab, var(--primary, #6366f1) 4%, transparent);
+}
+
+/* ── Inline edit primitives ─────────────────────────────────────── */
+
+.es-inline {
+  display: inline;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: inherit;
+  min-width: 0;
+  width: 100%;
+}
+
+.es-inline--ro {
+  cursor: default;
+}
+
+.es-inline--clickable {
+  cursor: text;
+  border-radius: 0.2rem;
+  padding: 0.05rem 0.15rem;
+  margin: -0.05rem -0.15rem;
+  transition: background 0.1s ease;
+}
+
+.es-inline--clickable:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 7%, transparent);
+}
+
+.es-inline--clickable:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--primary, #6366f1) 50%, transparent);
+  outline-offset: 1px;
+}
+
+.es-inline__placeholder {
+  color: var(--muted-foreground);
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.es-inline__textarea {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  resize: none;
+  border-radius: 0.35rem;
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 45%, var(--border));
+  background: var(--background);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+  min-height: 2.5rem;
+}
+
+.es-inline__input {
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 45%, var(--border));
+  background: var(--background);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── Points chip ────────────────────────────────────────────────── */
+
+.es-pts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.3rem;
+  background: color-mix(in oklab, var(--muted) 60%, transparent);
+  min-width: 2.4rem;
+  justify-content: center;
+  line-height: 1;
+}
+
+.es-pts small {
+  font-size: 0.58rem;
+  font-weight: 500;
+  opacity: 0.6;
+  margin-left: 0.1rem;
+}
+
+.es-pts--btn {
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.es-pts--btn:hover {
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 45%, var(--border));
+  background: color-mix(in oklab, var(--primary, #6366f1) 6%, var(--muted));
+}
+
+.es-pts--input {
+  width: 3.2rem;
+  padding: 0.15rem 0.4rem;
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 0.3rem;
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 45%, var(--border));
+  background: var(--background);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+}
+
+/* ── Icon buttons ───────────────────────────────────────────────── */
+
+.es-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.35rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.es-icon-btn:hover {
+  background: color-mix(in oklab, var(--accent) 60%, transparent);
+  color: var(--foreground);
+}
+
+.es-icon-btn--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* ── AI refine bar (global) ──────────────────────────────────────── */
+
+.es__ai-wrap {
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  padding: 0.55rem 0.9rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.es-ai-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+/* Sugerencias rápidas — chips encima del input. Discoverability del IA:
+   en lugar de pedirle al profe que invente la instrucción desde cero,
+   le damos 4 atajos que cubren el 80% de los casos. */
+.es-ai-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.es-ai-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.es-ai-suggestion:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary, #6366f1) 8%, var(--card));
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+}
+
+.es-ai-suggestion:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.es-ai {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.3rem 0.3rem 0.6rem;
+  border-radius: 0.55rem;
+  background: var(--background);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.es-ai:focus-within {
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 50%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, #6366f1) 12%, transparent);
+}
+
+.es-ai--busy {
+  opacity: 0.6;
+}
+
+.es-ai__icon {
+  color: var(--primary, #6366f1);
+  flex-shrink: 0;
+}
+
+.es-ai__input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--foreground);
+  min-width: 0;
+}
+
+.es-ai__input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.es-ai__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.4rem;
+  border: none;
+  background: var(--primary, #6366f1);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s ease, opacity 0.12s ease;
+  flex-shrink: 0;
+}
+
+.es-ai__send:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary, #6366f1) 85%, #000);
+}
+
+.es-ai__send:disabled {
+  background: color-mix(in oklab, var(--muted) 70%, var(--border));
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.es__advanced {
+  background: none;
+  border: none;
+  padding: 0.15rem 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.65rem;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: 0.3rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+
+.es__advanced:hover {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+@media (max-width: 520px) {
+  .es__advanced {
+    display: none;
+  }
+}
+
+/* ── Per-question AI mini-prompt (in-row) ────────────────────────── */
+
+.es-q-ai {
+  grid-column: 2 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.3rem 0.15rem 0.55rem;
+  border-radius: 0.4rem;
+  background: var(--background);
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 40%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+  min-width: 0;
+}
+
+.es-q-ai__icon {
+  color: var(--primary, #6366f1);
+  flex-shrink: 0;
+}
+
+.es-q-ai__label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--primary, #6366f1) 80%, var(--foreground));
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 539px) {
+  .es-q-ai__label {
+    display: none;
+  }
+}
+
+.es-q-ai__input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--foreground);
+  min-width: 0;
+  padding: 0.25rem 0;
+}
+
+.es-q-ai__send {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 0.35rem;
+  border: none;
+  background: var(--primary, #6366f1);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, opacity 0.12s ease;
+  flex-shrink: 0;
+}
+
+.es-q-ai__send:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary, #6366f1) 85%, #000);
+}
+
+.es-q-ai__send:disabled {
+  background: color-mix(in oklab, var(--muted) 70%, var(--border));
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.es-q-ai__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.es-q-ai__close:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+/* ── History drawer items ───────────────────────────────────────── */
+
+.es-history-item {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--card);
+}
+
+.es-history-item--current {
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 50%, var(--border));
+  background: color-mix(in oklab, var(--primary, #6366f1) 4%, var(--card));
+}
+
+.es-history-item__head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.es-history-item__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.es-history-item__time {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  flex: 1;
+}
+
+.es-history-item__note {
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  margin: 0.35rem 0 0;
+  line-height: 1.4;
+}
+
+/* ── Empty / skeleton ───────────────────────────────────────────── */
+
+.es--empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.es__empty-text {
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+  margin: 0;
+}
+
+.es__skeleton {
+  padding: 0.9rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.es__skeleton-line {
+  height: 0.7rem;
+  background: linear-gradient(90deg, var(--muted) 0%, var(--accent) 50%, var(--muted) 100%);
+  background-size: 200% 100%;
+  animation: es-skeleton 1.4s linear infinite;
+  border-radius: 0.25rem;
+  width: 100%;
+}
+
+.es__skeleton-line--lg { width: 70%; }
+.es__skeleton-line--sm { width: 40%; }
+
+@keyframes es-skeleton {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+  .es__sheet {
+    padding: 0.5rem 0.65rem 0.6rem;
+  }
+
+  .es-q {
+    grid-template-columns: 1.4rem 1fr auto;
+    gap: 0.3rem;
+  }
+
+  .es__ai-wrap {
+    padding: 0.45rem 0.7rem 0.6rem;
+  }
+}

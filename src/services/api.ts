@@ -187,7 +187,7 @@ export const students = {
 };
 
 export const exams = {
-  list: (classId?: string, subjectId?: string) => api.get('/exams/', { params: { ...(classId ? { class_id: classId } : {}), ...(subjectId ? { subject_id: subjectId } : {}) } }),
+  list: (classId?: string, subjectId?: string, purpose?: string) => api.get('/exams/', { params: { ...(classId ? { class_id: classId } : {}), ...(subjectId ? { subject_id: subjectId } : {}), ...(purpose ? { purpose } : {}) } }),
   get: (id: string) => api.get(`/exams/${id}`),
   create: (data: Record<string, any>, files?: File | File[]) => {
     const formData = new FormData();
@@ -217,6 +217,7 @@ export const exams = {
     api.delete(`/exams/${id}`, { params: force ? { force: true } : undefined }),
   assign: (id: string, data?: { student_ids?: string[]; blank_pages_count?: number; exam_date?: string; correction_deadline?: string; per_class_dates?: Record<string, string> }) =>
     api.post(`/exams/${id}/assign`, data || {}, { timeout: 120000 }),
+  finalize: (id: string) => api.post(`/exams/${id}/finalize`, {}, { timeout: 30000 }),
   validate: (id: string) => api.post(`/exams/${id}/validate`, {}, { timeout: 120000 }),
   uploadReferenceMaterials: (files: File[]) => {
     const formData = new FormData();
@@ -234,6 +235,9 @@ export const exams = {
     question_types?: string[]; refinement_prompt?: string;
     is_test_format?: boolean; exam_format?: string; education_level?: string; trimester?: number;
     num_options?: number; num_multi_answer?: number;
+    purpose?: string;
+    source_exam_ids?: string[];
+    calendar_event_id?: string;
   }) => api.post('/exams/generate', data),
   uploadLogo: (file: File) => {
     const formData = new FormData();
@@ -244,8 +248,10 @@ export const exams = {
     });
   },
   getLogo: () => api.get('/exams/logo'),
-  iterate: (id: string, data: { instruction: string; preserve_questions?: number[] }) => 
+  iterate: (id: string, data: { instruction: string; preserve_questions?: number[] }) =>
     api.post(`/exams/${id}/iterate`, data, { timeout: 120000 }),
+  updateContent: (id: string, data: { content: any; change_summary?: string }) =>
+    api.patch(`/exams/${id}/content`, data, { timeout: 60000 }),
   updateWeight: (id: string, weight: number) => api.patch(`/exams/${id}/weight`, { weight }),
   getQuestions: (id: string) => api.get(`/exams/${id}/questions`),
   downloadExamUrl: (id: string) => `${getBaseUrl()}/exams/${id}/download`,
@@ -256,11 +262,12 @@ export const exams = {
 };
 
 export const corrections = {
-  upload: (examId: string, files: File[], studentId?: string, group?: boolean, classId?: string) => {
+  upload: (examId: string, files: File[], studentId?: string, group?: boolean, classId?: string, anonymousLabel?: string) => {
     const formData = new FormData();
     files.forEach((f) => formData.append('papers', f));
     if (studentId) formData.append('student_id', studentId);
     if (classId) formData.append('class_id', classId);
+    if (anonymousLabel) formData.append('anonymous_label', anonymousLabel);
     if (group) formData.append('group', 'true');
     return api.post(`/corrections/${examId}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -291,7 +298,7 @@ export const corrections = {
   get: (examId: string, studentId: string) => api.get(`/corrections/${examId}/${studentId}`),
   update: (correctionId: string, data: { student_id?: string; grade?: number; teacher_notes?: string; weak_areas?: string[] }) =>
     api.put(`/corrections/${correctionId}`, data),
-  finish: (examId: string) => api.post(`/corrections/${examId}/finish`),
+  finish: (examId: string, classId?: string) => api.post(`/corrections/${examId}/finish`, null, { params: classId ? { class_id: classId } : undefined }),
   processAI: (correctionId: string) => api.post(`/corrections/${correctionId}/process-ai`, null, {
     timeout: 300000
   }),
@@ -360,9 +367,10 @@ export const exercises = {
 export const exerciseCorrections = {
   listAll: () => api.get('/exercise-corrections/'),
   list: (exerciseId: string) => api.get(`/exercise-corrections/${exerciseId}`),
-  upload: (exerciseId: string, file: File) => {
+  upload: (exerciseId: string, file: File, anonymousLabel?: string) => {
     const formData = new FormData();
     formData.append('paper', file);
+    if (anonymousLabel) formData.append('anonymous_label', anonymousLabel);
     return api.post(`/exercise-corrections/${exerciseId}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
@@ -413,7 +421,7 @@ export const topics = {
   listBySubject: (subjectId: string) => api.get(`/topics/subject/${subjectId}`),
   listByClass: (classId: string) => api.get(`/topics/class/${classId}`),
   get: (id: string) => api.get(`/topics/${id}`),
-  create: (subjectId: string, data: { name: string; description?: string; trimester?: number; order?: number; parent_id?: string }) =>
+  create: (subjectId: string, data: { name: string; description?: string; trimester?: number; order?: number; parent_id?: string; class_id?: string }) =>
     api.post(`/topics/subject/${subjectId}`, data),
   update: (id: string, data: { name?: string; description?: string; trimester?: number; order?: number; include_in_generation?: boolean }) =>
     api.put(`/topics/${id}`, data),
@@ -447,8 +455,6 @@ export const topics = {
     api.post(`/topics/${topicId}/edit`, data),
   updateStatus: (topicId: string, status: string) =>
     api.patch(`/topics/${topicId}/status`, { status }),
-  generateContent: (topicId: string, data: { prompt: string; enfoque: string; target_pages: number }) =>
-    api.post(`/topics/${topicId}/generate-content`, data),
   recompile: (topicId: string) => api.post(`/topics/${topicId}/recompile`),
   generateSummary: (topicId: string) => api.post(`/topics/${topicId}/generate-summary`),
   generateQuiz: (topicId: string) => api.post(`/topics/${topicId}/generate-quiz`),
@@ -748,6 +754,8 @@ export const textbooks = {
     depth?: number;
     visual_density?: string;
     guide_pdfs?: File[];
+    topic_id?: string;
+    calendar_event_id?: string;
   }) => {
     const form = new FormData();
     form.append('subject_id', data.subject_id);
@@ -761,6 +769,8 @@ export const textbooks = {
     if (data.examples_per_section !== undefined) form.append('examples_per_section', String(data.examples_per_section));
     if (data.depth !== undefined) form.append('depth', String(data.depth));
     if (data.visual_density) form.append('visual_density', data.visual_density);
+    if (data.topic_id) form.append('topic_id', data.topic_id);
+    if (data.calendar_event_id) form.append('calendar_event_id', data.calendar_event_id);
     if (data.guide_pdfs) {
       data.guide_pdfs.forEach((pdf) => form.append('guide_pdfs', pdf));
     }
@@ -821,6 +831,13 @@ export const coursePlans = {
     exam_strategy?: { exams_per_trimester: number; review_sessions_before_exam: boolean; exercises_frequency: string };
     buffer_sessions_per_trimester?: number;
   }) => api.post(`/course-plans/${id}/generate`, data),
+  /** Fase 1 — guarda edición inline del currículo (programación). */
+  updateCurriculum: (id: string, curriculum: any) =>
+    api.put(`/course-plans/${id}/curriculum`, { curriculum }),
+  /** Fase 1 — marca la programación como validada. Bloquea la planificación
+   *  hasta que el profesor la confirma explícitamente. */
+  validate: (id: string) => api.post(`/course-plans/${id}/validate`),
+  /** Fase 2 — confirma la planificación: crea topics + sesiones en calendario. */
   accept: (id: string, data?: { skip_exam_units?: string[]; extra_exams?: { name: string; date: string }[] }) =>
     api.post(`/course-plans/${id}/accept`, data || {}),
   regenerate: (id: string, data: any) => api.post(`/course-plans/${id}/regenerate`, data),
@@ -831,6 +848,69 @@ export const coursePlans = {
   generateMaterial: (id: string, topicIds: string[]) =>
     api.post(`/course-plans/${id}/generate-material`, topicIds),
   delete: (id: string) => api.delete(`/course-plans/${id}`),
+};
+
+/** Sessions = el evento del calendario como unidad operativa. Centraliza el
+ *  detalle de la sesión + materiales vinculados. */
+export const sessions = {
+  get: (eventId: string) => api.get(`/sessions/${eventId}`),
+  attach: (eventId: string, materialType: 'presentation' | 'exam' | 'exercise', materialId: string) =>
+    api.post(`/sessions/${eventId}/attach`, { material_type: materialType, material_id: materialId }),
+  detach: (eventId: string, materialType: 'presentation' | 'exam' | 'exercise', materialId: string) =>
+    api.delete(`/sessions/${eventId}/materials/${materialType}/${materialId}`),
+  updateNotes: (eventId: string, notes: string) =>
+    api.put(`/sessions/${eventId}/notes`, { notes }),
+};
+
+export const material = {
+  /** Listado unificado de material (presentaciones + libros). */
+  list: (params?: { class_id?: string; subject_id?: string; type?: 'presentation' | 'textbook' }) =>
+    api.get('/material/list', { params }),
+};
+
+export const presentations = {
+  list: () => api.get('/presentations/'),
+  get: (id: string) => api.get(`/presentations/${id}`),
+  generate: (data: {
+    prompt: string;
+    title?: string;
+    subject_name?: string;
+    education_level?: string;
+    class_id?: string;
+    class_ids?: string[];
+    subject_id?: string;
+    theme_id?: string;
+    target_slides?: number;
+    tone?: 'didactico' | 'formal' | 'inspirador' | 'conversacional';
+    visual_density?: 'muy_visual' | 'equilibrado' | 'texto_denso';
+    reference_material_ids?: string[];
+    calendar_event_id?: string;
+  }) => api.post('/presentations/generate', data),
+  /** URL para EventSource. Cookies httpOnly se envían automáticamente con
+   *  withCredentials. Devuelve la URL absoluta lista para `new EventSource(...)`. */
+  generateStreamUrl: (params: Record<string, string | number | undefined | string[]>): string => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v == null) return;
+      if (Array.isArray(v)) {
+        if (v.length) search.set(k, v.join(','));
+      } else {
+        search.set(k, String(v));
+      }
+    });
+    return `${getBaseUrl()}/presentations/generate/stream?${search.toString()}`;
+  },
+  update: (id: string, data: {
+    title?: string;
+    slides?: any[];
+    theme?: any;
+    class_id?: string | null;
+    class_ids?: string[] | null;
+    subject_id?: string | null;
+  }) => api.patch(`/presentations/${id}`, data),
+  chat: (id: string, message: string) =>
+    api.post(`/presentations/${id}/chat`, { message }),
+  delete: (id: string) => api.delete(`/presentations/${id}`),
 };
 
 export default api;

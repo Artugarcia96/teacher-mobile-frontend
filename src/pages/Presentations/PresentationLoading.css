@@ -1,0 +1,335 @@
+/* Pantalla de generación de presentación.
+   Layout editorial: hero + pipeline visual de fases + skeleton grid de slides
+   que se "rellenan" conforme avanza el tiempo, dando sensación de progreso
+   real en lugar de un spinner ciego. */
+
+.pl-shell {
+  height: 100%;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at top right, rgba(21, 102, 94, 0.06), transparent 60%),
+    radial-gradient(ellipse at bottom left, rgba(229, 85, 59, 0.04), transparent 50%),
+    var(--color-background, #fbfaf6);
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem);
+}
+
+.pl-stage {
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────── */
+.pl-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.pl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, rgba(21, 102, 94, 0.18), rgba(21, 102, 94, 0.08));
+  color: var(--color-primary, #15665e);
+  border: 1px solid rgba(21, 102, 94, 0.2);
+}
+.pl-title {
+  font-family: 'Fraunces', 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--color-foreground, #0f172a);
+  margin: 0;
+  text-wrap: balance;
+}
+.pl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  color: var(--color-muted-foreground, #64748b);
+  font-size: 0.875rem;
+  margin: 0;
+}
+.pl-meta-dot {
+  opacity: 0.5;
+}
+
+/* ── Pipeline de fases ────────────────────────────────────────────── */
+.pl-phases {
+  list-style: none;
+  margin: 0;
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--color-card, #ffffff);
+  border: 1px solid var(--color-border, rgba(15, 23, 42, 0.06));
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+.pl-phase {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 14px;
+  align-items: flex-start;
+  position: relative;
+}
+.pl-phase + .pl-phase::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: -10px;
+  bottom: calc(100% - 0px);
+  width: 2px;
+  background: var(--color-border, rgba(15, 23, 42, 0.08));
+}
+.pl-phase--completed + .pl-phase::before,
+.pl-phase--current + .pl-phase::before {
+  background: rgba(21, 102, 94, 0.25);
+}
+.pl-phase-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-muted, #f1f5f9);
+  color: var(--color-muted-foreground, #94a3b8);
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: background 200ms, color 200ms, transform 200ms;
+}
+.pl-phase--completed .pl-phase-dot {
+  background: var(--color-primary, #15665e);
+  color: #ffffff;
+}
+.pl-phase--current .pl-phase-dot {
+  background: #ffffff;
+  color: var(--color-primary, #15665e);
+  border-color: var(--color-primary, #15665e);
+  box-shadow: 0 0 0 4px rgba(21, 102, 94, 0.12);
+}
+.pl-phase-spin {
+  animation: pl-spin 1.2s linear infinite;
+}
+@keyframes pl-spin { to { transform: rotate(360deg); } }
+
+.pl-phase-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 2px;
+}
+.pl-phase-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-foreground, #0f172a);
+  letter-spacing: -0.005em;
+}
+.pl-phase--pending .pl-phase-label {
+  color: var(--color-muted-foreground, #94a3b8);
+  font-weight: 500;
+}
+.pl-phase--current .pl-phase-label {
+  color: var(--color-primary, #15665e);
+}
+.pl-phase-hint {
+  font-size: 12px;
+  color: var(--color-muted-foreground, #64748b);
+  line-height: 1.4;
+}
+
+/* ── Skeleton grid ────────────────────────────────────────────────── */
+.pl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: clamp(0.75rem, 1.5vw, 1.1rem);
+}
+
+.pl-card {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  padding: clamp(0.85rem, 2cqi, 1.3rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.5cqi, 11px);
+  justify-content: center;
+  container-type: inline-size;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: pl-rise 540ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  transition: box-shadow 300ms;
+}
+.pl-card--filled {
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.1);
+}
+
+/* Slide en vivo: cuando llega del backend, ocupa la celda completa con un
+ * mini-render real. La paleta de fondo "skeleton" desaparece. */
+.pl-card--live {
+  background: #fff !important;
+  color: inherit !important;
+  padding: 0;
+  display: block;
+}
+.pl-card--live .pl-card-bar,
+.pl-card--live .pl-card-shimmer {
+  display: none;
+}
+.pl-card-mini {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+}
+.pl-card-mini > .slide-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+/* Slide refinada: pulso sutil para indicar al usuario que se ha mejorado */
+.pl-card--refined {
+  animation: pl-rise 540ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards,
+             pl-refined-flash 1200ms ease-out 220ms both;
+  box-shadow: 0 6px 22px rgba(217, 119, 6, 0.18);
+}
+@keyframes pl-refined-flash {
+  0%   { box-shadow: 0 6px 22px rgba(217, 119, 6, 0.4), 0 0 0 0 rgba(217, 119, 6, 0.45); }
+  100% { box-shadow: 0 6px 22px rgba(15, 23, 42, 0.1), 0 0 0 16px rgba(217, 119, 6, 0); }
+}
+
+/* Variantes de color editoriales — paleta sutilmente más sofisticada */
+.pl-card--1 { background: #fff7eb; color: #92400e; }
+.pl-card--2 { background: #eef4f8; color: #0c4a6e; }
+.pl-card--3 { background: #f3edf9; color: #4c1d95; }
+.pl-card--4 { background: #ecf5ee; color: #065f46; }
+
+.pl-card-bar {
+  height: 9px;
+  width: 100%;
+  border-radius: 4px;
+  background: currentColor;
+  opacity: 0.18;
+  transition: opacity 600ms;
+}
+.pl-card-bar--title {
+  height: 14px;
+  width: 65%;
+  opacity: 0.4;
+}
+.pl-card-bar--short { width: 44%; }
+
+.pl-card--filled .pl-card-bar { opacity: 0.32; }
+.pl-card--filled .pl-card-bar--title { opacity: 0.6; }
+
+/* Shimmer sweep — solo mientras NO está "filled" */
+.pl-card-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    color-mix(in srgb, currentColor 18%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: pl-shimmer 2.1s ease-in-out infinite;
+  pointer-events: none;
+}
+.pl-card--filled .pl-card-shimmer { display: none; }
+
+@keyframes pl-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pl-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* ── Footnote ─────────────────────────────────────────────────────── */
+.pl-foot {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground, #64748b);
+  margin: 0;
+}
+.pl-foot strong {
+  color: var(--color-foreground, #0f172a);
+  font-weight: 600;
+}
+
+/* ── Estado de error ──────────────────────────────────────────────── */
+.pl-error {
+  max-width: 480px;
+  margin: 4rem auto 0;
+  padding: 1.75rem;
+  background: var(--color-card, #ffffff);
+  border: 1px solid var(--color-border-strong, rgba(15,23,42,0.12));
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+.pl-error h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-foreground, #0f172a);
+}
+.pl-error p {
+  font-size: 0.9rem;
+  color: var(--color-muted-foreground, #64748b);
+  margin: 0;
+}
+.pl-error button {
+  margin-top: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong, rgba(15,23,42,0.12));
+  background: var(--color-primary, #15665e);
+  color: var(--color-primary-foreground, #fff);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.pl-error button:hover { filter: brightness(1.05); }
+
+/* ── Dark mode ────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .pl-shell {
+    background:
+      radial-gradient(ellipse at top right, rgba(21, 102, 94, 0.1), transparent 60%),
+      radial-gradient(ellipse at bottom left, rgba(229, 85, 59, 0.06), transparent 50%),
+      #0a0d12;
+  }
+  .pl-card--1 { background: #3b2910; color: #f59e0b; }
+  .pl-card--2 { background: #0b2b40; color: #7dd3fc; }
+  .pl-card--3 { background: #2a1b4d; color: #c4b5fd; }
+  .pl-card--4 { background: #0d2f24; color: #6ee7b7; }
+  .pl-phases {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}

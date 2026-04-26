@@ -1,0 +1,528 @@
+/* Slide — sistema de canvas lógico fijo (1280×720 px = 16:9 exacto).
+   El frame exterior es responsive (width: 100%; aspect-ratio: 16/9) pero
+   dentro el canvas se dibuja a dimensiones absolutas en px y se escala
+   uniformemente con transform:scale vía --canvas-scale.
+   Resultado: mismas tipografías, mismos paddings, misma escala visual en
+   todos los slides de una vista. Idéntico en pantalla y en export PDF. */
+
+.slide-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  font-family: inherit;
+  isolation: isolate;
+}
+
+.slide-frame--editable { cursor: default; }
+
+/* Canvas lógico: dimensiones absolutas en px, escalado con un único factor
+   uniforme desde useLogicalCanvas. */
+.slide-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 720px;
+  transform-origin: top left;
+  transform: scale(var(--canvas-scale, 1));
+}
+
+/* Decoraciones ambientales — también dentro del canvas, así respetan el
+   mismo sistema de escalado. */
+.slide-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.slide-decoration--orb::before,
+.slide-decoration--orb::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+}
+.slide-decoration--orb::before {
+  width: 760px; height: 760px;
+  top: -240px; right: -180px;
+  background: radial-gradient(circle, var(--slide-accent, #fff) 0%, transparent 70%);
+}
+.slide-decoration--orb::after {
+  width: 500px; height: 500px;
+  bottom: -120px; left: -120px;
+  background: radial-gradient(circle, var(--slide-primary, #fff) 0%, transparent 70%);
+  opacity: 0.3;
+}
+
+.slide-decoration--grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.14) 1px, transparent 0);
+  background-size: 36px 36px;
+  opacity: 0.9;
+}
+
+.slide-decoration--stripe::before {
+  content: '';
+  position: absolute;
+  width: 220%;
+  height: 180px;
+  top: 60%;
+  left: -60%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.16) 50%, transparent 100%);
+  transform: rotate(-14deg);
+}
+.slide-decoration--stripe::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 14px;
+  top: 0;
+  left: 0;
+  background: var(--slide-accent, transparent);
+  opacity: 0.85;
+}
+
+.slide-decoration--pattern {
+  background-size: 24px 24px;
+  opacity: 0.5;
+}
+
+/* ── Layout interior (px absolutos en canvas 1280×720) ─────────── */
+.slide-body {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+.slide-body--cover {
+  padding: 84px 104px;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 24px;
+}
+.slide-body--cover::before {
+  content: '';
+  width: 72px;
+  height: 3px;
+  background: var(--slide-accent, currentColor);
+  border-radius: 2px;
+  margin-bottom: 16px;
+  opacity: 0.95;
+}
+.slide-body--section {
+  padding: 72px 96px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+.slide-body--content {
+  padding: 56px 72px;
+  gap: 24px;
+}
+.slide-body--closing {
+  padding: 72px 96px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 22px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * VARIANTES VISUALES POR layout_template — estilo Gamma
+ * Cada `content` slide elige una variante según el layout_template del
+ * backend. Si no hay template, cae al genérico (vertical stack).
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* ── split: 2 columnas — texto izquierda, visual derecha ─────────── */
+.slide-body--split {
+  padding: 56px 72px;
+  gap: 28px;
+}
+.slide-body--split .split-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 48px;
+  align-items: stretch;
+}
+.slide-body--split .split-text {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  justify-content: center;
+  min-width: 0;
+}
+.slide-body--split .split-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.slide-body--split .split-visual > * {
+  width: 100%;
+  max-height: 100%;
+}
+
+/* ── diagram-bleed: el diagrama domina la slide ──────────────────── */
+.slide-body--diagram-bleed {
+  padding: 36px 56px 28px;
+  gap: 16px;
+}
+.slide-body--diagram-bleed .slide-title-content {
+  font-size: 30px;
+  margin: 0 0 4px;
+  padding-bottom: 8px;
+}
+.slide-body--diagram-bleed .bleed-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.slide-body--diagram-bleed .bleed-stage > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* ── stat-hero: una cifra GIGANTE como protagonista ──────────────── */
+.slide-body--stat-hero {
+  padding: 80px 96px;
+  gap: 32px;
+  justify-content: center;
+}
+.slide-body--stat-hero .slide-title-content {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  padding-bottom: 8px;
+  opacity: 0.85;
+}
+.slide-stat-hero-value {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 200px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--slide-primary, currentColor);
+  margin: 0;
+}
+.slide-stat-hero-label {
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--slide-text-muted, currentColor);
+  max-width: 70%;
+  margin: 0;
+}
+.slide-body--stat-hero .stat-hero-aside {
+  margin-top: 12px;
+  max-width: 80%;
+}
+
+/* ── quote-hero: cita XL centrada con autor ──────────────────────── */
+.slide-body--quote-hero {
+  padding: 80px 120px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 24px;
+}
+.slide-quote-hero-mark {
+  width: 72px;
+  height: 50px;
+  color: var(--slide-accent, currentColor);
+  opacity: 0.55;
+  display: block;
+  margin-bottom: 12px;
+}
+.slide-quote-hero-text {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1.18;
+  margin: 0;
+  max-width: 92%;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.slide-quote-hero-author {
+  font-size: 20px;
+  color: var(--slide-text-muted, currentColor);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* ── cards-hero: cards centradas con título centrado ─────────────── */
+.slide-body--cards-hero {
+  padding: 56px 80px;
+  gap: 36px;
+  align-items: center;
+  justify-content: center;
+}
+.slide-body--cards-hero .slide-title-content {
+  text-align: center;
+  font-size: 38px;
+  margin: 0;
+  padding-bottom: 14px;
+}
+.slide-body--cards-hero .slide-title-content::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.slide-body--cards-hero .cards-hero-stage {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.slide-body--cards-hero .cards-hero-stage > * {
+  width: 100%;
+  max-width: 1080px;
+}
+
+/* ── duo: 2 columnas comparación lado a lado ─────────────────────── */
+.slide-body--duo {
+  padding: 56px 72px;
+  gap: 28px;
+}
+.slide-body--duo .duo-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.slide-body--duo .duo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ── numbered: lista con numerales tipo 01 02 03 grandes ─────────── */
+.slide-body--numbered {
+  padding: 56px 72px;
+  gap: 28px;
+}
+.slide-body--numbered .numbered-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+}
+.slide-numbered-item {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 28px;
+  align-items: baseline;
+  padding: 16px 0;
+  border-top: 1px solid var(--slide-border, rgba(0,0,0,0.08));
+}
+.slide-numbered-item:first-child { border-top: none; padding-top: 4px; }
+.slide-numbered-marker {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  color: var(--slide-accent, var(--slide-primary, currentColor));
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+.slide-numbered-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 4px;
+}
+.slide-numbered-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+.slide-numbered-text {
+  font-size: 15.5px;
+  line-height: 1.55;
+  margin: 0;
+  opacity: 0.78;
+}
+
+/* ── Tipografía: px absolutos, consistentes entre slides ───────── */
+.slide-title-xl {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 72px;
+  font-weight: var(--slide-title-weight, 700);
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  margin: 0;
+  word-break: break-word;
+  text-wrap: balance;
+}
+.slide-subtitle-xl {
+  font-family: inherit;
+  font-size: 28px;
+  opacity: 0.82;
+  margin: 0;
+  line-height: 1.35;
+  max-width: 78%;
+  text-wrap: balance;
+}
+.slide-title-section {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 56px;
+  font-weight: var(--slide-title-weight, 700);
+  margin: 0;
+  line-height: 1.08;
+  word-break: break-word;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.slide-title-content {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 40px;
+  font-weight: var(--slide-title-weight, 700);
+  letter-spacing: -0.018em;
+  line-height: 1.1;
+  padding-bottom: 14px;
+  margin: 0 0 12px;
+  word-break: break-word;
+  position: relative;
+  text-wrap: balance;
+}
+/* Underline editorial: una línea fina y larga (no un dash corto) que
+   ancla el título visualmente sin competir con él. Estilo magazine. */
+.slide-title-content::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 56px;
+  height: 2px;
+  background: var(--slide-accent, var(--slide-primary, currentColor));
+  border-radius: 1px;
+  opacity: 0.85;
+}
+.slide-text-base {
+  font-size: 19px;
+  line-height: 1.55;
+  letter-spacing: -0.002em;
+}
+.slide-text-sm {
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.slide-blocks {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: hidden;
+}
+.slide-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  font-family: inherit;
+}
+.slide-eyebrow::before {
+  content: '— ';
+  opacity: 0.7;
+}
+.slide-stat-value {
+  font-family: var(--slide-font-display, inherit);
+  font-size: 80px;
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+.slide-stat-label {
+  font-size: 15px;
+  margin-top: 8px;
+  opacity: 0.75;
+}
+
+.slide-page-indicator {
+  position: absolute;
+  bottom: 22px;
+  right: 32px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  opacity: 0.45;
+  z-index: 2;
+  font-variant-numeric: tabular-nums;
+}
+
+.slide-logo {
+  position: absolute;
+  bottom: 22px;
+  left: 32px;
+  height: 26px;
+  max-width: 110px;
+  object-fit: contain;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Thumbnails ───────────────────────────────────────────────── */
+.slide-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--color-muted, #f8fafc);
+  transition: border-color 160ms, box-shadow 160ms;
+}
+.slide-thumb:hover { border-color: var(--color-primary, #6366f1); }
+.slide-thumb--active {
+  border-color: var(--color-primary, #6366f1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary, #6366f1) 20%, transparent);
+}
+.slide-thumb__inner {
+  position: absolute; inset: 0;
+  transform: scale(0.22);
+  transform-origin: top left;
+  width: 454%;
+  height: 454%;
+  pointer-events: none;
+}
+
+/* ── Typewriter cursor ───────────────────────────────────────── */
+.slide-typewriter-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  animation: slide-caret-blink 900ms steps(2) infinite;
+  opacity: 0.6;
+  transform: translateY(-0.05em);
+}
+@keyframes slide-caret-blink {
+  0% { opacity: 0.6; }
+  50% { opacity: 0; }
+  100% { opacity: 0.6; }
+}

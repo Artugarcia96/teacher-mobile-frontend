@@ -101,7 +101,7 @@ const ContentCreatorModal: React.FC<ContentCreatorModalProps> = ({
         label: capturedSubjectName,
         description: 'La IA estructura el temario por capítulos, redacta explicaciones con ejemplos y ejercicios, y genera el PDF.',
         batchJobId: jobId,
-        expectedResultUrl: `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`,
+        expectedResultUrl: `/tabs/classes/${classId}/subjects/${capturedSubjectId}/syllabus`,
         onComplete: () => {
           fetchTextbooks(capturedSubjectId);
           useClassesStore.getState().fetchClassSubjects(classId);
@@ -121,7 +121,7 @@ const ContentCreatorModal: React.FC<ContentCreatorModalProps> = ({
             interval = Math.min(interval + 1000, 10000);
           }
           await fetchTextbooks(capturedSubjectId);
-          return `/tabs/classes/${classId}/subjects/${capturedSubjectId}/topics`;
+          return `/tabs/classes/${classId}/subjects/${capturedSubjectId}/syllabus`;
         },
       });
 

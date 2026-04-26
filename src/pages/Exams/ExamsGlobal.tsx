@@ -6,36 +6,66 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { useExamsStore } from '../../store/examsStore';
 import { useCorrectionStore } from '../../store/correctionStore';
 import { useDashboardStore } from '../../store/dashboardStore';
-import { Exam } from '../../types';
+import { Exam, ExamPurpose } from '../../types';
 import Spinner from '@/components/shared/Spinner';
 import EmptyState from '@/components/EmptyState';
-import AlertConfirm from '@/components/shared/AlertConfirm';
+import { useExamDeleteFlow } from '../../hooks/useExamDeleteFlow';
 import PageShell from '@/components/shared/PageShell';
 import { EXAM_STATUS_CONFIG, EXAM_ORIGIN_CONFIG, EXAM_DEADLINE_CONFIG, STATUS_FILTER_OPTIONS } from './examConstants';
 import './ExamsList.css';
 
 type StatusFilter = 'all' | 'pending_validation' | 'pending_schedule' | 'scheduled' | 'pending_correction' | 'corrected';
 
-const ExamsGlobal: React.FC = () => {
+interface ExamsGlobalProps {
+  /** Filter the list by purpose(s). Default shows only evaluations (the
+   *  Exámenes tab). Pass ['practice','recovery'] for the Ejercicios tab. */
+  purposes?: ExamPurpose[];
+  /** Page title — defaults to "Exámenes". */
+  title?: string;
+  /** Empty state copy + CTA target. */
+  emptyTitle?: string;
+  emptySubtitle?: string;
+  emptyCtaLabel?: string;
+  /** Route used by the "+" action and empty-state CTA. */
+  createHref?: string;
+  /** For purpose=practice|recovery, the detail route also differs. */
+  detailHrefBuilder?: (examId: string) => string;
+}
+
+const DEFAULT_PURPOSES: ExamPurpose[] = ['evaluation'];
+
+const ExamsGlobal: React.FC<ExamsGlobalProps> = ({
+  purposes = DEFAULT_PURPOSES,
+  title = 'Exámenes',
+  emptyTitle,
+  emptySubtitle,
+  emptyCtaLabel,
+  createHref = '/tabs/exams/new',
+  detailHrefBuilder = (id) => `/tabs/exams/${id}`,
+}) => {
   const navigate = useNavigate();
+  const purposeKey = purposes.join(',');
+  // True when this tab is showing practice/recovery (the Ejercicios tab).
+  // Drives noun/label pluralisation so copy reads naturally in either tab.
+  const isExercisesTab = !purposes.includes('evaluation');
 
   const allExams = useExamsStore((s) => s.exams);
   const fetchExams = useExamsStore((s) => s.fetchExams);
-  const deleteExam = useExamsStore((s) => s.deleteExam);
   const examsLoading = useExamsStore((s) => s.loading);
   const fetchDashboard = useDashboardStore((s) => s.fetchDashboard);
 
   const allCorrections = useCorrectionStore((s) => s.corrections);
   const fetchAllCorrections = useCorrectionStore((s) => s.fetchAllCorrections);
 
+  const { requestDelete: requestDeleteExam, DeleteDialogs: ExamDeleteDialogs } = useExamDeleteFlow();
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [classFilter, setClassFilter] = useState<string>('all');
-  const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
 
   useEffect(() => {
-    fetchExams();
+    fetchExams(undefined, undefined, purposeKey);
     fetchAllCorrections();
-  }, [fetchExams, fetchAllCorrections]);
+  }, [fetchExams, fetchAllCorrections, purposeKey]);
 
   // Unique class names for filter dropdown (from direct classId and assignments)
   const classOptions = useMemo(() => {
@@ -50,7 +80,13 @@ const ExamsGlobal: React.FC = () => {
   }, [allExams]);
 
   const filteredExams = useMemo(() => {
-    let filtered = [...allExams];
+    // Scope to the tab's purposes first so the counts and empty states are
+    // purpose-aware. Backend already filters via ?purpose= but we double-guard
+    // here for any cache staleness after cross-tab navigation.
+    let filtered = allExams.filter((e) => {
+      const p = e.purpose ?? 'evaluation';
+      return purposes.includes(p as ExamPurpose);
+    });
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter((e) => e.status === statusFilter);
@@ -74,26 +110,31 @@ const ExamsGlobal: React.FC = () => {
     return allCorrections.filter(c => c.examId === examId);
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await deleteExam(deleteTarget.id);
-      await fetchExams();
-      fetchDashboard();
-    } catch (err) {
-      console.error('Failed to delete exam:', err);
-    }
-    setDeleteTarget(null);
+  const requestDelete = (exam: Exam) => {
+    requestDeleteExam({
+      id: exam.id,
+      name: exam.name,
+      gradedCount: exam.gradedCount ?? 0,
+      onSuccess: () => {
+        fetchExams();
+        fetchDashboard();
+      },
+    });
   };
 
   const headerActions = (
-    <Button variant="ghost" size="sm" onClick={() => navigate('/tabs/exams/new')}>
+    <Button variant="ghost" size="sm" onClick={() => navigate(createHref)}>
       <Plus size={18} />
     </Button>
   );
 
+  const emptyAll = filteredExams.length === 0 && allExams.length === 0;
+  const resolvedEmptyTitle = emptyTitle ?? (emptyAll ? `Aún no hay ${title.toLowerCase()}` : 'Sin resultados');
+  const resolvedEmptySubtitle = emptySubtitle ?? (emptyAll ? `Crea tu primer ${title.slice(0, -1).toLowerCase()}` : 'Prueba con otros filtros');
+  const resolvedEmptyCta = emptyCtaLabel ?? `Nuevo ${title.slice(0, -1).toLowerCase()}`;
+
   return (
-    <PageShell title="Exámenes" headerActions={headerActions} noPadding contentClassName="!p-0">
+    <PageShell title={title} headerActions={headerActions} noPadding contentClassName="!p-0">
       <div className="exams-list-scroll">
         {/* Status filter */}
         <div className="exams-filter-bar">
@@ -131,7 +172,9 @@ const ExamsGlobal: React.FC = () => {
             </Select>
           )}
           <span className="exams-filter-summary">
-            {filteredExams.length} {filteredExams.length === 1 ? 'examen' : 'exámenes'}
+            {filteredExams.length} {isExercisesTab
+              ? (filteredExams.length === 1 ? 'ejercicio' : 'ejercicios')
+              : (filteredExams.length === 1 ? 'examen' : 'exámenes')}
           </span>
         </div>
 
@@ -144,14 +187,10 @@ const ExamsGlobal: React.FC = () => {
           ) : filteredExams.length === 0 ? (
             <EmptyState
               icon="📝"
-              title={allExams.length === 0 ? 'Aún no hay exámenes' : 'Sin resultados'}
-              subtitle={
-                allExams.length === 0
-                  ? 'Crea tu primer examen'
-                  : 'Prueba con otros filtros'
-              }
-              actionLabel={allExams.length === 0 ? 'Nuevo examen' : undefined}
-              onAction={allExams.length === 0 ? () => navigate('/tabs/exams/new') : undefined}
+              title={resolvedEmptyTitle}
+              subtitle={resolvedEmptySubtitle}
+              actionLabel={emptyAll ? resolvedEmptyCta : undefined}
+              onAction={emptyAll ? () => navigate(createHref) : undefined}
             />
           ) : (
             <div className="exams-list-items">
@@ -167,7 +206,7 @@ const ExamsGlobal: React.FC = () => {
                   <div
                     key={exam.id}
                     className="exams-list-card"
-                    onClick={() => navigate(`/tabs/exams/${exam.id}`)}
+                    onClick={() => navigate(detailHrefBuilder(exam.id))}
                   >
                     <div className="exams-list-card__content">
                       <div className="exams-list-card__header">
@@ -232,7 +271,7 @@ const ExamsGlobal: React.FC = () => {
                         className="exams-list-card__delete"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteTarget(exam);
+                          requestDelete(exam);
                         }}
                       >
                         <Trash2 size={16} />
@@ -246,17 +285,8 @@ const ExamsGlobal: React.FC = () => {
           )}
         </div>
 
-        {/* Delete Alert */}
-        <AlertConfirm
-          open={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          header="Eliminar examen"
-          message={`¿Eliminar "${deleteTarget?.name}"? También se eliminarán todas las correcciones asociadas. Esta acción no se puede deshacer.`}
-          confirmText="Eliminar"
-          cancelText="Cancelar"
-          onConfirm={handleDelete}
-          variant="destructive"
-        />
+        {/* Two-step delete flow (handles 409 graded-corrections case) */}
+        <ExamDeleteDialogs />
       </div>
     </PageShell>
   );

@@ -1,0 +1,1143 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXAM CONTENT EDITOR
+   Shell is a CSS grid with 4 rows: header / banner / body (scroll) / savebar.
+   AppLayout wraps everything in `h-screen overflow-hidden`, so the page itself
+   never scrolls — the body row is the scroll container and sticky descendants
+   (mobile index bar, outline sidebar) use it as their reference.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ece-shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  background: var(--background);
+  --ece-accent-0: rgb(99, 102, 241);    /* indigo  */
+  --ece-accent-1: rgb(20, 184, 166);    /* teal    */
+  --ece-accent-2: rgb(245, 158, 11);    /* amber   */
+  --ece-accent-3: rgb(168, 85, 247);    /* purple  */
+  --ece-accent-4: rgb(236, 72, 153);    /* pink    */
+}
+
+/* ── Header (row 1) ─────────────────────────────────────────────────── */
+
+.ece-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+  height: 56px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+
+.ece-header__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ece-header__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(100, 116, 139, 0.12);
+  color: rgb(71, 85, 105);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 379px) {
+  .ece-header__status-label {
+    display: none;
+  }
+  .ece-header__status {
+    padding: 0.2rem 0.4rem;
+  }
+}
+
+.ece-header__status--dirty {
+  background: rgba(245, 158, 11, 0.15);
+  color: rgb(180, 83, 9);
+}
+
+.ece-header__status--saving {
+  background: rgba(59, 130, 246, 0.15);
+  color: rgb(29, 78, 216);
+}
+
+/* AI button — siempre visible en el header. Es el atajo principal para
+   "cambia esto entero" y por eso lleva un fondo de marca tenue, no es un
+   icon button neutral. */
+.ece-header__ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 32px;
+  padding: 0 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+  background: color-mix(in oklab, var(--primary, #6366f1) 8%, var(--card));
+  color: color-mix(in oklab, var(--primary, #6366f1) 90%, var(--foreground));
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.ece-header__ai-btn:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 14%, var(--card));
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 55%, var(--border));
+}
+
+.ece-header__ai-btn:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 379px) {
+  .ece-header__ai-btn-label {
+    display: none;
+  }
+  .ece-header__ai-btn {
+    padding: 0;
+    width: 32px;
+    justify-content: center;
+  }
+}
+
+.ece-header__preview-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ece-header__preview-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary, #6366f1) 8%, var(--card));
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+  color: color-mix(in oklab, var(--primary, #6366f1) 85%, var(--foreground));
+}
+
+.ece-header__preview-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* ── Status banner (row 2, optional) ───────────────────────────────── */
+
+.ece-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 1rem 0;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.ece-banner--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: rgb(146, 64, 14);
+}
+
+.ece-banner--danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: rgb(153, 27, 27);
+}
+
+.ece-banner--info {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: rgb(67, 56, 202);
+}
+
+/* ── Body (row 3 — THE scroll container) ───────────────────────────── */
+
+.ece-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  position: relative;
+  scroll-behavior: smooth;
+}
+
+@media (min-width: 992px) {
+  .ece-body {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+  }
+}
+
+/* ── Mobile index bar (sticky inside body) ─────────────────────────── */
+
+.ece-mobile-index {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0.5rem 1rem;
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+  backdrop-filter: saturate(1.2) blur(10px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (min-width: 992px) {
+  .ece-mobile-index {
+    display: none;
+  }
+}
+
+/* ── Outline sidebar (desktop) ─────────────────────────────────────── */
+
+.ece-outline {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .ece-outline {
+    display: block;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 1rem 0.75rem;
+    border-right: 1px solid var(--border);
+    background: var(--background);
+  }
+}
+
+.ece-outline__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+  line-height: 1.3;
+}
+
+.ece-outline__summary-sep {
+  color: color-mix(in oklab, var(--border) 80%, var(--muted-foreground));
+  opacity: 0.7;
+}
+
+.ece-outline__summary-dirty {
+  color: rgb(180, 83, 9);
+  font-weight: 600;
+}
+
+.ece-outline__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ece-outline__section {
+  padding-bottom: 0.25rem;
+}
+
+.ece-outline__section-name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.35rem 0.55rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  color: var(--foreground);
+}
+
+.ece-outline__section-name:hover {
+  background: color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.ece-outline__section-name--active {
+  background: color-mix(in oklab, var(--primary, #6366f1) 8%, transparent);
+}
+
+.ece-outline__section-marker {
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 1.5rem;
+}
+
+.ece-outline__section-name--active .ece-outline__section-marker {
+  color: var(--primary, #6366f1);
+}
+
+.ece-outline__section-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ece-outline__section-dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgb(245, 158, 11);
+  flex-shrink: 0;
+}
+
+.ece-outline__q-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.1rem 0 0.1rem 2rem;
+  border-left: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  display: flex;
+  flex-direction: column;
+}
+
+.ece-outline__q {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.7rem;
+  font-size: 0.73rem;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: color 0.12s ease, background 0.12s ease;
+  line-height: 1.3;
+  border-radius: 0 0.3rem 0.3rem 0;
+  margin-left: -1px;
+}
+
+.ece-outline__q:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+.ece-outline__q-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.68rem;
+  color: inherit;
+  flex-shrink: 0;
+  min-width: 1.1rem;
+}
+
+.ece-outline__q:hover .ece-outline__q-num {
+  color: var(--foreground);
+}
+
+.ece-outline__q-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.ece-outline__q--dirty {
+  color: rgb(180, 83, 9);
+  font-weight: 500;
+}
+
+.ece-outline__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.55rem;
+  margin: 0.5rem 0.55rem 0;
+  background: transparent;
+  border: 1px dashed color-mix(in oklab, var(--border) 85%, var(--muted-foreground));
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: 0.4rem;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.ece-outline__add:hover {
+  background: color-mix(in oklab, var(--accent) 45%, transparent);
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+}
+
+.ece-outline-sheet__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ── Main content column ───────────────────────────────────────────── */
+
+.ece-main {
+  padding: 0.75rem 0.6rem;
+  padding-bottom: 1.5rem;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .ece-main {
+    padding: 1rem;
+    padding-bottom: 2rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .ece-main {
+    padding: 1.5rem 2rem 3rem;
+  }
+}
+
+/* ── Section card ──────────────────────────────────────────────────── */
+
+.ece-section {
+  margin-bottom: 1.25rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ece-section[data-accent="0"] { border-left-color: var(--ece-accent-0); }
+.ece-section[data-accent="1"] { border-left-color: var(--ece-accent-1); }
+.ece-section[data-accent="2"] { border-left-color: var(--ece-accent-2); }
+.ece-section[data-accent="3"] { border-left-color: var(--ece-accent-3); }
+.ece-section[data-accent="4"] { border-left-color: var(--ece-accent-4); }
+
+.ece-section__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.7rem;
+  background: color-mix(in oklab, var(--muted, #f5f5f5) 50%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 640px) {
+  .ece-section__header {
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+  }
+}
+
+.ece-section__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 0.45rem;
+  border-radius: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+.ece-section[data-accent="0"] .ece-section__badge { background: var(--ece-accent-0); }
+.ece-section[data-accent="1"] .ece-section__badge { background: var(--ece-accent-1); }
+.ece-section[data-accent="2"] .ece-section__badge { background: var(--ece-accent-2); }
+.ece-section[data-accent="3"] .ece-section__badge { background: var(--ece-accent-3); }
+.ece-section[data-accent="4"] .ece-section__badge { background: var(--ece-accent-4); }
+
+.ece-section__body {
+  padding: 0.5rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (min-width: 640px) {
+  .ece-section__body {
+    padding: 0.6rem 0.875rem;
+  }
+}
+
+.ece-section__add {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  border: 1px dashed color-mix(in oklab, var(--primary, #6366f1) 30%, var(--border));
+  border-radius: 0.5rem;
+  background: transparent;
+  color: color-mix(in oklab, var(--primary, #6366f1) 85%, var(--foreground));
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.ece-section__add:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 6%, transparent);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 50%, var(--border));
+}
+
+.ece-section__add--empty {
+  margin: 0.25rem 0;
+}
+
+/* ── Question wrapper + inline "+" between cards ───────────────────── */
+/* Cada pregunta lleva debajo un divisor con + invisible que aparece al
+   hover (desktop) o al tap-&-hold (móvil). Este es el patrón "Notion": el
+   profe ve un punto exacto donde insertar, no tiene que buscar el botón
+   genérico al pie de la sección. */
+
+.ece-question-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ece-add-between {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  height: 0.85rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, height 0.18s ease;
+  overflow: hidden;
+}
+
+.ece-question-wrap:hover .ece-add-between,
+.ece-add-between:focus-visible {
+  opacity: 1;
+  height: 1.6rem;
+}
+
+/* Touch devices don't have hover — surface a faint ghost so it's reachable. */
+@media (hover: none) {
+  .ece-add-between {
+    opacity: 0.55;
+    height: 1.2rem;
+  }
+}
+
+.ece-add-between__line {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in oklab, var(--primary, #6366f1) 30%, var(--border));
+}
+
+.ece-add-between__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--primary, #6366f1) 10%, var(--card));
+  color: color-mix(in oklab, var(--primary, #6366f1) 90%, var(--foreground));
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 30%, var(--border));
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.ece-add-between:hover .ece-add-between__chip {
+  background: color-mix(in oklab, var(--primary, #6366f1) 18%, var(--card));
+}
+
+/* ── Question card ──────────────────────────────────────────────────── */
+
+.ece-question {
+  position: relative;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  margin: 0.3rem 0;
+}
+
+.ece-question:hover {
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.ece-question--dirty::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: rgb(245, 158, 11);
+}
+
+/* ── Collapsed state: single-row preview ───────────────────────────── */
+/* Densidad alta — el profe puede ver 8-10 preguntas en una pantalla y
+   escanear el examen entero antes de tocar nada. Click en cualquier parte
+   del row expande la card para editar. */
+
+.ece-question--collapsed {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .ece-question--collapsed {
+    padding: 0.4rem 0.5rem 0.4rem 0.65rem;
+  }
+}
+
+.ece-question__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.ece-question__grip {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.5rem;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+  cursor: grab;
+  opacity: 0.5;
+  transition: opacity 0.12s ease;
+}
+
+.ece-question:hover .ece-question__grip {
+  opacity: 1;
+}
+
+@media (min-width: 992px) {
+  .ece-question__grip {
+    display: inline-flex;
+  }
+}
+
+.ece-question__grip:active {
+  cursor: grabbing;
+}
+
+.ece-question__preview {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.83rem;
+  line-height: 1.35;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ece-question__chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.ece-question__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--muted, #f5f5f5) 70%, transparent);
+  color: var(--muted-foreground);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.ece-question__chip--test {
+  background: color-mix(in oklab, rgb(20, 184, 166) 14%, transparent);
+  color: rgb(15, 118, 110);
+}
+
+.ece-question__chip--pts {
+  background: color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+  color: color-mix(in oklab, var(--primary, #6366f1) 85%, var(--foreground));
+}
+
+/* En móvil, el chip de "X apartados" / "X opciones" se oculta para no
+   apretar la línea. La info ya se ve al expandir. */
+@media (max-width: 539px) {
+  .ece-question__chip:not(.ece-question__chip--pts):not(.ece-question__chip--test) {
+    display: none;
+  }
+}
+
+.ece-question__row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.ece-question__ai-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.4rem;
+  border: none;
+  background: transparent;
+  color: color-mix(in oklab, var(--primary, #6366f1) 70%, var(--muted-foreground));
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ece-question__ai-btn:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 12%, transparent);
+  color: color-mix(in oklab, var(--primary, #6366f1) 95%, var(--foreground));
+}
+
+/* ── Expanded state ────────────────────────────────────────────────── */
+
+.ece-question--expanded {
+  padding: 0.7rem 0.75rem;
+  background: var(--card);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 30%, var(--border));
+}
+
+@media (min-width: 640px) {
+  .ece-question--expanded {
+    padding: 0.875rem 1rem;
+  }
+}
+
+.ece-question__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.ece-question__id {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 0.35rem;
+  background: color-mix(in oklab, var(--primary, #6366f1) 10%, transparent);
+  color: color-mix(in oklab, var(--primary, #6366f1) 85%, var(--foreground));
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+.ece-question__collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.4rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ece-question__collapse-btn:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+@keyframes ece-question-flash {
+  0% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary, #6366f1) 30%, transparent);
+    background: color-mix(in oklab, var(--primary, #6366f1) 6%, var(--background));
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background: var(--background);
+  }
+}
+
+.ece-question--flash {
+  animation: ece-question-flash 0.95s ease-out;
+}
+
+.ece-question__body {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.ece-question__body .katex,
+.ece-question__body .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.ece-question__footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+
+.ece-question__footer-label {
+  font-weight: 500;
+}
+
+/* ── Inline AI mini-prompt (per-question) ──────────────────────────── */
+
+.ece-ai-prompt {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--primary, #6366f1) 7%, var(--card));
+  border: 1px solid color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--primary, #6366f1) 14%, transparent);
+}
+
+.ece-ai-prompt__icon {
+  color: color-mix(in oklab, var(--primary, #6366f1) 90%, var(--foreground));
+  flex-shrink: 0;
+}
+
+.ece-ai-prompt__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ece-ai-prompt__close:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+/* ── Subquestion (apartado a, b, c…) ──────────────────────────────── */
+
+.ece-subq {
+  padding-left: 0.6rem;
+  border-left: 2px solid color-mix(in oklab, var(--primary, #6366f1) 25%, transparent);
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+@media (min-width: 640px) {
+  .ece-subq {
+    padding-left: 1rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+}
+
+.ece-subq__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.ece-subq__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: color-mix(in oklab, var(--primary, #6366f1) 80%, var(--foreground));
+  flex-shrink: 0;
+  padding-top: 0.35rem;
+  min-width: 1.25rem;
+}
+
+.ece-subq__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ece-subq__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  color: var(--muted-foreground);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.ece-subq__meta > * { flex-shrink: 0; }
+
+.ece-subq__actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  margin-left: 0.15rem;
+}
+
+.ece-subq__actions button {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ece-subq__actions button:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.ece-subq__actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ece-subq__actions button.is-danger:hover:not(:disabled) {
+  color: rgb(220, 38, 38);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+/* ── Save bar (row 4) ──────────────────────────────────────────────── */
+
+.ece-savebar {
+  padding: 0.65rem 0.75rem;
+  padding-bottom: max(0.65rem, env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 10;
+  min-width: 0;
+}
+
+.ece-savebar__info {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ece-savebar__info--dirty {
+  color: rgb(146, 64, 14);
+  font-weight: 500;
+}
+
+@media (max-width: 420px) {
+  .ece-savebar {
+    gap: 0.4rem;
+    padding: 0.5rem 0.65rem;
+  }
+  .ece-savebar__info {
+    display: none;
+  }
+  .ece-savebar__cta-label-long {
+    display: none;
+  }
+  .ece-savebar__cta-label-short {
+    display: inline;
+  }
+}
+
+@media (min-width: 421px) {
+  .ece-savebar__cta-label-short { display: none; }
+  .ece-savebar__cta-label-long { display: inline; }
+}
+
+/* ── Editable text surface ─────────────────────────────────────────── */
+
+.ece-editable {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  margin: -0.35rem -0.7rem;
+  border-radius: 0.4rem;
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  cursor: text;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  font: inherit;
+  color: inherit;
+}
+
+.ece-editable:hover {
+  background: color-mix(in oklab, var(--primary, #6366f1) 4%, transparent);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 15%, transparent);
+}
+
+.ece-editable__placeholder {
+  color: var(--muted-foreground);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* ── PDF preview overlay ───────────────────────────────────────────── */
+
+.ece-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #1a1a1e;
+  display: flex;
+  flex-direction: column;
+}
+
+.ece-preview-overlay--loading {
+  background: rgba(15, 23, 42, 0.55);
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+
+.ece-preview-overlay__loading-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* ── AI sheet (global re-prompt) + busy overlay ────────────────────── */
+
+.ece-ai-sheet {
+  max-height: 85vh;
+}
+
+.ece-ai-suggest {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.ece-ai-suggest:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary, #6366f1) 8%, var(--card));
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--primary, #6366f1) 35%, var(--border));
+}
+
+.ece-ai-suggest:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.ece-ai-busy {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.ece-ai-busy__card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.2rem;
+  border-radius: 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
+  max-width: 24rem;
+}

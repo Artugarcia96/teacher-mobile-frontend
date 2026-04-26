@@ -1,0 +1,871 @@
+/* ─── Shell ─────────────────────────────────────────────────────────── */
+.pe-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-background, #f8fafc);
+}
+
+/* ─── Header ────────────────────────────────────────────────────────── */
+.pe-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--color-border, rgba(15, 23, 42, 0.1));
+  background: var(--color-card, #ffffff);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.pe-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.pe-back {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-foreground, #0f172a);
+  flex-shrink: 0;
+  transition: background 120ms;
+}
+.pe-back:hover {
+  background: var(--color-accent, #f1f5f9);
+}
+
+.pe-title-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.pe-title-input {
+  font-weight: 600;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 1rem !important;
+  padding: 2px 6px !important;
+  height: auto !important;
+  min-height: 28px;
+  background: transparent !important;
+  color: var(--color-foreground, #0f172a);
+}
+.pe-title-input:focus {
+  background: var(--color-muted, #f1f5f9) !important;
+  border-radius: 6px;
+}
+
+.pe-header-meta {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Actions row: scroll horizontal en móvil para que nada se salga */
+.pe-header-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+.pe-header-actions::-webkit-scrollbar { display: none; }
+
+/* Toolbar buttons — own cosmetics so they look right in light & dark. */
+.pe-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  background: var(--color-card, #ffffff);
+  color: var(--color-foreground, #0f172a);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: background 120ms, border-color 120ms, color 120ms, box-shadow 120ms, transform 120ms;
+}
+.pe-toolbar-btn:hover:not(:disabled) {
+  background: var(--color-accent, #f1f5f9);
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07);
+}
+.pe-toolbar-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.pe-toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pe-toolbar-btn--primary {
+  background: var(--color-primary, #15665e);
+  color: var(--color-primary-foreground, #fff);
+  border-color: var(--color-primary, #15665e);
+  box-shadow: 0 2px 8px rgba(21, 102, 94, 0.22);
+}
+.pe-toolbar-btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-shade, #125a53);
+  border-color: var(--color-primary-shade, #125a53);
+  color: var(--color-primary-foreground, #fff);
+  box-shadow: 0 4px 12px rgba(21, 102, 94, 0.3);
+}
+/* Estado "quiet": botón de guardar cuando NO hay cambios pendientes.
+   Sigue clicable (por si el usuario quiere forzar un guardado) pero
+   visualmente se atenúa para no competir con el resto. */
+.pe-toolbar-btn--primary.pe-toolbar-btn--quiet {
+  background: var(--color-card, #ffffff);
+  color: var(--color-primary, #15665e);
+  border-color: rgba(21, 102, 94, 0.35);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.pe-toolbar-btn--primary.pe-toolbar-btn--quiet:hover:not(:disabled) {
+  background: rgba(21, 102, 94, 0.06);
+  border-color: rgba(21, 102, 94, 0.55);
+  box-shadow: 0 2px 6px rgba(21, 102, 94, 0.12);
+}
+.pe-toolbar-btn--active {
+  background: rgba(21, 102, 94, 0.1);
+  border-color: rgba(21, 102, 94, 0.45);
+  color: var(--color-primary, #15665e);
+}
+
+.pe-toolbar-label {
+  display: inline;
+}
+@media (max-width: 760px) {
+  /* En móvil quedan icon-only para que todo quepa */
+  .pe-toolbar-label { display: none; }
+  .pe-toolbar-btn { padding: 0; }
+}
+
+/* ─── Theme picker: popover con clamping al viewport ────────────────── */
+.pe-theme-picker {
+  position: relative;
+}
+.pe-theme-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 1.5rem);
+  background: var(--color-card, #ffffff);
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 4px 10px rgba(15, 23, 42, 0.08);
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 40;
+  max-height: 70vh;
+  overflow-y: auto;
+  animation: pe-menu-in 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transform-origin: top right;
+}
+@keyframes pe-menu-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pe-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--color-foreground, #0f172a);
+  transition: background 120ms, border-color 120ms;
+}
+.pe-theme-option:hover {
+  background: var(--color-accent, #f1f5f9);
+}
+.pe-theme-option--active {
+  border-color: rgba(21, 102, 94, 0.5);
+  background: rgba(21, 102, 94, 0.08);
+}
+.pe-theme-swatch {
+  width: 52px;
+  height: 34px;
+  border-radius: 6px;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+.pe-theme-swatch-dot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.pe-theme-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+  flex: 1;
+}
+.pe-theme-meta-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-foreground, #0f172a);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pe-theme-meta-desc {
+  font-size: 11px;
+  color: var(--color-muted-foreground, #64748b);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ─── Body + stack ──────────────────────────────────────────────────── */
+.pe-body-wrap {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  overflow: hidden;
+}
+
+.pe-stack {
+  overflow-y: auto;
+  padding: 1.5rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: center;
+}
+.pe-stack--with-chat {
+  padding-right: 1rem;
+}
+
+.pe-slide-row {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+}
+
+.editable-slide-wrap {
+  position: relative;
+  width: 100%;
+}
+.editable-slide-frame {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  border-radius: 14px;
+  /* Igual que el SlideRenderer (modo lectura): el frame conserva el 16:9
+     a rajatabla y el contenido que desborde el canvas 1280×720 se recorta.
+     Si la IA mete demasiado contenido, eso se ve aquí como un corte —
+     señal para que el usuario edite/parta el slide. */
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  position: relative;
+}
+
+/* ─── Desktop action rail ───────────────────────────────────────────── */
+.editable-slide-actions {
+  position: absolute;
+  top: 50%;
+  right: -44px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-card, #ffffff);
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  border-radius: 10px;
+  padding: 3px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  opacity: 0;
+  transition: opacity 160ms;
+  z-index: 2;
+}
+.editable-slide-wrap:hover .editable-slide-actions,
+.editable-slide-actions:hover {
+  opacity: 1;
+}
+.editable-slide-actions button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-muted-foreground, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms;
+}
+.editable-slide-actions button:hover:not(:disabled) {
+  background: var(--color-accent, #f1f5f9);
+  color: var(--color-foreground, #0f172a);
+}
+.editable-slide-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.editable-slide-actions button.danger:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--color-destructive, #dc2626);
+}
+
+.editable-slide-add {
+  position: relative;
+}
+.editable-slide-add-menu {
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-card, #ffffff);
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  border-radius: 8px;
+  padding: 3px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 5;
+  color: var(--color-foreground, #0f172a);
+}
+.editable-slide-add-menu button {
+  width: auto !important;
+  height: auto !important;
+  padding: 5px 10px !important;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  justify-content: flex-start !important;
+  color: var(--color-foreground, #0f172a);
+}
+
+.editable-slide-insert {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.4rem 0;
+  margin-top: 0.4rem;
+  border: none;
+  border-top: 2px dashed transparent;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted-foreground, #64748b);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms, border-color 160ms;
+}
+.editable-slide-wrap:hover .editable-slide-insert {
+  opacity: 1;
+  border-top-color: var(--color-border-strong, rgba(15, 23, 42, 0.12));
+}
+.editable-slide-insert:hover {
+  color: var(--color-primary, #15665e);
+  border-top-color: var(--color-primary, #15665e);
+}
+
+.pe-slide-present-here {
+  position: absolute;
+  bottom: 6px;
+  right: -44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--color-card, #ffffff);
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--color-muted-foreground, #64748b);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 160ms;
+  white-space: nowrap;
+}
+.pe-slide-row:hover .pe-slide-present-here {
+  opacity: 1;
+}
+.pe-slide-present-here:hover {
+  color: var(--color-primary, #15665e);
+}
+
+.pe-insert-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 2px dashed var(--color-border-strong, rgba(15, 23, 42, 0.18));
+  border-radius: 10px;
+  background: transparent;
+  padding: 0.6rem 0;
+  width: 100%;
+  max-width: 960px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted-foreground, #64748b);
+  cursor: pointer;
+}
+.pe-insert-top:hover {
+  border-color: var(--color-primary, #15665e);
+  color: var(--color-primary, #15665e);
+}
+
+.pe-slide-pending {
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 16/9;
+  border: 2px dashed var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-card, #ffffff);
+}
+
+.pe-end-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+/* Edición inline */
+.inline-editable {
+  border-radius: 4px;
+  transition: background-color 120ms, box-shadow 120ms;
+}
+.inline-editable:hover {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* Bloque editable dentro del slide */
+.editable-block {
+  position: relative;
+  border-radius: 6px;
+  padding: 4px;
+  margin: -4px;
+  transition: background-color 160ms;
+}
+.editable-block:hover {
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.editable-block-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: currentColor;
+  opacity: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 120ms, background-color 120ms;
+}
+.editable-block:hover .editable-block-remove {
+  opacity: 0.6;
+}
+.editable-block-remove:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* ─── Asistente IA — panel lateral refinado ────────────────────────── */
+.presentation-chat {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.1));
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(21, 102, 94, 0.04), transparent 60%),
+    var(--color-card, #ffffff);
+  color: var(--color-foreground, #0f172a);
+}
+
+.presentation-chat__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border, rgba(15, 23, 42, 0.06));
+}
+.presentation-chat__header-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.presentation-chat__header-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(21, 102, 94, 0.18), rgba(21, 102, 94, 0.06));
+  color: var(--color-primary, #15665e);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.presentation-chat__header-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.005em;
+  color: var(--color-foreground, #0f172a);
+}
+.presentation-chat__header-sub {
+  font-size: 11.5px;
+  color: var(--color-muted-foreground, #64748b);
+  margin: 0;
+  line-height: 1.3;
+}
+.presentation-chat__close {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-muted-foreground, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.presentation-chat__close:hover {
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--color-foreground, #0f172a);
+}
+
+.presentation-chat__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.presentation-chat__empty {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.presentation-chat__empty-lead {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-foreground, #0f172a);
+  margin: 0;
+}
+.presentation-chat__quick-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.presentation-chat__quick-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground, #94a3b8);
+}
+.presentation-chat__quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.presentation-chat__quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px 6px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  background: var(--color-card, #ffffff);
+  color: var(--color-foreground, #0f172a);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 120ms, background-color 120ms, color 120ms, transform 120ms;
+}
+.presentation-chat__quick:hover {
+  border-color: var(--color-primary, #15665e);
+  color: var(--color-primary, #15665e);
+  background: rgba(21, 102, 94, 0.06);
+  transform: translateY(-1px);
+}
+.presentation-chat__quick svg {
+  color: var(--color-primary, #15665e);
+  flex-shrink: 0;
+}
+.presentation-chat__hint {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(21, 102, 94, 0.05);
+  border: 1px solid rgba(21, 102, 94, 0.1);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-muted-foreground, #64748b);
+}
+.presentation-chat__hint em {
+  font-style: normal;
+  color: var(--color-foreground, #0f172a);
+  font-weight: 500;
+}
+
+.presentation-chat__msg {
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 90%;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.presentation-chat__msg--user {
+  background: var(--color-primary, #15665e);
+  color: var(--color-primary-foreground, #fff);
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 1px 3px rgba(21, 102, 94, 0.2);
+}
+.presentation-chat__msg--assistant {
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--color-foreground, #0f172a);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.04);
+}
+.presentation-chat__msg--loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-muted-foreground, #64748b);
+  background: rgba(21, 102, 94, 0.05);
+  border-color: rgba(21, 102, 94, 0.12);
+}
+
+.presentation-chat__input {
+  padding: 10px;
+  border-top: 1px solid var(--color-border, rgba(15, 23, 42, 0.06));
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: var(--color-card, #ffffff);
+}
+.presentation-chat__input textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.12));
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: inherit;
+  outline: none;
+  background: #ffffff;
+  color: var(--color-foreground, #0f172a);
+  transition: border-color 120ms, box-shadow 120ms;
+  min-height: 44px;
+  max-height: 160px;
+}
+.presentation-chat__input textarea:focus {
+  border-color: var(--color-primary, #15665e);
+  box-shadow: 0 0 0 3px rgba(21, 102, 94, 0.12);
+}
+.presentation-chat__input textarea::placeholder {
+  color: var(--color-muted-foreground, #94a3b8);
+  font-style: italic;
+}
+.presentation-chat__send {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: none;
+  background: var(--color-primary, #15665e);
+  color: var(--color-primary-foreground, #fff);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(21, 102, 94, 0.25);
+  transition: background 120ms, box-shadow 120ms, transform 120ms;
+}
+.presentation-chat__send:hover:not(:disabled) {
+  background: var(--color-primary-shade, #125a53);
+  box-shadow: 0 4px 10px rgba(21, 102, 94, 0.32);
+  transform: translateY(-1px);
+}
+.presentation-chat__send:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ─── Modo presentación fullscreen ─────────────────────────────────── */
+.presentation-mode-frame {
+  width: min(92vw, calc(92vh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ─── Mobile / narrow layouts ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .pe-body-wrap {
+    grid-template-columns: 1fr;
+  }
+  .presentation-chat {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 65vh;
+    min-height: 320px;
+    border-left: none;
+    border-top: 1px solid var(--color-border-strong, rgba(15, 23, 42, 0.14));
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    z-index: 50;
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.18);
+    /* Fondo opaco garantizado: sin esto el sheet se ve translúcido sobre los slides. */
+    background: var(--color-card, #ffffff);
+  }
+
+  /* Slide actions fuera del slide y siempre visibles en touch */
+  .pe-slide-row {
+    padding-right: 40px;
+  }
+  .editable-slide-actions {
+    right: 0;
+    opacity: 1;
+    background: var(--color-card, #ffffff);
+    border-color: var(--color-border-strong, rgba(15, 23, 42, 0.14));
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+  }
+  .pe-slide-present-here {
+    display: none;
+  }
+  .editable-slide-insert {
+    opacity: 1;
+    border-top-color: var(--color-border-strong, rgba(15, 23, 42, 0.1));
+    color: var(--color-muted-foreground, #64748b);
+  }
+  .editable-slide-add-menu {
+    left: auto;
+    right: calc(100% + 6px);
+  }
+  .pe-stack {
+    padding: 1rem 1rem 5rem;
+  }
+
+  /* El aspect-ratio 16:9 se preserva SIEMPRE — el auto-fit del contenido
+     (useAutoFit) aplica transform:scale al body para que quepa en móvil sin
+     desbordar. Gamma hace exactamente esto. */
+}
+
+/* ─── Dark mode ────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .pe-toolbar-btn {
+    background: var(--color-card, #1e293b);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--color-foreground, #f8fafc);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  .pe-toolbar-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  .pe-toolbar-btn--primary {
+    background: var(--color-primary, #2c9e92);
+    border-color: var(--color-primary, #2c9e92);
+    color: var(--color-primary-foreground, #fff);
+  }
+  .pe-toolbar-btn--active {
+    background: rgba(44, 158, 146, 0.18);
+    border-color: rgba(44, 158, 146, 0.5);
+    color: var(--color-primary, #2c9e92);
+  }
+  .pe-theme-menu {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .pe-theme-swatch {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  .editable-slide-actions {
+    background: var(--color-card, #1e293b);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+  .editable-slide-add-menu {
+    background: var(--color-card, #1e293b);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+  .pe-slide-pending {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: var(--color-card, #1e293b);
+  }
+  .presentation-chat {
+    background: var(--color-card, #1e293b);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}

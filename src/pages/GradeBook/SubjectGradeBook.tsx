@@ -3,7 +3,7 @@ import { avatarColor } from '../../utils/avatarColors';
 import {
   Plus, Download, Upload, BookOpen, Users,
   Sparkles, Settings, FileText, ChevronRight, Pencil,
-  MapPin, Clock, Calendar, ChevronLeft,
+  MapPin, Clock, Calendar, ChevronLeft, ClipboardList,
   MessageCircle, Send, ChevronDown, Trash2,
 } from 'lucide-react';
 import { parseEventNotes } from '../../utils/parseEventNotes';
@@ -544,7 +544,7 @@ const SubjectGradeBook: React.FC = () => {
 
             {/* ── Course plan progress (rich widget) ── */}
             {activePlan && planProgress && planProgress.totalTopics > 0 && (
-              <div className="tpc" onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)} role="button">
+              <div className="tpc" onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/sessions`)} role="button">
                 <div className="tpc__row1">
                   <span className="tpc__pct">{Math.round((planProgress.taughtTopics / planProgress.totalTopics) * 100)}%</span>
                   <span className="tpc__title">{planProgress.taughtTopics} de {planProgress.totalTopics} temas</span>
@@ -796,15 +796,37 @@ const SubjectGradeBook: React.FC = () => {
                 <ChevronRight size={16} className="gb-nav-row__arrow" />
               </button>
 
+              {/* Programación = source of truth de qué se enseña + reparto en
+                  sesiones. Reemplaza el flujo modal anterior. */}
               <button
                 className="gb-nav-row"
-                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/topics`)}
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/programacion`)}
+              >
+                <ClipboardList size={20} className="gb-nav-row__icon" />
+                <span className="gb-nav-row__label">Programación</span>
+                <ChevronRight size={16} className="gb-nav-row__arrow" />
+              </button>
+
+              {/* El Temario es el hogar único del contenido didáctico. La
+                  entrada antigua "Material" se unificó aquí — al expandir un
+                  tema se ven sus materiales (presentaciones, PDFs, docs). */}
+              <button
+                className="gb-nav-row"
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/syllabus`)}
               >
                 <BookOpen size={20} className="gb-nav-row__icon" />
                 <span className="gb-nav-row__label">Temario</span>
                 <ChevronRight size={16} className="gb-nav-row__arrow" />
               </button>
 
+              <button
+                className="gb-nav-row"
+                onClick={() => navigate(`/tabs/classes/${classId}/subjects/${subjectId}/sessions`)}
+              >
+                <Calendar size={20} className="gb-nav-row__icon" />
+                <span className="gb-nav-row__label">Sesiones</span>
+                <ChevronRight size={16} className="gb-nav-row__arrow" />
+              </button>
 
               <button
                 className="gb-nav-row gb-nav-row--last"
