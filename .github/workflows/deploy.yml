@@ -12,11 +12,23 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Package source
-        run: git archive --format=tar.gz -o frontend.tar.gz HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build
+        env:
+          # Same-origin by default: nginx on the VPS proxies /api to the backend.
+          VITE_API_URL: ${{ vars.VITE_API_URL || '/api' }}
+        run: |
+          npm ci
+          npx vite build  # `npm run build` also runs tsc, which currently fails
+          tar -czf dist.tar.gz -C dist .
 
       - name: Upload to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -25,21 +37,18 @@ jobs:
           username: ${{ secrets.VPS_USER || vars.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: frontend.tar.gz,deploy/deploy.sh
+          source: dist.tar.gz,deploy/deploy.sh,deploy/nginx.conf
           target: /tmp/coteacher-frontend-deploy
 
-      - name: Build and restart on VPS
+      - name: Restart on VPS
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          API_URL: ${{ vars.VITE_API_URL }}
         with:
           host: ${{ secrets.VPS_HOST || vars.VPS_HOST }}
           username: ${{ secrets.VPS_USER || vars.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 30m
-          envs: API_URL
           script: |
             set -e
             cd /tmp/coteacher-frontend-deploy
-            bash deploy/deploy.sh "$PWD/frontend.tar.gz" "${API_URL:-https://46.225.232.228/api}"
+            bash deploy/deploy.sh "$PWD/dist.tar.gz"
+            rm -rf /tmp/coteacher-frontend-deploy

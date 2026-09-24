@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
-# Runs on the VPS. Builds the frontend image from the uploaded source tarball
-# and (re)starts the container.
+# Runs on the VPS. Installs the built SPA (dist/) and (re)starts an nginx
+# container that serves it on port 8100 and proxies /api to the backend.
 set -euo pipefail
 
-TARBALL="${1:?usage: deploy.sh <source.tar.gz> <api-url>}"
-API_URL="${2:?usage: deploy.sh <source.tar.gz> <api-url>}"
-IMAGE=coteacher-frontend
+APP_DIR="${APP_DIR:-$HOME/coteacher}"
+TARBALL="${1:?usage: deploy.sh <dist.tar.gz>}"
 CONTAINER=coteacher-frontend
+NETWORK=coteacher
+PORT="${FRONTEND_PORT:-8100}"
 
-BUILD_DIR="$(mktemp -d)"
-trap 'rm -rf "$BUILD_DIR"' EXIT
-tar -xzf "$TARBALL" -C "$BUILD_DIR"
+mkdir -p "$APP_DIR/frontend"
+cd "$APP_DIR/frontend"
 
-docker build --build-arg VITE_API_URL="$API_URL" -t "$IMAGE:latest" "$BUILD_DIR"
+rm -rf html.new && mkdir html.new
+tar -xzf "$TARBALL" -C html.new
+rm -f "$TARBALL"
+cp "$(dirname "$0")/nginx.conf" nginx.conf
+rm -rf html.old
+[ -d html ] && mv html html.old
+mv html.new html
 
+docker network inspect "$NETWORK" >/dev/null 2>&1 || docker network create "$NETWORK"
 docker rm -f "$CONTAINER" 2>/dev/null || true
 docker run -d \
   --name "$CONTAINER" \
+  --network "$NETWORK" \
   --restart unless-stopped \
-  -p 127.0.0.1:8080:80 \
-  "$IMAGE:latest"
+  -p "$PORT:80" \
+  -v "$APP_DIR/frontend/html:/usr/share/nginx/html:ro" \
+  -v "$APP_DIR/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+  nginx:alpine
 
-docker image prune -f >/dev/null
-rm -f "$TARBALL"
-echo "Frontend deployed."
+sleep 2
+curl -fsS -o /dev/null "http://127.0.0.1:$PORT/" && echo "Frontend deployed on port $PORT."
