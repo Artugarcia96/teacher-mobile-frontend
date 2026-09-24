@@ -28,6 +28,7 @@ Backend en modo demo (IA real vía Claude, datos de ejemplo, "hoy" congelado en 
 7. **Cada mutación da feedback** (`useFeedback().toast`) y cada acción destructiva pide confirmación (`confirm`) y vive en un menú o al final de una hoja.
 8. **Móvil primero** (390 px) y escritorio (1440 px). Área táctil ≥ 44 px. Comprueba ambos con capturas (skill `ui-review`).
 9. Math en contenido: `$…$` LaTeX → usa `<RichText text=… />`.
+10. **Código limpio, sin versiones paralelas.** Cuando algo se sustituye, lo anterior se borra en el mismo cambio. Prohibido nombrar por versión (`v1`, `v2`, `New…`, `Old…`, `legacy`) componentes, hooks, rutas o textos; los nombres describen qué hacen. Nada de código muerto ni comentarios de historia: eso vive en git.
 
 ## Mapa
 
