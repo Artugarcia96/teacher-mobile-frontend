@@ -9,3 +9,5 @@ export { FeedbackProvider, useFeedback, Menu, type MenuItem } from './feedback';
 export { RichText } from './RichText';
 export { WeekStrip, MonthGrid } from './Calendar';
 export { StackedBar, type BarSegment, type BarTone } from './StackedBar';
+export { DropZone } from './DropZone';
+export { Lightbox } from './Lightbox';
