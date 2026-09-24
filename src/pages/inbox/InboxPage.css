@@ -1,0 +1,3 @@
+.inbox-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-meta .dot { display: inline-block; vertical-align: middle; margin: 0 2px 2px 0; }
+.inbox-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }

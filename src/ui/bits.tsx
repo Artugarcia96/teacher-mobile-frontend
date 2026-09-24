@@ -23,9 +23,9 @@ export function Avatar({ initials, size }: { initials: string; size?: 'sm' | 'lg
 }
 
 /** A grade number colored by the Spanish scale. value is 0-10 (normalized) unless `max` is given. */
-export function Grade({ value, max, className }: { value: number | null | undefined; max?: number; className?: string }) {
+export function Grade({ value, max, className, digits }: { value: number | null | undefined; max?: number; className?: string; digits?: number }) {
   const norm = value == null ? null : max ? (value / max) * 10 : value;
-  return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{formatGrade(value)}</span>;
+  return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{formatGrade(value, digits)}</span>;
 }
 
 export function GradePill({ value, label }: { value: number | null | undefined; label?: string | null }) {

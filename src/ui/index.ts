@@ -8,3 +8,4 @@ export { Chip, AIBadge, Dot, Avatar, Grade, GradePill, EmptyState, Skeleton, Ske
 export { FeedbackProvider, useFeedback, Menu, type MenuItem } from './feedback';
 export { RichText } from './RichText';
 export { WeekStrip, MonthGrid } from './Calendar';
+export { StackedBar, type BarSegment, type BarTone } from './StackedBar';
