@@ -231,7 +231,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                           ) : (
                             <button type="button" className="gb-cell__btn" onClick={() => setEditing({ r, c })}
                               aria-label={`${row.student.name} · ${a.title}`}>
-                              <CellValue cell={row.grades[a.id]} max={a.max_score} />
+                              <CellValue cell={row.grades[a.id]} max={a.max_score} calculated={a.kind === 'homework'} />
                             </button>
                           )}
                         </td>
@@ -269,10 +269,18 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   );
 }
 
-function CellValue({ cell, max }: { cell: GradeCell | undefined; max: number }) {
+/** `calculated`: the «Deberes» column, suggested by a formula (not by the AI). */
+function CellValue({ cell, max, calculated }: { cell: GradeCell | undefined; max: number; calculated?: boolean }) {
   if (!cell || cell.status === 'empty') return null;
   if (cell.status === 'absent') return <span className="gb-np">NP</span>;
   if (cell.status === 'exempt') return <span className="gb-np">Ex.</span>;
+  if (cell.status === 'suggested' && calculated) {
+    return (
+      <span className="gb-sug" title="Calculada: 10 × (hechos + 0,5 · incompletos) / revisiones · toca para confirmar">
+        {formatGrade(cell.score, 2)}
+      </span>
+    );
+  }
   if (cell.status === 'suggested') {
     return (
       <span className="gb-sug" title="Sugerida por IA · revisar">
@@ -389,8 +397,8 @@ function WeightsSheet({ open, onClose, course, onEdit }: { open: boolean; onClos
         </List>
         <p className="muted">
           La media de cada categoría es la media de sus actividades (según su peso). La media de la evaluación combina las
-          categorías con estos porcentajes; si una categoría aún no tiene notas, no cuenta. Las notas sugeridas por la IA no
-          cuentan hasta que las confirmas.
+          categorías con estos porcentajes; si una categoría aún no tiene notas, no cuenta. Las notas sugeridas (por la IA o
+          calculadas con los deberes) no cuentan hasta que las confirmas.
         </p>
       </div>
     </Sheet>

@@ -19,17 +19,26 @@ interface RosterListProps {
   editor?: { id: string; node: ReactNode } | null;
 }
 
+/** How to reach the per-student options, for the list's accessible name and the line under it. */
+export const OPTIONS_HINT = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches
+  ? 'Clic derecho en un nombre: justificar o anotar.' : 'Mantén pulsado un nombre: justificar o anotar.';
+
 export function RosterList({ rows, label, tone, onTap, options, editor }: RosterListProps) {
   return (
-    <div className="roster" role="list">
-      {rows.map((row, i) => (
-        <Fragment key={row.id}>
-          <RosterLine n={i + 1} row={row} label={label[row.status]} tone={tone[row.status]} onTap={onTap}
-            items={row.disabled ? undefined : options?.(row)} />
-          {editor?.id === row.id && <div className="roster__edit">{editor.node}</div>}
-        </Fragment>
-      ))}
-    </div>
+    <>
+      <div className="roster" role="list" aria-label={options ? `Lista de la clase. ${OPTIONS_HINT}` : 'Lista de la clase'}>
+        {rows.map((row, i) => (
+          <Fragment key={row.id}>
+            <div role="listitem" className="roster__item">
+              <RosterLine n={i + 1} row={row} label={label[row.status]} tone={tone[row.status]} onTap={onTap}
+                items={row.disabled ? undefined : options?.(row)} />
+            </div>
+            {editor?.id === row.id && <div className="roster__edit">{editor.node}</div>}
+          </Fragment>
+        ))}
+      </div>
+      {options && <p className="roster-hint">{OPTIONS_HINT}</p>}
+    </>
   );
 }
 
@@ -49,7 +58,7 @@ function RosterLine({ n, row, label, tone, onTap, items }: {
   useEffect(() => cancel, []);
 
   const line = (open?: () => void) => (
-    <button type="button" role="listitem" className="roster__row" disabled={row.disabled}
+    <button type="button" className="roster__row" disabled={row.disabled}
       aria-label={`${n}. ${row.name}: ${label}${row.disabled ? '' : '. Toca para cambiar'}`}
       onClick={() => {
         if (longPressed.current) { longPressed.current = false; return; }

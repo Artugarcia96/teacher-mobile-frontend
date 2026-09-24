@@ -27,9 +27,6 @@ const NEXT: Record<MarkStatus, MarkStatus> = { present: 'absent', absent: 'late'
 const TONE = { present: 'muted', absent: 'danger', late: 'warn', justified: 'info' } as const;
 const NAMES: [MarkStatus, string, string][] = [['absent', 'Falta', 'Faltan'], ['late', 'Retraso', 'Retrasos'], ['justified', 'Justificada', 'Justificadas']];
 
-const LONG_PRESS_HINT = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches
-  ? 'Clic derecho: justificar o anotar.' : 'Mantén pulsado: justificar o anotar.';
-
 export default function TakeAttendanceSheet(props: TakeAttendanceSheetProps) {
   if (!props.open) return null;
   return <AttendanceSheetBody key={`${props.courseId}|${props.date}|${props.start}`} {...props} />;
@@ -113,7 +110,7 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
               {names.map((n, i) => <Fragment key={n.st}>{i > 0 && ' · '}{n.text}: <b>{n.who}</b></Fragment>)}
             </span>
           )}
-          <span className="roster-head__hint"><span className="roster-head__do">Toca a quien falte. Otro toque: retraso.</span> {LONG_PRESS_HINT}</span>
+          <span className="roster-head__do">Toca a quien falte. Otro toque: retraso.</span>
         </span>
       }
       footer={<Button full onClick={() => void finish(true)} disabled={!marks}>Cerrar lista</Button>}>

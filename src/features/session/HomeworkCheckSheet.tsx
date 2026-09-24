@@ -48,9 +48,9 @@ function HomeworkBody({ onClose, courseId, date, start, label }: HomeworkCheckSh
   for (const r of present) if (marks) counts[marks[r.student.id]]++;
   const summary = [plural(counts.done, 'hecho', 'hechos'), plural(counts.not_done, 'sin hacer', 'sin hacer'),
     counts.partial > 0 && plural(counts.partial, 'incompleto', 'incompletos')].filter(Boolean).join(' · ');
-  const names = marks ? ([['not_done', 'Sin hacer'], ['partial', 'Incompletos']] as const).flatMap(([st, text]) => {
+  const names = marks ? ([['not_done', 'Sin hacer', 'Sin hacer'], ['partial', 'Incompleto', 'Incompletos']] as const).flatMap(([st, one, many]) => {
     const who = present.filter((r) => marks[r.student.id] === st).map((r) => r.student.sort_name);
-    return who.length ? [{ st, text, who: who.join('; ') }] : [];
+    return who.length ? [{ st, text: who.length === 1 ? one : many, who: who.join('; ') }] : [];
   }) : [];
 
   const finish = async (explicit: boolean) => {
@@ -78,7 +78,7 @@ function HomeworkBody({ onClose, courseId, date, start, label }: HomeworkCheckSh
               {names.map((n, i) => <Fragment key={n.st}>{i > 0 && ' · '}{n.text}: <b>{n.who}</b></Fragment>)}
             </span>
           )}
-          <span className="roster-head__hint"><span className="roster-head__do">Toca a quien no los haya hecho. Otro toque: incompletos.</span> Quien faltó no cuenta.</span>
+          <span className="roster-head__do">Toca a quien no los haya hecho. Otro toque: incompleto.</span>
         </span>
       }
       footer={<Button full onClick={() => void finish(true)} disabled={!marks}>Terminar revisión</Button>}>

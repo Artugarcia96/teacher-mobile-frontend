@@ -8,8 +8,12 @@ import { EVENT_KIND_LABEL, type PendingItem, type Today, type TodayEvent, type T
 import { parseDate, plural, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, Dot, List, Row, RowIcon } from '../../ui';
 
-// ── Ahora / Siguiente / Primera clase ──────────────────────────────────────
-export type Focus = { session: TodaySession; eyebrow: string; live: boolean };
+// ── Ahora / Acaba de terminar / Siguiente / Primera clase ──────────────────
+/** `closable`: the card offers «Cerrar clase» (the class is running or has just ended). */
+export type Focus = { session: TodaySession; eyebrow: string; closable: boolean };
+
+/** Minutes after the bell during which the class that just ended keeps the card (walking out of the room). */
+const JUST_ENDED_MIN = 15;
 
 function minutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -23,27 +27,34 @@ function remaining(now: string, end: string): string {
 
 export function pickFocus(day: Today, today: string): Focus | null {
   const live = day.sessions.filter((s) => !s.cancelled);
-  if (day.date > today) return live[0] ? { session: live[0], eyebrow: `Primera clase · ${live[0].start}`, live: false } : null;
+  if (day.date > today) return live[0] ? { session: live[0], eyebrow: `Primera clase · ${live[0].start}`, closable: false } : null;
   if (!day.is_today) return null;
   const now = live.find((s) => s.status === 'now');
-  if (now) return { session: now, eyebrow: `Ahora · ${remaining(day.now ?? now.start, now.end)}`, live: true };
+  if (now) return { session: now, eyebrow: `Ahora · ${remaining(day.now ?? now.start, now.end)}`, closable: true };
   const next = live.find((s) => s.status === 'next');
+  // The class that just ended (break, free period) or the last one of the day: time to close it.
+  const ended = [...live].reverse().find((s) => s.status === 'past');
+  if (ended) {
+    const since = minutes(day.now ?? ended.end) - minutes(ended.end);
+    if (since <= JUST_ENDED_MIN) return { session: ended, eyebrow: 'Acaba de terminar', closable: true };
+    if (!next) return { session: ended, eyebrow: `Última clase · terminó a las ${ended.end}`, closable: true };
+  }
   if (next) {
     const first = live.every((s) => s.status !== 'past');
-    return { session: next, eyebrow: `${first ? 'Primera clase' : 'Siguiente'} · ${next.start}`, live: false };
+    return { session: next, eyebrow: `${first ? 'Primera clase' : 'Siguiente'} · ${next.start}`, closable: false };
   }
   return null;
 }
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
-/** "Ayer", "El martes", "El 12 nov" — when the previous class was, seen from the session day. */
-function whenLabel(iso: string, from: string): string {
-  const diff = Math.round((parseDate(from).getTime() - parseDate(iso).getTime()) / 86400000);
-  if (diff === 0) return 'Antes';
+/** "A las 08:30" (same day), "Ayer", "El martes", "El 12 nov" — when the previous class was, seen from the session day. */
+function whenLabel(log: { date: string; start: string }, from: string): string {
+  const diff = Math.round((parseDate(from).getTime() - parseDate(log.date).getTime()) / 86400000);
+  if (diff === 0) return `A las ${log.start}`;
   if (diff === 1) return 'Ayer';
-  if (diff > 1 && diff < 7) return `El ${WEEKDAYS[parseDate(iso).getDay()]}`;
-  return `El ${shortDate(iso)}`;
+  if (diff > 1 && diff < 7) return `El ${WEEKDAYS[parseDate(log.date).getDay()]}`;
+  return `El ${shortDate(log.date)}`;
 }
 
 export function attendanceLabel(a: TodaySession['attendance']): string {
@@ -52,8 +63,8 @@ export function attendanceLabel(a: TodaySession['attendance']): string {
 }
 
 export function homeworkLabel(h: NonNullable<TodaySession['homework']>): string {
-  if (!h.not_done && !h.partial) return 'Revisados · todos';
-  return ['Revisados', h.not_done > 0 && `${h.not_done} sin hacer`, h.partial > 0 && plural(h.partial, 'incompleto', 'incompletos')]
+  if (!h.not_done && !h.partial) return 'Todos hechos';
+  return [h.not_done > 0 && `${h.not_done} sin hacer`, h.partial > 0 && plural(h.partial, 'incompleto', 'incompletos')]
     .filter(Boolean).join(' · ');
 }
 
@@ -74,7 +85,7 @@ function SessionPlan({ s, canCheck, onHomework }: { s: TodaySession; canCheck: b
               : <Button size="sm" variant="tinted" onClick={() => onHomework(s)}>Revisar</Button>)}
           </div>
         )}
-        {prev?.done && <span className="now-plan__done">{whenLabel(prev.date, s.date)}: {prev.done}</span>}
+        {prev?.done && <span className="now-plan__done">{whenLabel(prev, s.date)}: {prev.done}</span>}
       </div>
     </Callout>
   );
@@ -104,7 +115,7 @@ export function NowCard({ focus, today, onAttendance, onNote, onHomework, onClos
           ? <Button variant="tinted" icon={<Check size={18} weight="bold" />} onClick={() => onAttendance(s)} aria-label={`${attendanceLabel(s.attendance)}. Editar lista`}>{attendanceLabel(s.attendance)}</Button>
           : <Button icon={<ListChecks size={18} />} onClick={() => onAttendance(s)}>Pasar lista</Button>)}
         <Button variant="tinted" icon={<NotePencil size={18} />} onClick={() => onNote(s)}>Anotar</Button>
-        {focus.live && (
+        {focus.closable && (
           <Button variant="neutral" icon={s.log ? <Check size={18} weight="bold" /> : <FlagCheckered size={18} />} onClick={() => onClose(s)}>
             {s.log ? 'Clase cerrada' : 'Cerrar clase'}
           </Button>
@@ -174,10 +185,9 @@ export function Agenda({ day, onSession, onEvent, onAttendance }: {
   return <List inset={72}>{entries.map((e) => e.node)}</List>;
 }
 
-/** Days that deserve a dot in the week strip: lists still to take, or an event. */
+/** Days that deserve a dot in the week strip: an event, or a list still due (same rule as Pendiente, from the server). */
 export function dayNeedsAttention(d: { sessions: TodaySession[]; events: TodayEvent[] }): boolean {
-  return d.events.length > 0
-    || d.sessions.some((s) => !s.cancelled && (s.status === 'past' || s.status === 'now') && !s.attendance.taken);
+  return d.events.length > 0 || d.sessions.some((s) => s.pending);
 }
 
 // ── Pendiente ──────────────────────────────────────────────────────────────
@@ -199,8 +209,10 @@ export function PendingList({ items, onOpen }: { items: PendingItem[]; onOpen: (
 }
 
 // ── A vigilar ──────────────────────────────────────────────────────────────
-export function WatchRows({ items, onOpen, empty }: { items: WatchItem[]; onOpen: (w: WatchItem) => void; empty: string }) {
-  if (!items.length) return <List><Row lead={<RowIcon><UsersThree size={20} /></RowIcon>} title="Nadie a vigilar" sub={empty} muted /></List>;
+export function WatchRows({ items, onOpen, empty }: {
+  items: WatchItem[]; onOpen: (w: WatchItem) => void; empty: { title: string; sub?: string };
+}) {
+  if (!items.length) return <List><Row lead={<RowIcon><UsersThree size={20} /></RowIcon>} title={empty.title} sub={empty.sub} muted /></List>;
   return (
     <List>
       {items.map((w) => (

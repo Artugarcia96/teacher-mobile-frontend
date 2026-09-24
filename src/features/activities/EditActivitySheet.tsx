@@ -36,10 +36,14 @@ function EditForm({ activity, onClose, course, onDeleted }: { activity: Activity
   });
   const ready = value.title.trim().length > 0;
 
-  const save = () => patch.mutate(toInput(value), {
-    onSuccess: () => { toast('Actividad guardada'); onClose(); },
-    onError: (e) => toast(e.message, { tone: 'error' }),
-  });
+  const save = () => {
+    const { kind, date, ...rest } = toInput(value);
+    // The derived «Deberes» column keeps its kind and date (the server refuses to change them).
+    patch.mutate(activity.kind === 'homework' ? rest : { ...rest, kind, date }, {
+      onSuccess: () => { toast('Actividad guardada'); onClose(); },
+      onError: (e) => toast(e.message, { tone: 'error' }),
+    });
+  };
 
   const remove = async () => {
     const n = activity.stats.graded + activity.stats.suggested;

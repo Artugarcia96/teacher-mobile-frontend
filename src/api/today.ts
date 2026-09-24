@@ -17,6 +17,8 @@ export interface TodaySession {
   /** Cancelled because the teacher is absent; cancel_note = task for the substitute. */
   guardia: boolean;
   attendance: { taken: boolean; absent: number; late: number };
+  /** The list is still due (same rule as Pendiente: last lective days, not before the class existed). */
+  pending: boolean;
   unit?: string | null;
   previous?: LogBrief | null;
   log?: LogBrief | null;

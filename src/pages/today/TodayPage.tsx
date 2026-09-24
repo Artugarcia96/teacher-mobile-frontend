@@ -127,7 +127,7 @@ export default function TodayPage() {
           action={<Button onClick={() => navigate('/clases')}>Crear clase</Button>} />;
       } else {
         empty = <EmptyState icon={<CalendarBlank size={24} />} title="Sin clases este día"
-          action={<Button variant="tinted" onClick={() => setEvent({})}>Añadir evento</Button>} />;
+          action={date !== today ? <Button variant="tinted" onClick={() => go(today)}>Volver a hoy</Button> : undefined} />;
       }
     }
     left = (
@@ -146,12 +146,19 @@ export default function TodayPage() {
 
   const pending = d?.pending ?? [];
   const watch = d?.watchlist ?? [];
-  const watchMore = (d?.watch_total ?? 0) > Math.min(watch.length, WATCH_VISIBLE);
+  const watchTotal = d?.watch_total ?? 0;
+  const watchMore = watchTotal > Math.min(watch.length, WATCH_VISIBLE);
+  const teaching = d?.sessions.filter((s) => !s.cancelled) ?? [];
+  const others = watchTotal > 0 ? `Hay ${watchTotal} en otras clases.` : undefined;
+  const watchEmpty = !d?.sessions.length ? { title: 'Este día no tienes clases', sub: watchTotal > 0 ? `Hay ${watchTotal} en tus clases.` : undefined }
+    : !teaching.length ? { title: d.sessions.some((s) => s.guardia) ? 'Este día tienes guardias' : 'Este día no tienes clases', sub: others }
+      : others ? { title: 'Nadie en las clases de este día', sub: others }
+        : { title: 'Nadie a vigilar', sub: 'Nada reciente en tus clases.' };
   const right = day.isLoading ? (
     <div className="today-col"><SkeletonList rows={3} /><SkeletonList rows={4} /></div>
   ) : d ? (
     <div className="today-col">
-      <Section title="Pendiente"
+      <Section title={d.is_today ? 'Pendiente' : 'Pendiente de hoy'}
         action={pending.length > PENDING_VISIBLE && (
           <button type="button" className="section__action" onClick={() => setPendingAll((v) => !v)}>
             {pendingAll ? 'Ver menos' : `Ver todo (${pending.length})`}
@@ -161,8 +168,7 @@ export default function TodayPage() {
       </Section>
       <Section title="A vigilar"
         action={watchMore && <button type="button" className="section__action" onClick={() => setWatchAll(true)}>Ver todos ({d.watch_total})</button>}>
-        <WatchRows items={watch.slice(0, WATCH_VISIBLE)} onOpen={setWatchItem}
-          empty={d.sessions.some((s) => !s.cancelled) ? 'Nada reciente en las clases de este día.' : 'Este día no tienes clases.'} />
+        <WatchRows items={watch.slice(0, WATCH_VISIBLE)} onOpen={setWatchItem} empty={watchEmpty} />
       </Section>
     </div>
   ) : null;

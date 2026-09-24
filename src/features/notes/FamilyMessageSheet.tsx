@@ -11,8 +11,6 @@ import './notes.css';
 export interface FamilyMessageSheetProps {
   open: boolean;
   onClose: () => void;
-  /** Called after saving (the student leaves «A vigilar»). */
-  onSaved?: () => void;
   student: StudentRef;
   course: CourseRef;
 }
@@ -22,7 +20,7 @@ export default function FamilyMessageSheet(props: FamilyMessageSheetProps) {
   return <MessageBody key={`${props.student.id}|${props.course.id}`} {...props} />;
 }
 
-function MessageBody({ onClose, onSaved, student, course }: FamilyMessageSheetProps) {
+function MessageBody({ onClose, student, course }: FamilyMessageSheetProps) {
   const { toast } = useFeedback();
   const q = useFamilyMessage(student.id, course.id);
   const save = useSaveFamilyNote();
@@ -45,7 +43,6 @@ function MessageBody({ onClose, onSaved, student, course }: FamilyMessageSheetPr
     try {
       await save.mutateAsync({ studentId: student.id, courseId: course.id, text: (text ?? '').trim() });
       toast('Guardado en observaciones (Familia)');
-      onSaved?.();
       onClose();
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });

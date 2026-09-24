@@ -94,8 +94,7 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
                   r.late > 0 && plural(r.late, 'retraso', 'retrasos'),
                 ].filter(Boolean);
                 return (
-                  <Row key={r.student.id} to={`/alumnos/${r.student.id}`} title={r.student.sort_name} sub={parts.join(' · ')}
-                    trail={r.absent > 0 ? <span className={`att-count num${r.absent >= 3 ? ' att-count--high' : ''}`}>{r.absent}</span> : undefined} />
+                  <Row key={r.student.id} to={`/alumnos/${r.student.id}`} title={r.student.sort_name} sub={parts.join(' · ')} />
                 );
               })}
             </List>

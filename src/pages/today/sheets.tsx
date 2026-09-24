@@ -98,7 +98,7 @@ export function WatchSheet({ open, onClose, onOpen }: { open: boolean; onClose: 
     <Sheet open onClose={onClose} title="A vigilar" size="large"
       subtitle="Faltas, suspensos, incidencias o deberes recientes en todas tus clases.">
       {q.isLoading ? <SkeletonList rows={6} /> : q.error ? <p className="muted">{(q.error as Error).message}</p> : (
-        <WatchRows items={q.data ?? []} onOpen={(w) => { onClose(); onOpen(w); }} empty="Ningún alumno tiene faltas, suspensos o incidencias recientes." />
+        <WatchRows items={q.data ?? []} onOpen={(w) => { onClose(); onOpen(w); }} empty={{ title: 'Nadie a vigilar', sub: 'Ningún alumno tiene faltas, suspensos o incidencias recientes.' }} />
       )}
     </Sheet>
   );
@@ -122,7 +122,7 @@ export function WatchItemSheet({ item, onClose, onFamily }: {
     }
   };
   return (
-    <Sheet open onClose={onClose} title={w.student.name} subtitle={`${w.course.label} · desde el ${shortDate(w.since)}`}
+    <Sheet open onClose={onClose} title={w.student.name} subtitle={`${w.course.label} · último hecho: ${shortDate(w.since)}`}
       footer={<>
         <Button variant="neutral" icon={<CheckCircle size={18} />} onClick={known} loading={ack.isPending}>Ya lo sé</Button>
         <Button icon={<ChatCircleText size={18} />} onClick={() => { onClose(); onFamily(w); }}>Avisar a la familia</Button>

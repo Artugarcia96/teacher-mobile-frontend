@@ -17,3 +17,4 @@
 .st-note__meta { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; font-size: var(--fs-footnote); }
 .st-note__text { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .st-private { white-space: pre-wrap; }
+.st-att { display: grid; }

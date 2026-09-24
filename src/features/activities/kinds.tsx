@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import type { ActivityKind } from '../../api/activities';
 import type { SchoolYear } from '../../api/types';
 
+/** Kinds the teacher can pick. «Deberes» (homework) is not here: that column is derived from the homework checks. */
 export const KINDS: { value: ActivityKind; label: string }[] = [
   { value: 'exam', label: 'Examen' },
   { value: 'worksheet', label: 'Ficha' },
@@ -10,7 +11,6 @@ export const KINDS: { value: ActivityKind; label: string }[] = [
   { value: 'oral', label: 'Oral' },
   { value: 'notebook', label: 'Cuaderno' },
   { value: 'attitude', label: 'Actitud' },
-  { value: 'homework', label: 'Deberes' },
   { value: 'other', label: 'Otra' },
 ];
 

@@ -4,7 +4,6 @@
 .roster-head__sum { color: var(--ink); font-weight: 600; }
 .roster-head__names { color: var(--ink-2); }
 .roster-head__names b { color: var(--ink); font-weight: 600; }
-.roster-head__hint { color: var(--ink-3); font-size: var(--fs-footnote); }
 .roster-head__do { color: var(--ink-2); }
 .roster-head__err { color: var(--danger); }
 
@@ -17,6 +16,8 @@
   content: ''; position: absolute; z-index: 1; top: 0; right: 0; left: var(--roster-inset); height: 0.5px; background: var(--line);
   pointer-events: none;
 }
+.roster__item { display: flex; }
+.roster__item > * { flex: 1; min-width: 0; }
 .roster__row {
   flex: 1; width: 100%; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 14px 4px 0;
   border: 0; background: transparent; text-align: left; color: inherit;
@@ -34,3 +35,4 @@
 .roster .chip { flex: none; min-width: 84px; justify-content: center; }
 .roster .roster__muted { background: transparent; color: var(--ink-3); font-weight: 500; }
 .roster__edit { padding: 0 14px 12px var(--roster-inset); }
+.roster-hint { margin: 10px 4px 0; color: var(--ink-3); font-size: var(--fs-footnote); }

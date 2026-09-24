@@ -28,6 +28,7 @@ export function ActivityForm({ value, onChange, categories, courseId, moreOpen, 
   const units = useUnits(courseId);
   const term = termForDate(me?.school_year, value.date);
   const set = (patch: Partial<ActivityFormValue>) => onChange({ ...value, ...patch });
+  const derived = value.kind === 'homework'; // «Deberes»: kind and date are fixed by the homework checks
 
   const setKind = (kind: ActivityKind) => {
     const def = KIND_CATEGORY[kind];
@@ -39,19 +40,27 @@ export function ActivityForm({ value, onChange, categories, courseId, moreOpen, 
     <div className="form">
       <TextField label="Título" value={value.title} maxLength={200} placeholder="Examen U3 · Ecuaciones"
         autoFocus={autoFocus} onChange={(e) => set({ title: e.target.value })} />
-      <div className="field">
-        <span className="field__label">Tipo</span>
-        <div className="chip-row">
-          {KINDS.map((k) => (
-            <Chip key={k.value} selected={value.kind === k.value} onClick={() => setKind(k.value)} icon={<KindIcon kind={k.value} />}>
-              {k.label}
-            </Chip>
-          ))}
+      {derived ? (
+        <p className="muted">
+          Nota calculada con las revisiones de deberes: 10 × (hechos + 0,5 · incompletos) / revisiones. Confírmala en el cuaderno.
+        </p>
+      ) : (
+        <div className="field">
+          <span className="field__label">Tipo</span>
+          <div className="chip-row">
+            {KINDS.map((k) => (
+              <Chip key={k.value} selected={value.kind === k.value} onClick={() => setKind(k.value)} icon={<KindIcon kind={k.value} />}>
+                {k.label}
+              </Chip>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       <div className="act-form__row">
-        <TextField label="Fecha" type="date" value={value.date} required onChange={(e) => e.target.value && set({ date: e.target.value })}
-          hint={term ? `Cuenta para la ${TERM_LABEL[term]}` : undefined} />
+        {!derived && (
+          <TextField label="Fecha" type="date" value={value.date} required onChange={(e) => e.target.value && set({ date: e.target.value })}
+            hint={term ? `Cuenta para la ${TERM_LABEL[term]}` : undefined} />
+        )}
         <div className="field">
           <span className="field__label">Nota máxima</span>
           <Stepper label="Nota máxima" value={value.max_score} min={1} max={100} onChange={(v) => set({ max_score: v })} />
