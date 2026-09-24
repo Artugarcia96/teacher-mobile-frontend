@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { courseShortLabel, formatAverage, formatProposal, formatScore, gradeTone, ordinals, sessionText } from './format';
 
 describe('grade rules', () => {
-  it('averages one decimal, scores up to two, proposals integer', () => {
+  it('averages always one decimal, scores up to two, proposals integer', () => {
     expect(formatAverage(6.875)).toBe('6,9');
-    expect(formatAverage(7)).toBe('7');
+    expect(formatAverage(7)).toBe('7,0');
     expect(formatScore(6.25)).toBe('6,25');
     expect(formatScore(4.75)).toBe('4,75');
     expect(formatProposal(6.5)).toBe('7');
     expect(formatAverage(null)).toBe('—');
   });
   it('rounds half up on the decimal value, same table as the backend (tests/test_courses.py TestTextRules)', () => {
-    const table: [number, string][] = [[4.25, '4,3'], [4.35, '4,4'], [6.875, '6,9'], [7, '7'], [6.95, '7'], [0.05, '0,1'], [5.29, '5,3'], [10, '10']];
+    const table: [number, string][] = [[4.25, '4,3'], [4.35, '4,4'], [6.875, '6,9'], [7, '7,0'], [6.95, '7,0'], [0.05, '0,1'], [5.29, '5,3'], [10, '10,0'], [0, '0,0']];
     for (const [v, text] of table) expect(formatAverage(v)).toBe(text);
     expect(formatScore(1.005)).toBe('1,01');
     expect(formatScore(8.125)).toBe('8,13');

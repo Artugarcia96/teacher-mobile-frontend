@@ -88,7 +88,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect }: Props) {
 
       {stats.confirmed > 0 && (
         <Stats items={[
-          { label: 'Media', value: <Grade value={stats.average} max={activity.max_score} /> },
+          { label: 'Media', value: <Grade value={stats.average} max={activity.max_score} average /> },
           { label: 'Aprobados', value: formatPercent(stats.pass_rate) },
           { label: 'Revisados', value: <span className="num">{stats.confirmed}<small className="stat-of"> / {stats.matched || students.length}</small></span> },
         ]} />

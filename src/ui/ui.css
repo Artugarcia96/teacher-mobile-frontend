@@ -189,6 +189,7 @@ button.chip { cursor: pointer; }
   font-size: var(--fs-sub); font-weight: 600; color: var(--ink-2); white-space: nowrap; transition: color var(--t-fast);
 }
 .seg__btn[aria-pressed='true'] { color: var(--ink); }
+.seg__btn[aria-disabled='true'] { opacity: 0.4; }
 .seg__btn .count { margin-left: 5px; color: var(--ink-3); font-weight: 500; }
 
 /* ── Fields ─────────────────────────────────────────────── */

@@ -11,9 +11,9 @@ import './students-tab.css';
 const MAX_MEASURE_CHIPS = 2;
 
 /** "Apellidos, Nombre" + one line: the first "a vigilar" reason, support measures and absences (from 3) + term average.
- *  A low average is not repeated as a reason: the red pill already says it. */
+ *  A low average is never a reason (backend rule): the red pill says it. */
 function StudentLine({ s }: { s: StudentRow }) {
-  const reason = s.watch.find((w) => !/^media\b/i.test(w));
+  const reason = s.watch[0];
   const measures = measureChips(s.support);
   const shown = measures.slice(0, MAX_MEASURE_CHIPS);
   const flag = measures.length ? null : supportFlag(s.support);

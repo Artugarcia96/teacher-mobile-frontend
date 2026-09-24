@@ -12,7 +12,7 @@ import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { KindIcon } from '../../features/activities/kinds';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { formatAverage, formatNumber, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { exportCsvLabel, formatAverage, formatNumber, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Row, RowIcon, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
@@ -42,10 +42,8 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
       .then(() => toast('CSV descargado'))
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
-  // The region's grades platform names the file's destination ("Exportar CSV para Raíces (Madrid)").
-  const exportLabel = me?.region?.export_label ? `Exportar CSV para ${me.region.export_label}` : 'Exportar CSV';
   useCourseMenu([
-    { label: exportLabel, icon: <FileCsv size={18} />, onSelect: exportCsv },
+    { label: exportCsvLabel(me?.region), icon: <FileCsv size={18} />, onSelect: exportCsv },
     { label: 'Ponderaciones', icon: <Scales size={18} />, onSelect: () => setWeights(true) },
   ]);
 

@@ -1,6 +1,5 @@
 .ev-toolbar { justify-self: start; max-width: 100%; }
 @media (max-width: 520px) { .ev-toolbar, .ev-toolbar .seg { width: 100%; display: grid; } }
-.ev-term--closed { opacity: 0.4; }
 .ev-kpis { font-size: var(--fs-sub); color: var(--ink-2); line-height: 1.5; margin-top: calc(-1 * var(--s-2)); }
 .ev-kpis > span > span { white-space: nowrap; } /* wraps only at " · " */
 .ev-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }

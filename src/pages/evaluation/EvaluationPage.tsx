@@ -11,7 +11,7 @@ import type { CourseDetail } from '../../api/types';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { formatAverage, formatPercent, formatProposal, longDate, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { exportCsvLabel, formatAverage, formatPercent, formatProposal, longDate, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, Chip, Dot, EmptyState, Grade, GradePill, IconButton, List, Menu, Page, Progress, Row, Section, Segmented,
   Sheet, SkeletonList, useFeedback,
@@ -36,7 +36,6 @@ export default function EvaluationPage() {
   const navigate = useNavigate();
   const { me } = useAuth();
   const today = useToday();
-  const { toast } = useFeedback();
   const course = useCourse(courseId);
   const closed = opensOn(me?.school_year.terms, term, today);
   // The comments job belongs to one term: its page (and only that one) follows it.
@@ -48,24 +47,15 @@ export default function EvaluationPage() {
   useEffect(() => { if (running.data) setJob({ id: running.data.id, term }); }, [running.data, term]);
   const title = TITLE[term];
 
+  // Terms that have not started are shown dimmed; tapping one says when it opens.
   const options = [1, 2, 3, 4].map((t) => {
     const opens = opensOn(me?.school_year.terms, t, today);
     return {
-      value: t,
-      label: opens ? (
-        <><span className="ev-term--closed" aria-hidden>{TERM_SHORT[t]}</span>
-          <span className="sr-only">{TERM_SHORT[t]}, no disponible: {t === 4 ? 'se abre con la 3.ª evaluación, el' : 'empieza el'} {longDate(opens)}</span></>
-      ) : TERM_SHORT[t],
+      value: t, label: TERM_SHORT[t], disabled: !!opens,
+      reason: opens ? (t === 4 ? `La evaluación final se abre con la 3.ª evaluación, el ${longDate(opens)}` : `La ${TERM_LABEL[t]} empieza el ${longDate(opens)}`) : undefined,
     };
   });
-  const pickTerm = (t: number) => {
-    const opens = opensOn(me?.school_year.terms, t, today);
-    if (opens) {
-      toast(t === 4 ? `La evaluación final se abre con la 3.ª evaluación, el ${longDate(opens)}` : `La ${TERM_LABEL[t]} empieza el ${longDate(opens)}`);
-      return;
-    }
-    navigate(`/clases/${courseId}/evaluacion/${t}`, { replace: true });
-  };
+  const pickTerm = (t: number) => navigate(`/clases/${courseId}/evaluacion/${t}`, { replace: true });
 
   const eyebrow = course.data && (
     <><Dot color={course.data.color} large /><span className="eyebrow">{course.data.label}</span></>
@@ -162,6 +152,7 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
   course: CourseDetail; data: Evaluation; jobId: string | null; setJobId: (id: string | null) => void;
 }) {
   const { toast, confirm } = useFeedback();
+  const { me } = useAuth();
   const qc = useQueryClient();
   const draft = useDraftComments(course.id, data.term);
   const [open, setOpen] = useState<number | null>(null);
@@ -261,7 +252,7 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
           </Button>
         )}
         <Button size="sm" variant="neutral" icon={<FilePdf size={16} />} loading={downloading === 'pdf'} onClick={() => get('pdf')}>Acta (PDF)</Button>
-        <Button size="sm" variant="neutral" icon={<FileCsv size={16} />} loading={downloading === 'csv'} onClick={() => get('csv')}>Exportar CSV</Button>
+        <Button size="sm" variant="neutral" icon={<FileCsv size={16} />} loading={downloading === 'csv'} onClick={() => get('csv')}>{exportCsvLabel(me?.region)}</Button>
         {!running && !missing.length && aiDrafts.length > 0 && (
           <Button size="sm" variant="plain" icon={<ArrowCounterClockwise size={16} />} onClick={run(aiDrafts, true)}>
             Redactar de nuevo {plural(aiDrafts.length, 'borrador', 'borradores')}

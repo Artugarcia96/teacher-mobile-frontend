@@ -5,7 +5,7 @@ import {
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { EVENT_KIND_LABEL, type PendingItem, type Today, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
-import { parseDate, plural, shortDate } from '../../lib/format';
+import { ordinals, parseDate, plural, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, Dot, List, Row, RowIcon } from '../../ui';
 
 // ── Ahora / Acaba de terminar / Siguiente / Primera clase ──────────────────
@@ -217,7 +217,7 @@ export function WatchRows({ items, onOpen, empty }: {
     <List>
       {items.map((w) => (
         <Row key={`${w.student.id}-${w.course.id}`} onClick={() => onOpen(w)} title={w.student.name} wrapSub
-          sub={<span className="watch-sub">{w.course.group.name} · {w.reason}
+          sub={<span className="watch-sub">{ordinals(w.course.group.name)} · {w.reason}
             {w.reasons.length > 1 && <span className="faint"> · y {w.reasons.length - 1} más</span>}</span>} />
       ))}
     </List>

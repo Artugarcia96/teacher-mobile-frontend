@@ -74,14 +74,19 @@ export function relativeDay(iso: string, today: string): string {
  *  Grades use the three rules below; call this directly only for other numbers (weights, points, maximum scores). */
 export function formatGrade(v: number | null | undefined, digits = 1): string {
   if (v === null || v === undefined || Number.isNaN(v)) return '—';
-  const scaled = Number((Math.abs(v) * 10 ** digits).toPrecision(12));
-  const rounded = (Math.sign(v) * Math.round(scaled)) / 10 ** digits;
-  return String(rounded === 0 ? 0 : rounded).replace('.', ',');
+  return String(roundHalfUp(v, digits)).replace('.', ',');
 }
 
-/** Rule 1 — averages (evaluación, categoría, clase, final): one decimal. 6.875 → "6,9". */
+function roundHalfUp(v: number, digits: number): number {
+  const scaled = Number((Math.abs(v) * 10 ** digits).toPrecision(12));
+  const rounded = (Math.sign(v) * Math.round(scaled)) / 10 ** digits;
+  return rounded === 0 ? 0 : rounded;
+}
+
+/** Rule 1 — averages (evaluación, categoría, clase, final): always one decimal. 6.875 → "6,9"; 7 → "7,0". */
 export function formatAverage(v: number | null | undefined): string {
-  return formatGrade(v, 1);
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  return roundHalfUp(v, 1).toFixed(1).replace('.', ',');
 }
 
 /** Rule 2 — a grade as the teacher entered it (activity score): up to two decimals. 6.25 → "6,25". */
@@ -160,6 +165,11 @@ export function parseGradeInput(raw: string): number | null | 'NP' | undefined {
   if (/^np$/i.test(s)) return 'NP';
   const n = Number(s);
   return Number.isFinite(n) ? n : undefined;
+}
+
+/** "Exportar CSV para Raíces (Madrid)": the teacher's region names where the grades file goes (`/me › region`). */
+export function exportCsvLabel(region: { export_label?: string | null } | null | undefined): string {
+  return region?.export_label ? `Exportar CSV para ${region.export_label}` : 'Exportar CSV';
 }
 
 export function plural(n: number, one: string, many: string): string {
