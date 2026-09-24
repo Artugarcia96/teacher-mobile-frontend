@@ -1,0 +1,21 @@
+/* TakeAttendanceSheet layout. Tokens only. */
+.att-sub { display: grid; gap: 2px; }
+.att-sub__line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.att-sub__line b { color: var(--ink); font-weight: 600; }
+.att-sub__err { color: var(--danger); }
+.att-error { display: flex; gap: 8px; align-items: center; color: var(--danger); }
+
+.row.att-row { flex-wrap: wrap; padding: 0 8px 0 0; gap: 0; }
+.att-row__tap {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px 6px 16px;
+  border: 0; background: transparent; text-align: left; color: inherit; border-radius: var(--r-row);
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.att-row__tap:active { background: var(--fill); }
+.att-row__main { flex: 1; min-width: 0; display: grid; }
+.att-row__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-row__note { font-size: var(--fs-footnote); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-row__edit { flex-basis: 100%; padding: 0 8px 12px 64px; }
+
+.att-note { flex: 1; min-width: 0; }
+.sheet__foot > .att-done { flex: none; min-width: 96px; }

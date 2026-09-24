@@ -1,0 +1,33 @@
+/* WeekStrip + MonthGrid (src/ui/Calendar.tsx). Tokens only. */
+.weekstrip { display: flex; align-items: center; gap: 4px; }
+.weekstrip__days { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; min-width: 0; }
+.weekstrip__day {
+  position: relative; display: grid; justify-items: center; gap: 1px; padding: 7px 0 9px; border: 0; border-radius: var(--r-row);
+  background: transparent; color: var(--ink); transition: background var(--t-fast), color var(--t-fast);
+}
+.weekstrip__day:hover { background: var(--fill); }
+.weekstrip__wd { font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); letter-spacing: 0.02em; }
+.weekstrip__n { font-size: var(--fs-headline); font-weight: 600; line-height: 22px; }
+.weekstrip__dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; margin-top: 2px; }
+.weekstrip__dot--on { background: var(--ink-3); }
+.weekstrip__day--today .weekstrip__n { color: var(--accent); }
+.weekstrip__day[aria-pressed='true'] { background: var(--ink); }
+.weekstrip__day[aria-pressed='true'] .weekstrip__wd,
+.weekstrip__day[aria-pressed='true'] .weekstrip__n { color: var(--paper); }
+.weekstrip__day[aria-pressed='true'] .weekstrip__dot--on { background: var(--paper); }
+
+.monthgrid { display: grid; gap: 8px; }
+.monthgrid__head { display: flex; align-items: center; justify-content: space-between; }
+.monthgrid__title { font-weight: 600; font-size: var(--fs-headline); }
+.monthgrid__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.monthgrid__wd { text-align: center; font-size: var(--fs-caption); font-weight: 600; color: var(--ink-3); padding: 4px 0; }
+.monthgrid__day {
+  position: relative; height: 44px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--ink);
+  font-weight: 500; display: grid; place-items: center;
+}
+.monthgrid__day:hover { background: var(--fill); }
+.monthgrid__day--muted { color: var(--ink-3); }
+.monthgrid__day--today { color: var(--accent); font-weight: 700; }
+.monthgrid__day[aria-pressed='true'] { background: var(--ink); color: var(--paper); }
+.monthgrid__dot { position: absolute; bottom: 6px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--accent); }
+.monthgrid__day[aria-pressed='true'] .monthgrid__dot { background: var(--paper); }
