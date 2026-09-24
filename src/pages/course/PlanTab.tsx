@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CheckCircle, Circle, Copy, DotsThree, ListBullets, Plus, Trash, UploadSimple, WarningCircle } from '@phosphor-icons/react';
+import { ArrowDown, ArrowUp, CheckCircle, Circle, Copy, DotsThree, ListBullets, Plus, ShareNetwork, Trash, UploadSimple, WarningCircle } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { CourseDetail } from '../../api/types';
 import { useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
@@ -162,7 +162,16 @@ function UnitRow({ unit, courseId, all, first, last }: { unit: Unit; courseId: s
           <span className={unit.status === 'done' ? 'plan-unit__title--done' : undefined}>{unit.title}</span>
           {unit.status === 'current' && <Chip tone="accent">En curso</Chip>}
         </>}
-        sub={unit.material_count ? plural(unit.material_count, 'material', 'materiales') : 'Sin materiales'}
+        sub={unit.material_count ? (
+          <span className="plan-unit__sub">
+            {plural(unit.material_count, 'material', 'materiales')}
+            {!!unit.shared_count && (
+              <span className="plan-unit__shared" title={`${plural(unit.shared_count, 'material compartido', 'materiales compartidos')} con alumnos`}>
+                <ShareNetwork size={13} weight="bold" aria-label="Compartido con alumnos" />
+              </span>
+            )}
+          </span>
+        ) : 'Sin materiales'}
         trail={<span className="plan-unit__gap" />}
       />
       <div className="plan-unit__menu">

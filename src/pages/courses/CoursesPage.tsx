@@ -6,7 +6,8 @@ import type { CourseSummary } from '../../api/types';
 import NewCourseSheet from '../../features/course/NewCourseSheet';
 import { useAuth, useToday } from '../../lib/auth';
 import { plural, relativeDay } from '../../lib/format';
-import { Button, Dot, EmptyState, List, Page, Row, Section, SkeletonList, useFeedback } from '../../ui';
+import { Button, Dot, EmptyState, List, Page, Row, Section, Segmented, SkeletonList, useFeedback } from '../../ui';
+import LibraryView from './LibraryView';
 import './courses.css';
 
 function nextLabel(c: CourseSummary, today: string, now: string | undefined): string | null {
@@ -28,7 +29,7 @@ function ArchivedRow({ c }: { c: CourseSummary }) {
     trail={<span className="courses__restore">Recuperar</span>} muted={patch.isPending} />;
 }
 
-/** /clases — the teacher's classes. ?nueva=1 opens the new-class sheet. */
+/** /clases — the teacher's classes, or (?vista=materiales) all their materials. ?nueva=1 opens the new-class sheet. */
 export default function CoursesPage() {
   const { data, isLoading, error, refetch } = useCourses();
   const { me } = useAuth();
@@ -37,9 +38,20 @@ export default function CoursesPage() {
   const [showArchived, setShowArchived] = useState(false);
   const archived = useArchivedCourses(showArchived);
   const creating = params.get('nueva') === '1';
+  const view = params.get('vista') === 'materiales' ? 'materials' : 'classes';
 
   const openNew = () => setParams({ nueva: '1' });
   const closeNew = () => setParams({}, { replace: true });
+  const toolbar = (
+    <div className="courses__views">
+      <Segmented full label="Vista" value={view} onChange={(v) => setParams(v === 'materials' ? { vista: 'materiales' } : {}, { replace: true })}
+        options={[{ value: 'classes', label: 'Clases' }, { value: 'materials', label: 'Materiales' }]} />
+    </div>
+  );
+
+  if (view === 'materials') {
+    return <Page title="Materiales" toolbar={toolbar}><LibraryView /></Page>;
+  }
 
   const action = <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={openNew}>Nueva clase</Button>;
 
@@ -75,7 +87,7 @@ export default function CoursesPage() {
   }
 
   return (
-    <Page title="Clases" actions={data?.length ? action : undefined}>
+    <Page title="Clases" actions={data?.length ? action : undefined} toolbar={toolbar}>
       {body}
       {!isLoading && !error && !!data?.length && (
         <Section>

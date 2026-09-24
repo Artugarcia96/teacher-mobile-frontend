@@ -1,16 +1,22 @@
-import { CalendarBlank, DotsThree, Exam, FolderOpen, PencilSimple, Plus, Trash, UploadSimple, WarningCircle } from '@phosphor-icons/react';
-import { useRef, useState, type ChangeEvent } from 'react';
+import {
+  CalendarBlank, Camera, DotsThree, Exam, FolderOpen, LinkSimple, PencilSimple, Plus, Trash, UploadSimple, WarningCircle,
+} from '@phosphor-icons/react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCreateActivity } from '../../api/activities';
-import { useDeleteMaterial, useDeleteUnit, usePatchUnit, useUnit, useUploadMaterial, type Material, type UnitStatus } from '../../api/units';
+import { useDeleteUnit, usePatchUnit, useUnit, useUploadMaterials, type Material, type UnitStatus } from '../../api/units';
+import AddLinkSheet from '../../features/materials/AddLinkSheet';
+import EditMaterialSheet from '../../features/materials/EditMaterialSheet';
+import { MaterialRow, type MaterialActions } from '../../features/materials/MaterialRow';
+import PhotoPagesSheet from '../../features/materials/PhotoPagesSheet';
+import PlaceMaterialSheet, { type PlaceMode } from '../../features/materials/PlaceMaterialSheet';
+import ShareSheet from '../../features/materials/ShareSheet';
 import CreateMaterialSheet from '../../features/units/CreateMaterialSheet';
-import { kindLabel, MaterialIcon } from '../../features/units/kinds';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
-import { fileUrl } from '../../lib/api';
 import { useToday } from '../../lib/auth';
-import { addDays, shortDate, TERM_LABEL } from '../../lib/format';
+import { addDays, plural, TERM_LABEL } from '../../lib/format';
 import {
-  AIBadge, Button, Chip, Dot, EmptyState, IconButton, List, Menu, Page, Row, RowIcon, Section, SkeletonList, Spinner, useFeedback,
+  Button, Chip, Dot, DropZone, EmptyState, IconButton, List, Menu, Page, Row, RowIcon, Section, SkeletonList, Spinner, useFeedback,
 } from '../../ui';
 import './UnitPage.css';
 
@@ -19,9 +25,13 @@ const STATUS: Record<UnitStatus, { label: string; tone?: 'accent' | 'ok' }> = {
   current: { label: 'En curso', tone: 'accent' },
   done: { label: 'Impartida' },
 };
-const ACCEPT = '.pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.heic';
+const ACCEPT = '.pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp';
 
-/** Unidad: its materials, "Crear con IA", uploads and the shortcut to an exam of the unit. */
+type Sheet = 'create' | 'edit' | 'link' | 'photos' | null;
+type Target = { m: Material; kind: 'edit' | 'share' } | { m: Material; kind: 'place'; mode: PlaceMode } | null;
+
+/** Unidad: its materials ("Para alumnos" / "Solo para ti"), uploads, photos of the book, links, "Crear con IA"
+ *  and the shortcut to an exam of the unit. */
 export default function UnitPage() {
   const { courseId = '', unitId = '' } = useParams();
   const navigate = useNavigate();
@@ -30,9 +40,10 @@ export default function UnitPage() {
   const { data, isLoading, error } = useUnit(unitId);
   const patch = usePatchUnit(courseId);
   const delUnit = useDeleteUnit(courseId);
-  const upload = useUploadMaterial(unitId);
+  const upload = useUploadMaterials(unitId);
   const createActivity = useCreateActivity(courseId);
-  const [sheet, setSheet] = useState<'create' | 'edit' | null>(null);
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [target, setTarget] = useState<Target>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const planPath = `/clases/${courseId}/programacion`;
 
@@ -51,16 +62,14 @@ export default function UnitPage() {
   const { unit, course, materials } = data;
   const status = STATUS[unit.status];
   const notes = materials.find((m) => m.kind === 'notes' && m.status === 'ready');
+  const forStudents = materials.filter((m) => m.audience === 'alumnos');
+  const forMe = materials.filter((m) => m.audience !== 'alumnos');
 
-  const pickFile = () => fileInput.current?.click();
-
-  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const onFiles = async (files: File[]) => {
     try {
-      await upload.mutateAsync(file);
-      toast('Archivo subido');
+      const out = await upload.mutateAsync({ files });
+      const reading = out.some((m) => m.text_status === 'reading');
+      toast(`${files.length === 1 ? 'Archivo subido' : `${files.length} archivos subidos`}${reading ? '. La IA está leyendo las fotos.' : ''}`);
     } catch (err) {
       toast((err as Error).message, { tone: 'error' });
     }
@@ -78,7 +87,7 @@ export default function UnitPage() {
   const removeUnit = async () => {
     const ok = await confirm({
       title: `¿Eliminar «${unit.title}»?`,
-      text: materials.length ? `Se borrarán también sus ${materials.length} materiales. No se puede deshacer.` : 'No se puede deshacer.',
+      text: materials.length ? `Se borrarán también sus ${plural(materials.length, 'material', 'materiales')}. No se puede deshacer.` : 'No se puede deshacer.',
       confirm: 'Eliminar', danger: true,
     });
     if (!ok) return;
@@ -99,6 +108,17 @@ export default function UnitPage() {
       toast((err as Error).message, { tone: 'error' });
     }
   };
+
+  const actions: MaterialActions = {
+    onEdit: (m) => setTarget({ m, kind: 'edit' }),
+    onShare: (m) => setTarget({ m, kind: 'share' }),
+    onPlace: (m, mode) => setTarget({ m, kind: 'place', mode }),
+  };
+  const group = (list: Material[]) => (
+    <List inset={64}>
+      {list.map((m) => <MaterialRow key={m.id} m={m} courseId={courseId} group={list} all={materials} today={today} actions={actions} />)}
+    </List>
+  );
 
   return (
     <Page
@@ -124,82 +144,65 @@ export default function UnitPage() {
       }
     >
       <div className="unit-body">
-      {materials.length > 0 && (
         <div className="unit-actions">
           <Button icon={<Plus size={18} weight="bold" />} onClick={() => setSheet('create')}>Crear con IA</Button>
-          <Button variant="neutral" icon={<UploadSimple size={18} />} loading={upload.isPending} onClick={pickFile}>Subir archivo</Button>
+          <Button className="unit-actions__wide" variant="neutral" icon={<Camera size={18} />} onClick={() => setSheet('photos')}>
+            Fotografiar páginas del libro
+          </Button>
+          <Button className="unit-actions__wide" variant="neutral" icon={<LinkSimple size={18} />} onClick={() => setSheet('link')}>Añadir enlace</Button>
+          <div className="unit-actions__narrow">
+            <Menu
+              trigger={(open) => <Button variant="neutral" icon={<UploadSimple size={18} />} loading={upload.isPending} onClick={open}>Añadir material</Button>}
+              items={[
+                { label: 'Subir archivos', icon: <UploadSimple size={18} />, onSelect: () => fileInput.current?.click() },
+                { label: 'Fotografiar páginas del libro', icon: <Camera size={18} />, onSelect: () => setSheet('photos') },
+                { label: 'Añadir enlace', icon: <LinkSimple size={18} />, onSelect: () => setSheet('link') },
+              ]}
+            />
+          </div>
+          <input ref={fileInput} type="file" hidden multiple accept={ACCEPT}
+            onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; if (files.length) void onFiles(files); }} />
         </div>
-      )}
-      <input ref={fileInput} type="file" accept={ACCEPT} hidden onChange={onFile} />
 
-      <Section title="Materiales" footer={materials.length ? 'Los archivos que subas se usan como base al crear con IA.' : undefined}>
-        {materials.length ? (
-          <List inset={64}>
-            {materials.map((m) => <MaterialRow key={m.id} m={m} courseId={courseId} unitId={unitId} today={today} />)}
-          </List>
-        ) : (
+        {materials.length === 0 ? (
           <div className="paper">
             <EmptyState icon={<FolderOpen size={24} />} title="Aún no hay materiales en esta unidad"
-              text="Sube tus apuntes o el tema del libro, o crea apuntes, una presentación o una ficha con IA."
-              action={<div className="unit-actions unit-actions--center">
-                <Button icon={<Plus size={18} weight="bold" />} onClick={() => setSheet('create')}>Crear con IA</Button>
-                <Button variant="neutral" icon={<UploadSimple size={18} />} loading={upload.isPending} onClick={pickFile}>Subir archivo</Button>
-              </div>} />
+              text="Añade lo que ya usas en clase: el tema del libro, tus apuntes, presentaciones o fotos de las páginas. La IA lo toma como base para crear apuntes, fichas y exámenes de esta unidad." />
           </div>
+        ) : (
+          <>
+            {forStudents.length > 0 && (
+              <Section title="Para alumnos" footer="Compártelos con un enlace o un código QR desde el menú de cada uno.">{group(forStudents)}</Section>
+            )}
+            {forMe.length > 0 && (
+              <Section title="Solo para ti" footer="La IA usa tus archivos como base al crear apuntes, fichas y exámenes de la unidad.">{group(forMe)}</Section>
+            )}
+          </>
         )}
-      </Section>
 
-      <Section title="Evaluar">
-        <List inset={64}>
-          <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Crear un examen de esta unidad"
-            sub="Con preguntas a partir de los materiales" onClick={createExam}
-            trail={createActivity.isPending ? <Spinner /> : undefined} />
-        </List>
-      </Section>
+        <DropZone onFiles={onFiles} multiple accept={ACCEPT} disabled={upload.isPending}
+          title={upload.isPending ? 'Subiendo…' : 'Sube lo que ya tienes'}
+          hint="PDF, Word, PowerPoint, texto o imágenes. Puedes elegir o arrastrar varios a la vez."
+          buttonLabel="Subir archivos" />
+
+        <Section title="Evaluar">
+          <List inset={64}>
+            <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Crear un examen de esta unidad"
+              sub="Con preguntas a partir de los materiales" onClick={createExam}
+              trail={createActivity.isPending ? <Spinner /> : undefined} />
+          </List>
+        </Section>
       </div>
 
       <CreateMaterialSheet open={sheet === 'create'} onClose={() => setSheet(null)} unitId={unit.id} notesId={notes?.id} />
       <UnitFormSheet open={sheet === 'edit'} onClose={() => setSheet(null)} courseId={courseId} unit={unit} />
+      <AddLinkSheet open={sheet === 'link'} onClose={() => setSheet(null)} unitId={unit.id} />
+      <PhotoPagesSheet open={sheet === 'photos'} onClose={() => setSheet(null)} unitId={unit.id} />
+      {target?.kind === 'edit' && <EditMaterialSheet material={target.m} onClose={() => setTarget(null)} />}
+      {target?.kind === 'share' && <ShareSheet material={target.m} onClose={() => setTarget(null)} />}
+      {target?.kind === 'place' && (
+        <PlaceMaterialSheet material={target.m} mode={target.mode} courseId={courseId} unitTitle={unit.title} onClose={() => setTarget(null)} />
+      )}
     </Page>
   );
-}
-
-function MaterialRow({ m, courseId, unitId, today }: { m: Material; courseId: string; unitId: string; today: string }) {
-  const navigate = useNavigate();
-  const { toast, confirm } = useFeedback();
-  const del = useDeleteMaterial(unitId);
-  const filename = String(m.options?.filename ?? '');
-  const date = m.created_at.slice(0, 10);
-  const when = date === today ? 'Hoy' : shortDate(date);
-  const lead = <RowIcon tone={m.kind === 'upload' ? undefined : 'accent'}><MaterialIcon kind={m.kind} filename={filename} /></RowIcon>;
-
-  if (m.status === 'generating') {
-    return <Row lead={lead} title={m.title} sub={`Creando ${kindLabel(m).toLowerCase()}…`} trail={<Spinner />} />;
-  }
-  if (m.status === 'failed') {
-    const remove = async () => {
-      if (!(await confirm({ title: 'Quitar este material', text: m.error ?? undefined, confirm: 'Quitar', danger: true }))) return;
-      del.mutate(m.id, { onSuccess: () => toast('Material quitado'), onError: (e) => toast((e as Error).message, { tone: 'error' }) });
-    };
-    return (
-      <Row lead={<RowIcon tone="warn"><WarningCircle size={20} /></RowIcon>} title={m.title}
-        sub={<span className="material-error">{m.error || 'No se ha podido crear.'}</span>}
-        trail={<Button size="sm" variant="plain" onClick={remove}>Quitar</Button>} />
-    );
-  }
-  const open = () => {
-    if (m.kind === 'upload') window.open(fileUrl(m.file_url), '_blank', 'noopener');
-    else navigate(`/clases/${courseId}/unidades/${unitId}/materiales/${m.id}`);
-  };
-  return (
-    <Row lead={lead} title={m.title} onClick={open}
-      sub={<span className="material-sub">{subParts(m).concat(when).join(' · ')}{m.kind !== 'upload' && <AIBadge />}</span>} />
-  );
-}
-
-/** "6 ejercicios", or the kind when the title does not say it. */
-function subParts(m: Material): string[] {
-  if (m.kind === 'worksheet' && m.options?.n_items) return [`${m.options.n_items} ejercicios`];
-  if (m.kind === 'notes' && m.options?.length === 'breve') return ['Breve'];
-  return m.title.startsWith(kindLabel(m)) ? [] : [kindLabel(m)];
 }

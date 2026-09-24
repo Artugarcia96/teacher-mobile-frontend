@@ -5,7 +5,10 @@ import { api, fileUrl } from '../lib/api';
 import type { CourseRef, Job } from './types';
 
 export type UnitStatus = 'pending' | 'current' | 'done';
-export interface Unit { id: string; course_id: string; title: string; term: number | null; position: number; status: UnitStatus; summary?: string | null; material_count: number }
+export interface Unit {
+  id: string; course_id: string; title: string; term: number | null; position: number; status: UnitStatus; summary?: string | null;
+  material_count: number; shared_count?: number;
+}
 
 export const unitKeys = {
   list: (courseId: string) => ['course', courseId, 'units'] as const,
@@ -18,8 +21,10 @@ export function useUnits(courseId: string | undefined) {
 }
 
 // ── Material types (mirror app/ai/schemas.py + app/schemas/units.py) ────────
-export type MaterialKind = 'upload' | 'notes' | 'slides' | 'summary' | 'adapted' | 'worksheet';
-export type GenKind = Exclude<MaterialKind, 'upload'>;
+export type MaterialKind = 'upload' | 'link' | 'notes' | 'slides' | 'summary' | 'adapted' | 'worksheet';
+export type GenKind = Exclude<MaterialKind, 'upload' | 'link'>;
+export type Audience = 'alumnos' | 'profesor';
+export type LinkKind = 'youtube' | 'drive' | 'genially' | 'canva' | 'wordwall' | 'web';
 export type WorksheetKind = 'refuerzo' | 'practica' | 'ampliacion';
 export type Difficulty = 'facil' | 'medio' | 'dificil';
 
@@ -27,7 +32,14 @@ export interface Material {
   id: string; unit_id: string | null; kind: MaterialKind; title: string; status: 'ready' | 'generating' | 'failed';
   error?: string | null; options: Record<string, unknown>; created_at: string; updated_at: string;
   file_url?: string | null; extra_url?: string | null; pptx_url?: string | null; job_id?: string | null;
+  /** Metadata (app/services/materials.py): who it is for, manual order, the teacher's note, last opened (date). */
+  audience: Audience; position: number; notes?: string | null; last_used_at?: string | null;
+  /** AI reading of photos / scanned PDFs, so generation for the unit can use their text. */
+  text_status?: 'reading' | 'done' | 'failed' | null;
+  url?: string | null; link_kind?: LinkKind | null; shared: boolean;
 }
+
+export interface Share { url: string; path: string; expires_on: string; qr_png: string | null }
 
 export type BlockType = 'text' | 'definition' | 'example' | 'formula' | 'note' | 'list' | 'exercise';
 export interface Block { id: string; type: BlockType; title: string; text: string; items: string[]; solution: string }
@@ -51,7 +63,7 @@ export interface GenerateInput {
 }
 
 export const MATERIAL_LABEL: Record<MaterialKind, string> = {
-  upload: 'Archivo subido', notes: 'Apuntes', slides: 'Presentación', summary: 'Resumen', adapted: 'Lectura fácil', worksheet: 'Ficha',
+  upload: 'Archivo subido', link: 'Enlace', notes: 'Apuntes', slides: 'Presentación', summary: 'Resumen', adapted: 'Lectura fácil', worksheet: 'Ficha',
 };
 
 // ── Units ────────────────────────────────────────────────────────────────────
@@ -130,8 +142,13 @@ export function useUnit(unitId: string | undefined) {
     queryKey: unitKeys.one(unitId!),
     queryFn: () => api.get<UnitDetail>(`/units/${unitId}`),
     enabled: !!unitId,
-    refetchInterval: (q) => (q.state.data?.materials.some((m) => m.status === 'generating') ? 1500 : false),
+    refetchInterval: (q) => (q.state.data?.materials.some(isBusy) ? 1500 : false),
   });
+}
+
+/** Being generated or read by the AI (the unit refreshes itself meanwhile). */
+export function isBusy(m: Pick<Material, 'status' | 'text_status'>) {
+  return m.status === 'generating' || m.text_status === 'reading';
 }
 
 // ── Materials ────────────────────────────────────────────────────────────────
@@ -140,19 +157,82 @@ function useInvalidateUnit(unitId: string | undefined) {
   return () => {
     if (unitId) qc.invalidateQueries({ queryKey: unitKeys.one(unitId) });
     qc.invalidateQueries({ queryKey: ['course'] });
+    qc.invalidateQueries({ queryKey: ['library'] });
+    qc.invalidateQueries({ queryKey: ['today'] });
   };
 }
 
-export function useUploadMaterial(unitId: string) {
+/** Several files in one request. `asPages`: photos of book pages become ONE material (a PDF) that the AI reads. */
+export function useUploadMaterials(unitId: string) {
   const done = useInvalidateUnit(unitId);
   return useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: ({ files, asPages, title }: { files: File[]; asPages?: boolean; title?: string }) => {
       const form = new FormData();
-      form.append('file', file);
-      return api.upload<Material>(`/units/${unitId}/materials`, form);
+      for (const f of files) form.append('files', f);
+      if (asPages) form.append('as_pages', 'true');
+      if (title) form.append('title', title);
+      return api.upload<Material[]>(`/units/${unitId}/materials`, form);
     },
     onSuccess: done,
   });
+}
+
+export function useAddLink(unitId: string) {
+  const done = useInvalidateUnit(unitId);
+  return useMutation({
+    mutationFn: (body: { url: string; title?: string }) => api.post<Material>(`/units/${unitId}/links`, body),
+    onSuccess: done,
+  });
+}
+
+function useInvalidateMaterials() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ['unit'] });
+    qc.invalidateQueries({ queryKey: ['material'] });
+    qc.invalidateQueries({ queryKey: ['course'] });
+    qc.invalidateQueries({ queryKey: ['library'] });
+    qc.invalidateQueries({ queryKey: ['today'] });
+  };
+}
+
+export interface MaterialMeta { title?: string; unit_id?: string; audience?: Audience; position?: number; notes?: string | null }
+
+/** Rename, move to another unit/class, "para alumnos"/"solo para mí", reorder (`position` = index without it), note. */
+export function useUpdateMaterial() {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: ({ id, ...body }: MaterialMeta & { id: string }) => api.patch<MaterialDetail>(`/materials/${id}`, body),
+    onSuccess: done,
+  });
+}
+
+/** Reuse in another unit (maybe another class): same files, independent copy. */
+export function useCopyMaterial() {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: ({ id, unitId }: { id: string; unitId: string }) => api.post<Material>(`/materials/${id}/copy`, { unit_id: unitId }),
+    onSuccess: done,
+  });
+}
+
+export function useReadMaterial() {
+  const done = useInvalidateMaterials();
+  return useMutation({ mutationFn: (id: string) => api.post<Material>(`/materials/${id}/read`), onSuccess: done });
+}
+
+/** Public link for students (60 days) + QR. Idempotent. */
+export function useShareMaterial() {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: ({ id, origin }: { id: string; origin: string }) => api.post<Share>(`/materials/${id}/share`, { origin }),
+    onSuccess: done,
+  });
+}
+
+export function useUnshareMaterial() {
+  const done = useInvalidateMaterials();
+  return useMutation({ mutationFn: (id: string) => api.delete(`/materials/${id}/share`), onSuccess: done });
 }
 
 export function useGenerateMaterial(unitId: string) {

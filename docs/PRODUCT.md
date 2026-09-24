@@ -29,7 +29,8 @@ Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en
 | Clase               | `Course`        | Una materia impartida a un grupo: "Matemáticas · 2º ESO B". **Unidad de trabajo de toda la app.** Tiene horario, aula, color y ponderaciones. |
 | Alumno              | `Student`       | Pertenece al profesor; se matricula en grupos (`Enrollment`). Puede tener marca NEAE/ACNEE + adaptación. |
 | Unidad              | `Unit`          | Tema de la programación de una clase, con trimestre y estado (pendiente / en curso / impartida). |
-| Material            | `Material`      | Documento de una unidad: subido, apuntes, presentación, resumen, versión adaptada, ficha (con solucionario). |
+| Material            | `Material`      | Documento de una unidad: archivo subido (o fotos del libro), enlace, apuntes, presentación, resumen, versión adaptada, ficha (con solucionario). Es «para alumnos» o «solo para ti». |
+| Biblioteca          | `GET /library`  | Todos los materiales del profesor, de todas sus clases (Clases › Materiales). |
 | Actividad           | `Activity`      | Todo lo que se califica en el cuaderno: examen, trabajo, ficha, oral, cuaderno, actitud… Tiene categoría, fecha, evaluación y nota máxima. |
 | Nota                | `Grade`         | Nota de un alumno en una actividad. Estados: sin nota, sugerida (IA), confirmada, NP. |
 | Hoja / papel        | `Paper`         | Páginas escaneadas/fotografiadas de un alumno para una actividad. |
@@ -45,7 +46,7 @@ Tres destinos y un menú de cuenta. Profundidad máxima 3.
 
 ```
 Hoy            /hoy                     ← inicio
-Clases         /clases                  lista "Matemáticas · 2º ESO B"
+Clases         /clases                  lista "Matemáticas · 2º ESO B"  ·  Segmented «Clases | Materiales» (?vista=materiales = biblioteca)
   Clase        /clases/:courseId        pestañas: Cuaderno · Alumnos · Programación · Asistencia
     Actividad  /clases/:courseId/actividades/:activityId      (examen: preparar → recoger → revisar)
     Revisión   /clases/:courseId/actividades/:activityId/revisar   (modo foco, alumno a alumno)
@@ -59,6 +60,7 @@ Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar 
 
 - Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el avatar.
 - Escritorio (≥1024px): barra lateral de cristal con los 3 destinos + lista de clases; Hoy a dos columnas.
+- Fuera de la app: `/api/s/{token}` es el enlace público (sin sesión) de un material compartido con los alumnos.
 
 ## 4. Flujos por momento del curso
 
@@ -71,6 +73,7 @@ Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar 
 
 ### 4.2 Cada día — Hoy
 - Tarjeta **Ahora / Siguiente**: materia · grupo, aula, hora, unidad en curso, "la última vez: …" (última observación de la clase).
+  - Una fila de chips con los materiales de la unidad en curso (hasta 4: la presentación primero, luego lo «para alumnos»). Un toque lo abre; la presentación se abre directamente en modo proyección (`?presentar=1`).
   - **Pasar lista**: todos presentes por defecto; tocar un alumno = falta, otro toque = retraso, otro = presente. Guardado automático. Al final, campo opcional "nota de la sesión".
   - **Anotar**: hoja con chips de alumnos + tipo (observación / incidencia / positivo / familia) + texto.
 - **Agenda del día**: filas compactas por hora. Las sesiones pasadas sin lista muestran "Lista sin pasar".
@@ -102,6 +105,15 @@ Dentro de la unidad, un único botón **"Crear con IA"** con 5 tipos:
 Entradas: tipo, extensión/nivel, número de ejercicios (ficha) e "indicaciones" (una línea). La IA usa el nombre de la unidad, el curso, la materia y el texto de los materiales subidos a la unidad. Resultado: vista previa en la app, editar por bloques, "reescribir este apartado", descargar PDF (y .pptx).
 - **Se elimina el generador de libros de texto** (80-200 páginas, 10-35 min, falla la mayoría de las veces) y el flujo "dividir libro en temas".
 - Una ficha puede "Evaluarse": crea una actividad en el cuaderno con su rúbrica.
+
+### 4.4 bis Materiales de la unidad (lo que el profesor ya tiene)
+El profesor ya tiene material: el libro, sus apuntes, presentaciones, vídeos. Sepia lo guarda por unidad, lo usa como base de la IA y lo lleva al aula.
+
+- **Añadir** (unidad): «Subir archivos» (varios a la vez, arrastrando en escritorio: PDF, Word, PowerPoint, texto, imágenes), **«Fotografiar páginas del libro»** (una foto por página; se guardan juntas como un PDF) y **«Añadir enlace»** (YouTube, Drive, Genially, Canva, Wordwall o cualquier web; no se descarga nada). En el móvil los tres viven en «Añadir material».
+- **La IA lee lo que no es texto**: las fotos y los PDF escaneados se transcriben en segundo plano (fielmente, fórmulas en LaTeX, sin inventar). Mientras, la fila dice «Leyendo…»; si falla, «No se ha podido leer» y el menú ofrece «Volver a leer». Apuntes, fichas y exámenes de la unidad se basan primero en ese material del profesor. «Crear con IA» avisa si aún se está leyendo algo.
+- **Dos grupos**: «Para alumnos» (lo generado por defecto) y «Solo para ti» (lo subido y los enlaces por defecto). Menú de cada material: Abrir, Renombrar (con nota privada), Mover a… (otra unidad, también de otra clase), Usar en otra clase… (copia que comparte los archivos), Compartir con alumnos, Cambiar a «para alumnos» / «solo para mí», Subir / Bajar, Eliminar.
+- **Compartir con alumnos**: enlace público de solo lectura (60 días, sin iniciar sesión) + código QR, «Copiar enlace», **«Proyectar»** (QR y dirección a pantalla completa para la clase) y «Dejar de compartir». Solo se sirve el archivo del alumno (nunca el solucionario). Compartir marca el material «para alumnos». En Programación, las unidades con algo compartido muestran un icono.
+- **Biblioteca** (Clases › Materiales): todo lo del profesor de todas sus clases, más reciente primero; búsqueda por nombre, unidad o contenido (también el texto leído de las fotos) y filtros por clase y tipo.
 
 ### 4.5 Cuaderno (cada semana)
 - Tabla alumnos × actividades de la evaluación elegida (1ª / 2ª / 3ª / Final). Columna fija con nombres (ordenados por apellidos).
@@ -156,6 +168,7 @@ Todas las llamadas pasan por **un único gateway** (`app/ai/`) con dos proveedor
 | `import_units` | Importar temario | text |
 | `report_comments` | Boletín, en lotes de ~10 | text |
 | `brief` | Resumen del día / tutoría (bajo demanda) | text |
+| `transcribe_pages` | Fotos del libro o PDF escaneados subidos a una unidad (en segundo plano) | vision |
 
 ## 7. Lenguaje visual (resumen; detalle en `DESIGN.md`)
 

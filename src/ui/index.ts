@@ -11,3 +11,4 @@ export { WeekStrip, MonthGrid } from './Calendar';
 export { StackedBar, type BarSegment, type BarTone } from './StackedBar';
 export { DropZone } from './DropZone';
 export { Lightbox } from './Lightbox';
+export { Fullscreen } from './Fullscreen';

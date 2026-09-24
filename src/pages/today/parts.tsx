@@ -4,6 +4,7 @@ import {
 } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { MaterialChips } from '../../features/materials/MaterialChips';
 import { EVENT_KIND_LABEL, type PendingItem, type Today, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
 import { parseDate, plural, shortDate } from '../../lib/format';
 import { Avatar, Button, Callout, Chip, Dot, Grade, List, Row, RowIcon } from '../../ui';
@@ -63,6 +64,7 @@ export function NowCard({ focus, today, onAttendance, onNote }: {
       {s.activities.length > 0 && (
         <div className="chip-row">{s.activities.map((a) => <Chip key={a.id} tone={a.kind === 'exam' ? 'info' : undefined}>{a.title}</Chip>)}</div>
       )}
+      <MaterialChips session={s} />
       {s.last_note && (
         <Callout><b>La última vez, {sinceLabel(s.last_note.date, s.date)}:</b> {s.last_note.text}</Callout>
       )}
