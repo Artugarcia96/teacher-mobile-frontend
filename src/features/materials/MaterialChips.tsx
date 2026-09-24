@@ -12,7 +12,7 @@ export function MaterialChips({ session }: { session: TodaySession }) {
   return (
     <div className="chip-row now-materials" aria-label="Materiales de la unidad">
       {mats.map((m) => (
-        <Chip key={m.id} tone="outline" icon={<MaterialIcon kind={m.kind} size={15} />}
+        <Chip key={m.id} tone="outline" icon={<MaterialIcon kind={m.kind} filename={m.filename ?? ''} linkKind={m.link_kind} size={15} />}
           onClick={() => open(m, session.course.id, { present: true })}>
           <span>{m.title}</span>
         </Chip>

@@ -1,8 +1,8 @@
 import { CheckCircle, Circle } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useGenerateMaterial, useUnit, type Difficulty, type GenKind, type Material, type WorksheetKind } from '../../api/units';
-import { plural } from '../../lib/format';
-import { Callout, List, Row, RowIcon, Segmented, Sheet, Stepper, TextField, Button, useFeedback } from '../../ui';
+import { useGenerateMaterial, type Difficulty, type GenKind, type Material, type WorksheetKind } from '../../api/units';
+import { List, Row, RowIcon, Segmented, Sheet, Stepper, TextField, Button, useFeedback } from '../../ui';
+import { GroundingList } from '../materials/GroundingList';
 import { MaterialIcon } from './kinds';
 import './units.css';
 
@@ -32,7 +32,6 @@ export default function CreateMaterialSheet(props: CreateMaterialSheetProps) {
 function CreateMaterial({ onClose, unitId, notesId, onCreated }: CreateMaterialSheetProps) {
   const { toast } = useFeedback();
   const generate = useGenerateMaterial(unitId);
-  const reading = useUnit(unitId).data?.materials.filter((m) => m.text_status === 'reading').length ?? 0;
   const [kind, setKind] = useState<GenKind>('notes');
   const [length, setLength] = useState<'breve' | 'normal'>('normal');
   const [wk, setWk] = useState<WorksheetKind>('refuerzo');
@@ -58,14 +57,9 @@ function CreateMaterial({ onClose, unitId, notesId, onCreated }: CreateMaterialS
 
   return (
     <Sheet open onClose={onClose} title="Crear con IA"
-      subtitle="Usa el título de la unidad y los archivos que hayas subido. Es un borrador: podrás revisarlo y editarlo."
+      subtitle="La IA usa tus archivos y fotos de la unidad (no los enlaces). Es un borrador: podrás revisarlo y editarlo."
       footer={<Button full onClick={submit} loading={generate.isPending}>Crear</Button>}>
       <div className="form">
-        {reading > 0 && (
-          <Callout tone="warn">
-            La IA aún está leyendo {plural(reading, 'archivo', 'archivos')} de la unidad. Si creas ahora, no {reading === 1 ? 'lo' : 'los'} tendrá en cuenta.
-          </Callout>
-        )}
         <div tabIndex={-1} data-autofocus className="kind-list">
         <List>
           {KINDS.map((k) => {
@@ -114,6 +108,8 @@ function CreateMaterial({ onClose, unitId, notesId, onCreated }: CreateMaterialS
             </div>
           </>
         )}
+
+        <GroundingList unitIds={[unitId]} what="el material" />
 
         <TextField label="Indicaciones (opcional)" value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={600}
           placeholder={kind === 'worksheet' ? 'Por ejemplo: problemas de la vida diaria' : 'Por ejemplo: más ejemplos de la vida diaria'} />

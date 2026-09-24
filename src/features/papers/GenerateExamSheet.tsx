@@ -3,6 +3,7 @@ import { useGenerateExam, type Difficulty } from '../../api/papers';
 import type { Job } from '../../api/types';
 import { useUnits } from '../../api/units';
 import { Button, Chip, Segmented, Sheet, Skeleton, Stepper, TextArea, useFeedback } from '../../ui';
+import { GroundingList } from '../materials/GroundingList';
 
 interface Props {
   open: boolean;
@@ -75,6 +76,7 @@ export default function GenerateExamSheet({ open, onClose, activityId, courseId,
             </p>
           )}
         </div>
+        <GroundingList unitIds={selected} what="el examen" />
         <div className="gen-row">
           <span className="field__label">Número de preguntas</span>
           <Stepper label="Número de preguntas" value={n} min={4} max={12} onChange={setN} />

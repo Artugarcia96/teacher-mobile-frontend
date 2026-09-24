@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { CourseRef, Ok, StudentRef } from './types';
-import type { Audience, MaterialKind } from './units';
+import type { Audience, LinkKind, MaterialKind } from './units';
 
 export type SessionStatus = 'past' | 'now' | 'next' | 'later';
 export type EventKind = 'meeting' | 'tutoring' | 'evaluation' | 'trip' | 'other';
@@ -16,7 +16,11 @@ export interface TodaySession {
   /** Up to 4 materials of the class's current unit (only in /today). */
   materials?: SessionMaterial[];
 }
-export interface SessionMaterial { id: string; unit_id: string; kind: MaterialKind; title: string; audience: Audience }
+export interface SessionMaterial {
+  id: string; unit_id: string; kind: MaterialKind; title: string; audience: Audience;
+  /** Uploads: file name (icon). Links: site (icon) and address (opened directly). */
+  filename?: string | null; link_kind?: LinkKind | null; url?: string | null;
+}
 export interface TodayEvent {
   id: string; title: string; kind: EventKind; date: string; start?: string | null; end?: string | null; note?: string | null; course?: CourseRef | null;
 }

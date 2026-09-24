@@ -1,7 +1,7 @@
 /** Programación (units) & materials. Backend: app/api/units.py (slice E). Slice E extends this file;
  * keep `Unit`, `unitKeys` and `useUnits` stable — other areas import them. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, fileUrl } from '../lib/api';
+import { api, fileUrl, uploadWithProgress } from '../lib/api';
 import type { CourseRef, Job } from './types';
 
 export type UnitStatus = 'pending' | 'current' | 'done';
@@ -14,6 +14,7 @@ export const unitKeys = {
   list: (courseId: string) => ['course', courseId, 'units'] as const,
   one: (unitId: string) => ['unit', unitId] as const,
   material: (materialId: string) => ['material', materialId] as const,
+  grounding: (unitIds: string[]) => ['grounding', ...unitIds] as const,
 };
 
 export function useUnits(courseId: string | undefined) {
@@ -40,6 +41,12 @@ export interface Material {
 }
 
 export interface Share { url: string; path: string; expires_on: string; qr_png: string | null }
+
+/** What the AI reads when creating for the unit(s): `used` of `chars` characters (0 = left out). */
+export interface GroundingSource {
+  id: string; unit_id: string | null; title: string; kind: MaterialKind; own: boolean; filename?: string | null; chars: number; used: number;
+}
+export interface Grounding { sources: GroundingSource[]; reading: { id: string; title: string }[] }
 
 export type BlockType = 'text' | 'definition' | 'example' | 'formula' | 'note' | 'list' | 'exercise';
 export interface Block { id: string; type: BlockType; title: string; text: string; items: string[]; solution: string }
@@ -159,21 +166,40 @@ function useInvalidateUnit(unitId: string | undefined) {
     qc.invalidateQueries({ queryKey: ['course'] });
     qc.invalidateQueries({ queryKey: ['library'] });
     qc.invalidateQueries({ queryKey: ['today'] });
+    qc.invalidateQueries({ queryKey: ['grounding'] });
   };
 }
 
-/** Several files in one request. `asPages`: photos of book pages become ONE material (a PDF) that the AI reads. */
+/** Several files in one request. `asPages`: photos of book pages become ONE material (a PDF) that the AI reads.
+ *  `onProgress` (0-1) reports the upload itself (school Wi-Fi: several MB take a while). */
 export function useUploadMaterials(unitId: string) {
   const done = useInvalidateUnit(unitId);
   return useMutation({
-    mutationFn: ({ files, asPages, title }: { files: File[]; asPages?: boolean; title?: string }) => {
+    mutationFn: ({ files, asPages, title, onProgress }: {
+      files: File[]; asPages?: boolean; title?: string; onProgress?: (fraction: number) => void;
+    }) => {
       const form = new FormData();
       for (const f of files) form.append('files', f);
       if (asPages) form.append('as_pages', 'true');
       if (title) form.append('title', title);
-      return api.upload<Material[]>(`/units/${unitId}/materials`, form);
+      const path = `/units/${unitId}/materials`;
+      return onProgress ? uploadWithProgress<Material[]>(path, form, onProgress) : api.upload<Material[]>(path, form);
     },
     onSuccess: done,
+  });
+}
+
+/** Photos of book pages per material: the AI reads at most this many (backend READ_MAX_PAGES). */
+export const MAX_PAGES = 30;
+
+/** What the AI will read for these units (own material first, fairly shared). Refreshes while files are read. */
+export function useGrounding(unitIds: string[]) {
+  const ids = [...unitIds].sort();
+  return useQuery({
+    queryKey: unitKeys.grounding(ids),
+    queryFn: () => api.get<Grounding>(`/grounding?unit_ids=${ids.join(',')}`),
+    enabled: ids.length > 0,
+    refetchInterval: (q) => (q.state.data?.reading.length ? 3000 : false),
   });
 }
 
@@ -193,6 +219,7 @@ function useInvalidateMaterials() {
     qc.invalidateQueries({ queryKey: ['course'] });
     qc.invalidateQueries({ queryKey: ['library'] });
     qc.invalidateQueries({ queryKey: ['today'] });
+    qc.invalidateQueries({ queryKey: ['grounding'] });
   };
 }
 

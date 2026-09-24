@@ -4,14 +4,20 @@ import { api, fileUrl } from '../../lib/api';
 import { useFeedback } from '../../ui';
 import { openSigned } from '../papers/openDoc';
 
-type Openable = { id: string; kind: MaterialKind; unit_id: string | null };
+type Openable = { id: string; kind: MaterialKind; unit_id: string | null; url?: string | null };
 
-/** Open a material: files and links in a new tab (signed URL), Sepia's own materials in their page.
- *  `present` opens slides straight in presentation mode (MaterialPage handles ?presentar=1). */
+/** Open a material: files in a new tab (signed URL), links straight to their address, Sepia's own materials in
+ *  their page. `present` opens slides straight in presentation mode (MaterialPage handles ?presentar=1). */
 export function useOpenMaterial() {
   const navigate = useNavigate();
   const { toast } = useFeedback();
   return (m: Openable, courseId: string, opts?: { present?: boolean }) => {
+    if (m.kind === 'link' && m.url) {
+      // External page: no window.opener back to Sepia (reverse tabnabbing). Remember "last used" in the background.
+      window.open(m.url, '_blank', 'noopener,noreferrer');
+      void api.get(`/materials/${m.id}/file`).catch(() => undefined);
+      return;
+    }
     if (m.kind === 'upload' || m.kind === 'link' || !m.unit_id) {
       void openSigned(() => api.get<{ url: string }>(`/materials/${m.id}/file`), (msg) => toast(msg, { tone: 'error' }));
       return;
@@ -26,7 +32,7 @@ export function publicOrigin(): string {
   return new URL(fileUrl('/') ?? '/', window.location.href).origin;
 }
 
-/** "sepia.es/api/s/Ab3dE…" — the URL without protocol, to read aloud or type. */
+/** "sepia.es/api/s/ab3de…" — the URL without protocol, to read aloud or type. */
 export function shortUrl(url: string): string {
   return url.replace(/^https?:\/\//, '');
 }

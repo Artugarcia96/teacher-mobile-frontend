@@ -3,7 +3,7 @@ import {
   Student, Trash, WarningCircle,
 } from '@phosphor-icons/react';
 import { useDeleteMaterial, useReadMaterial, useUnshareMaterial, useUpdateMaterial, type Material } from '../../api/units';
-import { plural, shortDate } from '../../lib/format';
+import { shortDate } from '../../lib/format';
 import { AIBadge, Button, IconButton, Menu, Row, RowIcon, Spinner, useFeedback, type MenuItem } from '../../ui';
 import { isGenerated, kindLabel, MaterialIcon } from '../units/kinds';
 import { useOpenMaterial } from './open';
@@ -25,7 +25,7 @@ const FILE_TYPE: Record<string, string> = {
 export function typeLabel(m: Material): string {
   if (m.kind === 'upload') {
     const pages = Number(m.options?.pages ?? 0);
-    if (pages) return `Fotos · ${plural(pages, 'página', 'páginas')}`;
+    if (pages) return pages === 1 ? 'Foto · 1 página' : `Fotos · ${pages} páginas`;
     const ext = String(m.options?.filename ?? '').split('.').pop()?.toLowerCase() ?? '';
     return FILE_TYPE[ext] ?? 'Archivo';
   }
@@ -109,7 +109,7 @@ export function MaterialRow({ m, courseId, group, all, today, actions }: {
       : { label: 'Cambiar a «para alumnos»', icon: <Student size={18} />, onSelect: () => void setAudience('alumnos') },
     ...(prev ? [{ label: 'Subir', icon: <ArrowUp size={18} />, onSelect: () => moveNextTo(prev, 'up'), separatorBefore: true }] : []),
     ...(next ? [{ label: 'Bajar', icon: <ArrowDown size={18} />, onSelect: () => moveNextTo(next, 'down'), separatorBefore: !prev }] : []),
-    ...(m.text_status === 'failed' ? [{
+    ...(m.text_status === 'failed' || (m.text_status === 'reading' && !m.job_id) ? [{
       label: 'Volver a leer', icon: <ArrowsClockwise size={18} />, separatorBefore: true,
       onSelect: () => read.mutate(m.id, { onSuccess: () => toast('Leyendo de nuevo…'), onError: fail }),
     }] : []),
@@ -122,8 +122,7 @@ export function MaterialRow({ m, courseId, group, all, today, actions }: {
   const sub = (
     <span className="mrow__sub">
       <span className="mrow__meta">{parts.join(' · ')}</span>
-      {m.text_status === 'reading' && <span className="mrow__reading">Leyendo…</span>}
-      {m.text_status === 'failed' && <span className="mrow__error">No se ha podido leer</span>}
+      <ReadingStatus m={m} />
       {m.shared && (
         <span className="mrow__shared" title="Compartido con alumnos">
           <ShareNetwork size={13} weight="bold" aria-label="Compartido con alumnos" /><span className="mrow__shared-label">Compartido</span>
@@ -142,4 +141,20 @@ export function MaterialRow({ m, courseId, group, all, today, actions }: {
       </div>
     </div>
   );
+}
+
+/** AI reading of photos / scans: "Leyendo…", "No se ha podido leer", or "Leídas 30 de 84 páginas" when a long
+ *  scan was only read in part. Shared by the unit list and the library. */
+export function readingStatus(m: Pick<Material, 'text_status' | 'job_id' | 'options'>): { className: string; text: string } | null {
+  if (m.text_status === 'reading' && m.job_id) return { className: 'mrow__reading', text: 'Leyendo…' };
+  if (m.text_status === 'failed' || m.text_status === 'reading') return { className: 'mrow__error', text: 'No se ha podido leer' };
+  const read = Number(m.options?.pages_read ?? 0);
+  const total = Number(m.options?.pages_total ?? 0);
+  if (m.text_status === 'done' && read && total > read) return { className: 'mrow__partial', text: `Leídas ${read} de ${total} páginas` };
+  return null;
+}
+
+function ReadingStatus({ m }: { m: Material }) {
+  const st = readingStatus(m);
+  return st ? <span className={st.className}>{st.text}</span> : null;
 }

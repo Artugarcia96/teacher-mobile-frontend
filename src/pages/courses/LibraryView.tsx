@@ -1,14 +1,16 @@
 import { Books, MagnifyingGlass, ShareNetwork, WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import { useCourses } from '../../api/core';
+import { useSearchParams } from 'react-router-dom';
+import { useArchivedCourses, useCourses } from '../../api/core';
 import { useLibrary, type LibraryItem } from '../../api/library';
+import type { CourseRef } from '../../api/types';
 import type { MaterialKind } from '../../api/units';
-import { typeLabel } from '../../features/materials/MaterialRow';
+import { readingStatus, typeLabel } from '../../features/materials/MaterialRow';
 import { useOpenMaterial } from '../../features/materials/open';
 import { isGenerated, MaterialIcon } from '../../features/units/kinds';
 import { useToday } from '../../lib/auth';
 import { plural, shortDate } from '../../lib/format';
-import { Button, Chip, Dot, EmptyState, List, Row, RowIcon, SkeletonList, TextField } from '../../ui';
+import { AIBadge, Button, Chip, Dot, EmptyState, List, Row, RowIcon, SearchField, SkeletonList } from '../../ui';
 import './library.css';
 
 const KINDS: { key: string; label: string; kinds?: MaterialKind[] }[] = [
@@ -20,6 +22,9 @@ const KINDS: { key: string; label: string; kinds?: MaterialKind[] }[] = [
   { key: 'worksheet', label: 'Fichas', kinds: ['worksheet'] },
 ];
 
+/** "Mates · 2º ESO B": subject and group (a teacher may have two subjects in the same group). */
+const courseName = (c: Pick<CourseRef, 'short' | 'subject' | 'group'>) => `${c.short || c.subject} · ${c.group.name}`;
+
 function useDebounced<T>(value: T, ms = 250): T {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -29,19 +34,28 @@ function useDebounced<T>(value: T, ms = 250): T {
   return v;
 }
 
-/** /clases?vista=materiales — everything the teacher has, across classes: search, filter, open. */
+/** /clases?vista=materiales — everything the teacher has, across classes: search, filter, open. The search and the
+ *  filters live in the address (&q=, &clase=, &tipo=), so they are still there after opening a material and going back. */
 export default function LibraryView() {
   const courses = useCourses();
+  const archived = useArchivedCourses(true);
   const today = useToday();
   const open = useOpenMaterial();
-  const [q, setQ] = useState('');
-  const [courseId, setCourseId] = useState<string | undefined>();
-  const [kind, setKind] = useState('all');
+  const [params, setParams] = useSearchParams();
+  const q = params.get('q') ?? '';
+  const courseId = params.get('clase') ?? undefined;
+  const kind = KINDS.some((k) => k.key === params.get('tipo')) ? params.get('tipo')! : 'all';
+  const set = (key: string, value: string | undefined) => setParams((p) => {
+    if (value) p.set(key, value);
+    else p.delete(key);
+    return p;
+  }, { replace: true });
   const query = useDebounced(q);
   const kinds = KINDS.find((k) => k.key === kind)?.kinds;
   const lib = useLibrary({ q: query, courseId, kinds });
   const filtered = Boolean(query.trim() || courseId || kinds);
-  const clear = () => { setQ(''); setCourseId(undefined); setKind('all'); };
+  const clear = () => setParams({ vista: 'materiales' }, { replace: true });
+  const classes = [...(courses.data ?? []), ...(archived.data ?? [])];
 
   let body;
   if (lib.isLoading) body = <SkeletonList rows={6} />;
@@ -72,20 +86,17 @@ export default function LibraryView() {
 
   return (
     <div className="library">
-      <form role="search" onSubmit={(e) => e.preventDefault()}>
-        <TextField type="search" aria-label="Buscar materiales" placeholder="Buscar por nombre, unidad o contenido" value={q}
-          onChange={(e) => setQ(e.target.value)} enterKeyHint="search" />
-      </form>
+      <SearchField label="Buscar materiales" placeholder="Buscar por nombre, unidad o contenido" value={q} onChange={(v) => set('q', v)} />
       <div className="chip-scroll" role="group" aria-label="Clase">
-        <Chip selected={!courseId} onClick={() => setCourseId(undefined)}>Todas las clases</Chip>
-        {(courses.data ?? []).map((c) => (
-          <Chip key={c.id} selected={courseId === c.id} icon={<Dot color={c.color} />} onClick={() => setCourseId(courseId === c.id ? undefined : c.id)}>
-            {c.short || c.subject} · {c.group.name}
+        <Chip selected={!courseId} onClick={() => set('clase', undefined)}>Todas las clases</Chip>
+        {classes.map((c) => (
+          <Chip key={c.id} selected={courseId === c.id} icon={<Dot color={c.color} />} onClick={() => set('clase', courseId === c.id ? undefined : c.id)}>
+            {courseName(c)}{c.archived ? ' (archivada)' : ''}
           </Chip>
         ))}
       </div>
       <div className="chip-scroll" role="group" aria-label="Tipo">
-        {KINDS.map((k) => <Chip key={k.key} selected={kind === k.key} onClick={() => setKind(k.key)}>{k.label}</Chip>)}
+        {KINDS.map((k) => <Chip key={k.key} selected={kind === k.key} onClick={() => set('tipo', k.key === 'all' ? undefined : k.key)}>{k.label}</Chip>)}
       </div>
       {body}
     </div>
@@ -95,7 +106,8 @@ export default function LibraryView() {
 function LibraryRow({ m, today, onOpen }: { m: LibraryItem; today: string; onOpen: () => void }) {
   const date = m.created_at.slice(0, 10);
   const type = typeLabel(m);
-  const meta = [m.course.group.name, m.unit?.title, type, date === today ? 'Hoy' : shortDate(date)].filter(Boolean).join(' · ');
+  const meta = [courseName(m.course), m.unit?.title, type, date === today ? 'Hoy' : shortDate(date)].filter(Boolean).join(' · ');
+  const reading = readingStatus(m);
   return (
     <Row onClick={onOpen} chevron={false} wrapSub
       lead={<RowIcon tone={isGenerated(m.kind) ? 'accent' : undefined}>
@@ -104,6 +116,9 @@ function LibraryRow({ m, today, onOpen }: { m: LibraryItem; today: string; onOpe
       title={m.title}
       sub={<span className="library__sub">
         <span className="library__meta"><Dot color={m.course.color} /><span>{meta}</span></span>
+        {(reading || isGenerated(m.kind)) && (
+          <span className="mrow__sub">{reading && <span className={reading.className}>{reading.text}</span>}{isGenerated(m.kind) && <AIBadge />}</span>
+        )}
         {m.snippet && <span className="library__snippet">{m.snippet}</span>}
       </span>}
       trail={m.shared ? <ShareNetwork size={16} aria-label="Compartido con alumnos" className="library__shared" /> : undefined}

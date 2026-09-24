@@ -189,6 +189,15 @@ button.chip { cursor: pointer; }
 .select { appearance: none; background-image: none; padding-right: 36px; }
 .select-wrap { position: relative; }
 .select-wrap svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink-2); }
+.search-field { position: relative; display: flex; align-items: center; }
+.search-field > svg { position: absolute; left: 13px; color: var(--ink-3); pointer-events: none; }
+.search-field .input { padding-left: 40px; padding-right: 44px; }
+.search-field .input::-webkit-search-cancel-button, .search-field .input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.search-field__clear {
+  position: absolute; right: 1px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--r-row);
+  background: none; color: var(--ink-3); cursor: pointer;
+}
+.search-field__clear:hover { color: var(--ink); }
 .form { display: grid; gap: var(--s-4); }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--s-3); }
 .switch { position: relative; width: 44px; height: 26px; border-radius: 99px; background: var(--fill-2); border: 0; flex: none; transition: background var(--t-fast); }

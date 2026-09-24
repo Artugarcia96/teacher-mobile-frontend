@@ -19,7 +19,9 @@ export default function PlaceMaterialSheet({ material, mode, courseId, unitTitle
 }) {
   const courses = useCourses();
   const others = (courses.data ?? []).filter((c) => c.id !== courseId);
-  const [target, setTarget] = useState<string>(mode === 'copy' && others.length ? others[0].id : courseId);
+  // Chosen class, or the default once the classes have loaded: another class to copy, this one to move.
+  const [chosen, setChosen] = useState<string | null>(null);
+  const target = chosen ?? (mode === 'copy' ? others[0]?.id ?? courseId : courseId);
   const units = useUnits(target);
   const exclude = target === courseId ? material.unit_id ?? undefined : undefined;
   const [picked, setPicked] = useState<{ course: string; unit: string } | null>(null);
@@ -52,6 +54,7 @@ export default function PlaceMaterialSheet({ material, mode, courseId, unitTitle
 
   let reason = '';
   if (units.isLoading) reason = 'Cargando unidades…';
+  else if (!units.data?.length) reason = 'Esa clase aún no tiene unidades';
   else if (!options.length) reason = 'Esa clase no tiene otras unidades';
   const label = mode === 'move' ? 'Mover aquí' : 'Copiar aquí';
 
@@ -62,7 +65,7 @@ export default function PlaceMaterialSheet({ material, mode, courseId, unitTitle
       <div className="form">
         <div className="place-what">{material.title}</div>
         {courses.isLoading ? <Spinner /> : (
-          <Select label="Clase" value={target} onChange={(e) => { setTarget(e.target.value); setPicked(null); }}>
+          <Select label="Clase" value={target} onChange={(e) => { setChosen(e.target.value); setPicked(null); }}>
             {(courses.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </Select>
         )}

@@ -10,6 +10,7 @@
 .mrow__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .mrow__reading { color: var(--accent); font-weight: 500; flex: none; }
 .mrow__error { color: var(--danger); }
+.mrow__partial { color: var(--warn); flex: none; }
 .mrow__sub .mrow__error { flex: none; }
 .mrow__shared { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-weight: 500; flex: none; }
 @media (max-width: 767px) { .mrow__shared-label { display: none; } }
@@ -41,8 +42,7 @@
 .pages__hint { font-size: var(--fs-sub); }
 .pages__add { display: flex; flex-wrap: wrap; gap: 8px; }
 .pages__add > .btn { flex: 1 1 150px; }
-.pages__camera { display: none; }
-@media (pointer: coarse) { .pages__camera { display: inline-flex; } }
+.pages__footer { display: grid; gap: 10px; width: 100%; }
 .pages__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
 .pages__item { position: relative; aspect-ratio: 3 / 4; border-radius: var(--r-ctl); overflow: hidden; background: var(--fill); box-shadow: 0 0 0 1px var(--line); }
 .pages__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -50,13 +50,26 @@
 .pages__remove { position: absolute; top: 4px; right: 4px; }
 
 /* Hoy: materials of the current unit */
-/* Bleeds to the card edges (.now-card padding 18px) and fades out on the right when there are more chips. */
+/* Bleeds to the card edges (.now-card padding 18px) and fades out on the right when there are more chips.
+   Chips are 36 px with a 4 px hit slop above and below (44 px touch area), inside the row's own padding. */
 .chip-row.now-materials {
-  flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px;
+  flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -4px -18px; padding: 4px 18px;
   -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent);
   mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent);
 }
 .now-materials::-webkit-scrollbar { display: none; }
 .now-materials .chip { max-width: 240px; flex: none; }
 .now-materials .chip span { overflow: hidden; text-overflow: ellipsis; }
-.now-materials button.chip { height: 32px; padding: 0 12px; font-size: var(--fs-footnote); }
+.now-materials button.chip { position: relative; height: 36px; padding: 0 12px; font-size: var(--fs-footnote); }
+.now-materials button.chip::before { content: ''; position: absolute; inset: -4px 0; }
+
+/* What the AI reads (Crear con IA, Generar examen) */
+.grounding { gap: 8px; }
+.grounding__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.grounding__item { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-sub); }
+.grounding__item > svg { flex: none; color: var(--ink-2); }
+.grounding__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grounding__usage { flex: none; color: var(--warn); font-size: var(--fs-footnote); }
+.grounding__item--out .grounding__title { color: var(--ink-3); }
+.grounding__more { color: var(--ink-3); font-size: var(--fs-footnote); padding-left: 24px; }
+.share-intro p { margin: 0; }

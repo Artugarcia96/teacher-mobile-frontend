@@ -10,6 +10,7 @@ import EditMaterialSheet from '../../features/materials/EditMaterialSheet';
 import { MaterialRow, type MaterialActions } from '../../features/materials/MaterialRow';
 import PhotoPagesSheet from '../../features/materials/PhotoPagesSheet';
 import PlaceMaterialSheet, { type PlaceMode } from '../../features/materials/PlaceMaterialSheet';
+import { useCoarsePointer } from '../../features/materials/pointer';
 import ShareSheet from '../../features/materials/ShareSheet';
 import CreateMaterialSheet from '../../features/units/CreateMaterialSheet';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
@@ -26,6 +27,7 @@ const STATUS: Record<UnitStatus, { label: string; tone?: 'accent' | 'ok' }> = {
   done: { label: 'Impartida' },
 };
 const ACCEPT = '.pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp';
+const IMAGE = /\.(png|jpe?g|webp)$/i;
 
 type Sheet = 'create' | 'edit' | 'link' | 'photos' | null;
 type Target = { m: Material; kind: 'edit' | 'share' } | { m: Material; kind: 'place'; mode: PlaceMode } | null;
@@ -44,6 +46,9 @@ export default function UnitPage() {
   const createActivity = useCreateActivity(courseId);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [target, setTarget] = useState<Target>(null);
+  const [sent, setSent] = useState<number | null>(null); // upload progress 0-1
+  const coarse = useCoarsePointer();
+  const photosLabel = coarse ? 'Fotografiar páginas del libro' : 'Añadir fotos de páginas';
   const fileInput = useRef<HTMLInputElement>(null);
   const planPath = `/clases/${courseId}/programacion`;
 
@@ -66,14 +71,20 @@ export default function UnitPage() {
   const forMe = materials.filter((m) => m.audience !== 'alumnos');
 
   const onFiles = async (files: File[]) => {
+    setSent(0);
     try {
-      const out = await upload.mutateAsync({ files });
-      const reading = out.some((m) => m.text_status === 'reading');
-      toast(`${files.length === 1 ? 'Archivo subido' : `${files.length} archivos subidos`}${reading ? '. La IA está leyendo las fotos.' : ''}`);
+      const out = await upload.mutateAsync({ files, onProgress: setSent });
+      const reading = out.filter((m) => m.text_status === 'reading');
+      const scans = reading.some((m) => !IMAGE.test(String(m.options?.filename ?? '')));
+      const what = !reading.length ? '' : scans ? '. La IA está leyendo los archivos escaneados.' : `. La IA está leyendo ${reading.length === 1 ? 'la foto' : 'las fotos'}.`;
+      toast(`${files.length === 1 ? 'Archivo subido' : `${files.length} archivos subidos`}${what}`);
     } catch (err) {
       toast((err as Error).message, { tone: 'error' });
+    } finally {
+      setSent(null);
     }
   };
+  const uploading = sent === null ? null : sent < 1 ? `Subiendo… ${Math.round(sent * 100)} %` : 'Guardando…';
 
   const setStatus = async (s: UnitStatus) => {
     try {
@@ -146,8 +157,10 @@ export default function UnitPage() {
       <div className="unit-body">
         <div className="unit-actions">
           <Button icon={<Plus size={18} weight="bold" />} onClick={() => setSheet('create')}>Crear con IA</Button>
+          <Button className="unit-actions__wide" variant="neutral" icon={<UploadSimple size={18} />} loading={upload.isPending}
+            onClick={() => fileInput.current?.click()}>Subir archivos</Button>
           <Button className="unit-actions__wide" variant="neutral" icon={<Camera size={18} />} onClick={() => setSheet('photos')}>
-            Fotografiar páginas del libro
+            {photosLabel}
           </Button>
           <Button className="unit-actions__wide" variant="neutral" icon={<LinkSimple size={18} />} onClick={() => setSheet('link')}>Añadir enlace</Button>
           <div className="unit-actions__narrow">
@@ -155,7 +168,7 @@ export default function UnitPage() {
               trigger={(open) => <Button variant="neutral" icon={<UploadSimple size={18} />} loading={upload.isPending} onClick={open}>Añadir material</Button>}
               items={[
                 { label: 'Subir archivos', icon: <UploadSimple size={18} />, onSelect: () => fileInput.current?.click() },
-                { label: 'Fotografiar páginas del libro', icon: <Camera size={18} />, onSelect: () => setSheet('photos') },
+                { label: photosLabel, icon: <Camera size={18} />, onSelect: () => setSheet('photos') },
                 { label: 'Añadir enlace', icon: <LinkSimple size={18} />, onSelect: () => setSheet('link') },
               ]}
             />
@@ -167,7 +180,7 @@ export default function UnitPage() {
         {materials.length === 0 ? (
           <div className="paper">
             <EmptyState icon={<FolderOpen size={24} />} title="Aún no hay materiales en esta unidad"
-              text="Añade lo que ya usas en clase: el tema del libro, tus apuntes, presentaciones o fotos de las páginas. La IA lo toma como base para crear apuntes, fichas y exámenes de esta unidad." />
+              text="Añade lo que ya usas en clase: el tema del libro, tus apuntes, presentaciones o fotos de las páginas. La IA usa tus archivos y fotos (no los enlaces) como base para crear apuntes, fichas y exámenes de esta unidad." />
           </div>
         ) : (
           <>
@@ -175,14 +188,14 @@ export default function UnitPage() {
               <Section title="Para alumnos" footer="Compártelos con un enlace o un código QR desde el menú de cada uno.">{group(forStudents)}</Section>
             )}
             {forMe.length > 0 && (
-              <Section title="Solo para ti" footer="La IA usa tus archivos como base al crear apuntes, fichas y exámenes de la unidad.">{group(forMe)}</Section>
+              <Section title="Solo para ti" footer="Tus alumnos no los ven. Pásalos a «para alumnos» desde el menú de cada uno.">{group(forMe)}</Section>
             )}
           </>
         )}
 
         <DropZone onFiles={onFiles} multiple accept={ACCEPT} disabled={upload.isPending}
-          title={upload.isPending ? 'Subiendo…' : 'Sube lo que ya tienes'}
-          hint="PDF, Word, PowerPoint, texto o imágenes. Puedes elegir o arrastrar varios a la vez."
+          title={uploading ?? 'Sube lo que ya tienes'}
+          hint="PDF, Word, PowerPoint, texto o imágenes; puedes elegir o arrastrar varios. La IA usa tus archivos y fotos (no los enlaces) al crear apuntes, fichas y exámenes."
           buttonLabel="Subir archivos" />
 
         <Section title="Evaluar">

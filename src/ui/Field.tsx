@@ -1,4 +1,4 @@
-import { CaretDown, Minus, Plus } from '@phosphor-icons/react';
+import { CaretDown, MagnifyingGlass, Minus, Plus, X } from '@phosphor-icons/react';
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 interface Wrap {
@@ -23,6 +23,24 @@ export function TextField({ label, hint, error, className, ...rest }: Wrap & Inp
     <FieldWrap id={id} label={label} hint={hint} error={error}>
       <input id={id} className={`input${className ? ` ${className}` : ''}`} {...rest} />
     </FieldWrap>
+  );
+}
+
+/** Search box: magnifier, and a clear button (44 px) instead of the browser's own. */
+export function SearchField({ value, onChange, label, placeholder }: {
+  value: string; onChange: (value: string) => void; label: string; placeholder?: string;
+}) {
+  return (
+    <div className="search-field" role="search">
+      <MagnifyingGlass size={18} aria-hidden />
+      <input className="input" type="search" aria-label={label} placeholder={placeholder} value={value} enterKeyHint="search"
+        onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape' && value) { e.stopPropagation(); onChange(''); } }} />
+      {value && (
+        <button type="button" className="search-field__clear" aria-label="Borrar la búsqueda" onClick={() => onChange('')}>
+          <X size={16} weight="bold" />
+        </button>
+      )}
+    </div>
   );
 }
 
