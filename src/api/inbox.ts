@@ -22,7 +22,8 @@ export interface Inbox {
   to_grade: { activity: ActivityRef; course: CourseRef; missing: number; pending_absent: number }[];
   /** Same order as the class list. */
   evaluations: InboxEvaluation[];
-  next_evaluation_event: { date: string; title: string } | null;
+  /** `term`: the term the session belongs to (by date). */
+  next_evaluation_event: { date: string; title: string; term: number } | null;
   /** Evaluar badge: activities with AI drafts to review. */
   count: number;
 }

@@ -12,10 +12,9 @@ export default function InboxPage() {
   const q = useInbox();
   const today = useToday();
   const ev = q.data?.next_evaluation_event;
-  const term = q.data?.evaluations[0]?.term;
   const days = ev ? Math.round((Date.parse(ev.date) - Date.parse(today)) / 86_400_000) : null;
   const when = days === 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
-  const subtitle = ev && `${term ? `Sesión de la ${TERM_LABEL[term]}` : ev.title}: ${longDate(ev.date)}, ${when}`;
+  const subtitle = ev && `${sessionName(ev)}: ${longDate(ev.date)}, ${when}`;
   return (
     <Page title="Evaluar" subtitle={subtitle}>
       {q.error && !q.data ? (
@@ -32,13 +31,19 @@ export default function InboxPage() {
   );
 }
 
+/** "Sesión de la 2.ª evaluación" (the term of the session's date) for the generic "Sesión de evaluación…" events;
+ * the event's own title otherwise ("Evaluación inicial"). */
+function sessionName(ev: NonNullable<Inbox['next_evaluation_event']>): string {
+  return /^sesi[oó]n de evaluaci[oó]n/i.test(ev.title.trim()) ? `Sesión de la ${TERM_LABEL[ev.term]}` : ev.title;
+}
+
 /** What is missing before the evaluation session, in words: "Falta revisar Examen U2 (18) · faltan 26 comentarios". */
 function evaluationLine(e: InboxEvaluation): string | null {
   const parts = [
     ...e.to_review.map((x) => `falta revisar ${x.title} (${x.count})`),
     ...e.to_grade.map((x) => `faltan notas de ${x.title} (${x.count})`),
   ];
-  if (e.pending_absent) parts.push(`${plural(e.pending_absent, 'examen', 'exámenes')} sin hacer por faltas`);
+  if (e.pending_absent) parts.push(`${plural(e.pending_absent, 'alumno con examen pendiente', 'alumnos con examen pendiente')} por falta`);
   if (e.comments_missing) parts.push(`faltan ${plural(e.comments_missing, 'comentario', 'comentarios')}`);
   if (e.comments_draft) parts.push(`${plural(e.comments_draft, 'comentario', 'comentarios')} en borrador`);
   if (!parts.length) return null;

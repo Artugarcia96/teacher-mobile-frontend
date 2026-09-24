@@ -1,5 +1,5 @@
-import { ArrowRight, DotsThree, Exam, FileCsv, PencilSimple, Plus, Scales, Student, UserMinus } from '@phosphor-icons/react';
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { ArrowRight, DotsThree, Exam, FileCsv, PencilSimple, Plus, Scales, Student, UserMinus, Warning } from '@phosphor-icons/react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActivityBrief, GradeInput } from '../../api/activities';
 import { useGradebook, useSaveCell, type Gradebook, type GradebookActivity, type GradebookRow, type GradeCell } from '../../api/gradebook';
@@ -11,7 +11,7 @@ import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { KindIcon } from '../../features/activities/kinds';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { formatGrade, formatNumber, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { formatAverage, formatNumber, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Menu, Row, RowIcon, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
@@ -38,7 +38,7 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
 
   const exportCsv = () =>
     download(`/courses/${course.id}/gradebook.csv?term=${term}`, `Cuaderno ${course.subject} ${course.group.name} ${TERM_LABEL[term]}.csv`)
-      .then((name) => toast(`Descargado: ${name}`))
+      .then(() => toast('CSV descargado'))
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
   const onCreated = (a: ActivityBrief) => {
@@ -97,36 +97,68 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
   );
 }
 
-// ── What is waiting in this term: AI drafts to review, students who missed an exam ──
+// ── What is waiting in this term: AI drafts to review, students who missed an exam, attendance conflicts ──
+interface Pending { key: string; lead: ReactNode; title: string; sub: string; to?: string; onClick?: () => void }
+
+/** One row per column that needs something while they are few (one on phones, two on desktop); beyond that one summary
+ * row ("Revisar 18 borradores" · "2 faltas en exámenes") that opens them in a sheet, so the grid keeps the screen.
+ * A scheduled repesca needs nothing until its date: not listed. */
 function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data: Gradebook; onAbsences: (id: string) => void }) {
-  const drafts = data.activities.filter((a) => a.suggested > 0);
-  const missed = data.activities.filter((a) => a.pending_absent > 0);
-  if (!drafts.length && !missed.length) return null;
-  const missedCells = (a: GradebookActivity) => data.students
-    .filter((r) => r.grades[a.id]?.status === 'pending_absent')
-    .map((r) => ({ name: r.student.sort_name, repeat: !!r.grades[a.id]?.activity_id }));
+  const [open, setOpen] = useState(false);
+  const missedNames = (a: GradebookActivity) => data.students
+    .filter((r) => r.grades[a.id]?.status === 'pending_absent' && !r.grades[a.id]?.activity_id)
+    .map((r) => r.student.sort_name);
+  const items: Pending[] = [];
+  let drafts = 0; let missed = 0; let conflicts = 0;
+  for (const a of data.activities) {
+    if (a.suggested > 0) {
+      drafts += a.suggested;
+      items.push({ key: `d-${a.id}`, lead: <AIBadge />, to: `/clases/${course.id}/actividades/${a.id}`,
+        title: `Revisar ${plural(a.suggested, 'borrador', 'borradores')}`, sub: `${a.title} · no cuentan en la media hasta que los revises` });
+    }
+    const names = missedNames(a);
+    if (names.length) {
+      missed += names.length;
+      const who = `${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` y ${names.length - 3} más` : ''}`;
+      items.push({ key: `m-${a.id}`, lead: <RowIcon tone="warn"><UserMinus size={18} /></RowIcon>, onClick: () => onAbsences(a.id),
+        title: `${names.length === 1 ? 'Faltó 1 alumno' : `Faltaron ${names.length} alumnos`} a ${a.short_title}`,
+        sub: `${who} · programar repesca o poner NP` });
+    }
+    if (a.attendance_conflicts > 0) {
+      conflicts += a.attendance_conflicts;
+      items.push({ key: `c-${a.id}`, lead: <RowIcon tone="warn"><Warning size={18} /></RowIcon>, onClick: () => onAbsences(a.id),
+        title: `${a.short_title}: ${a.attendance_conflicts === 1 ? 'ausente con nota' : `${a.attendance_conflicts} ausentes con nota`}`,
+        sub: `¿Hoja mal asignada o lista mal pasada? ${a.attendance_conflicts === 1 ? 'Figura como ausente y tiene' : 'Figuran como ausentes y tienen'} hoja o nota` });
+    }
+  }
+  if (!items.length) return null;
+  const rows = (close?: () => void) => items.map((it) => (
+    <Row key={it.key} lead={it.lead} title={it.title} sub={it.sub} wrapSub to={it.to}
+      onClick={it.onClick && (() => { close?.(); it.onClick!(); })} />
+  ));
+  const parts = [
+    drafts > 0 && `Revisar ${plural(drafts, 'borrador', 'borradores')}`,
+    missed > 0 && `${plural(missed, 'falta', 'faltas')} en exámenes`,
+    conflicts > 0 && plural(conflicts, 'aviso de lista', 'avisos de lista'),
+  ].filter((p): p is string => !!p);
+  const summary = parts.join(' · ');
+  const title = parts[0][0].toUpperCase() + parts[0].slice(1);
+  const compact = items.length > 2 ? 'gb-pending--compact gb-pending--compact-all' : 'gb-pending--compact';
   return (
-    <List className="gb-pending">
-      {drafts.map((a) => (
-        <Row key={`d-${a.id}`} to={`/clases/${course.id}/actividades/${a.id}`}
-          lead={<AIBadge />}
-          title={`Revisar ${plural(a.suggested, 'borrador', 'borradores')}`}
-          sub={`${a.title} · no cuentan en la media hasta que los revises`} />
-      ))}
-      {missed.map((a) => {
-        const cells = missedCells(a);
-        const names = cells.map((c) => c.name);
-        const who = `${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` y ${names.length - 3} más` : ''}`;
-        const scheduled = cells.every((c) => c.repeat);
-        return (
-          <Row key={`m-${a.id}`} onClick={() => onAbsences(a.id)}
-            lead={<RowIcon tone="warn"><UserMinus size={18} /></RowIcon>}
-            title={scheduled ? `Repesca programada · ${a.short_title}`
-              : `${a.pending_absent === 1 ? 'Faltó 1 alumno' : `Faltaron ${a.pending_absent} alumnos`} a ${a.short_title}`}
-            sub={`${who} · ${scheduled ? 'su nota irá a esta columna' : 'programar repesca o poner NP'}`} />
-        );
-      })}
-    </List>
+    <>
+      {items.length <= 2 && <List className={`gb-pending${items.length > 1 ? ' gb-pending--full' : ''}`}>{rows()}</List>}
+      {items.length > 1 && (
+        <>
+          <List className={`gb-pending ${compact}`}>
+            <Row lead={drafts > 0 ? <AIBadge /> : <RowIcon tone="warn"><UserMinus size={18} /></RowIcon>} title={title}
+              sub={parts.slice(1).join(' · ') || undefined} onClick={() => setOpen(true)} aria-label={`Pendiente en esta evaluación: ${summary}`} />
+          </List>
+          <Sheet open={open} onClose={() => setOpen(false)} title="Pendiente en esta evaluación" subtitle={summary}>
+            <List>{rows(() => setOpen(false))}</List>
+          </Sheet>
+        </>
+      )}
+    </>
   );
 }
 
@@ -135,7 +167,7 @@ function cellText(cell: GradeCell | undefined): string {
   if (!cell) return '';
   if (cell.status === 'absent') return 'NP';
   if (cell.score == null) return '';
-  return formatGrade(cell.score, 2);
+  return formatScore(cell.score);
 }
 
 function cellLabel(cell: GradeCell | undefined): string {
@@ -145,7 +177,7 @@ function cellLabel(cell: GradeCell | undefined): string {
   }
   if (cell.status === 'absent') return 'no presentado';
   if (cell.status === 'exempt') return 'exento';
-  const n = formatGrade(cell.score, 2);
+  const n = formatScore(cell.score);
   if (cell.status === 'suggested') return `${n}, borrador de la IA sin revisar`;
   return cell.repeat ? `${n}, nota de la repesca` : n;
 }
@@ -285,7 +317,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     onOpen={() => navigate(`/clases/${course.id}/actividades/${a.id}`)} onEdit={() => onEdit(a.id)} />
                 ))}
                 <th className="gb-avg" scope="col">
-                  <span className="gb-avg__head">Media{draftsNote && <small>sin borradores</small>}</span>
+                  <span className="gb-avg__head">Media{draftsNote && <small>sin contar borradores</small>}</span>
                 </th>
                 <th className="gb-prop" scope="col">Prop.</th>
               </tr>
@@ -300,7 +332,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     </Link>
                   </th>
                   {final && data.categories.map((c) => (
-                    <td key={c.key} className="gb-cell gb-cell--ro"><Grade value={row.categories[c.key]} digits={1} /></td>
+                    <td key={c.key} className="gb-cell gb-cell--ro"><Grade value={row.categories[c.key]} /></td>
                   ))}
                   {acts.map((a, c) => {
                     const cell = row.grades[a.id];
@@ -330,7 +362,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                   })}
                   <td className="gb-avg">
                     <button type="button" className="gb-avg__btn" onClick={() => setAvgRow(row)}
-                      aria-label={`Media de ${row.student.name}: ${formatGrade(row.average)}${row.recovery ? ', con recuperación' : ''}`}>
+                      aria-label={`Media de ${row.student.name}: ${formatAverage(row.average)}${row.recovery ? ', con recuperación' : ''}`}>
                       {row.average != null ? <GradePill value={row.average} /> : <span className="gb-empty">—</span>}
                       {row.recovery && <span className="gb-avg__rec">rec.</span>}
                     </button>
@@ -344,13 +376,15 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
             <tfoot>
               <tr>
                 <th className="gb-name" scope="row"><span className="gb-foot__label">Media de la clase</span></th>
-                {final && data.categories.map((c) => <td key={c.key} className="gb-cell" />)}
+                {final && data.categories.map((c) => (
+                  <td key={c.key} className="gb-cell gb-foot__cell"><Grade value={data.category_averages[c.key]} /></td>
+                ))}
                 {acts.map((a) => (
                   <td key={a.id} className={`gb-cell gb-foot__cell${a.date === today ? ' gb-today' : ''}`}>
                     <Grade value={a.class_average} max={a.max_score} digits={1} />
                   </td>
                 ))}
-                <td className="gb-avg"><Grade value={data.class_average} digits={1} /></td>
+                <td className="gb-avg"><Grade value={data.class_average} /></td>
                 <td className="gb-prop" />
               </tr>
             </tfoot>
@@ -375,7 +409,7 @@ function CellValue({ cell, max }: { cell: GradeCell | undefined; max: number }) 
   }
   if (cell.status === 'absent') return <span className="gb-np">NP</span>;
   if (cell.status === 'exempt') return <span className="gb-np">Ex.</span>;
-  if (cell.status === 'suggested') return <span className="gb-sug">{formatGrade(cell.score, 2)}</span>;
+  if (cell.status === 'suggested') return <span className="gb-sug">{formatScore(cell.score)}</span>;
   return <Grade value={cell.score} max={max} digits={2} className={cell.repeat ? 'gb-repeat' : undefined} />;
 }
 
@@ -407,7 +441,8 @@ function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label, above }
 function headerTag(a: GradebookActivity) {
   if (a.suggested > 0) return <AIBadge />;
   if (a.counts_for === 'none') return <span className="gb-head__tag">No cuenta</span>;
-  if (a.counts_for === 'recovery') return <span className="gb-head__tag">Recuperación</span>;
+  // A recovery column says so, unless its title already does ("Recuperación de la 1.ª…")
+  if (a.counts_for === 'recovery') return /^recuperaci[oó]n/i.test(a.title.trim()) ? null : <span className="gb-head__tag">Recuperación</span>;
   if (a.student_ids) return <span className="gb-head__tag">{plural(a.student_ids.length, 'alumno', 'alumnos')}</span>;
   return null;
 }
@@ -452,33 +487,33 @@ function AverageSheet({ row, onClose, data, categories }: {
   const totalW = used.reduce((a, c) => a + c.weight, 0);
   const base = row?.recovery ? row.recovery.before : row?.average;
   const formula = final
-    ? `(${used.map((c) => formatGrade(row?.categories[c.key])).join(' + ')}) / ${used.length}`
-    : `(${used.map((c) => `${formatGrade(row?.categories[c.key])} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
+    ? `(${used.map((c) => formatAverage(row?.categories[c.key])).join(' + ')}) / ${used.length}`
+    : `(${used.map((c) => `${formatAverage(row?.categories[c.key])} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
   return (
     <Sheet open={!!row} onClose={onClose} title={row?.student.name ?? ''} subtitle={`Media de la ${final ? 'evaluación final' : data.term_label}`}>
       {row && (
         <div className="gb-avg-sheet">
           <div className="gb-avg-sheet__head">
-            <span className="gb-avg-sheet__num display"><Grade value={row.average} digits={1} /></span>
+            <span className="gb-avg-sheet__num display"><Grade value={row.average} /></span>
             {row.proposed != null && <span className="muted">Propuesta <GradePill value={row.proposed} label={row.qualitative} /></span>}
           </div>
           <List>
             {categories.map((c) => (
               <Row key={c.key} title={c.label} sub={final ? undefined : `Pesa un ${formatNumber(c.weight, 0)} %`}
                 muted={row.categories[c.key] == null}
-                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} digits={1} />} />
+                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} />} />
             ))}
           </List>
           {used.length > 0 ? (
             <p className="gb-formula">
-              <span className="num">{formula} = {formatGrade(base)}</span>
+              <span className="num">{formula} = {formatAverage(base)}</span>
               {!final && used.length < categories.length && <> · Las categorías sin notas no cuentan: su peso se reparte entre las demás.</>}
               {final && <> · Media de las evaluaciones con nota.</>}
             </p>
           ) : <p className="muted">Todavía no hay notas confirmadas.</p>}
           {row.recovery && (
             <p className="gb-formula">
-              Recuperación: {formatGrade(row.recovery.score)} → la media pasa de {formatGrade(row.recovery.before)} a {formatGrade(row.average)} ({RULE_TEXT[data.recovery_rule]}).
+              Recuperación: {formatAverage(row.recovery.score)} → la media pasa de {formatAverage(row.recovery.before)} a {formatAverage(row.average)} ({RULE_TEXT[data.recovery_rule]}).
             </p>
           )}
           {row.drafts > 0 && <p className="gb-formula">No cuenta {plural(row.drafts, 'borrador', 'borradores')} de la IA sin revisar.</p>}

@@ -134,6 +134,28 @@ export function useScheduleRepeat(activityId: string, courseId: string) {
   });
 }
 
+/** NP for students who missed an exam, written where each one's slot is pending: the repeat exam they were scheduled
+ * for, or the original. `targets` = [{activityId, studentId}]. */
+export function useMarkNotPresented(originalId: string, courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (targets: { activityId: string; studentId: string }[]) => {
+      const by = new Map<string, string[]>();
+      for (const t of targets) by.set(t.activityId, [...(by.get(t.activityId) ?? []), t.studentId]);
+      for (const [activityId, ids] of by) {
+        await api.put<ActivityDetail>(`/activities/${activityId}/grades`, { grades: ids.map((student_id) => ({ student_id, status: 'absent' })) });
+      }
+      return [...by.keys()];
+    },
+    onSettled: (ids) => {
+      for (const id of new Set([originalId, ...(ids ?? [])])) qc.invalidateQueries({ queryKey: activityKeys.one(id) });
+      qc.invalidateQueries({ queryKey: ['course', courseId] });
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+      qc.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
 /** Default category for a kind (mirrors grading.KIND_CATEGORY; the server validates). */
 export const KIND_CATEGORY: Record<ActivityKind, string> = {
   exam: 'exams', worksheet: 'work', task: 'work', notebook: 'work', oral: 'exams', attitude: 'observation', other: 'work',

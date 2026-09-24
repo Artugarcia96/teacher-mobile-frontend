@@ -10,10 +10,11 @@ export interface GradebookActivity {
   counts_for: CountsFor; recovers_term: number | null;
   /** Only these students have a cell (recoveries, repeats); null = whole class. */
   student_ids: string[] | null;
-  has_suggestions: boolean;
   /** AI drafts waiting for review (not counted until confirmed). */
   suggested: number;
   pending_absent: number;
+  /** Marked absent on the exam day but with a paper or a grade ("¿hoja mal asignada?"). */
+  attendance_conflicts: number;
   /** Class average on the activity's own scale. */
   class_average: number | null;
 }
@@ -40,6 +41,8 @@ export interface Gradebook {
   term: number; term_label: string; stage: string; categories: Category[];
   /** Most recent first. */
   activities: GradebookActivity[]; students: GradebookRow[]; class_average: number | null;
+  /** Class mean per category (Final: per term, t1..t3). */
+  category_averages: Record<string, number | null>;
   drafts: number; recovery_rule: RecoveryRule;
 }
 export type RecoveryRule = 'replace_if_higher' | 'cap_5' | 'average';

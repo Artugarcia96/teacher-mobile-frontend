@@ -2,6 +2,7 @@
 @media (max-width: 520px) { .ev-toolbar, .ev-toolbar .seg { width: 100%; display: grid; } }
 .ev-term--closed { opacity: 0.4; }
 .ev-kpis { font-size: var(--fs-sub); color: var(--ink-2); line-height: 1.5; margin-top: calc(-1 * var(--s-2)); }
+.ev-kpis > span > span { white-space: nowrap; } /* wraps only at " · " */
 .ev-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .ev-job { display: grid; gap: var(--s-2); width: 100%; }
 .ev-job__hint { font-size: var(--fs-footnote); color: var(--ink-2); }
@@ -21,6 +22,7 @@
 .ev-row__meta { font-size: var(--fs-footnote); }
 .ev-row__rec { color: var(--ink); font-weight: 600; }
 .ev-row__pending { color: var(--warn); font-weight: 600; }
+.ev-row__stale { font-size: var(--fs-footnote); color: var(--warn); font-weight: 600; }
 .ev-row__comment { color: var(--ink); font-size: var(--fs-sub); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: var(--reading-max); }
 .ev-row__final { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; padding-top: 2px; min-width: 64px; }
 .ev-row__kind { font-size: 11px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
@@ -43,4 +45,5 @@
 .ev-sheet__switch { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) 14px; border-radius: var(--r-row); background: var(--fill); }
 .ev-sheet__switch b { font-weight: 600; }
 .ev-sheet__facts { display: grid; gap: 4px; font-size: var(--fs-footnote); color: var(--ink-2); }
+.ev-sheet__facts .btn--plain { height: 24px; padding: 0 6px; }
 .ev-row__final .grade-pill, .gb-avg-sheet .grade-pill { align-items: center; }

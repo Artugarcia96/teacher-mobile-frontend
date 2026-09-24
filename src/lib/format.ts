@@ -68,11 +68,27 @@ export function relativeDay(iso: string, today: string): string {
   return shortDate(iso);
 }
 
-/** 6.5 → "6,5"; 7 → "7"; null → "—" */
+/** Number with Spanish decimal comma, up to `digits` decimals: 6.5 → "6,5"; 7 → "7"; null → "—".
+ *  Grades use the three rules below; call this directly only for other numbers (weights, points). */
 export function formatGrade(v: number | null | undefined, digits = 1): string {
   if (v === null || v === undefined || Number.isNaN(v)) return '—';
   const rounded = Math.round(v * 10 ** digits) / 10 ** digits;
   return String(rounded).replace('.', ',');
+}
+
+/** Rule 1 — averages (evaluación, categoría, clase, final): one decimal. 6.875 → "6,9". */
+export function formatAverage(v: number | null | undefined): string {
+  return formatGrade(v, 1);
+}
+
+/** Rule 2 — a grade as the teacher entered it (activity score): up to two decimals. 6.25 → "6,25". */
+export function formatScore(v: number | null | undefined): string {
+  return formatGrade(v, 2);
+}
+
+/** Rule 3 — proposed / final grade of an evaluación: integer. 6.5 → "7" (the backend already rounds). */
+export function formatProposal(v: number | null | undefined): string {
+  return v === null || v === undefined || Number.isNaN(v) ? '—' : String(Math.round(v));
 }
 
 export function formatNumber(v: number | null | undefined, digits = 1): string {

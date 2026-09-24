@@ -1,17 +1,17 @@
-import { ArrowCounterClockwise, CalendarBlank, ChatCenteredText, Copy, DotsThree, FileCsv, FilePdf, ListChecks, Scales, Student, Table } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, CalendarBlank, ChatCenteredText, Copy, DotsThree, FileCsv, FilePdf, ListChecks, Scales, Student, Table, Warning } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCourse, useJob } from '../../api/core';
 import {
-  evaluationKeys, RECOVERY_RULES, useDraftComments, useEvaluation, useRunningCommentsJob, useSetRecoveryRule, type Band, type EvalRow,
-  type Evaluation,
+  distributionParts, evaluationKeys, finalRecoveryLabel, RECOVERY_RULES, useDraftComments, useEvaluation, useRunningCommentsJob,
+  useSaveEvalRow, useSetRecoveryRule, type EvalRow, type Evaluation,
 } from '../../api/evaluation';
 import type { CourseDetail } from '../../api/types';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { formatGrade, formatPercent, longDate, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { formatAverage, formatPercent, formatProposal, longDate, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, Chip, Dot, EmptyState, GradePill, IconButton, List, Menu, Page, Progress, Row, Section, Segmented,
   Sheet, SkeletonList, useFeedback,
@@ -22,10 +22,6 @@ import './EvaluationPage.css';
 
 /** Page titles in words: the display serif draws the ordinal "ª" as a large raised letter ("1. a"). */
 const TITLE: Record<number, string> = { 1: 'Primera evaluación', 2: 'Segunda evaluación', 3: 'Tercera evaluación', 4: 'Evaluación final' };
-
-const BANDS: { key: Band; numeric: string }[] = [
-  { key: 'IN', numeric: '< 5' }, { key: 'SU', numeric: '5' }, { key: 'BI', numeric: '6' }, { key: 'NT', numeric: '7-8' }, { key: 'SB', numeric: '9-10' },
-];
 
 /** When a term opens: its start date; the final opens with the 3rd term. Null = already open. */
 function opensOn(terms: { n: number; start: string }[] | undefined, t: number, today: string): string | null {
@@ -42,15 +38,25 @@ export default function EvaluationPage() {
   const today = useToday();
   const { toast } = useFeedback();
   const course = useCourse(courseId);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const ev = useEvaluation(courseId, term, !!jobId);
-  const running = useRunningCommentsJob(courseId);
-  useEffect(() => { if (running.data) setJobId(running.data.id); }, [running.data]);
+  const closed = opensOn(me?.school_year.terms, term, today);
+  // The comments job belongs to one term: its page (and only that one) follows it.
+  const [job, setJob] = useState<{ id: string; term: number } | null>(null);
+  const jobId = job?.term === term ? job.id : null;
+  const setJobId = (id: string | null) => setJob(id ? { id, term } : null);
+  const ev = useEvaluation(courseId, term, { live: !!jobId, enabled: !closed });
+  const running = useRunningCommentsJob(courseId, term);
+  useEffect(() => { if (running.data) setJob({ id: running.data.id, term }); }, [running.data, term]);
   const title = TITLE[term];
 
   const options = [1, 2, 3, 4].map((t) => {
     const opens = opensOn(me?.school_year.terms, t, today);
-    return { value: t, label: <span className={opens ? 'ev-term--closed' : undefined} title={opens ? `Empieza el ${longDate(opens)}` : undefined}>{TERM_SHORT[t]}</span> };
+    return {
+      value: t,
+      label: opens ? (
+        <><span className="ev-term--closed" aria-hidden>{TERM_SHORT[t]}</span>
+          <span className="sr-only">{TERM_SHORT[t]}, no disponible: {t === 4 ? 'se abre con la 3.ª evaluación, el' : 'empieza el'} {longDate(opens)}</span></>
+      ) : TERM_SHORT[t],
+    };
   });
   const pickTerm = (t: number) => {
     const opens = opensOn(me?.school_year.terms, t, today);
@@ -74,10 +80,9 @@ export default function EvaluationPage() {
   }
 
   const data = ev.data?.term === term ? ev.data : undefined;
-  const closed = opensOn(me?.school_year.terms, term, today);
   return (
     <Page title={title} eyebrow={eyebrow} back={`/clases/${courseId}/cuaderno?term=${term}`} backLabel="Cuaderno"
-      actions={course.data && data && <EvalMenu course={course.data} data={data} />}
+      actions={course.data && data && !closed && <EvalMenu course={course.data} data={data} />}
       toolbar={<div className="ev-toolbar"><Segmented label="Evaluación" value={term} options={options} onChange={pickTerm} /></div>}>
       {closed ? (
         <EmptyState icon={<CalendarBlank size={24} />}
@@ -168,7 +173,10 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
       qc.invalidateQueries({ queryKey: evaluationKeys.one(course.id, data.term) });
       qc.invalidateQueries({ queryKey: ['inbox'] });
       const n = Number(j.result?.updated ?? 0);
-      toast(n ? `${plural(n, 'comentario redactado', 'comentarios redactados')}. Revísalos antes de darlos por buenos.` : 'No había comentarios que redactar');
+      const skipped = Number(j.result?.skipped ?? 0);
+      const kept = skipped ? ` ${skipped === 1 ? '1 no se ha tocado porque lo editaste' : `${skipped} no se han tocado porque los editaste`} mientras tanto.` : '';
+      toast(n ? `${plural(n, 'comentario redactado', 'comentarios redactados')}. Revísalos antes de darlos por buenos.${kept}`
+        : `No se ha redactado ningún comentario.${kept}`);
     },
     onFail: (j) => { setJobId(null); toast(j.error || 'No se han podido redactar los comentarios.', { tone: 'error' }); },
   });
@@ -176,9 +184,11 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
   const { stats, rows } = data;
   const missing = rows.filter((r) => !r.comment);
   const aiDrafts = rows.filter((r) => r.comment_source === 'ai' && r.comment_status === 'draft');
-  const failing = rows.filter((r) => r.final != null && r.final < 5);
+  const stale = rows.filter((r) => r.stale_adjustment);
+  // A stale adjustment is not a fail: its recovery is already there, the teacher only has to use it.
+  const failing = rows.filter((r) => r.final != null && r.final < 5 && !r.stale_adjustment);
   const running = !!jobId;
-  const qualitative = data.stage === 'eso' || data.stage === 'primaria';
+  const finalRec = finalRecoveryLabel(course.group.stage);
   const base = `/courses/${course.id}/evaluation/${data.term}`;
   const fileLabel = `${course.subject} ${course.group.name} ${data.term_label}`;
 
@@ -200,20 +210,22 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
   const get = (kind: 'pdf' | 'csv') => {
     setDownloading(kind);
     const p = kind === 'pdf' ? download(`${base}/acta.pdf`, `Acta ${fileLabel}.pdf`) : download(`${base}.csv`, `Evaluacion ${fileLabel}.csv`);
-    p.then((name) => toast(`Descargado: ${name}`))
+    p.then(() => toast(kind === 'pdf' ? 'Acta descargada' : 'CSV descargado'))
       .catch((e: Error) => toast(e.message, { tone: 'error' }))
       .finally(() => setDownloading(null));
   };
 
   const kpis = stats.average == null ? ['Aún no hay notas en esta evaluación'] : [
-    `Media ${formatGrade(stats.average)}`,
+    `Media ${formatAverage(stats.average)}`,
     `${formatPercent(stats.pass_rate)} aprobados`,
-    ...BANDS.map((b) => `${qualitative ? b.key : b.numeric} ${stats.distribution[b.key] ?? 0}`),
+    ...distributionParts(stats.distribution, data.stage),
   ];
 
   return (
     <>
-      <p className="ev-kpis num" aria-label="Resumen de la evaluación">{kpis.join(' · ')}</p>
+      <p className="ev-kpis num" aria-label="Resumen de la evaluación">
+        {kpis.map((k, i) => <span key={i}>{i > 0 && ' · '}<span>{k}</span></span>)}
+      </p>
 
       {data.to_review.length > 0 && (
         <Callout tone="accent">
@@ -225,6 +237,8 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
           ))}
         </Callout>
       )}
+
+      {stale.length > 0 && <StaleAdjustments course={course} term={data.term} rows={stale} />}
 
       {running ? (
         <Callout tone="accent" icon={<ChatCenteredText size={20} />}>
@@ -265,13 +279,35 @@ function EvaluationBody({ course, data, jobId, setJobId }: {
 
       <EvalStudentSheet course={course} data={data} index={open} onIndex={setOpen} />
       <NewActivitySheet open={recovery} onClose={() => setRecovery(false)} course={course}
-        title={data.term === 4 ? 'Crear recuperación extraordinaria' : `Crear recuperación de la ${TERM_SHORT[data.term]}`}
+        title={data.term === 4 ? `Crear recuperación ${finalRec}` : `Crear recuperación de la ${TERM_SHORT[data.term]}`}
         subtitle={`Para ${plural(failing.length, 'alumno', 'alumnos')} con la evaluación suspensa · ${RECOVERY_RULES.find((r) => r.value === data.recovery_rule)?.label.toLowerCase()}`}
         initial={{
-          title: data.term === 4 ? 'Prueba extraordinaria' : `Recuperación de la ${TERM_LABEL[data.term]}`, kind: 'exam',
+          title: data.term === 4 ? `Recuperación ${finalRec}` : `Recuperación de la ${TERM_LABEL[data.term]}`, kind: 'exam',
           counts_for: 'recovery', recovers_term: data.term, student_ids: failing.map((r) => r.student.id),
         }} />
     </>
+  );
+}
+
+/** Adjusted grades set before a recovery that now proposes more: the recovery doesn't reach the acta until the
+ * adjustment goes ("Usar 8" = back to the proposal). */
+function StaleAdjustments({ course, term, rows }: { course: CourseDetail; term: number; rows: EvalRow[] }) {
+  const { toast } = useFeedback();
+  const save = useSaveEvalRow(course.id, term);
+  const apply = (r: EvalRow) => save.mutate({ studentId: r.student.id, final_grade: null }, {
+    onSuccess: () => toast(`${r.student.first_name}: cuenta la recuperación (${formatProposal(r.proposed)})`),
+    onError: (e) => toast(e.message, { tone: 'error' }),
+  });
+  return (
+    <Callout tone="warn" icon={<Warning size={20} />}>
+      <b>{rows.length === 1 ? 'Una nota ajustada no incluye la recuperación.' : `${rows.length} notas ajustadas no incluyen la recuperación.`}</b>{' '}
+      {rows.map((r, i) => (
+        <span key={r.student.id}>{i > 0 && ' · '}
+          {r.student.sort_name}: ajustada {formatProposal(r.final_grade)}, con la recuperación {formatProposal(r.proposed)}{' '}
+          <Button size="sm" variant="plain" disabled={save.isPending} onClick={() => apply(r)}>Usar {formatProposal(r.proposed)}</Button>
+        </span>
+      ))}
+    </Callout>
   );
 }
 
@@ -299,17 +335,20 @@ function EvalRowItem({ row, onOpen }: { row: EvalRow; onOpen: () => void }) {
       </>}
       sub={<>
         <span className="ev-row__meta">
-          Media {formatGrade(row.average)}
-          {rec && <> · <span className="ev-row__rec">{rec.before_proposed ?? '—'} → {row.proposed} (rec.)</span></>}
+          Media {formatAverage(row.average)}
+          {rec && <> · <span className="ev-row__rec">{formatProposal(rec.before_proposed)} → {formatProposal(row.proposed)} (rec.)</span></>}
           {row.absences > 0 && <> · {plural(row.absences, 'falta', 'faltas')}</>}
           {row.pending_exams.length > 0 && <> · <span className="ev-row__pending">Pendiente: {row.pending_exams.map((p) => p.title).join(', ')}</span></>}
         </span>
+        {row.stale_adjustment && (
+          <span className="ev-row__stale">La nota ajustada ({formatProposal(row.final_grade)}) no incluye la recuperación ({formatProposal(row.proposed)})</span>
+        )}
         {row.comment && <span className="ev-row__comment">{row.comment}</span>}
       </>}
       wrapSub
       trail={<div className="ev-row__final">
-        {row.final != null ? <GradePill value={row.final} label={row.final_qualitative} /> : <span className="faint">{formatGrade(null)}</span>}
-        <span className={`ev-row__kind${adjusted ? ' ev-row__kind--adjusted' : ''}`}>{adjusted ? `Ajustada (prop. ${row.proposed ?? '—'})` : 'Propuesta'}</span>
+        {row.final != null ? <GradePill value={row.final} label={row.final_qualitative} /> : <span className="faint">—</span>}
+        <span className={`ev-row__kind${adjusted ? ' ev-row__kind--adjusted' : ''}`}>{adjusted ? `Ajustada (prop. ${formatProposal(row.proposed)})` : 'Propuesta'}</span>
       </div>}
     />
   );

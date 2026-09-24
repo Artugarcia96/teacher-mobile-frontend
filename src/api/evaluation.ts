@@ -17,6 +17,8 @@ export interface EvalRow {
   final_grade: number | null;
   /** Effective grade: final_grade ?? proposed. */
   final: number | null;
+  /** final_grade is below a proposal that includes a recovery: the recovery doesn't reach the acta ("Usar N"). */
+  stale_adjustment: boolean;
   final_qualitative: Band | null;
   comment: string | null;
   comment_status: 'draft' | 'final' | null;
@@ -42,7 +44,9 @@ export interface Evaluation {
 export interface EvalRowInput { final_grade?: number | null; comment?: string | null; comment_status?: 'draft' | 'final' | null }
 
 export interface DepartmentRow {
-  course: CourseRef; students: number; graded: number; pass_rate: number | null; average: number | null;
+  course: CourseRef; stage: string; students: number;
+  /** With a grade that counts: pass rate and distribution are over these. */
+  graded: number; pass_rate: number | null; average: number | null;
   distribution: Record<Band, number>; units_planned: number; units_done: number; units_in_progress: string[]; units_pending: string[]; notes: string;
 }
 export interface DepartmentReport { term: number; term_label: string; rows: DepartmentRow[] }
@@ -52,12 +56,13 @@ export const evaluationKeys = {
   department: (term: number) => ['department-report', term] as const,
 };
 
-/** `live` polls every 2 s (while AI comments are being written, so they appear as each batch finishes). */
-export function useEvaluation(courseId: string | undefined, term: number, live = false) {
+/** `live` polls every 2 s (while AI comments are being written, so they appear as each batch finishes).
+ * `enabled` false for a term that hasn't started. */
+export function useEvaluation(courseId: string | undefined, term: number, { live = false, enabled = true } = {}) {
   return useQuery({
     queryKey: evaluationKeys.one(courseId!, term),
     queryFn: () => api.get<Evaluation>(`/courses/${courseId}/evaluation/${term}`),
-    enabled: !!courseId,
+    enabled: !!courseId && enabled,
     placeholderData: (prev) => prev,
     refetchInterval: live ? 2000 : false,
   });
@@ -87,14 +92,15 @@ export function useDraftComments(courseId: string, term: number) {
   });
 }
 
-/** A comments job already running for this class (started earlier, before leaving the page). */
-export function useRunningCommentsJob(courseId: string | undefined) {
+/** A comments job already running for this class and term (started earlier, before leaving the page).
+ * The job carries its term in `result.term` from the start. */
+export function useRunningCommentsJob(courseId: string | undefined, term: number) {
   return useQuery({
     queryKey: ['jobs', 'active', 'report_comments', courseId],
     queryFn: () => api.get<Job[]>('/jobs?active=true'),
     enabled: !!courseId,
     staleTime: 0,
-    select: (jobs) => jobs.find((j) => j.kind === 'report_comments' && j.ref_id === courseId) ?? null,
+    select: (jobs) => jobs.find((j) => j.kind === 'report_comments' && j.ref_id === courseId && j.result?.term === term) ?? null,
   });
 }
 
@@ -138,3 +144,19 @@ export const RECOVERY_RULES: { value: RecoveryRule; label: string; hint: string 
   { value: 'cap_5', label: 'Como máximo un 5', hint: 'Aprobar la recuperación deja la evaluación en 5.' },
   { value: 'average', label: 'Media de ambas', hint: 'Media entre la evaluación y la recuperación.' },
 ];
+
+const BANDS: { key: Band; numeric: string }[] = [
+  { key: 'IN', numeric: '<5' }, { key: 'SU', numeric: '5' }, { key: 'BI', numeric: '6' }, { key: 'NT', numeric: '7-8' }, { key: 'SB', numeric: '9-10' },
+];
+
+/** "IN 4 · SU 3 · BI 5 · NT 10 · SB 2" (ESO) or "<5: 4 · 5: 3 · 6: 5 · 7-8: 10 · 9-10: 2" (other stages), one string per
+ * band: render each in a nowrap span so the line only wraps at " · ". Evaluación KPIs and the department report. */
+export function distributionParts(distribution: Record<Band, number>, stage: string): string[] {
+  const qualitative = stage === 'eso' || stage === 'primaria';
+  return BANDS.map((b) => `${qualitative ? b.key : `${b.numeric}:`} ${distribution[b.key] ?? 0}`);
+}
+
+/** Since LOMLOE only Bachillerato keeps the extraordinaria; elsewhere the last recovery is "final". */
+export function finalRecoveryLabel(stage: string): string {
+  return stage === 'bachillerato' ? 'extraordinaria' : 'final';
+}

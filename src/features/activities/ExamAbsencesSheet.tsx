@@ -1,9 +1,9 @@
 import { Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useActivity, useSaveGrades, useScheduleRepeat, type ActivityDetail } from '../../api/activities';
+import { useActivity, useMarkNotPresented, useScheduleRepeat, type ActivityDetail } from '../../api/activities';
 import type { CourseDetail } from '../../api/types';
 import { useToday } from '../../lib/auth';
-import { addDays, formatGrade, longDate, plural, shortDate } from '../../lib/format';
+import { addDays, formatScore, longDate, plural, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, List, Row, Sheet, SkeletonList, TextField, useFeedback } from '../../ui';
 import './activities.css';
 
@@ -28,7 +28,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
   const today = useToday();
   const { toast, confirm } = useFeedback();
   const repeat = useScheduleRepeat(activity.id, course.id);
-  const grades = useSaveGrades(activity.id, course.id);
+  const np = useMarkNotPresented(activity.id, course.id);
   const pending = activity.absent_students.filter((a) => a.pending);
   const [picked, setPicked] = useState<string[]>(() => pending.filter((a) => !a.repeat_id).map((a) => a.student.id));
   const nextDate = course.next_session?.date && course.next_session.date > today ? course.next_session.date : addDays(today, 7);
@@ -50,7 +50,8 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
       confirm: 'Poner NP',
     });
     if (!ok) return;
-    grades.mutate(chosen.map((a) => ({ student_id: a.student.id, status: 'absent' as const })), {
+    // A student with a repesca scheduled gets the NP in the repesca (their slot), the rest in this exam.
+    np.mutate(chosen.map((a) => ({ activityId: a.repeat_id ?? activity.id, studentId: a.student.id })), {
       onSuccess: () => { toast(`NP puesto a ${plural(chosen.length, 'alumno', 'alumnos')}`); onClose(); },
       onError: (e) => toast(e.message, { tone: 'error' }),
     });
@@ -70,7 +71,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
     <Sheet open onClose={onClose} title={`Faltaron a ${activity.title}`} subtitle={`${longDate(activity.date)} · según la lista de ese día`}
       footer={chosen.length > 0 ? (
         <>
-          <Button variant="neutral" onClick={markNP} loading={grades.isPending}>Poner NP ({chosen.length})</Button>
+          <Button variant="neutral" onClick={markNP} loading={np.isPending}>Poner NP ({chosen.length})</Button>
           <Button onClick={schedule} loading={repeat.isPending}>Programar repesca ({chosen.length})</Button>
         </>
       ) : undefined}>
@@ -78,7 +79,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
         {activity.attendance_conflicts.length > 0 && (
           <Callout tone="warn" icon={<Warning size={20} />}>
             <b>¿Hoja mal asignada o lista mal pasada?</b>{' '}
-            {activity.attendance_conflicts.map((c) => `${c.student.sort_name} figura como ausente y tiene ${c.has_paper ? 'hoja' : 'nota'}${c.score != null ? ` (${formatGrade(c.score, 2)})` : ''}`).join('; ')}.
+            {activity.attendance_conflicts.map((c) => `${c.student.sort_name} figura como ausente y tiene ${conflictWhat(c)}`).join('; ')}.
           </Callout>
         )}
         <List>
@@ -100,7 +101,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
               </div>
             </div>
             {chosen.length > 0 ? (
-              <TextField label="Fecha de la repesca" type="date" value={date} min={today} onChange={(e) => e.target.value && setDate(e.target.value)}
+              <TextField label="Fecha de la repesca" type="date" value={date} min={activity.date} onChange={(e) => e.target.value && setDate(e.target.value)}
                 hint="La repesca es la misma prueba (misma rúbrica) solo para ellos; su nota ocupa el hueco de este examen." />
             ) : pending.every((a) => a.repeat_id) ? (
               <p className="muted">Repesca programada: su nota irá a la columna de este examen. Si no se presenta, elígelo para ponerle NP.</p>
@@ -114,4 +115,11 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
       </div>
     </Sheet>
   );
+}
+
+/** "hoja y nota 8,25" · "nota 8,25" · "hoja" · "nota de la IA 6,5" */
+function conflictWhat(c: ActivityDetail['attendance_conflicts'][number]): string {
+  const score = c.score != null ? `${c.status === 'suggested' ? 'nota de la IA' : 'nota'} ${formatScore(c.score)}` : null;
+  if (c.has_paper && score) return `hoja y ${score}`;
+  return score ?? 'hoja';
 }

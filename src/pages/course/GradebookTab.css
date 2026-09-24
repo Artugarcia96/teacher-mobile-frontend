@@ -13,6 +13,13 @@ html:has(.gb-scroll) { scroll-padding-bottom: calc(96px + env(safe-area-inset-bo
 
 .gb-pending { margin-top: calc(-1 * var(--s-2)); }
 .gb-pending .ai-badge { white-space: nowrap; }
+/* One summary row (opens a sheet) instead of one row per column: on phones from 2 items, everywhere from 3 */
+.gb-pending--compact { display: none; }
+.gb-pending--compact-all { display: block; }
+@media (max-width: 520px) {
+  .gb-pending--full { display: none; }
+  .gb-pending--compact { display: block; }
+}
 
 .gb-card { width: fit-content; max-width: 100%; background: var(--paper); border-radius: var(--r-card); box-shadow: var(--e1); overflow: hidden; margin-top: calc(-1 * var(--s-2)); }
 .gb-scroll {

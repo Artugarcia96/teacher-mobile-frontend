@@ -63,7 +63,7 @@ function EditForm({ activity, onClose, course, onDeleted }: { activity: Activity
         <Button loading={patch.isPending} disabled={!ready} onClick={save}>{ready ? 'Guardar' : !value.title.trim() ? 'Escribe un título' : 'Elige algún alumno'}</Button>
       </>}>
       <form onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
-        <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} moreOpen />
+        <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} stage={course.group.stage} moreOpen />
         <button type="submit" hidden />
       </form>
       <div className="act-form__danger">

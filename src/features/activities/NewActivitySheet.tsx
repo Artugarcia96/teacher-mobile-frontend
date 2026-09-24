@@ -52,7 +52,8 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
         {ready ? 'Crear actividad' : noStudents ? 'Elige algún alumno' : 'Escribe un título'}
       </Button>}>
       <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
-        <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} autoFocus={!initial}
+        <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} stage={course.group.stage}
+          autoFocus={!initial}
           moreOpen={!!initial && (initial.counts_for !== undefined || initial.student_ids !== undefined)} />
         <button type="submit" hidden />
       </form>

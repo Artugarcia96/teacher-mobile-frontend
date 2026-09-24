@@ -2,6 +2,7 @@ import { CaretDown } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useCourseStudents } from '../../api/core';
 import { KIND_CATEGORY, type ActivityInput, type ActivityKind, type CountsFor } from '../../api/activities';
+import { finalRecoveryLabel } from '../../api/evaluation';
 import type { Category } from '../../api/types';
 import { useUnits } from '../../api/units';
 import { useAuth } from '../../lib/auth';
@@ -24,27 +25,32 @@ export function toInput(v: ActivityFormValue): ActivityInput {
   };
 }
 
-/** "Cuenta para" options: encoded as average | none | rec-1..rec-4. */
-const COUNTS_FOR = [
-  { value: 'average', label: 'La media de la evaluación' },
-  { value: 'none', label: 'No cuenta (evaluación inicial, diagnóstica)' },
-  ...[1, 2, 3].map((t) => ({ value: `rec-${t}`, label: `Recuperar la ${TERM_SHORT[t]} evaluación` })),
-  { value: 'rec-4', label: 'Recuperar la final (extraordinaria)' },
-];
+/** "Cuenta para" options: encoded as average | none | rec-1..rec-4. The final recovery is the extraordinaria only in
+ * Bachillerato (LOMLOE). */
+function countsForOptions(stage: string) {
+  return [
+    { value: 'average', label: 'La media de la evaluación' },
+    { value: 'none', label: 'No cuenta (evaluación inicial, diagnóstica)' },
+    ...[1, 2, 3].map((t) => ({ value: `rec-${t}`, label: `Recuperar la ${TERM_SHORT[t]} evaluación` })),
+    { value: 'rec-4', label: stage === 'bachillerato' ? 'Recuperar la final (extraordinaria)' : 'Recuperar la final' },
+  ];
+}
 
 function countsValue(v: ActivityFormValue): string {
   return v.counts_for === 'recovery' ? `rec-${v.recovers_term ?? 1}` : v.counts_for;
 }
 
-function dateHint(v: ActivityFormValue, term: number | null): string | undefined {
-  if (v.counts_for === 'recovery') return v.recovers_term === 4 ? 'Recupera la final' : `Recupera la ${TERM_LABEL[v.recovers_term ?? 1]}`;
+function dateHint(v: ActivityFormValue, term: number | null, stage: string): string | undefined {
+  if (v.counts_for === 'recovery') {
+    return v.recovers_term === 4 ? `Recuperación ${finalRecoveryLabel(stage)}` : `Recupera la ${TERM_LABEL[v.recovers_term ?? 1]}`;
+  }
   if (v.counts_for === 'none') return 'No cuenta para la media';
   return term ? `Cuenta para la ${TERM_LABEL[term]}` : undefined;
 }
 
-/** Fields shared by NewActivitySheet and EditActivitySheet. Controlled. */
-export function ActivityForm({ value, onChange, categories, courseId, moreOpen, autoFocus }: {
-  value: ActivityFormValue; onChange: (v: ActivityFormValue) => void; categories: Category[]; courseId: string;
+/** Fields shared by NewActivitySheet and EditActivitySheet. Controlled. `stage` of the class (labels of the final recovery). */
+export function ActivityForm({ value, onChange, categories, courseId, stage, moreOpen, autoFocus }: {
+  value: ActivityFormValue; onChange: (v: ActivityFormValue) => void; categories: Category[]; courseId: string; stage: string;
   moreOpen?: boolean; autoFocus?: boolean;
 }) {
   const { me } = useAuth();
@@ -80,7 +86,7 @@ export function ActivityForm({ value, onChange, categories, courseId, moreOpen, 
       </div>
       <div className="act-form__row">
         <TextField label="Fecha" type="date" value={value.date} required onChange={(e) => e.target.value && set({ date: e.target.value })}
-          hint={dateHint(value, term)} />
+          hint={dateHint(value, term, stage)} />
         <div className="field">
           <span className="field__label">Nota máxima</span>
           <Stepper label="Nota máxima" value={value.max_score} min={1} max={100} onChange={(v) => set({ max_score: v })} />
@@ -107,7 +113,7 @@ export function ActivityForm({ value, onChange, categories, courseId, moreOpen, 
             if (v.startsWith('rec-')) set({ counts_for: 'recovery', recovers_term: Number(v.slice(4)) });
             else set({ counts_for: v as CountsFor, recovers_term: null });
           }}>
-            {COUNTS_FOR.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {countsForOptions(stage).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
           {roster.length > 0 && (
             <div className="field">
