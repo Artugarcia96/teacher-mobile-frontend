@@ -1,21 +1,36 @@
-/* TakeAttendanceSheet layout. Tokens only. */
-.att-sub { display: grid; gap: 2px; }
-.att-sub__line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
-.att-sub__line b { color: var(--ink); font-weight: 600; }
-.att-sub__err { color: var(--danger); }
-.att-error { display: flex; gap: 8px; align-items: center; color: var(--danger); }
+/* Roster «a toques» (Pasar lista, Revisar deberes). Layout + tokens only. */
+.roster-head { display: grid; gap: 3px; }
+.roster-head__meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.roster-head__sum { color: var(--ink); font-weight: 600; }
+.roster-head__names { color: var(--ink-2); }
+.roster-head__names b { color: var(--ink); font-weight: 600; }
+.roster-head__hint { color: var(--ink-3); font-size: var(--fs-footnote); }
+.roster-head__do { color: var(--ink-2); }
+.roster-head__err { color: var(--danger); }
 
-.row.att-row { flex-wrap: wrap; padding: 0 8px 0 0; gap: 0; }
-.att-row__tap {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px 6px 16px;
-  border: 0; background: transparent; text-align: left; color: inherit; border-radius: var(--r-row);
-  -webkit-tap-highlight-color: transparent; user-select: none;
+.roster {
+  display: grid; background: var(--paper); border-radius: var(--r-card); box-shadow: var(--e1); overflow: hidden;
+  --roster-inset: 52px;
 }
-.att-row__tap:active { background: var(--fill); }
-.att-row__main { flex: 1; min-width: 0; display: grid; }
-.att-row__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.att-row__note { font-size: var(--fs-footnote); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.att-row__edit { flex-basis: 100%; padding: 0 8px 12px 64px; }
-
-.att-note { flex: 1; min-width: 0; }
-.sheet__foot > .att-done { flex: none; min-width: 96px; }
+.roster > * { position: relative; }
+.roster > * + :not(.roster__edit)::before {
+  content: ''; position: absolute; z-index: 1; top: 0; right: 0; left: var(--roster-inset); height: 0.5px; background: var(--line);
+  pointer-events: none;
+}
+.roster__row {
+  flex: 1; width: 100%; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 14px 4px 0;
+  border: 0; background: transparent; text-align: left; color: inherit;
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
+  transition: background var(--t-fast);
+}
+.roster__row:hover:not(:disabled) { background: var(--paper-2); }
+.roster__row:active:not(:disabled) { background: var(--fill); }
+.roster__row:disabled { cursor: default; }
+.roster__row:disabled .roster__name { color: var(--ink-3); }
+.roster__n { width: 40px; flex: none; text-align: right; color: var(--ink-3); font-size: var(--fs-sub); }
+.roster__main { flex: 1; min-width: 0; display: grid; }
+.roster__name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster__note { font-size: var(--fs-footnote); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster .chip { flex: none; min-width: 84px; justify-content: center; }
+.roster .roster__muted { background: transparent; color: var(--ink-3); font-weight: 500; }
+.roster__edit { padding: 0 14px 12px var(--roster-inset); }

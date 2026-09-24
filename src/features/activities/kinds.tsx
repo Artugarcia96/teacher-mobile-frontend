@@ -1,4 +1,4 @@
-import { ClipboardText, DotsThreeCircle, Exam, FileText, Microphone, Notebook, UserFocus, type IconProps } from '@phosphor-icons/react';
+import { Backpack, ClipboardText, DotsThreeCircle, Exam, FileText, Microphone, Notebook, UserFocus, type IconProps } from '@phosphor-icons/react';
 import type { ComponentType } from 'react';
 import type { ActivityKind } from '../../api/activities';
 import type { SchoolYear } from '../../api/types';
@@ -10,11 +10,13 @@ export const KINDS: { value: ActivityKind; label: string }[] = [
   { value: 'oral', label: 'Oral' },
   { value: 'notebook', label: 'Cuaderno' },
   { value: 'attitude', label: 'Actitud' },
+  { value: 'homework', label: 'Deberes' },
   { value: 'other', label: 'Otra' },
 ];
 
 const ICONS: Record<ActivityKind, ComponentType<IconProps>> = {
   exam: Exam, worksheet: FileText, task: ClipboardText, oral: Microphone, notebook: Notebook, attitude: UserFocus, other: DotsThreeCircle,
+  homework: Backpack,
 };
 
 export function KindIcon({ kind, size = 14 }: { kind: ActivityKind; size?: number }) {

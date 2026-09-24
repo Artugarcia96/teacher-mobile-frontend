@@ -8,3 +8,4 @@
 .note-search .input { padding-left: 34px; min-height: 40px; }
 .note-students .chip { height: 34px; padding: 0 12px; font-size: var(--fs-sub); }
 .note-seg .seg__btn { padding: 0 2px; min-width: 0; font-size: var(--fs-footnote); }
+.family-text.textarea { min-height: 0; font-size: var(--fs-sub); line-height: 1.5; }

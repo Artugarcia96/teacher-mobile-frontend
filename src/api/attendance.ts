@@ -1,4 +1,4 @@
-/** Asistencia (pasar lista y resumen). Backend: app/api/attendance.py (slice B). */
+/** Asistencia (pasar lista y resumen). Backend: app/api/attendance.py. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { StudentRef } from './types';
@@ -6,12 +6,16 @@ import type { StudentRef } from './types';
 export type MarkStatus = 'present' | 'absent' | 'late' | 'justified';
 
 export interface AttendanceRow { student: StudentRef; status: MarkStatus; note?: string | null }
-export interface Attendance { date: string; start: string; end?: string | null; taken: boolean; note?: string | null; students: AttendanceRow[] }
-export interface AttendanceInput { date: string; start: string; marks: { student_id: string; status: MarkStatus; note?: string | null }[]; note?: string | null }
+export interface Attendance { date: string; start: string; end?: string | null; taken: boolean; students: AttendanceRow[] }
+export interface AttendanceInput { date: string; start: string; marks: { student_id: string; status: MarkStatus; note?: string | null }[] }
 
 export interface SessionSlot { date: string; start: string; end?: string | null }
 export interface AttendanceSummary {
-  term: number; sessions_taken: number; sessions_missing: SessionSlot[]; today: (SessionSlot & { taken: boolean })[];
+  term: number;
+  /** Last 14 lective days, most recent first. */
+  sessions_missing: SessionSlot[];
+  today: (SessionSlot & { taken: boolean })[];
+  /** Only students with some mark, most unjustified absences first. */
   students: { student: StudentRef; absent: number; justified: number; late: number }[];
 }
 
@@ -44,12 +48,22 @@ export function invalidateAttendance(qc: ReturnType<typeof useQueryClient>, cour
   qc.invalidateQueries({ queryKey: ['today'] });
   qc.invalidateQueries({ queryKey: ['course', courseId] });
   qc.invalidateQueries({ queryKey: ['student'] });
-  qc.invalidateQueries({ queryKey: ['notes'] });
+  qc.invalidateQueries({ queryKey: ['watch'] });
 }
 
 export function useAttendanceSummary(courseId: string, term: number) {
   return useQuery({
     queryKey: attendanceKeys.summary(courseId, term),
     queryFn: () => api.get<AttendanceSummary>(`/courses/${courseId}/attendance/summary?term=${term}`),
+  });
+}
+
+/** «Dar por pasadas (todos presentes)»: lists already taken are left untouched. */
+export function useBulkTaken(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessions: SessionSlot[]) =>
+      api.post<{ count: number }>(`/courses/${courseId}/attendance/bulk`, { sessions: sessions.map(({ date, start }) => ({ date, start })) }),
+    onSuccess: () => invalidateAttendance(qc, courseId),
   });
 }

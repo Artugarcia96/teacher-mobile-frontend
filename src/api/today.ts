@@ -1,29 +1,53 @@
-/** Hoy, calendario, eventos y cancelación de sesiones. Backend: app/api/today.py (slice B). */
+/** Hoy, calendario, eventos y «A vigilar». Backend: app/api/today.py. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { CourseRef, Ok, StudentRef } from './types';
+import type { CourseRef, Note, Ok, StudentRef } from './types';
 
 export type SessionStatus = 'past' | 'now' | 'next' | 'later';
 export type EventKind = 'meeting' | 'tutoring' | 'evaluation' | 'trip' | 'other';
 
+/** A class log («Cerrar clase»): what was done, what comes next and homework. */
+export interface LogBrief { date: string; start: string; done?: string | null; next?: string | null; homework?: string | null }
+/** Homework to check in a session (from the previous log) and whether it was checked. */
+export interface HomeworkState { text?: string | null; checked: boolean; not_done: number; partial: number }
+
 export interface TodaySession {
   course: CourseRef; date: string; start: string; end: string; room?: string | null; status: SessionStatus;
   cancelled: boolean; cancel_note?: string | null;
+  /** Cancelled because the teacher is absent; cancel_note = task for the substitute. */
+  guardia: boolean;
   attendance: { taken: boolean; absent: number; late: number };
-  unit?: string | null; last_note?: { date: string; text: string } | null;
+  unit?: string | null;
+  previous?: LogBrief | null;
+  log?: LogBrief | null;
+  homework?: HomeworkState | null;
   activities: { id: string; title: string; kind: string }[];
 }
 export interface TodayEvent {
   id: string; title: string; kind: EventKind; date: string; start?: string | null; end?: string | null; note?: string | null; course?: CourseRef | null;
 }
 export interface PendingItem {
-  kind: 'review' | 'attendance' | 'grades' | 'comments'; title: string; sub: string; count: number; course_id: string;
+  kind: 'review' | 'attendance' | 'grades' | 'comments'; title: string; sub: string; count: number;
+  /** null for comments of several classes. */
+  course_id?: string | null;
   activity_id?: string | null; date?: string | null; start?: string | null; term?: number | null;
 }
-export interface WatchItem { student: StudentRef; course: CourseRef; average: number | null; reasons: string[] }
+export interface WatchItem {
+  student: StudentRef; course: CourseRef; average: number | null;
+  /** One concrete line per signal, most severe first. */
+  reasons: string[]; reason: string; severity: 1 | 2 | 3;
+  /** Date of the latest triggering fact. */
+  since: string;
+}
 export interface Today {
   date: string; is_today: boolean; term: number; term_label: string; week: number | null; lective: boolean; holiday: string | null;
-  now: string | null; sessions: TodaySession[]; events: TodayEvent[]; pending: PendingItem[]; watchlist: WatchItem[];
+  now: string | null; sessions: TodaySession[]; events: TodayEvent[];
+  /** Sorted by urgency by the server. */
+  pending: PendingItem[];
+  /** Students of the classes of this day, most severe first. */
+  watchlist: WatchItem[];
+  /** All classes (useWatch). */
+  watch_total: number;
 }
 export interface CalendarDay { date: string; lective: boolean; holiday: string | null; sessions: TodaySession[]; events: TodayEvent[] }
 
@@ -34,6 +58,8 @@ export interface EventInput {
 export const todayKeys = {
   day: (date: string) => ['today', date] as const,
   calendar: (from: string, to: string) => ['today', 'calendar', from, to] as const,
+  watch: ['watch'] as const,
+  message: (studentId: string, courseId: string) => ['watch', 'message', studentId, courseId] as const,
 };
 
 export const EVENT_KIND_LABEL: Record<EventKind, string> = {
@@ -51,10 +77,6 @@ export function useCalendar(from: string, to: string, enabled = true) {
     enabled: enabled && !!from && !!to,
     staleTime: 60_000,
   });
-}
-
-export function useDayBrief() {
-  return useMutation({ mutationFn: (date: string) => api.post<{ bullets: string[] }>('/today/brief', { date }) });
 }
 
 function useInvalidateToday() {
@@ -92,5 +114,44 @@ export function useCancelSession() {
       qc.invalidateQueries({ queryKey: ['course', v.courseId] });
       qc.invalidateQueries({ queryKey: ['courses'] });
     },
+  });
+}
+
+// ── A vigilar ────────────────────────────────────────────────────────────────
+/** Every class (Hoy only brings the classes of the day). */
+export function useWatch(enabled = true) {
+  return useQuery({ queryKey: todayKeys.watch, queryFn: () => api.get<WatchItem[]>('/watch'), enabled });
+}
+
+function invalidateWatch(qc: ReturnType<typeof useQueryClient>) {
+  for (const key of [['today'], ['watch'], ['student'], ['course'], ['notes']]) qc.invalidateQueries({ queryKey: key });
+}
+
+/** «Ya lo sé»: hidden in that class until a newer fact. */
+export function useAckWatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, courseId }: { studentId: string; courseId: string }) =>
+      api.post<Ok>(`/watch/${studentId}/ack`, { course_id: courseId }),
+    onSuccess: () => invalidateWatch(qc),
+  });
+}
+
+/** Deterministic message for the family, built from the facts. */
+export function useFamilyMessage(studentId: string, courseId: string) {
+  return useQuery({
+    queryKey: todayKeys.message(studentId, courseId),
+    queryFn: () => api.get<{ text: string }>(`/watch/${studentId}/message?course_id=${courseId}`),
+    staleTime: 0,
+  });
+}
+
+/** «Guardar como observación (Familia)»: also acknowledges the student. */
+export function useSaveFamilyNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, courseId, text }: { studentId: string; courseId: string; text: string }) =>
+      api.post<Note>(`/watch/${studentId}/family`, { course_id: courseId, text }),
+    onSuccess: () => invalidateWatch(qc),
   });
 }

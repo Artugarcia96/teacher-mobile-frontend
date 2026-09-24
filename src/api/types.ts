@@ -33,7 +33,9 @@ export interface Note {
 /** `final` is the teacher's final grade (only if set); `proposed` the rounded average. */
 export interface TermCell { term: number; average: number | null; proposed?: number | null; final: number | null }
 export interface GradeLine { activity_id: string; title: string; date: string; category_label: string; score: number | null; max_score: number; normalized: number | null; status: string }
-export interface StudentCourse { course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number }
+/** Homework checks this school year where the student was present. */
+export interface HomeworkSummary { checks: number; not_done: number; partial: number }
+export interface StudentCourse { course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number; homework?: HomeworkSummary | null }
 export interface StudentFile {
   student: StudentRef; notes_text?: string | null; groups: GroupRef[]; courses: StudentCourse[]; notes: Note[]; watch: string[];
 }

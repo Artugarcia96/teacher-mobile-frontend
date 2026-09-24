@@ -1,0 +1,6 @@
+/* «Cerrar clase», «Voy a faltar». Layout only. */
+.absence-list { display: grid; gap: var(--s-3); }
+.row.absence-task { display: grid; gap: 10px; padding-top: 4px; padding-bottom: 14px; }
+.absence-task .textarea { min-height: 64px; }
+.absence-task__mats { display: grid; gap: 6px; }
+.close-done.textarea { min-height: 64px; }

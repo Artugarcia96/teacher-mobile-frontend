@@ -37,6 +37,9 @@ Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en
 | Nota de evaluación  | `TermGrade`     | Nota calculada + nota final ajustada + comentario de boletín, por alumno/clase/evaluación. |
 | Observación         | `Note`          | Nota rápida del profesor (observación, incidencia, positivo, familia) ligada a alumnos y/o clase. |
 | Sesión              | calculada       | Cada hueco del horario en un día lectivo. No se guarda: se calcula de `Course.schedule` + curso escolar − festivos ± excepciones. |
+| Cierre de clase (diario) | `SessionLog` | «Cerrar clase»: hecho hoy, para la próxima y deberes de una sesión. Lo que la siguiente sesión muestra como «Toca: …». |
+| Deberes (revisión)  | `HomeworkCheck` | Revisión a toques de los deberes en una sesión; alimenta la actividad «Deberes (1.ª)» del cuaderno. |
+| Guardia             | `SessionCancel` `kind=guardia` | Sesión que da el profesorado de guardia porque el profesor falta; guarda la tarea. |
 | Curso escolar       | `SchoolYear`    | Fechas de inicio/fin, trimestres y festivos. Se crea solo con valores por defecto de España. |
 
 ## 3. Navegación
@@ -57,7 +60,7 @@ Evaluar        /evaluar                 bandeja: por corregir · evaluaciones ·
 Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar sesión, sugerencias
 ```
 
-- Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el avatar.
+- Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el menú «···» de Hoy.
 - Escritorio (≥1024px): barra lateral de cristal con los 3 destinos + lista de clases; Hoy a dos columnas.
 
 ## 4. Flujos por momento del curso
@@ -70,13 +73,17 @@ Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar 
 5. Ponderaciones de la clase: por defecto *Exámenes 60 %, Trabajos y fichas 30 %, Observación 10 %*. Editable en una hoja.
 
 ### 4.2 Cada día — Hoy
-- Tarjeta **Ahora / Siguiente**: materia · grupo, aula, hora, unidad en curso, "la última vez: …" (última observación de la clase).
-  - **Pasar lista**: todos presentes por defecto; tocar un alumno = falta, otro toque = retraso, otro = presente. Guardado automático. Al final, campo opcional "nota de la sesión".
+- Cabecera: calendario (ir a una fecha) y «···» con *Añadir evento*, *Voy a faltar* y *Ajustes*. En el selector de semana, el punto solo marca días con algo pendiente (lista sin pasar) o un evento.
+- Tarjeta **Ahora / Siguiente / Primera clase**: «Ahora · quedan 35 min», materia · grupo, aula, hora, unidad en curso y actividades del día. Debajo, lo que dejó el **cierre de la clase anterior** (solo de ahí, nunca de observaciones de alumnos): **«Toca: problemas de la p. 34»** en negrita, «Deberes: p. 33, ej. 15-18» con *Revisar*, y en gris «El martes: suma y resta con distinto denominador».
+  - **Pasar lista** (acción principal): todos presentes por defecto; tocar = falta, otro toque = retraso, otro = presente. Filas de 48 px con número de lista, «Apellidos, Nombre» y el estado a la derecha (Presente apagado · Falta · Retraso · Justificada). Resumen siempre visible («24 presentes · 1 falta · 1 retraso») y quién falta o llega tarde. Mantener pulsado (clic derecho en escritorio): justificar o añadir nota. Guardado automático y «Cerrar lista». En escritorio se abre como panel lateral y Hoy sigue a la vista.
+  - **Revisar deberes**: la misma lista a toques (hechos por defecto; tocar = sin hacer; otro toque = incompletos). Quien faltó ese día no cuenta. Cada revisión recalcula en el cuaderno la actividad **«Deberes (1.ª)»** (categoría Trabajos) con nota **sugerida** = 10 × (hechos + 0,5·incompletos) / revisiones; el profesor la confirma y a partir de ahí es una nota más.
   - **Anotar**: hoja con chips de alumnos + tipo (observación / incidencia / positivo / familia) + texto.
-- **Agenda del día**: filas compactas por hora. Las sesiones pasadas sin lista muestran "Lista sin pasar".
-- **Pendiente**: exámenes con hojas por revisar, listas sin pasar, comentarios de boletín que faltan antes de la sesión de evaluación.
-- **A vigilar** (reglas deterministas, mismas en toda la app): media de la evaluación actual < 5, ≥3 faltas injustificadas en 14 días, bajada de más de 1,5 puntos, ≥2 incidencias en 7 días.
-- Selector de semana para ver otros días. Nada de IA automática; como mucho un botón "Resumen del día (IA)" con 3 viñetas.
+  - **Cerrar clase** (durante o después de la sesión): «Hecho hoy» (rellenado con la unidad en curso), «Para la próxima», «Deberes» (opcional) e interruptor «Unidad terminada · empezar la siguiente».
+- **Agenda del día**: filas compactas por hora con el estado siempre en el mismo sitio: «Lista pasada», «Lista sin pasar» (se toca y abre la lista), «Guardia», «Cancelada», «Examen». Tocar la fila abre la sesión: pasar lista, revisar deberes, cerrar clase, anotar, cancelar o quitar la guardia.
+- **Pendiente**, por urgencia: listas de hoy sin pasar > exámenes con hojas por revisar > el resto (listas de los últimos 7 días lectivos, nunca anteriores a la creación de la clase; exámenes sin notas; **una** fila «Comentarios de evaluación · faltan 73 en 3 clases · 15 dic», solo en los 10 días lectivos previos a la sesión de evaluación).
+- **A vigilar**: solo **hechos recientes**, no estados (una media baja está en Evaluación, no aquí). Reglas deterministas, las mismas en toda la app: bajó de ≥ 5 a < 5 en la última nota («Bajó de 7,8 a 3,6 en «Examen U2»»), 2 o más suspensos seguidos en exámenes, ≥ 3 faltas sin justificar en 14 días, ≥ 2 incidencias en 7 días, 3 veces seguidas sin deberes. En Hoy, como mucho 4 alumnos de las clases de ese día, por gravedad; «Ver todos» muestra el resto. Cada alumno: motivo concreto y desde cuándo, con **«Ya lo sé»** (no vuelve a salir hasta que haya algo nuevo) y **«Avisar a la familia»**: mensaje editable hecho con los hechos (faltas con fecha, suspensos con actividad, incidencias), «Copiar» y «Guardar como observación (Familia)», que también cuenta como «Ya lo sé».
+- **Voy a faltar** (menú «···», también desde un día futuro): días, sesiones (todas por defecto), motivo y, por sesión, la tarea («Continuar con <unidad en curso>» + un material de la unidad, o texto libre). Resultado: las sesiones quedan como **Guardia** en la agenda y un **PDF para jefatura** con una página por sesión (grupo, aula, hora, tarea, materiales y lista con casillas) seguida del material elegido.
+- Selector de semana para ver otros días. Sin IA: Hoy es determinista e instantáneo.
 
 ### 4.3 Exámenes y corrección (el flujo más valioso)
 Un examen es una **Actividad** de tipo examen. Pantalla única con 3 pasos:
@@ -118,7 +125,7 @@ Pantalla por clase y evaluación:
 - Cabecera: media de la clase, % aprobados, distribución, lista de suspensos. "Acta (PDF)" y "Exportar CSV" para pasar a Séneca/Raíces/etc.
 
 ### 4.7 Ficha del alumno
-Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE/adaptación). Secciones: notas por clase y evaluación (los **mismos** números que el cuaderno), asistencia (faltas/retrasos/justificadas), observaciones (línea de tiempo editable). Botón opcional "Preparar tutoría (IA)": 5 líneas para hablar con la familia.
+Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE/adaptación). Secciones: notas por clase y evaluación (los **mismos** números que el cuaderno), asistencia (faltas/retrasos/justificadas y «Deberes: no hizo 4 de 10»), observaciones (línea de tiempo editable). Botón opcional "Preparar tutoría (IA)": 5 líneas para hablar con la familia.
 
 ## 5. Qué se conserva, qué se reconstruye y qué desaparece
 
@@ -155,7 +162,7 @@ Todas las llamadas pasan por **un único gateway** (`app/ai/`) con dos proveedor
 | `generate_material` | Apuntes / presentación / resumen / adaptada | text |
 | `import_units` | Importar temario | text |
 | `report_comments` | Boletín, en lotes de ~10 | text |
-| `brief` | Resumen del día / tutoría (bajo demanda) | text |
+| `brief` | Preparar tutoría (bajo demanda) | text |
 
 ## 7. Lenguaje visual (resumen; detalle en `DESIGN.md`)
 

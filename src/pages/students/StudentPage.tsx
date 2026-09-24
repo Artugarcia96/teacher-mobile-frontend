@@ -79,7 +79,8 @@ function attendanceText(sc: StudentCourse): string {
     sc.absences && plural(sc.absences, 'falta', 'faltas'), sc.justified && plural(sc.justified, 'justificada', 'justificadas'),
     sc.lates && plural(sc.lates, 'retraso', 'retrasos'),
   ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : 'Sin faltas ni retrasos';
+  const hw = sc.homework ? ` · Deberes: no hizo ${sc.homework.not_done} de ${sc.homework.checks}` : '';
+  return (parts.length ? parts.join(' · ') : 'Sin faltas ni retrasos') + hw;
 }
 
 /** /alumnos/:id — ficha del alumno: notas por clase, asistencia y observaciones. */

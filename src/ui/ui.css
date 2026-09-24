@@ -226,7 +226,13 @@ button.chip { cursor: pointer; }
   .sheet__grab { display: none; }
   .sheet__head { padding-top: 16px; }
 }
+@media (min-width: 1024px) {
+  .sheet--side { left: auto; right: 12px; top: 12px; bottom: 12px; width: 440px; height: auto; max-height: none;
+    transform: none; animation: sheet-side var(--t-slow) var(--ease); }
+  .sheet-scrim--side { background: transparent; }
+}
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
+@keyframes sheet-side { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sheet-pop { from { transform: translate(-50%, -48%) scale(0.98); opacity: 0; } }
 @keyframes fade-in { from { opacity: 0; } }
 
