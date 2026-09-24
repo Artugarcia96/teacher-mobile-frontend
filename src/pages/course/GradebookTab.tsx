@@ -1,4 +1,4 @@
-import { ArrowRight, DotsThree, Exam, FileCsv, PencilSimple, Plus, Scales, Student } from '@phosphor-icons/react';
+import { ArrowRight, DotsThree, Exam, FileCsv, PencilSimple, Plus, Scales, Student, UserMinus } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActivityBrief, GradeInput } from '../../api/activities';
@@ -6,13 +6,14 @@ import { useGradebook, useSaveCell, type Gradebook, type GradebookActivity, type
 import type { CourseDetail } from '../../api/types';
 import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
 import EditActivitySheet from '../../features/activities/EditActivitySheet';
+import ExamAbsencesSheet from '../../features/activities/ExamAbsencesSheet';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { KindIcon } from '../../features/activities/kinds';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { formatGrade, formatNumber, parseGradeInput, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { formatGrade, formatNumber, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
-  Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Menu, Row, Segmented, Sheet, SkeletonList, useFeedback,
+  AIBadge, Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Menu, Row, RowIcon, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
 import './GradebookTab.css';
 
@@ -27,6 +28,7 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
   const gb = useGradebook(course.id, term);
   const [newOpen, setNewOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [absencesId, setAbsencesId] = useState<string | null>(null);
   const [weights, setWeights] = useState(false);
   const [settings, setSettings] = useState(false);
   const [focus, setFocus] = useState<{ id: string; edit: boolean } | null>(() => (params.get('a') ? { id: params.get('a')!, edit: false } : null));
@@ -35,11 +37,13 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
   const setTerm = (t: number) => setParams((p) => { p.set('term', String(t)); p.delete('a'); return p; }, { replace: true });
 
   const exportCsv = () =>
-    download(`/courses/${course.id}/gradebook.csv?term=${term}`, `Cuaderno ${course.subject} ${course.group.name} ${TERM_SHORT[term]}.csv`)
+    download(`/courses/${course.id}/gradebook.csv?term=${term}`, `Cuaderno ${course.subject} ${course.group.name} ${TERM_LABEL[term]}.csv`)
+      .then((name) => toast(`Descargado: ${name}`))
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
   const onCreated = (a: ActivityBrief) => {
-    if (a.term !== term) setTerm(a.term);
+    const shownIn = a.counts_for === 'recovery' && a.recovers_term ? a.recovers_term : a.term;
+    if (shownIn !== term) setTerm(shownIn);
     setFocus({ id: a.id, edit: true });
   };
 
@@ -50,7 +54,9 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
         <Segmented label="Evaluación" value={term} options={TERMS} onChange={setTerm} />
         <div className="gb-toolbar__actions">
           <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => setNewOpen(true)}>Actividad</Button>
-          <Button size="sm" variant="neutral" to={`/clases/${course.id}/evaluacion/${term}`} icon={<ArrowRight size={16} />}>Evaluación</Button>
+          <Button size="sm" variant="neutral" to={`/clases/${course.id}/evaluacion/${term}`} icon={<ArrowRight size={16} />}>
+            {term === 4 ? 'Evaluación final' : `Evaluar la ${TERM_SHORT[term]}`}
+          </Button>
           <Menu
             trigger={(open) => <IconButton label="Más acciones del cuaderno" onClick={open}><DotsThree size={22} weight="bold" /></IconButton>}
             items={[
@@ -76,14 +82,51 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
           text="Crea un examen, una ficha o cualquier cosa que quieras calificar."
           action={<Button icon={<Plus size={18} weight="bold" />} onClick={() => setNewOpen(true)}>Añadir actividad</Button>} />
       ) : (
-        <Grid course={course} data={data} focus={focus} onFocusDone={() => setFocus(null)} onEdit={setEditId} />
+        <>
+          <PendingWork course={course} data={data} onAbsences={setAbsencesId} />
+          <Grid course={course} data={data} focus={focus} onFocusDone={() => setFocus(null)} onEdit={setEditId} />
+        </>
       )}
 
       <NewActivitySheet open={newOpen} onClose={() => setNewOpen(false)} course={course} onCreated={onCreated} />
       <EditActivitySheet activityId={editId} onClose={() => setEditId(null)} course={course} />
+      <ExamAbsencesSheet activityId={absencesId} onClose={() => setAbsencesId(null)} course={course} />
       <WeightsSheet open={weights} onClose={() => setWeights(false)} course={course} onEdit={() => { setWeights(false); setSettings(true); }} />
       <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
     </>
+  );
+}
+
+// ── What is waiting in this term: AI drafts to review, students who missed an exam ──
+function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data: Gradebook; onAbsences: (id: string) => void }) {
+  const drafts = data.activities.filter((a) => a.suggested > 0);
+  const missed = data.activities.filter((a) => a.pending_absent > 0);
+  if (!drafts.length && !missed.length) return null;
+  const missedCells = (a: GradebookActivity) => data.students
+    .filter((r) => r.grades[a.id]?.status === 'pending_absent')
+    .map((r) => ({ name: r.student.sort_name, repeat: !!r.grades[a.id]?.activity_id }));
+  return (
+    <List className="gb-pending">
+      {drafts.map((a) => (
+        <Row key={`d-${a.id}`} to={`/clases/${course.id}/actividades/${a.id}`}
+          lead={<AIBadge />}
+          title={`Revisar ${plural(a.suggested, 'borrador', 'borradores')}`}
+          sub={`${a.title} · no cuentan en la media hasta que los revises`} />
+      ))}
+      {missed.map((a) => {
+        const cells = missedCells(a);
+        const names = cells.map((c) => c.name);
+        const who = `${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` y ${names.length - 3} más` : ''}`;
+        const scheduled = cells.every((c) => c.repeat);
+        return (
+          <Row key={`m-${a.id}`} onClick={() => onAbsences(a.id)}
+            lead={<RowIcon tone="warn"><UserMinus size={18} /></RowIcon>}
+            title={scheduled ? `Repesca programada · ${a.short_title}`
+              : `${a.pending_absent === 1 ? 'Faltó 1 alumno' : `Faltaron ${a.pending_absent} alumnos`} a ${a.short_title}`}
+            sub={`${who} · ${scheduled ? 'su nota irá a esta columna' : 'programar repesca o poner NP'}`} />
+        );
+      })}
+    </List>
   );
 }
 
@@ -93,6 +136,18 @@ function cellText(cell: GradeCell | undefined): string {
   if (cell.status === 'absent') return 'NP';
   if (cell.score == null) return '';
   return formatGrade(cell.score, 2);
+}
+
+function cellLabel(cell: GradeCell | undefined): string {
+  if (!cell || cell.status === 'empty') return 'sin nota';
+  if (cell.status === 'pending_absent') {
+    return `faltó al examen${cell.absence === 'justified' ? ' (falta justificada)' : ''}, ${cell.activity_id ? 'repesca programada' : 'pendiente'}`;
+  }
+  if (cell.status === 'absent') return 'no presentado';
+  if (cell.status === 'exempt') return 'exento';
+  const n = formatGrade(cell.score, 2);
+  if (cell.status === 'suggested') return `${n}, borrador de la IA sin revisar`;
+  return cell.repeat ? `${n}, nota de la repesca` : n;
 }
 
 function Grid({ course, data, focus, onFocusDone, onEdit }: {
@@ -107,16 +162,30 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   const [draft, setDraft] = useState('');
   const [avgRow, setAvgRow] = useState<GradebookRow | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const final = data.term === 4;
   const acts = data.activities;
   const rows = data.students;
+  const inScope = (r: number, c: number) => { const ids = acts[c]?.student_ids; return !ids || ids.includes(rows[r]?.student.id); };
 
   const setEditing = useCallback((p: Pos | null) => {
     editingRef.current = p;
     setEditingState(p);
     if (p) setDraft(cellText(rows[p.r]?.grades[acts[p.c]?.id]));
   }, [rows, acts]);
+
+  // "There is more to the right": fade the edge next to the sticky average column.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const update = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
+  }, [acts.length]);
 
   // Scroll to a column (created now or linked from Evaluar) and optionally start typing in it.
   useEffect(() => {
@@ -126,10 +195,14 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
     const th = scroller.current?.querySelector<HTMLElement>(`[data-col="${focus.id}"]`);
     th?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     setFlash(focus.id);
-    if (focus.edit) setEditing({ r: 0, c });
+    if (focus.edit) {
+      const r = rows.findIndex((_, i) => inScope(i, c));
+      if (r >= 0) setEditing({ r, c });
+    }
     onFocusDone();
     const t = setTimeout(() => setFlash(null), 2400);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus, acts, onFocusDone, setEditing]);
 
   const commit = (pos: Pos, next: Pos | null, raw = draft) => {
@@ -142,45 +215,57 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
       toast(`Escribe una nota de 0 a ${max} o NP`, { tone: 'error' });
       return;
     }
+    const target = cell?.activity_id ?? act.id;
+    const via = cell?.activity_id ? { activity_id: cell.activity_id, repeat: true } : {};
     let grade: GradeInput | null = null;
     let optimistic: GradeCell | null = null;
     if (parsed === 'NP') {
-      if (cell?.status !== 'absent') { grade = { student_id: row.student.id, status: 'absent' }; optimistic = { score: null, status: 'absent' }; }
+      if (cell?.status !== 'absent') { grade = { student_id: row.student.id, status: 'absent' }; optimistic = { score: null, status: 'absent', ...via }; }
     } else if (parsed === null) {
-      if (cell && cell.status !== 'empty') { grade = { student_id: row.student.id, score: null }; optimistic = { score: null, status: 'empty' }; }
+      if (cell && cell.status !== 'empty' && cell.status !== 'pending_absent') {
+        grade = { student_id: row.student.id, score: null };
+        optimistic = { score: null, status: 'empty', ...via };
+      }
     } else if (!(cell?.status === 'confirmed' && cell.score === parsed)) {
       grade = { student_id: row.student.id, score: parsed };
-      optimistic = { score: parsed, status: 'confirmed' };
+      optimistic = { score: parsed, status: 'confirmed', ...via };
     }
     if (grade && optimistic) {
-      save.mutate({ activityId: act.id, grade, optimistic }, {
+      save.mutate({ activityId: target, columnId: act.id, grade, optimistic }, {
         onError: (e) => toast(`No se ha guardado la nota de ${row.student.first_name}. ${e.message}`, { tone: 'error' }),
       });
     }
     setEditing(next);
   };
 
+  /** Next row (down or up) that has a cell in column c. */
+  const step = (r: number, c: number, dir: 1 | -1): Pos | null => {
+    for (let i = r + dir; i >= 0 && i < rows.length; i += dir) if (inScope(i, c)) return { r: i, c };
+    return null;
+  };
+
   const onKey = (e: KeyboardEvent<HTMLInputElement>, pos: Pos) => {
-    const last = rows.length - 1;
-    const move = (r: number, c: number): Pos | null => (r < 0 || r > last ? null : { r, c });
     if (e.key === 'Escape') { e.preventDefault(); setEditing(null); return; }
-    if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); commit(pos, move(pos.r + (e.shiftKey ? -1 : 1), pos.c)); return; }
-    if (e.key === 'ArrowUp') { e.preventDefault(); commit(pos, move(pos.r - 1, pos.c)); return; }
+    if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); commit(pos, step(pos.r, pos.c, e.shiftKey ? -1 : 1)); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); commit(pos, step(pos.r, pos.c, -1)); return; }
     if (e.key === 'Tab') {
       e.preventDefault();
       const dir = e.shiftKey ? -1 : 1;
       let { r, c } = pos;
-      c += dir;
-      if (c >= acts.length) { c = 0; r += 1; }
-      if (c < 0) { c = acts.length - 1; r -= 1; }
-      commit(pos, move(r, c));
+      do {
+        c += dir;
+        if (c >= acts.length) { c = 0; r += 1; }
+        if (c < 0) { c = acts.length - 1; r -= 1; }
+      } while (r >= 0 && r < rows.length && !inScope(r, c));
+      commit(pos, r < 0 || r >= rows.length ? null : { r, c });
     }
   };
 
+  const draftsNote = data.drafts > 0;
   return (
     <>
       <div className="gb-card">
-        <div className="gb-scroll" ref={scroller}>
+        <div className={`gb-scroll${more ? ' gb-scroll--more' : ''}`} ref={scroller}>
           <table className="gb">
             <thead>
               <tr>
@@ -188,19 +273,20 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                   <span className="gb-corner__label">Alumnos</span>
                   <span className="gb-corner__count num">{rows.length}</span>
                 </th>
-                {final
-                  ? data.categories.map((c, i) => (
-                    <th key={c.key} className="gb-col" scope="col">
-                      <Link className="gb-head" to={`/clases/${course.id}/evaluacion/${i + 1}`}>
-                        <span className="gb-head__title">{TERM_SHORT[i + 1]} ev.</span>
-                      </Link>
-                    </th>
-                  ))
-                  : acts.map((a) => (
-                    <ActivityHeader key={a.id} a={a} today={a.date === today} flash={flash === a.id}
-                      onOpen={() => navigate(`/clases/${course.id}/actividades/${a.id}`)} onEdit={() => onEdit(a.id)} />
-                  ))}
-                <th className="gb-avg" scope="col">Media</th>
+                {final && data.categories.map((c, i) => (
+                  <th key={c.key} className="gb-col" scope="col">
+                    <Link className="gb-head" to={`/clases/${course.id}/evaluacion/${i + 1}`}>
+                      <span className="gb-head__title">{TERM_SHORT[i + 1]} ev.</span>
+                    </Link>
+                  </th>
+                ))}
+                {acts.map((a) => (
+                  <ActivityHeader key={a.id} a={a} today={a.date === today} flash={flash === a.id}
+                    onOpen={() => navigate(`/clases/${course.id}/actividades/${a.id}`)} onEdit={() => onEdit(a.id)} />
+                ))}
+                <th className="gb-avg" scope="col">
+                  <span className="gb-avg__head">Media{draftsNote && <small>sin borradores</small>}</span>
+                </th>
                 <th className="gb-prop" scope="col">Prop.</th>
               </tr>
             </thead>
@@ -213,37 +299,44 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                       <span className="gb-student__first">{row.student.last_name ? row.student.first_name : ''}</span>
                     </Link>
                   </th>
-                  {final
-                    ? data.categories.map((c) => (
-                      <td key={c.key} className="gb-cell gb-cell--ro"><Grade value={row.categories[c.key]} digits={2} /></td>
-                    ))
-                    : acts.map((a, c) => {
-                      const isEditing = editing?.r === r && editing.c === c;
-                      const cls = ['gb-cell', a.date === today && 'gb-today', flash === a.id && 'gb-flash', isEditing && 'gb-cell--editing'].filter(Boolean).join(' ');
-                      return (
-                        <td key={a.id} className={cls}>
-                          {isEditing ? (
-                            <CellInput value={draft} onChange={setDraft} above={r > 1}
-                              onKeyDown={(e) => onKey(e, { r, c })}
-                              onBlur={() => { const p = editingRef.current; if (p && p.r === r && p.c === c) commit(p, null); }}
-                              onQuick={(v) => commit({ r, c }, r < rows.length - 1 ? { r: r + 1, c } : null, v)}
-                              label={`${row.student.name} · ${a.title}`} />
-                          ) : (
-                            <button type="button" className="gb-cell__btn" onClick={() => setEditing({ r, c })}
-                              aria-label={`${row.student.name} · ${a.title}`}>
-                              <CellValue cell={row.grades[a.id]} max={a.max_score} />
-                            </button>
-                          )}
-                        </td>
-                      );
-                    })}
+                  {final && data.categories.map((c) => (
+                    <td key={c.key} className="gb-cell gb-cell--ro"><Grade value={row.categories[c.key]} digits={1} /></td>
+                  ))}
+                  {acts.map((a, c) => {
+                    const cell = row.grades[a.id];
+                    const label = `${row.student.name} · ${a.title}`;
+                    if (!inScope(r, c)) {
+                      return <td key={a.id} className="gb-cell gb-cell--na" aria-label={`${label}: no hace esta actividad`} />;
+                    }
+                    const isEditing = editing?.r === r && editing.c === c;
+                    const cls = ['gb-cell', a.date === today && 'gb-today', flash === a.id && 'gb-flash', isEditing && 'gb-cell--editing'].filter(Boolean).join(' ');
+                    return (
+                      <td key={a.id} className={cls}>
+                        {isEditing ? (
+                          <CellInput value={draft} onChange={setDraft} above={r > 1}
+                            onKeyDown={(e) => onKey(e, { r, c })}
+                            onBlur={() => { const p = editingRef.current; if (p && p.r === r && p.c === c) commit(p, null); }}
+                            onQuick={(v) => commit({ r, c }, step(r, c, 1), v)}
+                            label={label} />
+                        ) : (
+                          <button type="button" className="gb-cell__btn" onClick={() => setEditing({ r, c })}
+                            aria-label={`${label}: ${cellLabel(cell)}`}
+                            title={cell?.repeat ? 'Nota de la repesca' : cell?.status === 'pending_absent' && cell.activity_id ? 'Faltó: repesca programada' : undefined}>
+                            <CellValue cell={cell} max={a.max_score} />
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className="gb-avg">
-                    <button type="button" className="gb-avg__btn" onClick={() => setAvgRow(row)} aria-label={`Media de ${row.student.name}`}>
-                      <Grade value={row.average} digits={2} />
+                    <button type="button" className="gb-avg__btn" onClick={() => setAvgRow(row)}
+                      aria-label={`Media de ${row.student.name}: ${formatGrade(row.average)}${row.recovery ? ', con recuperación' : ''}`}>
+                      {row.average != null ? <GradePill value={row.average} /> : <span className="gb-empty">—</span>}
+                      {row.recovery && <span className="gb-avg__rec">rec.</span>}
                     </button>
                   </td>
                   <td className="gb-prop">
-                    {row.proposed != null ? <GradePill value={row.proposed} label={row.qualitative} /> : <span className="faint">—</span>}
+                    {row.proposed != null ? <GradePill value={row.proposed} label={row.qualitative} /> : <span className="gb-empty">—</span>}
                   </td>
                 </tr>
               ))}
@@ -251,8 +344,13 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
             <tfoot>
               <tr>
                 <th className="gb-name" scope="row"><span className="gb-foot__label">Media de la clase</span></th>
-                {(final ? data.categories : acts).map((x) => <td key={'key' in x ? x.key : x.id} className={`gb-cell${!final && (x as GradebookActivity).date === today ? ' gb-today' : ''}`} />)}
-                <td className="gb-avg"><Grade value={data.class_average} digits={2} /></td>
+                {final && data.categories.map((c) => <td key={c.key} className="gb-cell" />)}
+                {acts.map((a) => (
+                  <td key={a.id} className={`gb-cell gb-foot__cell${a.date === today ? ' gb-today' : ''}`}>
+                    <Grade value={a.class_average} max={a.max_score} digits={1} />
+                  </td>
+                ))}
+                <td className="gb-avg"><Grade value={data.class_average} digits={1} /></td>
                 <td className="gb-prop" />
               </tr>
             </tfoot>
@@ -261,8 +359,9 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
       </div>
       <p className="gb-hint">
         {final
-          ? 'La media final es la media de las evaluaciones con nota.'
+          ? 'La media final es la media de las evaluaciones con nota (con sus recuperaciones).'
           : <>Toca una celda para poner nota. <span className="gb-hint__keys">Enter baja al siguiente alumno, Tab pasa a la siguiente actividad. </span>Escribe NP si no se presentó.</>}
+        {draftsNote && <> Las medias no cuentan {plural(data.drafts, 'borrador', 'borradores')} de la IA hasta que los revises.</>}
       </p>
       <AverageSheet row={avgRow} onClose={() => setAvgRow(null)} data={data} categories={data.categories} />
     </>
@@ -270,17 +369,14 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
 }
 
 function CellValue({ cell, max }: { cell: GradeCell | undefined; max: number }) {
-  if (!cell || cell.status === 'empty') return null;
+  if (!cell || cell.status === 'empty') return <span className="gb-empty" aria-hidden>—</span>;
+  if (cell.status === 'pending_absent') {
+    return cell.activity_id ? <span className="gb-np" aria-hidden>Pendiente</span> : <span className="gb-missed" aria-hidden>Faltó</span>;
+  }
   if (cell.status === 'absent') return <span className="gb-np">NP</span>;
   if (cell.status === 'exempt') return <span className="gb-np">Ex.</span>;
-  if (cell.status === 'suggested') {
-    return (
-      <span className="gb-sug" title="Sugerida por IA · revisar">
-        {formatGrade(cell.score, 2)}<span className="gb-sug__mark">IA</span>
-      </span>
-    );
-  }
-  return <Grade value={cell.score} max={max} digits={2} />;
+  if (cell.status === 'suggested') return <span className="gb-sug">{formatGrade(cell.score, 2)}</span>;
+  return <Grade value={cell.score} max={max} digits={2} className={cell.repeat ? 'gb-repeat' : undefined} />;
 }
 
 function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label, above }: {
@@ -308,6 +404,14 @@ function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label, above }
   );
 }
 
+function headerTag(a: GradebookActivity) {
+  if (a.suggested > 0) return <AIBadge />;
+  if (a.counts_for === 'none') return <span className="gb-head__tag">No cuenta</span>;
+  if (a.counts_for === 'recovery') return <span className="gb-head__tag">Recuperación</span>;
+  if (a.student_ids) return <span className="gb-head__tag">{plural(a.student_ids.length, 'alumno', 'alumnos')}</span>;
+  return null;
+}
+
 function ActivityHeader({ a, today, flash, onOpen, onEdit }: {
   a: GradebookActivity; today: boolean; flash: boolean; onOpen: () => void; onEdit: () => void;
 }) {
@@ -319,6 +423,7 @@ function ActivityHeader({ a, today, flash, onOpen, onEdit }: {
     timer.current = window.setTimeout(() => { longPressed.current = true; onEdit(); }, 500);
   };
   const cancel = () => window.clearTimeout(timer.current);
+  const tag = headerTag(a);
   return (
     <th data-col={a.id} scope="col" className={['gb-col', today && 'gb-today', flash && 'gb-flash'].filter(Boolean).join(' ')}>
       <button type="button" className="gb-head" title={`${a.title} · mantén pulsado para editar`}
@@ -331,6 +436,7 @@ function ActivityHeader({ a, today, flash, onOpen, onEdit }: {
           {a.max_score !== 10 && <span className="gb-head__max">/{formatNumber(a.max_score, 2)}</span>}
         </span>
         <span className="gb-head__title">{a.short_title}</span>
+        {tag && <span className="gb-head__tagline">{tag}</span>}
       </button>
       <IconButton label={`Editar ${a.title}`} size="sm" className="gb-head__edit" onClick={onEdit}><PencilSimple size={14} /></IconButton>
     </th>
@@ -344,37 +450,50 @@ function AverageSheet({ row, onClose, data, categories }: {
   const final = data.term === 4;
   const used = row ? categories.filter((c) => row.categories[c.key] != null && (final || c.weight > 0)) : [];
   const totalW = used.reduce((a, c) => a + c.weight, 0);
+  const base = row?.recovery ? row.recovery.before : row?.average;
   const formula = final
-    ? `(${used.map((c) => formatGrade(row?.categories[c.key], 2)).join(' + ')}) / ${used.length}`
-    : `(${used.map((c) => `${formatGrade(row?.categories[c.key], 2)} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
+    ? `(${used.map((c) => formatGrade(row?.categories[c.key])).join(' + ')}) / ${used.length}`
+    : `(${used.map((c) => `${formatGrade(row?.categories[c.key])} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
   return (
     <Sheet open={!!row} onClose={onClose} title={row?.student.name ?? ''} subtitle={`Media de la ${final ? 'evaluación final' : data.term_label}`}>
       {row && (
         <div className="gb-avg-sheet">
           <div className="gb-avg-sheet__head">
-            <span className="gb-avg-sheet__num display"><Grade value={row.average} digits={2} /></span>
+            <span className="gb-avg-sheet__num display"><Grade value={row.average} digits={1} /></span>
             {row.proposed != null && <span className="muted">Propuesta <GradePill value={row.proposed} label={row.qualitative} /></span>}
           </div>
           <List>
             {categories.map((c) => (
               <Row key={c.key} title={c.label} sub={final ? undefined : `Pesa un ${formatNumber(c.weight, 0)} %`}
                 muted={row.categories[c.key] == null}
-                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} digits={2} />} />
+                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} digits={1} />} />
             ))}
           </List>
           {used.length > 0 ? (
             <p className="gb-formula">
-              <span className="num">{formula} = {formatGrade(row.average, 2)}</span>
+              <span className="num">{formula} = {formatGrade(base)}</span>
               {!final && used.length < categories.length && <> · Las categorías sin notas no cuentan: su peso se reparte entre las demás.</>}
               {final && <> · Media de las evaluaciones con nota.</>}
             </p>
           ) : <p className="muted">Todavía no hay notas confirmadas.</p>}
+          {row.recovery && (
+            <p className="gb-formula">
+              Recuperación: {formatGrade(row.recovery.score)} → la media pasa de {formatGrade(row.recovery.before)} a {formatGrade(row.average)} ({RULE_TEXT[data.recovery_rule]}).
+            </p>
+          )}
+          {row.drafts > 0 && <p className="gb-formula">No cuenta {plural(row.drafts, 'borrador', 'borradores')} de la IA sin revisar.</p>}
           <Button variant="plain" to={`/alumnos/${row.student.id}`}>Ver ficha del alumno</Button>
         </div>
       )}
     </Sheet>
   );
 }
+
+const RULE_TEXT: Record<Gradebook['recovery_rule'], string> = {
+  replace_if_higher: 'la recuperación sustituye si es mayor',
+  cap_5: 'la recuperación deja como máximo un 5',
+  average: 'media de la evaluación y la recuperación',
+};
 
 function WeightsSheet({ open, onClose, course, onEdit }: { open: boolean; onClose: () => void; course: CourseDetail; onEdit: () => void }) {
   const total = course.categories.reduce((a, c) => a + c.weight, 0);
@@ -390,7 +509,7 @@ function WeightsSheet({ open, onClose, course, onEdit }: { open: boolean; onClos
         <p className="muted">
           La media de cada categoría es la media de sus actividades (según su peso). La media de la evaluación combina las
           categorías con estos porcentajes; si una categoría aún no tiene notas, no cuenta. Las notas sugeridas por la IA no
-          cuentan hasta que las confirmas.
+          cuentan hasta que las confirmas, y las actividades marcadas «No cuenta» (evaluación inicial) nunca cuentan.
         </p>
       </div>
     </Sheet>

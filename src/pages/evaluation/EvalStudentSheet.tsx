@@ -46,10 +46,11 @@ function Editor({ course, data, row, index, onIndex }: {
   };
 
   const sub = [
-    `Media ${formatGrade(row.average, 2)}`,
+    `Media ${formatGrade(row.average)}`,
     row.proposed != null ? `propuesta ${row.proposed}${row.qualitative ? ` ${row.qualitative}` : ''}` : 'sin propuesta',
     plural(row.absences, 'falta', 'faltas'),
   ].join(' · ');
+  const rec = row.recovery;
 
   return (
     <Sheet open onClose={() => onIndex(null)} title={row.student.name} subtitle={`${index + 1} de ${data.rows.length} · ${sub}`}
@@ -58,16 +59,22 @@ function Editor({ course, data, row, index, onIndex }: {
         {!last && <Button onClick={() => submit(true)} loading={save.isPending}>Guardar y siguiente</Button>}
       </>}>
       <div className="form">
+        {(rec || row.pending_exams.length > 0 || row.adapted) && (
+          <div className="ev-sheet__facts">
+            {rec && <span>Recuperación: {formatGrade(rec.score)} · la media pasa de {formatGrade(rec.before)} a {formatGrade(row.average)} ({rec.before_proposed ?? '—'} → {row.proposed} rec.)</span>}
+            {row.pending_exams.length > 0 && <span>Pendiente (faltó): {row.pending_exams.map((p) => p.title).join(', ')}</span>}
+            {row.adapted && <span>ACS: la nota y el comentario se refieren a su adaptación curricular.</span>}
+          </div>
+        )}
         <div className="ev-sheet__grade">
           <div>
             <div className="field__label">Nota final</div>
             <div className="ev-sheet__hint">
-              {grade === row.proposed ? 'Igual que la propuesta' : (
-                <>Ajustada · propuesta {row.proposed ?? '—'}{' '}
-                  {row.proposed != null && <Button size="sm" variant="plain" onClick={() => setGrade(row.proposed)}>Usar la propuesta</Button>}
-                </>
-              )}
+              {grade === row.proposed ? 'Igual que la propuesta' : <>Ajustada · propuesta {row.proposed ?? '—'}</>}
             </div>
+            {grade !== row.proposed && row.proposed != null && (
+              <div className="ev-sheet__hint"><Button size="sm" variant="plain" onClick={() => setGrade(row.proposed)}>Usar la propuesta</Button></div>
+            )}
           </div>
           <div className="ev-sheet__stepper">
             {grade != null ? (

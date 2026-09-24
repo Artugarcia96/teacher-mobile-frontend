@@ -30,7 +30,10 @@ Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en
 | Alumno              | `Student`       | Pertenece al profesor; se matricula en grupos (`Enrollment`). Puede tener marca NEAE/ACNEE + adaptación. |
 | Unidad              | `Unit`          | Tema de la programación de una clase, con trimestre y estado (pendiente / en curso / impartida). |
 | Material            | `Material`      | Documento de una unidad: subido, apuntes, presentación, resumen, versión adaptada, ficha (con solucionario). |
-| Actividad           | `Activity`      | Todo lo que se califica en el cuaderno: examen, trabajo, ficha, oral, cuaderno, actitud… Tiene categoría, fecha, evaluación y nota máxima. |
+| Actividad           | `Activity`      | Todo lo que se califica en el cuaderno: examen, trabajo, ficha, oral, cuaderno, actitud… Tiene categoría, fecha, evaluación, nota máxima y **para qué cuenta** (`counts_for`): la media, nada (evaluación inicial) o la recuperación de una evaluación. Puede ser solo para algunos alumnos (`student_ids`). |
+| Recuperación        | `Activity` `counts_for=recovery` | Prueba para los suspensos de una evaluación (o la final/extraordinaria). Su nota sustituye, topa en 5 o promedia el resultado de esa evaluación según la regla de la clase (`Course.grading`). Nunca baja la nota. |
+| Repesca             | `Activity.repeat_of` | Examen para quien faltó al original. Su nota ocupa la misma columna del cuaderno. |
+| Faltó               | `pending_absent` (derivado) | Alumno con falta en la lista del día del examen y sin nota: pendiente de repesca o NP. |
 | Nota                | `Grade`         | Nota de un alumno en una actividad. Estados: sin nota, sugerida (IA), confirmada, NP. |
 | Hoja / papel        | `Paper`         | Páginas escaneadas/fotografiadas de un alumno para una actividad. |
 | Evaluación          | `term` 1/2/3 + final (4) | Trimestres del curso escolar. |
@@ -53,11 +56,12 @@ Clases         /clases                  lista "Matemáticas · 2º ESO B"
     Material   /clases/:courseId/unidades/:unitId/materiales/:materialId
     Evaluación /clases/:courseId/evaluacion/:term             notas finales + boletín
   Alumno       /alumnos/:studentId      ficha del alumno (todas sus clases)
-Evaluar        /evaluar                 bandeja: por corregir · evaluaciones · boletines
+Evaluar        /evaluar                 bandeja: por revisar · por calificar · evaluación actual · informe del departamento
 Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar sesión, sugerencias
 ```
 
 - Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el avatar.
+- La insignia de **Evaluar** cuenta las actividades con borradores de nota de la IA por revisar (las filas "Por revisar" con "N por revisar"). Nada más.
 - Escritorio (≥1024px): barra lateral de cristal con los 3 destinos + lista de clases; Hoy a dos columnas.
 
 ## 4. Flujos por momento del curso
@@ -104,20 +108,33 @@ Entradas: tipo, extensión/nivel, número de ejercicios (ficha) e "indicaciones"
 - Una ficha puede "Evaluarse": crea una actividad en el cuaderno con su rúbrica.
 
 ### 4.5 Cuaderno (cada semana)
-- Tabla alumnos × actividades de la evaluación elegida (1ª / 2ª / 3ª / Final). Columna fija con nombres (ordenados por apellidos).
-- Tocar una celda = teclado numérico; Enter baja al siguiente alumno (así se pasan notas de un montón de exámenes corregidos a mano).
-- "+ Actividad": nombre, tipo/categoría, fecha (la evaluación se deduce de la fecha), nota máxima.
-- Columna "Media" por evaluación calculada en el servidor con las ponderaciones; tocarla muestra la fórmula.
-- Notas sugeridas por IA sin confirmar se ven en gris con un punto "IA".
+- Tabla alumnos × actividades de la evaluación elegida (1ª / 2ª / 3ª / Final). Columna fija con nombres (ordenados por apellidos) a la izquierda y columna **Media** fija a la derecha (en móvil, 56 px con la píldora; en escritorio también la propuesta). Las actividades van de la más reciente a la más antigua; un degradado en el borde avisa de que hay más columnas.
+- Cabecera de columna: tipo + fecha + título ("Oral · densidad") y, si hace falta, una marca: `Borrador IA` (hay notas sugeridas), "No cuenta", "Recuperación" o "N alumnos".
+- Celdas: nota tal cual se puso (hasta 2 decimales); borrador de la IA en tono secundario (sin superíndices); "—" sin nota; "NP"; **"Faltó"** si la lista del día del examen le marca falta y no tiene nota. Las medias, siempre con 1 decimal.
+- Encima de la tabla, solo si hay algo: "Revisar N borradores" (→ la actividad) y "Faltaron N alumnos a Examen U3" (→ hoja: programar repesca o poner NP; avisa si alguien marcado ausente tiene hoja: "¿hoja mal asignada o lista mal pasada?"). Las medias no cuentan los borradores ("sin borradores" bajo Media).
+- Tocar una celda = teclado numérico; Enter baja al siguiente alumno (así se pasan notas de un montón de exámenes corregidos a mano). La celda activa queda siempre por encima de la cápsula de pestañas.
+- "+ Actividad": nombre, tipo/categoría, fecha (la evaluación se deduce de la fecha), nota máxima; en "Más opciones", **Cuenta para** (la media · no cuenta, evaluación inicial · recuperar la 1.ª/2.ª/3.ª/final) y los alumnos (toda la clase o solo algunos).
+- **Repesca**: su nota entra en la columna del examen original (misma categoría y peso). **Recuperación**: columna en la evaluación que recupera, solo con celdas para sus alumnos; la media muestra "rec.".
+- Fila "Media de la clase" con la media de cada actividad. Columna "Media" calculada en el servidor; tocarla muestra la fórmula (y la recuperación aplicada).
 - Exportar CSV (Excel español: `;`, coma decimal, BOM).
 
 ### 4.6 Evaluación (final de trimestre)
-Pantalla por clase y evaluación:
-- Por alumno: media calculada, **nota propuesta** (entero 1-10 y IN/SU/BI/NT/SB en ESO/Primaria), **nota final** editable, faltas, y **comentario de boletín**.
-- "Redactar comentarios con IA": borradores para todos (en lotes), usando nota, tendencia, asistencia, y las observaciones del profesor. Se guardan; se editan; nunca se sobrescribe uno marcado como final.
-- Cabecera: media de la clase, % aprobados, distribución, lista de suspensos. "Acta (PDF)" y "Exportar CSV" para pasar a Séneca/Raíces/etc.
+Pantalla por clase y evaluación (título en palabras: "Primera evaluación"). Las evaluaciones que aún no han empezado aparecen atenuadas y explican cuándo empiezan.
+- Una línea de cifras: "Media 6,9 · 81 % aprobados · IN 5 · SU 2 · BI 1 · NT 12 · SB 6".
+- Si hay borradores de IA sin revisar, aviso: las propuestas aún no los cuentan (→ revisar).
+- Botón principal a todo el ancho: **"Redactar 26 comentarios con IA"** (solo los que faltan). Los comentarios aparecen en la lista según termina cada lote ("10 de 26"); si se sale y se vuelve, el progreso sigue. "Redactar de nuevo N borradores" es secundario.
+- Botones visibles: **Crear recuperación (N)** (preselecciona a los suspensos, crea la actividad y abre su página), **Acta (PDF)** y **Exportar CSV** (aviso al terminar la descarga).
+- Por alumno: media, **nota propuesta** o "Ajustada (prop. 4)", faltas, "4 → 6 (rec.)" si recuperó, "Pendiente: Examen U2" si faltó, marca ACS, y el comentario de boletín solo si existe.
+- Menú: copiar comentarios, **regla de las recuperaciones** (sustituye si es mayor · como máximo un 5 · media de ambas; la acuerda el departamento) e **informe del departamento**.
+- Comentarios con IA: la IA recibe la nota que irá al boletín (la ajustada), las actividades de la evaluación y lo que peor salió en cada examen, faltas, pendientes, hasta 3 observaciones y la marca ACS; nunca inventa evolución sin evaluación anterior, varía las recomendaciones y escribe en impersonal o primera del plural. Se guardan como borrador; nunca se sobrescribe uno definitivo.
+- **Informe para el departamento** (también desde Evaluar): una fila por clase con alumnos, % aprobados, media, IN/SU/BI/NT/SB, unidades previstas frente a impartidas y una línea editable "Causas y propuestas"; se descarga en PDF y CSV.
 
-### 4.7 Ficha del alumno
+### 4.7 Evaluar (bandeja)
+- Cabecera: "Sesión de la 1.ª evaluación: martes, 15 de diciembre, en 26 días".
+- **Por revisar** ("18 por revisar", hojas sin alumno) · **Por calificar** ("2 sin nota"; quien faltó al examen no cuenta como "sin nota") · **evaluación actual** por clase, en el orden de la lista de clases, diciendo lo que falta: "Falta revisar Examen U2 (18) · faltan 26 comentarios". Un comentario solo cuenta como hecho si es definitivo.
+- Todas las descargas tienen nombres legibles sin tildes ("Acta - Fisica y Quimica - 3o ESO A - 1a evaluacion.pdf").
+
+### 4.8 Ficha del alumno
 Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE/adaptación). Secciones: notas por clase y evaluación (los **mismos** números que el cuaderno), asistencia (faltas/retrasos/justificadas), observaciones (línea de tiempo editable). Botón opcional "Preparar tutoría (IA)": 5 líneas para hablar con la familia.
 
 ## 5. Qué se conserva, qué se reconstruye y qué desaparece

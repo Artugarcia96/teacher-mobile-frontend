@@ -61,7 +61,8 @@ async function toError(r: Response): Promise<ApiError> {
 
 type Body = unknown;
 
-async function request<T>(method: string, path: string, body?: Body, retry = true): Promise<T> {
+/** Authenticated fetch with token refresh; throws ApiError (Spanish message) on failure. */
+async function send(method: string, path: string, body?: Body, retry = true): Promise<Response> {
   const headers: Record<string, string> = {};
   const t = tokens.get();
   if (t) headers.Authorization = `Bearer ${t.access_token}`;
@@ -78,11 +79,16 @@ async function request<T>(method: string, path: string, body?: Body, retry = tru
     throw new ApiError(0, 'Sin conexión con el servidor. Revisa tu conexión.');
   }
   if (r.status === 401 && retry && t && !path.startsWith('/auth/')) {
-    if (await refresh()) return request<T>(method, path, body, false);
+    if (await refresh()) return send(method, path, body, false);
     tokens.set(null);
     onUnauthorized();
   }
   if (!r.ok) throw await toError(r);
+  return r;
+}
+
+async function request<T>(method: string, path: string, body?: Body): Promise<T> {
+  const r = await send(method, path, body);
   if (r.status === 204) return undefined as T;
   const ct = r.headers.get('content-type') || '';
   return (ct.includes('application/json') ? r.json() : r.blob()) as Promise<T>;
@@ -103,12 +109,34 @@ export function fileUrl(url: string | null | undefined): string | undefined {
   return url.startsWith('http') ? url : `${BASE}${url}`;
 }
 
-/** Authenticated download of an API path (CSV, PDF generated on the fly). */
-export async function download(path: string, filename: string) {
-  const blob = await request<Blob>('GET', path);
+/** ASCII-only file name (what the server sends too): "Acta · Física 3º ESO 1.ª" → "Acta - Fisica 3o ESO 1a". */
+function asciiName(name: string): string {
+  return name.replace(/·/g, '-').replace(/\.?º/g, 'o').replace(/\.?ª/g, 'a')
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9 ._()-]+/g, ' ').replace(/\s+/g, ' ').trim() || 'descarga';
+}
+
+/** File name from Content-Disposition (RFC 6266: filename* first, then filename). */
+function dispositionName(header: string | null): string | null {
+  if (!header) return null;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (star) {
+    try { return decodeURIComponent(star[1].trim()); } catch { /* malformed: use filename */ }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain ? plain[1].trim() : null;
+}
+
+/** Authenticated download of an API path (CSV, PDF generated on the fly). The name comes from the server
+ * (ASCII-safe); `fallback` is used only if the header is missing. Resolves once the browser has the file. */
+export async function download(path: string, fallback: string): Promise<string> {
+  const r = await send('GET', path);
+  const blob = await r.blob();
+  const name = asciiName(dispositionName(r.headers.get('content-disposition')) ?? fallback);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = filename;
+  a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return name;
 }
