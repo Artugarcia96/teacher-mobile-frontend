@@ -3,8 +3,9 @@
 # container that serves it on port 8100 and proxies /api to the backend.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="${APP_DIR:-$HOME/coteacher}"
-TARBALL="${1:?usage: deploy.sh <dist.tar.gz>}"
+TARBALL="$(realpath "${1:?usage: deploy.sh <dist.tar.gz>}")"
 CONTAINER=coteacher-frontend
 NETWORK=coteacher
 PORT="${FRONTEND_PORT:-8100}"
@@ -15,7 +16,7 @@ cd "$APP_DIR/frontend"
 rm -rf html.new && mkdir html.new
 tar -xzf "$TARBALL" -C html.new
 rm -f "$TARBALL"
-cp "$(dirname "$0")/nginx.conf" nginx.conf
+cp "$SCRIPT_DIR/nginx.conf" nginx.conf
 rm -rf html.old
 [ -d html ] && mv html html.old
 mv html.new html
