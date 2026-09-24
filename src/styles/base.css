@@ -12,6 +12,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'ss01' on;
+  /* Instrument Sans has a narrow space (≈ 0.2 em, less at 600): open it a little so "12 alumnos sin nota" never reads as one word. */
+  word-spacing: 0.05em;
 }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }

@@ -1,5 +1,9 @@
-import { CaretDown, Minus, Plus } from '@phosphor-icons/react';
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { CalendarBlank, CaretDown, MagnifyingGlass, Minus, Plus, X } from '@phosphor-icons/react';
+import {
+  forwardRef, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react';
+import { dateWithYear, shortDate } from '../lib/format';
 
 interface Wrap {
   label?: ReactNode;
@@ -46,6 +50,75 @@ export function Select({ label, hint, error, children, ...rest }: Wrap & SelectH
     </FieldWrap>
   );
 }
+
+interface DateFieldProps extends Wrap {
+  /** ISO date 'YYYY-MM-DD', or '' when empty. */
+  value: string;
+  onChange: (iso: string) => void;
+  min?: string;
+  max?: string;
+  placeholder?: string;
+  /** "8 sept 2026" instead of "martes, 8 sept 2026" (date ranges side by side). */
+  short?: boolean;
+  /** Optional dates: shows a button to empty the field. */
+  clearable?: boolean;
+  disabled?: boolean;
+  'aria-label'?: string;
+}
+
+/** Date input that always reads in Spanish ("martes, 8 sept 2026") whatever the browser locale.
+ *  The native picker (calendar / iOS wheel) sits invisible on top, so tapping anywhere opens it. */
+export function DateField({ label, hint, error, value, onChange, min, max, placeholder = 'Elegir fecha', short, clearable, disabled, ...aria }: DateFieldProps) {
+  const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const openPicker = () => {
+    try { input.current?.showPicker(); } catch { /* not supported or already open: the native input handles the tap */ }
+  };
+  const cls = ['datefield', clearable && value && 'datefield--clearable', disabled && 'datefield--disabled'].filter(Boolean).join(' ');
+  return (
+    <FieldWrap id={id} label={label} hint={hint} error={error}>
+      <div className={cls}>
+        <input ref={input} id={id} type="date" className="datefield__native" value={value} min={min} max={max} disabled={disabled}
+          aria-label={aria['aria-label']} onClick={openPicker} onChange={(e) => onChange(e.target.value)} />
+        <span className={`input datefield__text${value ? '' : ' datefield__text--empty'}`} aria-hidden>
+          {value ? (short ? `${shortDate(value)} ${value.slice(0, 4)}` : dateWithYear(value)) : placeholder}
+        </span>
+        <CalendarBlank size={18} className="datefield__icon" aria-hidden />
+        {clearable && value && !disabled && (
+          <button type="button" className="datefield__clear" aria-label="Quitar la fecha" onClick={() => onChange('')}><X size={14} weight="bold" /></button>
+        )}
+      </div>
+    </FieldWrap>
+  );
+}
+
+interface SearchFieldProps {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  label?: string;
+  autoFocus?: boolean;
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
+}
+
+/** Search box: magnifier, clear button, Esc clears. */
+export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(function SearchField(
+  { value, onChange, placeholder = 'Buscar', label = 'Buscar', autoFocus, onKeyDown }, ref,
+) {
+  return (
+    <div className="search-field" role="search">
+      <MagnifyingGlass size={18} aria-hidden />
+      <input ref={ref} type="search" className="input" value={value} placeholder={placeholder} aria-label={label} autoFocus={autoFocus}
+        autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Escape' && value) { e.stopPropagation(); onChange(''); } onKeyDown?.(e); }} />
+      {value && (
+        <button type="button" className="icon-btn icon-btn--sm search-field__clear" aria-label="Borrar la búsqueda" onClick={() => onChange('')}>
+          <X size={16} />
+        </button>
+      )}
+    </div>
+  );
+});
 
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return <button type="button" role="switch" aria-checked={checked} aria-label={label} className="switch" onClick={() => onChange(!checked)} />;

@@ -1,9 +1,10 @@
-import { ArrowRight, DotsThree, Exam, FileCsv, PencilSimple, Plus, Scales, Student } from '@phosphor-icons/react';
+import { ArrowRight, Exam, FileCsv, PencilSimple, Plus, Scales, Student } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActivityBrief, GradeInput } from '../../api/activities';
 import { useGradebook, useSaveCell, type Gradebook, type GradebookActivity, type GradebookRow, type GradeCell } from '../../api/gradebook';
 import type { CourseDetail } from '../../api/types';
+import { useCourseMenu } from '../../features/course/CourseMenu';
 import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
 import EditActivitySheet from '../../features/activities/EditActivitySheet';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
@@ -12,7 +13,7 @@ import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
 import { formatGrade, formatNumber, parseGradeInput, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
-  Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Menu, Row, Segmented, Sheet, SkeletonList, useFeedback,
+  Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Row, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
 import './GradebookTab.css';
 
@@ -38,6 +39,11 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
     download(`/courses/${course.id}/gradebook.csv?term=${term}`, `Cuaderno ${course.subject} ${course.group.name} ${TERM_SHORT[term]}.csv`)
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
+  useCourseMenu([
+    { label: 'Exportar CSV', icon: <FileCsv size={18} />, onSelect: exportCsv },
+    { label: 'Ponderaciones', icon: <Scales size={18} />, onSelect: () => setWeights(true) },
+  ]);
+
   const onCreated = (a: ActivityBrief) => {
     if (a.term !== term) setTerm(a.term);
     setFocus({ id: a.id, edit: true });
@@ -51,13 +57,6 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
         <div className="gb-toolbar__actions">
           <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => setNewOpen(true)}>Actividad</Button>
           <Button size="sm" variant="neutral" to={`/clases/${course.id}/evaluacion/${term}`} icon={<ArrowRight size={16} />}>Evaluación</Button>
-          <Menu
-            trigger={(open) => <IconButton label="Más acciones del cuaderno" onClick={open}><DotsThree size={22} weight="bold" /></IconButton>}
-            items={[
-              { label: 'Exportar CSV', icon: <FileCsv size={18} />, onSelect: exportCsv },
-              { label: 'Ponderaciones', icon: <Scales size={18} />, onSelect: () => setWeights(true) },
-            ]}
-          />
         </div>
       </div>
 

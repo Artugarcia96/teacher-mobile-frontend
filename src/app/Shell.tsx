@@ -1,9 +1,11 @@
-import { Books, CheckSquareOffset, GearSix, SunHorizon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { Books, CheckSquareOffset, GearSix, MagnifyingGlass, SunHorizon } from '@phosphor-icons/react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCourses } from '../api/core';
 import { useInboxCount } from '../api/inbox';
+import { SearchSheet } from '../features/students/StudentSearch';
 import { useAuth } from '../lib/auth';
+import { courseLabel, courseShortLabel } from '../lib/format';
 import { Avatar, Dot } from '../ui';
 import './shell.css';
 
@@ -22,6 +24,24 @@ function Badge({ n }: { n: number }) {
   return n > 0 ? <span className="nav-badge num">{n > 99 ? '99+' : n}</span> : null;
 }
 
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** "/" (outside text fields) or Ctrl/⌘+K opens the search sheet from anywhere. */
+function useSearchShortcut(open: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+      if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); open(); }
+      else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector('[role="dialog"]')) {
+        e.preventDefault(); open();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+}
+
 /** App frame: glass sidebar on desktop, floating glass tab capsule on phones. */
 export function Shell() {
   const { me } = useAuth();
@@ -29,6 +49,9 @@ export function Shell() {
   const inbox = useInboxCount();
   const { pathname } = useLocation();
   const focusMode = /\/revisar$/.test(pathname);
+  const [searching, setSearching] = useState(false);
+  const openSearch = useCallback(() => setSearching(true), []);
+  useSearchShortcut(openSearch);
 
   return (
     <div className={`shell${focusMode ? ' shell--focus' : ''}`}>
@@ -50,14 +73,19 @@ export function Shell() {
               )}
             </NavLink>
           ))}
+          <button type="button" className="side-link side-search" onClick={openSearch}>
+            <MagnifyingGlass size={20} />
+            <span>Buscar</span>
+            <kbd className="side-search__kbd">{MAC ? '⌘K' : 'Ctrl K'}</kbd>
+          </button>
         </nav>
         {!!courses.data?.length && (
           <div className="sidebar__classes">
             <div className="sidebar__label">Mis clases</div>
             {courses.data.map((c) => (
-              <NavLink key={c.id} to={`/clases/${c.id}`} className="side-class">
+              <NavLink key={c.id} to={`/clases/${c.id}`} className="side-class" title={courseLabel(c)}>
                 <Dot color={c.color} />
-                <span>{c.subject} · {c.group.name}</span>
+                <span>{courseShortLabel(c)}</span>
               </NavLink>
             ))}
           </div>
@@ -74,6 +102,7 @@ export function Shell() {
       <main className="shell__main">
         <Outlet />
       </main>
+      <SearchSheet open={searching} onClose={() => setSearching(false)} />
       <nav className="tabcap glass" aria-label="Navegación">
         {NAV.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className="tabcap__item">

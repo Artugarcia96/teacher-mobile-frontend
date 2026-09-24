@@ -3,32 +3,33 @@ import { useSearchParams } from 'react-router-dom';
 import { useCourseStudents, useMe } from '../../api/core';
 import type { CourseDetail, StudentRow } from '../../api/types';
 import AddStudentsSheet from '../../features/students/AddStudentsSheet';
-import { supportLabel } from '../../features/students/support';
+import { measureChips, supportLabel } from '../../features/students/support';
 import { plural, TERM_LABEL } from '../../lib/format';
-import { Avatar, Button, Chip, EmptyState, GradePill, List, Row, Section, SkeletonList } from '../../ui';
+import { Button, Chip, EmptyState, GradePill, List, Row, Section, SkeletonList } from '../../ui';
 import './students-tab.css';
 
+const MAX_MEASURE_CHIPS = 2;
+
+/** "Apellidos, Nombre" + one line: the first "a vigilar" reason, support measures and absences (from 3) + term average. */
 function StudentLine({ s }: { s: StudentRow }) {
-  const support = supportLabel(s.support);
-  const sub = (support || s.watch.length > 0) ? (
-    <span className="roster__tags">
-      {support && <Chip tone="info">{support}</Chip>}
-      {s.watch.map((w) => <Chip key={w} tone="warn">{w}</Chip>)}
+  const reason = s.watch[0];
+  const measures = measureChips(s.support);
+  const shown = measures.slice(0, MAX_MEASURE_CHIPS);
+  const flag = measures.length ? null : supportLabel(s.support);
+  const absences = s.absences >= 3 && !(reason && /falta/i.test(reason));
+  const sub = (reason || measures.length || flag || absences) ? (
+    <span className="roster__sub">
+      {reason && <Chip tone="warn">{reason[0].toUpperCase() + reason.slice(1)}</Chip>}
+      {shown.map((m) => <Chip key={m} tone="info">{m}</Chip>)}
+      {measures.length > shown.length && <Chip tone="info">+{measures.length - shown.length}</Chip>}
+      {flag && <Chip tone="info">{flag}</Chip>}
+      {absences && <span className="roster__abs">{plural(s.absences, 'falta', 'faltas')}</span>}
     </span>
   ) : undefined;
-  const missed = s.absences + s.lates;
-  return (
-    <Row to={`/alumnos/${s.id}`} lead={<Avatar initials={s.initials} />} title={s.sort_name} sub={sub}
-      trail={<>
-        {missed > 0 && <span className="roster__abs num" title={`${plural(s.absences, 'falta', 'faltas')}, ${plural(s.lates, 'retraso', 'retrasos')}`}>
-          {s.absences > 0 && `${s.absences} F`}{s.absences > 0 && s.lates > 0 && ' · '}{s.lates > 0 && `${s.lates} R`}
-        </span>}
-        <GradePill value={s.term_average} />
-      </>} />
-  );
+  return <Row to={`/alumnos/${s.id}`} title={s.sort_name} sub={sub} trail={<GradePill value={s.term_average} />} />;
 }
 
-/** Clase › Alumnos: roster sorted by surname. ?anadir=1 opens "Añadir alumnos". */
+/** Clase › Alumnos: roster sorted by surname. ?anadir=1 opens "Añadir alumnos" (also in the class "···" menu). */
 export default function StudentsTab({ course }: { course: CourseDetail }) {
   const { data, isLoading, error, refetch } = useCourseStudents(course.id);
   const me = useMe();
@@ -53,11 +54,11 @@ export default function StudentsTab({ course }: { course: CourseDetail }) {
     );
   } else {
     body = (
-      <Section title={plural(data.length, 'alumno', 'alumnos')}
-        action={<Button size="sm" variant="tinted" icon={<UserPlus size={16} />} onClick={open}>Añadir alumnos</Button>}
-        footer={`Media de la ${TERM_LABEL[term]} y faltas (F) y retrasos (R) del trimestre.`} className="roster">
-        <List inset={64}>
+      <Section title={plural(data.length, 'alumno', 'alumnos')} footer={`Nota: media de la ${TERM_LABEL[term]}.`} className="roster">
+        <List>
           {data.map((s) => <StudentLine key={s.id} s={s} />)}
+          <Row lead={<UserPlus size={18} className="roster__add" />} title={<span className="roster__add">Añadir alumnos</span>}
+            onClick={open} chevron={false} />
         </List>
       </Section>
     );

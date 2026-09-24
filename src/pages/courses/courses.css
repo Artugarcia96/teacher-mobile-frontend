@@ -1,6 +1,13 @@
 .courses__steps { margin: 4px 0 0; padding-left: 20px; text-align: left; display: grid; gap: 4px; }
+.courses__search { max-width: 560px; }
 .courses__restore { color: var(--accent); font-weight: 500; font-size: var(--fs-sub); }
-.courses__none { padding: 0 4px; font-size: var(--fs-sub); }
+.courses__facts { display: block; }
+.courses__pending { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.courses__pending .chip { height: 22px; padding: 0 8px; font-size: 12px; }
+.list.courses__archive { background: transparent; box-shadow: none; }
+.courses__archive-title { color: var(--ink-2); font-weight: 500; }
+.courses__caret { color: var(--ink-3); transition: transform var(--t-fast) var(--ease); }
+.courses__caret--up { transform: rotate(180deg); }
 
 /* Desktop: the grouped list becomes a 2-column grid of cards. */
 @media (min-width: 1024px) {

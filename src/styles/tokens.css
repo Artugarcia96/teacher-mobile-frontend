@@ -90,6 +90,11 @@
   --reading-max: 720px;
   --sidebar-w: 248px;
 
+  /* Tab capsule (phones/tablets): pages and sticky bars keep clear of it */
+  --tabcap-h: 62px;
+  --tabcap-bottom: 14px;
+  --capsule-clearance: calc(var(--tabcap-bottom) + var(--tabcap-h) + env(safe-area-inset-bottom));
+
   /* Elevation */
   --e1: 0 1px 2px rgba(40, 30, 20, 0.06), 0 6px 20px rgba(40, 30, 20, 0.04);
   --e2: 0 10px 30px rgba(40, 30, 20, 0.10), 0 1px 2px rgba(40, 30, 20, 0.06);
@@ -101,18 +106,17 @@
   --t-med: 240ms;
   --t-slow: 320ms;
 
-  /* Grades */
+  /* Grades: three states (docs/DESIGN.md §2) */
   --grade-fail: var(--danger);
   --grade-pass: var(--ink);
-  --grade-good: var(--accent);
-  --grade-great: var(--ok);
+  --grade-great: var(--accent);
 }
 
 @media (min-width: 768px) {
   :root { --gutter: 24px; }
 }
 @media (min-width: 1024px) {
-  :root { --gutter: 40px; }
+  :root { --gutter: 40px; --capsule-clearance: 0px; }
 }
 
 /* Dark */

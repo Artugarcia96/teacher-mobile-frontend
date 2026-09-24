@@ -12,11 +12,13 @@ interface SheetProps {
   footer?: ReactNode;
   size?: 'auto' | 'large';
   wide?: boolean;
+  /** On desktop (≥1024) open as a right side panel that keeps the page visible. */
+  side?: boolean;
   children: ReactNode;
 }
 
-/** Bottom sheet on phones, centered glass panel on tablet/desktop. Esc and scrim close it. */
-export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', wide, children }: SheetProps) {
+/** Bottom sheet on phones, centered glass panel on tablet/desktop (or a side panel). Esc and scrim close it. */
+export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', wide, side, children }: SheetProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,9 +38,9 @@ export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', w
   if (!open) return null;
   return createPortal(
     <>
-      <div className="sheet-scrim" onClick={onClose} />
+      <div className={`sheet-scrim${side ? ' sheet-scrim--side' : ''}`} onClick={onClose} />
       <div ref={ref} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined}
-        className={`sheet${size === 'large' ? ' sheet--large' : ''}${wide ? ' sheet--wide' : ''}`}>
+        className={`sheet${size === 'large' ? ' sheet--large' : ''}${wide ? ' sheet--wide' : ''}${side ? ' sheet--side' : ''}`}>
         <div className="sheet__grab" />
         <div className="sheet__head">
           <div className="sheet__title">{title}</div>

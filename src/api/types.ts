@@ -1,13 +1,20 @@
 /** Shared API types (mirror backend app/schemas/common.py, me.py, courses.py, notes.py).
  * Feature-specific types live next to their hooks in src/api/<area>.ts. */
 
+/** `region` = código de comunidad autónoma ("MD"). */
 export interface Teacher { id: string; email: string; name: string; school?: string | null; region?: string | null }
+/** Comunidad autónoma y plataforma de notas: `export_label` "Raíces (Madrid)" = destino de los CSV. */
+export interface Region { code: string; name: string; short: string; platform?: string | null; export_label?: string | null }
 export interface Term { n: number; start: string; end: string }
 export interface Holiday { start: string; end: string; label: string }
 export interface SchoolYear { id: string; label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[]; current_term: number }
-export interface Me { teacher: Teacher; school_year: SchoolYear; ai_provider: 'mock' | 'openai'; today: string; now: string }
+export interface Me { teacher: Teacher; school_year: SchoolYear; region?: Region | null; ai_provider: string; today: string; now: string }
 
-export interface Support { neae?: boolean; acnee?: boolean; kind?: string | null; adaptation?: string | null }
+export type Measure = 'mas_tiempo' | 'letra_ampliada' | 'enunciados_por_pasos' | 'lectura_en_voz_alta' | 'examen_adaptado' | 'acs';
+/** Apoyos NEAE/ACNEE como medidas concretas (backend app/schemas/support.py). */
+export interface Support {
+  neae: boolean; acnee: boolean; kind?: string | null; measures: Measure[]; acs_level?: string | null; notes?: string | null;
+}
 export interface StudentRef {
   id: string; first_name: string; last_name: string; name: string; sort_name: string; initials: string; support?: Support | null;
 }
@@ -16,7 +23,8 @@ export interface CourseRef { id: string; subject: string; short?: string | null;
 
 export interface Slot { weekday: number; start: string; end: string; room?: string | null }
 export interface Category { key: string; label: string; weight: number }
-export interface NextSession { date: string; start: string; end: string; room?: string | null }
+/** `taken`: the list of this session is already taken (only possible once it has started). */
+export interface NextSession { date: string; start: string; end: string; room?: string | null; taken?: boolean }
 export interface CourseSummary extends CourseRef { student_count: number; schedule: Slot[]; next_session?: NextSession | null; archived: boolean }
 export interface CourseDetail extends CourseSummary { categories: Category[]; current_unit?: string | null }
 export interface GroupOut extends GroupRef { student_count: number; courses: CourseRef[] }
@@ -32,11 +40,20 @@ export interface Note {
 
 /** `final` is the teacher's final grade (only if set); `proposed` the rounded average. */
 export interface TermCell { term: number; average: number | null; proposed?: number | null; final: number | null }
-export interface GradeLine { activity_id: string; title: string; date: string; category_label: string; score: number | null; max_score: number; normalized: number | null; status: string }
-export interface StudentCourse { course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number }
+export interface GradeLine {
+  activity_id: string; title: string; date: string; category_label: string; score: number | null; max_score: number; normalized: number | null;
+  status: string; comment?: string | null;
+}
+/** Past exam of the current evaluación the student still lacks (no grade or NP). */
+export interface PendingExam { activity_id: string; title: string; date: string; status: 'empty' | 'absent' }
+export interface StudentCourse {
+  course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number; pending_exams?: PendingExam[];
+}
 export interface StudentFile {
   student: StudentRef; notes_text?: string | null; groups: GroupRef[]; courses: StudentCourse[]; notes: Note[]; watch: string[];
 }
+
+export interface SearchResult { students: { student: StudentRef; courses: CourseRef[] }[]; courses: CourseRef[] }
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed';
 export interface Job {

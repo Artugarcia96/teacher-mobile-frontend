@@ -1,125 +1,96 @@
 import { Plus, SignOut, Warning, X } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import { useAiUsage, useMe, usePatchMe, useSaveSchoolYear, useSendFeedback } from '../../api/core';
+import { useMe, usePatchMe, useRegions, useSaveSchoolYear, useSendFeedback } from '../../api/core';
 import type { Holiday, Me, Term } from '../../api/types';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { formatNumber, numericDate, plural, shortDate, TERM_LABEL } from '../../lib/format';
+import { shortDate, TERM_LABEL } from '../../lib/format';
 import { getTheme, setTheme, type Theme } from '../../lib/theme';
 import {
-  Button, EmptyState, IconButton, List, Page, Row, Section, Segmented, Select, SkeletonList, TextArea, TextField, useFeedback,
+  ActionBar, Button, DateField, EmptyState, IconButton, List, Page, Row, Section, Segmented, Select, SkeletonList, TextArea, TextField,
+  useFeedback,
 } from '../../ui';
 import './settings.css';
 
-const REGIONS = [
-  'Andalucía', 'Aragón', 'Principado de Asturias', 'Illes Balears', 'Canarias', 'Cantabria', 'Castilla-La Mancha',
-  'Castilla y León', 'Cataluña', 'Comunitat Valenciana', 'Extremadura', 'Galicia', 'Comunidad de Madrid', 'Región de Murcia',
-  'Comunidad Foral de Navarra', 'País Vasco', 'La Rioja', 'Ceuta', 'Melilla',
-];
-
 const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback);
 
-function Profile({ me }: { me: Me }) {
-  const { toast } = useFeedback();
-  const patch = usePatchMe();
-  const [name, setName] = useState(me.teacher.name);
-  const [school, setSchool] = useState(me.teacher.school ?? '');
-  const [region, setRegion] = useState(me.teacher.region ?? '');
-  const dirty = name !== me.teacher.name || school !== (me.teacher.school ?? '') || region !== (me.teacher.region ?? '');
+interface Profile { name: string; school: string; region: string }
+interface Year { label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[] }
 
-  const save = async () => {
-    try {
-      await patch.mutateAsync({ name: name.trim(), school: school.trim() || null, region: region || null });
-      toast('Perfil guardado');
-    } catch (e) {
-      toast(errText(e, 'No se ha podido guardar el perfil.'), { tone: 'error' });
-    }
-  };
+const profileOf = (me: Me): Profile => ({ name: me.teacher.name, school: me.teacher.school ?? '', region: me.teacher.region ?? '' });
+const yearOf = (me: Me): Year => {
+  const y = me.school_year;
+  return { label: y.label, start_date: y.start_date, end_date: y.end_date, terms: y.terms, holidays: y.holidays };
+};
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
+/** "8 sept 2026 – 22 dic 2026" pair of date fields. */
+function Range({ label, start, end, onChange }: { label: string; start: string; end: string; onChange: (start: string, end: string) => void }) {
   return (
-    <Section title="Perfil" footer={me.teacher.email}>
-      <div className="card card--pad form">
-        <TextField label="Nombre" value={name} autoComplete="name" onChange={(e) => setName(e.target.value)} />
-        <TextField label="Centro" placeholder="IES Miguel de Cervantes" value={school} onChange={(e) => setSchool(e.target.value)} />
-        <Select label="Comunidad autónoma" value={region} onChange={(e) => setRegion(e.target.value)}>
-          <option value="">Sin indicar</option>
-          {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-        </Select>
-        {dirty && <div><Button onClick={save} loading={patch.isPending} disabled={!name.trim()}>{name.trim() ? 'Guardar perfil' : 'Escribe tu nombre'}</Button></div>}
+    <div className="set-range">
+      <span className="field__label">{label}</span>
+      <div className="set-dates">
+        <DateField short aria-label={`${label}: primer día`} value={start} onChange={(v) => v && onChange(v, end)} />
+        <span className="faint">a</span>
+        <DateField short aria-label={`${label}: último día`} value={end} min={start} onChange={(v) => v && onChange(start, v)} />
       </div>
+    </div>
+  );
+}
+
+function ProfileSection({ me, value, onChange }: { me: Me; value: Profile; onChange: (p: Profile) => void }) {
+  const regions = useRegions();
+  const region = regions.data?.find((r) => r.code === value.region);
+  return (
+    <Section title="Perfil">
+      <div className="card card--pad form">
+        <TextField label="Nombre" value={value.name} autoComplete="name" onChange={(e) => onChange({ ...value, name: e.target.value })}
+          error={value.name.trim() ? undefined : 'Escribe tu nombre.'} />
+        <TextField label="Centro" placeholder="IES Miguel de Cervantes" value={value.school} onChange={(e) => onChange({ ...value, school: e.target.value })} />
+        <Select label="Comunidad autónoma" value={value.region} onChange={(e) => onChange({ ...value, region: e.target.value })}
+          hint={region?.platform ? `Las exportaciones de notas se preparan para ${region.platform}.` : undefined}>
+          <option value="">Sin indicar</option>
+          {(regions.data ?? []).map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
+          {!regions.data && value.region && <option value={value.region}>{me.region?.name ?? value.region}</option>}
+        </Select>
+      </div>
+      <List>
+        <Row title="Cuenta" trail={<span className="set-email">{me.teacher.email}</span>} />
+      </List>
     </Section>
   );
 }
 
-function SchoolYearSection({ me }: { me: Me }) {
-  const { toast } = useFeedback();
-  const save = useSaveSchoolYear();
-  const y = me.school_year;
-  const [label, setLabel] = useState(y.label);
-  const [start, setStart] = useState(y.start_date);
-  const [end, setEnd] = useState(y.end_date);
-  const [terms, setTerms] = useState<Term[]>(y.terms);
-  const [holidays, setHolidays] = useState<Holiday[]>(y.holidays);
+function SchoolYearSection({ value, onChange }: { value: Year; onChange: (y: Year) => void }) {
   const [adding, setAdding] = useState(false);
   const [h, setH] = useState<Holiday>({ label: '', start: '', end: '' });
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLabel(y.label); setStart(y.start_date); setEnd(y.end_date); setTerms(y.terms); setHolidays(y.holidays);
-  }, [y]);
-
-  const dirty = JSON.stringify([label, start, end, terms, holidays]) !== JSON.stringify([y.label, y.start_date, y.end_date, y.terms, y.holidays]);
-  const setTerm = (n: number, k: 'start' | 'end', v: string) => setTerms(terms.map((t) => (t.n === n ? { ...t, [k]: v } : t)));
+  const setTerm = (n: number, start: string, end: string) => onChange({ ...value, terms: value.terms.map((t) => (t.n === n ? { ...t, start, end } : t)) });
 
   const addHoliday = () => {
     const item = { label: h.label.trim() || 'Festivo', start: h.start, end: h.end || h.start };
-    setHolidays([...holidays, item].sort((a, b) => a.start.localeCompare(b.start)));
+    onChange({ ...value, holidays: [...value.holidays, item].sort((a, b) => a.start.localeCompare(b.start)) });
     setH({ label: '', start: '', end: '' });
     setAdding(false);
   };
-
-  const submit = async () => {
-    setError(null);
-    try {
-      await save.mutateAsync({ label, start_date: start, end_date: end, terms, holidays });
-      toast('Curso escolar guardado');
-    } catch (e) {
-      setError(errText(e, 'No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.'));
-    }
-  };
-
   const hBlocker = !h.start ? 'Pon la fecha' : h.end && h.end < h.start ? 'El fin va después del inicio' : null;
 
   return (
     <Section title="Curso escolar" footer="Las evaluaciones deciden a qué trimestre va cada nota. Los festivos no tienen clase en Hoy.">
       <div className="card card--pad form">
-        <TextField label="Curso" value={label} onChange={(e) => setLabel(e.target.value)} />
-        <div className="set-term">
-          <span className="field__label">Clases</span>
-          <div className="set-dates">
-            <input className="input" type="date" aria-label="Primer día de clase" value={start} onChange={(e) => setStart(e.target.value)} />
-            <span className="faint">a</span>
-            <input className="input" type="date" aria-label="Último día de clase" value={end} onChange={(e) => setEnd(e.target.value)} />
-          </div>
-        </div>
-        {terms.map((t) => (
-          <div key={t.n} className="set-term">
-            <span className="field__label">{TERM_LABEL[t.n]}</span>
-            <div className="set-dates">
-              <input className="input" type="date" aria-label={`${TERM_LABEL[t.n]}: inicio`} value={t.start} onChange={(e) => setTerm(t.n, 'start', e.target.value)} />
-              <span className="faint">a</span>
-              <input className="input" type="date" aria-label={`${TERM_LABEL[t.n]}: fin`} value={t.end} onChange={(e) => setTerm(t.n, 'end', e.target.value)} />
-            </div>
-          </div>
+        <TextField label="Curso" value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} />
+        <Range label="Periodo lectivo" start={value.start_date} end={value.end_date}
+          onChange={(start_date, end_date) => onChange({ ...value, start_date, end_date })} />
+        {value.terms.map((t) => (
+          <Range key={t.n} label={TERM_LABEL[t.n]} start={t.start} end={t.end} onChange={(s, e) => setTerm(t.n, s, e)} />
         ))}
       </div>
 
       <div className="section__head set-sub"><h3 className="section__title">Festivos y vacaciones</h3></div>
       <List>
-        {holidays.map((x, i) => (
+        {value.holidays.map((x, i) => (
           <Row key={`${x.start}-${x.label}`} title={x.label}
-            sub={x.end && x.end !== x.start ? `${shortDate(x.start)} – ${shortDate(x.end)}` : numericDate(x.start)}
-            trail={<IconButton size="sm" label={`Quitar ${x.label}`} onClick={() => setHolidays(holidays.filter((_, j) => j !== i))}><X size={16} /></IconButton>} />
+            sub={x.end && x.end !== x.start ? `${shortDate(x.start)} – ${shortDate(x.end)}` : shortDate(x.start)}
+            trail={<IconButton size="sm" label={`Quitar ${x.label}`} onClick={() => onChange({ ...value, holidays: value.holidays.filter((_, j) => j !== i) })}><X size={16} /></IconButton>} />
         ))}
         {!adding ? (
           <Row lead={<Plus size={18} className="set-accent" />} title={<span className="set-accent">Añadir festivo</span>} onClick={() => setAdding(true)} chevron={false} />
@@ -127,8 +98,8 @@ function SchoolYearSection({ me }: { me: Me }) {
           <div className="row set-add">
             <TextField label="Motivo" placeholder="Día del centro" value={h.label} onChange={(e) => setH({ ...h, label: e.target.value })} />
             <div className="set-pair">
-              <TextField label="Desde" type="date" value={h.start} onChange={(e) => setH({ ...h, start: e.target.value })} />
-              <TextField label="Hasta (opcional)" type="date" value={h.end} onChange={(e) => setH({ ...h, end: e.target.value })} />
+              <DateField label="Desde" value={h.start} onChange={(v) => setH({ ...h, start: v })} />
+              <DateField label="Hasta (opcional)" value={h.end} min={h.start || undefined} clearable onChange={(v) => setH({ ...h, end: v })} />
             </div>
             <div className="set-add__btns">
               <Button size="sm" variant="neutral" onClick={() => setAdding(false)}>Cancelar</Button>
@@ -137,8 +108,6 @@ function SchoolYearSection({ me }: { me: Me }) {
           </div>
         )}
       </List>
-      {error && <div className="field__error" role="alert">{error}</div>}
-      {dirty && <div><Button onClick={submit} loading={save.isPending}>Guardar curso escolar</Button></div>}
     </Section>
   );
 }
@@ -146,24 +115,9 @@ function SchoolYearSection({ me }: { me: Me }) {
 function Appearance() {
   const [theme, set] = useState<Theme>(getTheme);
   return (
-    <Section title="Apariencia">
+    <Section title="Apariencia" footer="Se aplica al momento en este dispositivo.">
       <Segmented full label="Tema" value={theme} onChange={(t) => { set(t); setTheme(t); }}
         options={[{ value: 'system', label: 'Sistema' }, { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]} />
-    </Section>
-  );
-}
-
-function AISection({ me }: { me: Me }) {
-  const usage = useAiUsage();
-  const mock = me.ai_provider === 'mock';
-  return (
-    <Section title="IA" footer="La IA solo propone borradores; nada se guarda como definitivo sin que lo revises.">
-      <List>
-        <Row title="Modo" trail={<span>{mock ? 'Respuestas simuladas (sin coste)' : 'OpenAI'}</span>} />
-        <Row title="Uso este mes" trail={usage.isLoading ? <span className="faint">…</span> : usage.data ? (
-          <span className="num">{plural(usage.data.calls, 'petición', 'peticiones')}{!mock && ` · ${formatNumber(usage.data.cost_usd, 2)} US$`}</span>
-        ) : <span className="faint">No disponible</span>} />
-      </List>
     </Section>
   );
 }
@@ -193,7 +147,51 @@ function FeedbackSection() {
   );
 }
 
-/** /ajustes — perfil, curso escolar, apariencia, IA, sugerencias y cerrar sesión. */
+/** Profile + school year are edited as one draft: a sticky "Guardar cambios" bar appears while something changed. */
+function SettingsForm({ me }: { me: Me }) {
+  const { toast } = useFeedback();
+  const patchMe = usePatchMe();
+  const saveYear = useSaveSchoolYear();
+  const [profile, setProfile] = useState(() => profileOf(me));
+  const [year, setYear] = useState(() => yearOf(me));
+  const [error, setError] = useState<string | null>(null);
+
+  // A refetch of /me (e.g. after saving) resets the draft to what the server has.
+  useEffect(() => { setProfile(profileOf(me)); setYear(yearOf(me)); }, [me]);
+
+  const profileDirty = !same(profile, profileOf(me));
+  const yearDirty = !same(year, yearOf(me));
+  const saving = patchMe.isPending || saveYear.isPending;
+
+  const discard = () => { setProfile(profileOf(me)); setYear(yearOf(me)); setError(null); };
+  const save = async () => {
+    setError(null);
+    try {
+      if (profileDirty) await patchMe.mutateAsync({ name: profile.name.trim(), school: profile.school.trim() || null, region: profile.region || null });
+      if (yearDirty) await saveYear.mutateAsync(year);
+      toast('Cambios guardados');
+    } catch (e) {
+      const msg = errText(e, 'No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.');
+      setError(msg);
+      toast(msg, { tone: 'error' });
+    }
+  };
+
+  return (
+    <>
+      <ProfileSection me={me} value={profile} onChange={setProfile} />
+      <SchoolYearSection value={year} onChange={setYear} />
+      {(profileDirty || yearDirty) && (
+        <ActionBar note={error ? <span className="field__error" role="alert">{error}</span> : 'Sin guardar'}>
+          <Button size="sm" variant="neutral" onClick={discard} disabled={saving}>Descartar</Button>
+          <Button size="sm" onClick={save} loading={saving} disabled={!profile.name.trim()}>Guardar cambios</Button>
+        </ActionBar>
+      )}
+    </>
+  );
+}
+
+/** /ajustes — perfil, curso escolar, apariencia, sugerencias y cerrar sesión. */
 export default function SettingsPage() {
   const { logout } = useAuth();
   const { data: me, error, refetch } = useMe();
@@ -204,16 +202,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <Page title="Ajustes">
+    <Page title="Ajustes" back="/hoy" backLabel="Hoy" backToOrigin>
       {error ? (
         <EmptyState icon={<Warning size={26} />} title="No se han podido cargar los ajustes" text={error.message}
           action={<Button variant="tinted" onClick={() => refetch()}>Reintentar</Button>} />
       ) : !me ? <SkeletonList rows={6} /> : (
         <div className="settings">
-          <Profile me={me} />
-          <SchoolYearSection me={me} />
+          <SettingsForm me={me} />
           <Appearance />
-          <AISection me={me} />
           <FeedbackSection />
           <Button variant="danger" full icon={<SignOut size={18} />} onClick={signOut}>Cerrar sesión</Button>
         </div>

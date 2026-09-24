@@ -1,69 +1,102 @@
-import { DotsThree, GearSix } from '@phosphor-icons/react';
+import { ClipboardText, DotsThree, GearSix, UserPlus } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCourse } from '../../api/core';
+import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
+import { CourseMenuProvider, useCourseMenuState } from '../../features/course/CourseMenu';
 import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
-import { longDate } from '../../lib/format';
-import { Dot, EmptyState, IconButton, Menu, Page, Segmented, SkeletonList } from '../../ui';
+import { useAuth, useToday } from '../../lib/auth';
+import { courseLabel, isLive, ordinals, plural, sessionText } from '../../lib/format';
+import { Button, Dot, EmptyState, IconButton, Menu, Page, Segmented, SkeletonList, type MenuItem } from '../../ui';
 import AttendanceTab from './AttendanceTab';
 import GradebookTab from './GradebookTab';
 import PlanTab from './PlanTab';
 import StudentsTab from './StudentsTab';
+import './course-page.css';
 
+/** Short labels so the four tabs fit 390 px; the URL slugs stay stable. */
 const TABS = [
   { value: 'cuaderno', label: 'Cuaderno' },
   { value: 'alumnos', label: 'Alumnos' },
-  { value: 'programacion', label: 'Programación' },
-  { value: 'asistencia', label: 'Asistencia' },
+  { value: 'programacion', label: 'Temario' },
+  { value: 'asistencia', label: 'Faltas' },
 ] as const;
 type Tab = (typeof TABS)[number]['value'];
 
-/** Clase = materia impartida a un grupo. Four tabs; settings behind the ⋯ menu. */
+/** Clase = materia impartida a un grupo. Header: one line of facts + "Pasar lista" while the class is on.
+ *  One "···" menu for the whole class: the open tab adds its actions to it (features/course/CourseMenu). */
 export default function CoursePage() {
   const { courseId, tab } = useParams();
   const navigate = useNavigate();
+  const { me } = useAuth();
+  const today = useToday();
   const { data: course, isLoading, error } = useCourse(courseId);
+  const menu = useCourseMenuState();
   const [settings, setSettings] = useState(false);
+  const [taking, setTaking] = useState(false);
   const current: Tab = (TABS.find((t) => t.value === tab)?.value ?? 'cuaderno') as Tab;
 
   if (error) {
-    return <Page title="Clase" back="/clases" backLabel="Clases"><EmptyState icon={<GearSix size={24} />} title="No se ha encontrado la clase" /></Page>;
+    return (
+      <Page title="Clase" back="/clases" backLabel="Clases" backToOrigin>
+        <EmptyState icon={<GearSix size={24} />} title="No se ha encontrado la clase" text="Puede que se haya eliminado."
+          action={<Button variant="tinted" to="/clases">Ir a Clases</Button>} />
+      </Page>
+    );
   }
   if (isLoading || !course) {
-    return <Page title="" back="/clases" backLabel="Clases"><SkeletonList rows={6} /></Page>;
+    return <Page title="" back="/clases" backLabel="Clases" backToOrigin><SkeletonList rows={6} /></Page>;
   }
 
   const next = course.next_session;
+  const now = me?.now;
+  const canTake = isLive(next, today, now) && !next?.taken;
+  const when = next ? sessionText(next, today, now) : course.schedule.length ? null : 'Sin horario';
+  const facts = [plural(course.student_count, 'alumno', 'alumnos'), course.room && `Aula ${course.room}`, when].filter(Boolean).join(' · ');
+
+  const items: MenuItem[] = [
+    ...menu.items,
+    { label: 'Añadir alumnos', icon: <UserPlus size={18} />, separatorBefore: menu.items.length > 0,
+      onSelect: () => navigate(`/clases/${course.id}/alumnos?anadir=1`) },
+    { label: 'Ajustes de la clase', icon: <GearSix size={18} />, onSelect: () => setSettings(true) },
+  ];
+
   return (
-    <Page
-      title={course.group.name}
-      back="/clases"
-      backLabel="Clases"
-      eyebrow={<><Dot color={course.color} large /><span className="eyebrow" style={{ color: 'var(--ink)' }}>{course.subject}</span></>}
-      subtitle={<>
-        <span>{course.student_count} alumnos</span>
-        {course.room && <span>Aula {course.room}</span>}
-        {next && <span>Próxima: {longDate(next.date)}, {next.start}</span>}
-      </>}
-      actions={
-        <Menu
-          trigger={(open) => <IconButton label="Más opciones" glass onClick={open}><DotsThree size={22} weight="bold" /></IconButton>}
-          items={[{ label: 'Ajustes de la clase', icon: <GearSix size={18} />, onSelect: () => setSettings(true) }]}
-        />
-      }
-      toolbar={
-        <div style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
-          <Segmented label="Secciones de la clase" value={current} options={TABS.map((t) => ({ ...t }))}
-            onChange={(v) => navigate(`/clases/${course.id}/${v}`, { replace: true })} />
-        </div>
-      }
-      wide={current === 'cuaderno'}
-    >
-      {current === 'cuaderno' && <GradebookTab course={course} />}
-      {current === 'alumnos' && <StudentsTab course={course} />}
-      {current === 'programacion' && <PlanTab course={course} />}
-      {current === 'asistencia' && <AttendanceTab course={course} />}
-      <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
-    </Page>
+    <CourseMenuProvider register={menu.register}>
+      <Page
+        title={ordinals(course.group.name)}
+        back="/clases"
+        backLabel="Clases"
+        backToOrigin
+        eyebrow={<><Dot color={course.color} large /><span className="eyebrow course-eyebrow">{course.subject}</span></>}
+        subtitle={<span className="course-facts">{facts}</span>}
+        actions={<>
+          {canTake && (
+            <Button size="sm" icon={<ClipboardText size={16} />} onClick={() => setTaking(true)}>Pasar lista</Button>
+          )}
+          <Menu
+            trigger={(open) => <IconButton label="Más opciones de la clase" glass onClick={open}><DotsThree size={22} weight="bold" /></IconButton>}
+            items={items}
+          />
+        </>}
+        toolbar={
+          <div className="course-tabs">
+            <Segmented label="Secciones de la clase" value={current} options={TABS.map((t) => ({ ...t }))}
+              onChange={(v) => navigate(`/clases/${course.id}/${v}`, { replace: true })} />
+          </div>
+        }
+        wide={current === 'cuaderno'}
+      >
+        {current === 'cuaderno' && <GradebookTab course={course} />}
+        {current === 'alumnos' && <StudentsTab course={course} />}
+        {current === 'programacion' && <PlanTab course={course} />}
+        {current === 'asistencia' && <AttendanceTab course={course} />}
+        <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
+        {taking && next && (
+          <TakeAttendanceSheet open onClose={() => setTaking(false)} courseId={course.id} date={next.date} start={next.start}
+            label={courseLabel(course)} />
+        )}
+      </Page>
+    </CourseMenuProvider>
   );
 }

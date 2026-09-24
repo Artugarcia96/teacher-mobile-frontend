@@ -1,0 +1,7 @@
+/* Clase: header facts line and the four tabs (fit 390 px without scrolling). */
+.course-eyebrow { color: var(--ink); }
+.course-facts { font-variant-numeric: tabular-nums; }
+@media (max-width: 767px) {
+  .course-tabs .seg { display: grid; width: 100%; }
+  .course-tabs .seg__btn { padding: 0 6px; }
+}

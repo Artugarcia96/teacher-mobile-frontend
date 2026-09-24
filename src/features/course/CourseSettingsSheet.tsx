@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDeleteCourse, usePatchCourse } from '../../api/core';
 import type { Category, CourseDetail, Slot } from '../../api/types';
 import { ApiError } from '../../lib/api';
+import { courseLabel } from '../../lib/format';
 import { Button, IconButton, Sheet, TextField, useFeedback } from '../../ui';
 import ColorSwatches from './ColorSwatches';
 import ScheduleEditor from './ScheduleEditor';
@@ -80,7 +81,7 @@ export default function CourseSettingsSheet({ open, onClose, course }: { open: b
 
   const remove = async () => {
     if (!(await confirm({
-      title: `Eliminar ${course.label}`, confirm: 'Eliminar definitivamente', danger: true,
+      title: `Eliminar ${courseLabel(course)}`, confirm: 'Eliminar definitivamente', danger: true,
       text: 'Se borran sus actividades, notas, programación, materiales y asistencia. No se puede deshacer. Los alumnos y sus observaciones se conservan.',
     }))) return;
     try {
@@ -94,7 +95,7 @@ export default function CourseSettingsSheet({ open, onClose, course }: { open: b
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Ajustes de la clase" subtitle={course.label} size="large"
+    <Sheet open={open} onClose={onClose} title="Ajustes de la clase" subtitle={courseLabel(course)} size="large"
       footer={<Button full onClick={save} loading={patch.isPending && !patch.variables?.archived} disabled={!!blocker}>{blocker ?? 'Guardar cambios'}</Button>}>
       <div className="form">
         <div className="form-row">

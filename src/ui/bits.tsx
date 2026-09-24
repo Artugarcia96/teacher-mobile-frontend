@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { gradeTone, formatGrade } from '../lib/format';
+import { formatAverage, formatGrade, formatScore, gradeTone } from '../lib/format';
 
 export function Chip({ children, tone, onClick, selected, icon }: {
   children: ReactNode; tone?: 'ok' | 'warn' | 'danger' | 'accent' | 'info' | 'outline'; onClick?: () => void; selected?: boolean; icon?: ReactNode;
@@ -22,16 +22,19 @@ export function Avatar({ initials, size }: { initials: string; size?: 'sm' | 'lg
   return <span className={`avatar${size ? ` avatar--${size}` : ''}`} aria-hidden>{initials}</span>;
 }
 
-/** A grade number colored by the Spanish scale. value is 0-10 (normalized) unless `max` is given. */
+/** A grade colored by the Spanish scale (three tones). Without `max` it is an average on 0-10 (one decimal);
+ *  with `max` it is an activity score as entered (up to two decimals), toned on its normalized value. */
 export function Grade({ value, max, className, digits }: { value: number | null | undefined; max?: number; className?: string; digits?: number }) {
   const norm = value == null ? null : max ? (value / max) * 10 : value;
-  return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{formatGrade(value, digits)}</span>;
+  const text = digits !== undefined ? formatGrade(value, digits) : max ? formatScore(value) : formatAverage(value);
+  return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{text}</span>;
 }
 
+/** Average (one decimal) or integer proposal in a tinted pill; `label` = qualitative (SU, NT…). */
 export function GradePill({ value, label }: { value: number | null | undefined; label?: string | null }) {
   return (
     <span className={`grade-pill grade--${gradeTone(value ?? null)}`}>
-      {formatGrade(value)}
+      <span>{formatAverage(value)}</span>
       {label && <small>{label}</small>}
     </span>
   );

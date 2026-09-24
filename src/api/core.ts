@@ -1,11 +1,11 @@
 /** Hooks for account, classes, groups and students. Pattern for every area:
  *  - one `keys` object per area
  *  - `useX` = useQuery, `useXMutation` = useMutation that invalidates the right keys. */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type {
-  CourseDetail, CourseSummary, GroupOut, Job, Me, SchoolYear, StudentFile, StudentRef, StudentRow, Teacher,
+  CourseDetail, CourseSummary, GroupOut, Job, Me, Region, SchoolYear, SearchResult, StudentFile, StudentRef, StudentRow, Teacher,
 } from './types';
 
 export const keys = {
@@ -18,11 +18,12 @@ export const keys = {
   job: (id: string) => ['job', id] as const,
   archivedCourses: ['courses', 'archived'] as const,
   groupStudents: (groupId: string) => ['groups', groupId, 'students'] as const,
-  aiUsage: ['me', 'ai-usage'] as const,
+  adaptations: (courseId: string) => ['course', courseId, 'adaptations'] as const,
+  regions: ['regions'] as const,
+  search: (q: string) => ['search', q] as const,
 };
 
 export interface ParsedStudents { students: { first_name: string; last_name: string }[]; warnings: string[] }
-export interface AIUsage { month: string; calls: number; cost_usd: number; by_feature: { feature: string; calls: number; cost_usd: number }[] }
 
 export function useMe(enabled = true) {
   return useQuery({ queryKey: keys.me, queryFn: () => api.get<Me>('/me'), enabled, staleTime: 60_000 });
@@ -141,8 +142,27 @@ export function useStudentBrief(id: string) {
   return useMutation({ mutationFn: () => api.post<{ bullets: string[] }>(`/students/${id}/brief`) });
 }
 
-export function useAiUsage() {
-  return useQuery({ queryKey: keys.aiUsage, queryFn: () => api.get<AIUsage>('/me/ai-usage'), staleTime: 60_000 });
+/** Comunidades autónomas with their grades platform (static list). */
+export function useRegions() {
+  return useQuery({ queryKey: keys.regions, queryFn: () => api.get<Region[]>('/regions'), staleTime: Infinity });
+}
+
+/** Students of the class with adaptation measures (to prepare adapted versions of an exam). */
+export function useAdaptations(courseId: string | undefined) {
+  return useQuery({ queryKey: keys.adaptations(courseId!), queryFn: () => api.get<StudentRef[]>(`/courses/${courseId}/adaptations`), enabled: !!courseId });
+}
+
+/** Search students (accent-insensitive) and classes. Debounced; keeps the previous results while typing. */
+export function useSearch(q: string) {
+  const [term, setTerm] = useState(q.trim());
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q.trim()), 160);
+    return () => clearTimeout(t);
+  }, [q]);
+  return useQuery({
+    queryKey: keys.search(term), queryFn: () => api.get<SearchResult>(`/search?q=${encodeURIComponent(term)}`),
+    enabled: term.length > 0, placeholderData: keepPreviousData, staleTime: 30_000,
+  });
 }
 
 export function useSendFeedback() {
@@ -173,7 +193,9 @@ export function usePatchStudent(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: Partial<Pick<StudentRef, 'first_name' | 'last_name' | 'support'>> & { notes?: string | null }) => api.patch<StudentRef>(`/students/${id}`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.student(id) }); qc.invalidateQueries({ queryKey: ['course'] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.student(id) }); qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: ['search'] });
+    },
   });
 }
 

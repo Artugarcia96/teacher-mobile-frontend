@@ -25,9 +25,12 @@ Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en
 
 | UI (español)        | Código          | Qué es |
 |---------------------|-----------------|--------|
-| Grupo               | `Group`         | Conjunto de alumnos: "2º ESO B". Tiene etapa y nivel. |
-| Clase               | `Course`        | Una materia impartida a un grupo: "Matemáticas · 2º ESO B". **Unidad de trabajo de toda la app.** Tiene horario, aula, color y ponderaciones. |
-| Alumno              | `Student`       | Pertenece al profesor; se matricula en grupos (`Enrollment`). Puede tener marca NEAE/ACNEE + adaptación. |
+| Grupo               | `Group`         | Conjunto de alumnos: "2.º ESO B". Tiene etapa y nivel. El nombre se muestra siempre con el ordinal abreviado con punto ("2º" → "2.º", `format.ts › ordinals`). |
+| Clase               | `Course`        | Una materia impartida a un grupo: "Matemáticas · 2.º ESO B" (en la barra lateral, "2.º ESO B · Mates" con la abreviatura). **Unidad de trabajo de toda la app.** Tiene horario, aula, color y ponderaciones. |
+| Alumno              | `Student`       | Pertenece al profesor; se matricula en grupos (`Enrollment`). Puede tener marca NEAE/ACNEE, tipo y **medidas** de adaptación. |
+| Medidas             | `Student.support.measures` | Más tiempo · letra ampliada · enunciados por pasos · lectura en voz alta · examen adaptado · ACS (con su nivel). Se eligen con interruptores; en las listas salen como chips cortos ("Más tiempo", "Por pasos", "ACS 5.º Primaria"). |
+| Temario (pestaña)   | `Unit` (ruta `programacion`) | La programación de la clase: sus unidades. |
+| Faltas (pestaña)    | asistencia (ruta `asistencia`) | Listas pasadas, faltas y retrasos de la clase. |
 | Unidad              | `Unit`          | Tema de la programación de una clase, con trimestre y estado (pendiente / en curso / impartida). |
 | Material            | `Material`      | Documento de una unidad: subido, apuntes, presentación, resumen, versión adaptada, ficha (con solucionario). |
 | Actividad           | `Activity`      | Todo lo que se califica en el cuaderno: examen, trabajo, ficha, oral, cuaderno, actitud… Tiene categoría, fecha, evaluación y nota máxima. |
@@ -37,7 +40,8 @@ Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en
 | Nota de evaluación  | `TermGrade`     | Nota calculada + nota final ajustada + comentario de boletín, por alumno/clase/evaluación. |
 | Observación         | `Note`          | Nota rápida del profesor (observación, incidencia, positivo, familia) ligada a alumnos y/o clase. |
 | Sesión              | calculada       | Cada hueco del horario en un día lectivo. No se guarda: se calcula de `Course.schedule` + curso escolar − festivos ± excepciones. |
-| Curso escolar       | `SchoolYear`    | Fechas de inicio/fin, trimestres y festivos. Se crea solo con valores por defecto de España. |
+| Curso escolar       | `SchoolYear`    | Periodo lectivo (inicio/fin), trimestres y festivos. Se crea solo con valores por defecto de España. |
+| Comunidad autónoma  | `Teacher.region` (código "MD") | Decide la plataforma de notas a la que se exporta: Raíces (Madrid), Séneca (Andalucía), Ítaca (C. Valenciana), Rayuela (Extremadura), Gestib (Baleares), Educamos (CLM)… (`/me › region.export_label`). |
 
 ## 3. Navegación
 
@@ -45,8 +49,8 @@ Tres destinos y un menú de cuenta. Profundidad máxima 3.
 
 ```
 Hoy            /hoy                     ← inicio
-Clases         /clases                  lista "Matemáticas · 2º ESO B"
-  Clase        /clases/:courseId        pestañas: Cuaderno · Alumnos · Programación · Asistencia
+Clases         /clases                  buscador + lista "Matemáticas · 2.º ESO B"
+  Clase        /clases/:courseId/:tab   pestañas: Cuaderno · Alumnos · Temario · Faltas (cuaderno|alumnos|programacion|asistencia)
     Actividad  /clases/:courseId/actividades/:activityId      (examen: preparar → recoger → revisar)
     Revisión   /clases/:courseId/actividades/:activityId/revisar   (modo foco, alumno a alumno)
     Unidad     /clases/:courseId/unidades/:unitId
@@ -57,8 +61,10 @@ Evaluar        /evaluar                 bandeja: por corregir · evaluaciones ·
 Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar sesión, sugerencias
 ```
 
-- Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el avatar.
-- Escritorio (≥1024px): barra lateral de cristal con los 3 destinos + lista de clases; Hoy a dos columnas.
+- Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el avatar. Toda página deja al final el hueco de la cápsula, así la última fila siempre se puede leer.
+- Escritorio (≥1024px): barra lateral de cristal con los 3 destinos, "Buscar" y la lista de clases con el grupo delante ("2.º ESO B · Mates"); Hoy a dos columnas.
+- **Volver** nombra siempre el origen: si la pantalla se abrió desde otra de la app, "‹ Hoy", "‹ 2.º ESO B"…; si se abrió directamente, su pantalla madre ("‹ Clases", el grupo del alumno, "‹ Hoy" en Ajustes).
+- **Buscador de alumnos**: en Clases (móvil y escritorio) y, en escritorio, desde cualquier pantalla con "/" o Ctrl/⌘+K. Busca alumnos por nombre o apellidos sin importar las tildes ("nunez" encuentra a Núñez), con sus clases, y clases por materia o grupo ("2 eso b"). Intro abre el primer resultado.
 
 ## 4. Flujos por momento del curso
 
@@ -118,7 +124,19 @@ Pantalla por clase y evaluación:
 - Cabecera: media de la clase, % aprobados, distribución, lista de suspensos. "Acta (PDF)" y "Exportar CSV" para pasar a Séneca/Raíces/etc.
 
 ### 4.7 Ficha del alumno
-Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE/adaptación). Secciones: notas por clase y evaluación (los **mismos** números que el cuaderno), asistencia (faltas/retrasos/justificadas), observaciones (línea de tiempo editable). Botón opcional "Preparar tutoría (IA)": 5 líneas para hablar con la familia.
+Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE · tipo), chips con sus medidas y los detalles de la adaptación. Acciones: **Anotar** (la única entrada para observaciones), **Copiar resumen** (texto fijo, sin IA, para pegar en un mensaje o en la plataforma: nombre; por clase, media de la evaluación actual, faltas con las justificadas, retrasos y exámenes pendientes; las 3 últimas observaciones) y "Preparar tutoría" (IA: 5 líneas para hablar con la familia).
+
+Secciones: notas por clase y evaluación con los **mismos** números que el cuaderno (medias con 1 decimal, cada nota tal como se puso, hasta 2 decimales, y el comentario del profesor debajo). La columna **Final** muestra "—" hasta que la 3.ª evaluación tenga media (o el profesor ponga la final). "Exámenes pendientes": exámenes pasados de la evaluación actual sin nota o con NP. En escritorio las notas salen desplegadas; en móvil tras "Ver N notas". Asistencia (faltas, justificadas, retrasos) y observaciones (línea de tiempo editable). Si el alumno solo está en una clase no se repite "Matemáticas · 2.º ESO B" en cada fila.
+
+"Editar datos y apoyos" (menú "···"): nombre, NEAE/ACNEE y tipo, interruptores de **medidas** (ACS con su nivel), detalles de la adaptación y notas privadas. `GET /courses/{id}/adaptations` da los alumnos con medidas para preparar versiones adaptadas de un examen.
+
+### 4.8 Clases, cabecera de la clase y Alumnos
+- **Clases**: buscador arriba; cada clase en una fila "Matemáticas · 2.º ESO B" con una línea "25 alumnos · Mañana 11:45" (sin aula) y, si hay trabajo pendiente según Hoy, un chip discreto ("1 lista sin pasar", "18 por revisar"). "Nueva clase" es un botón sin fondo; las archivadas, una fila discreta al final que se despliega.
+- **Cabecera de la clase**: materia, grupo y una sola línea "26 alumnos · Aula 204 · En clase hasta 11:15" ("Hoy 12:40", "Mañana 11:45"; la fecha solo a partir de pasado mañana: "Martes 24 nov, 08:30"). Es el mismo texto que en Clases (`format.ts › sessionText`). Mientras la clase está en marcha y sin lista, un botón **Pasar lista** en la barra superior. Un solo menú "···" para la clase: las acciones de la pestaña abierta (Cuaderno: Exportar CSV, Ponderaciones) + Añadir alumnos + Ajustes de la clase.
+- **Alumnos**: sin avatares. Cada fila, "Apellidos, Nombre" y una línea con el primer motivo de "A vigilar" (texto del backend), las medidas de apoyo y las faltas si son 3 o más; a la derecha la media de la evaluación. "Añadir alumnos" está en el "···" y como última fila de la lista.
+
+### 4.9 Ajustes
+Perfil (nombre, centro, comunidad autónoma con su plataforma de notas), fila "Cuenta" con el correo, curso escolar (periodo lectivo, las tres evaluaciones y festivos, con fechas en español "8 sept 2026" en cualquier navegador), apariencia, sugerencias y cerrar sesión. Un solo patrón de guardado: perfil y curso escolar son un borrador y, en cuanto cambia algo, aparece una barra fija "Sin guardar · Descartar · Guardar cambios" (aviso "Cambios guardados"). El tema se aplica al momento porque es del dispositivo. El uso y coste de la IA no se muestran al profesor (el endpoint `/me/ai-usage` sigue para administración).
 
 ## 5. Qué se conserva, qué se reconstruye y qué desaparece
 
