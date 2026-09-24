@@ -1,0 +1,20 @@
+/* Sheets of Programación y materiales. Layout only (tokens for everything else). */
+.textarea.import-text { min-height: max(260px, 48vh); font-variant-numeric: tabular-nums; }
+
+.proposals { display: grid; }
+.proposal { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr) 76px 32px; align-items: center; gap: 6px; padding: 8px 6px 8px 10px; }
+.proposal + .proposal::before { content: ''; position: absolute; top: 0; left: 32px; right: 0; height: 0.5px; background: var(--line); }
+.proposal__n { color: var(--ink-3); font-size: var(--fs-footnote); text-align: right; }
+.proposal__title { min-height: 40px; padding: 8px 10px; }
+.proposal__term .select { min-height: 40px; padding: 8px 24px 8px 10px; font-size: var(--fs-sub); }
+.proposal__term svg { right: 8px; }
+@media (min-width: 768px) {
+  .proposal { grid-template-columns: 22px minmax(0, 1fr) 110px 32px; gap: 8px; }
+}
+
+.kind-list:focus { outline: none; }
+.kind-row--on { background: var(--accent-softer); }
+.kind-row__check { color: var(--accent); }
+.kind-row__radio { color: var(--ink-3); }
+
+.option-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 500; }
