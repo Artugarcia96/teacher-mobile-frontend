@@ -6,6 +6,7 @@ import { prefetchReview, useConfirmReview, useCorrection, useReview, type Review
 import { fileUrl } from '../../lib/api';
 import { formatGrade, formatNumber, gradeTone, parseGradeInput } from '../../lib/format';
 import { AIBadge, Button, EmptyState, IconButton, Lightbox, RichText, Skeleton, Stepper, TextField, useFeedback } from '../../ui';
+import { pageCaption } from '../../features/papers/pageLabels';
 import '../../features/papers/papers.css';
 import './review.css';
 
@@ -127,6 +128,8 @@ function ReviewStudent({ review: r, activityId, courseId, onNext, exit }: {
   }, [viewer, r.next_student_id, r.prev_student_id, onNext]);
 
   const pages = r.pages_urls.map((u) => fileUrl(u)!);
+  const info = r.pages; // aligned with pages_urls: exam pages in order, extra sheets after
+  const extraTag = (i: number) => (info[i]?.kind === 'extra_sheet' ? pageCaption(info[i]) : null);
   const tone = gradeTone(r.rubric_total ? (sum / r.rubric_total) * 10 : null);
 
   return (
@@ -145,7 +148,7 @@ function ReviewStudent({ review: r, activityId, courseId, onNext, exit }: {
                   <button key={src} type="button" onClick={() => pageRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                     aria-label={`Ir a la página ${i + 1}`}>
                     <img src={src} alt="" loading="lazy" />
-                    <span className="num">{i + 1}</span>
+                    <span className="num">{extraTag(i) ? 'extra' : i + 1}</span>
                   </button>
                 ))}
               </div>
@@ -153,7 +156,8 @@ function ReviewStudent({ review: r, activityId, courseId, onNext, exit }: {
             <div className="review-scroll">
               {pages.map((src, i) => (
                 <div key={src} ref={(el) => { pageRefs.current[i] = el; }} className={`review-page${zoom === i ? ' review-page--zoom' : ''}`}>
-                  <img src={src} alt={`Página ${i + 1}`} loading={i < 2 ? 'eager' : 'lazy'}
+                  {extraTag(i) && <span className="review-page__tag">{extraTag(i)}</span>}
+                  <img src={src} alt={extraTag(i) ?? `Página ${i + 1}`} loading={i < 2 ? 'eager' : 'lazy'}
                     onClick={() => (window.matchMedia('(min-width: 1024px)').matches ? setZoom(zoom === i ? null : i) : setViewer(i))} />
                 </div>
               ))}
@@ -233,7 +237,8 @@ function ReviewStudent({ review: r, activityId, courseId, onNext, exit }: {
           </div>
         </div>
       </section>
-      {viewer !== null && <Lightbox images={pages} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} label={`Hojas de ${r.student.name}`} />}
+      {viewer !== null && <Lightbox images={pages} index={viewer} onIndex={setViewer} onClose={() => setViewer(null)} label={`Hojas de ${r.student.name}`}
+        caption={extraTag(viewer) ?? undefined} />}
     </div>
   );
 }

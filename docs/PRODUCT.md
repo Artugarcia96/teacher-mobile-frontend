@@ -81,10 +81,13 @@ Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar 
 ### 4.3 Exámenes y corrección (el flujo más valioso)
 Un examen es una **Actividad** de tipo examen. Pantalla única con 3 pasos:
 
-1. **Preparar**: sin documento (solo nota) · subir mi examen (PDF/fotos) · generar con IA desde unidades. Si hay documento, la IA extrae la **rúbrica** (preguntas, puntos, solución) → el profesor la revisa en una tabla compacta. Descargas: examen para imprimir (se fotocopia **el mismo** para todos; cabecera "Nombre y apellidos ____"), soluciones.
+1. **Preparar**: sin documento (solo nota) · subir mi examen (PDF/fotos) · generar con IA desde unidades. Si hay documento, la IA extrae la **rúbrica** (preguntas, puntos, solución) → el profesor la revisa en una tabla compacta. Descargas: examen para imprimir (se fotocopia **el mismo** para todos; cabecera "Nombre y apellidos ____"), **hoja extra** (folio pautado con nombre y "Ejercicio nº ___" para quien necesite más espacio), soluciones.
+   - Cada página impresa lleva una marca discreta, igual para todos: «Sepia · FRAC-7K2 · Pág. 1/2» (en la hoja extra, «· Hoja extra»). En los exámenes generados, las páginas 2+ vuelven a pedir el nombre. Al examen subido por el profesor se le estampa la marca al descargarlo para imprimir; su original no cambia.
    - **Se elimina el QR personalizado y cifrado por alumno.** En los centros se fotocopia un original; las copias personalizadas no son realistas.
-2. **Recoger**: subir el PDF del escáner de la copistería o hacer fotos del montón, en cualquier orden. Se indica "páginas por examen" (se autodetecta del original). El servidor agrupa páginas por alumno, la IA lee el nombre manuscrito de la cabecera y se empareja **localmente** con la lista (no se envía la lista a la IA). Resultado: lista de la clase con miniatura y punto de confianza (verde = seguro, ámbar = confirmar con un toque, "sin entregar"). Modo alternativo "en orden de lista" (sin leer nombres).
-3. **Revisar**: la IA sugiere puntos por pregunta contra la rúbrica. **Modo foco** alumno a alumno: hoja escaneada a la izquierda (zoom), preguntas con pasos de puntos a la derecha, comentario opcional, "Aceptar y siguiente" (Enter / deslizar). La nota = suma de puntos confirmados (escalada a la nota máxima). Siempre se puede teclear la nota a mano sin papel.
+2. **Recoger**: subir el PDF del escáner de la copistería (a una o dos caras) o hacer fotos del montón, en cualquier orden y en varias tandas. No hace falta indicar páginas por examen. Cada página se clasifica (página n del examen, hoja extra, reverso en blanco, otro documento) mirando solo su cabecera y su pie; los reversos claramente en blanco se descartan sin IA. Las páginas se agrupan por alumno con la marca y el nombre escrito: páginas al revés se reordenan, una hoja extra con nombre va con su dueño aunque esté en otro punto del montón, sin nombre va con la hoja anterior (con aviso), una página de otro examen queda aparte. El nombre se empareja **localmente** con la lista (no se envía la lista a la IA). Modo alternativo "en orden de lista" (sin leer nombres).
+   - Lo que necesita al profesor, primero y en tono de aviso: hojas sin identificar, **páginas por colocar** (con alumnos sugeridos: por el nombre escrito o a quién le falta esa página) y **hojas por revisar** («Falta pág. 2», «Hoja extra sin nombre», «Revisa la pág. 2» cuando dos hojas vecinas se disputan una página). Cada fila muestra una tira de miniaturas («1», «2», «extra»); al tocar una: «Mover a otro alumno», «Separar aquí», «Quitar» (se puede deshacer). Las hojas completas y los «Reversos en blanco descartados (n)» quedan plegados. Nada dudoso se mezcla en silencio.
+   - Cambiar las páginas de una hoja quita su sugerencia de la IA sin confirmar (nunca una nota confirmada) y se ofrece «Sugerir notas» para las hojas que se han quedado sin ella.
+3. **Revisar**: la IA sugiere puntos por pregunta contra la rúbrica, viendo todas las páginas del alumno, también las hojas extra (que en la revisión aparecen al final, marcadas «Hoja extra · ej. 4»). **Modo foco** alumno a alumno: hoja escaneada a la izquierda (zoom), preguntas con pasos de puntos a la derecha, comentario opcional, "Aceptar y siguiente" (Enter / deslizar). La nota = suma de puntos confirmados (escalada a la nota máxima). Siempre se puede teclear la nota a mano sin papel.
    - Al confirmar, la nota entra en el cuaderno al instante. No hay botón "Finalizar".
    - Tras corregir: "Errores frecuentes" (top 5) y "Crear ficha de refuerzo para los que han suspendido".
 
@@ -150,7 +153,7 @@ Todas las llamadas pasan por **un único gateway** (`app/ai/`) con dos proveedor
 |---|---|---|
 | `extract_rubric` | Subir examen | vision |
 | `generate_assessment` | Examen o ficha desde unidades | text |
-| `read_names` | Recoger hojas | vision (recorte de cabecera) |
+| `classify_page` | Recoger hojas: qué es cada página y el nombre escrito | vision (franjas superior e inferior) |
 | `grade_paper` | Revisar hojas | vision |
 | `generate_material` | Apuntes / presentación / resumen / adaptada | text |
 | `import_units` | Importar temario | text |

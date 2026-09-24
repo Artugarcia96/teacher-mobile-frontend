@@ -20,12 +20,25 @@ export interface ActivityHead {
 export interface CorrectionGrade {
   score: number | null; status: GradeStatus; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null;
 }
+/** One scanned page; `index` is its position in its paper (or tray) — the handle for page operations. */
+export type PageKind = 'exam_page' | 'extra_sheet' | 'blank' | 'other';
+export interface ScanPage {
+  index: number; url: string; thumb_url: string; kind: PageKind; page_number: number | null; total_pages: number | null;
+  exam_code: string | null; written_name: string; questions: string[];
+}
+/** falta_pagina · pagina_duplicada · extra_sin_nombre · pagina_dudosa · nombre_distinto · orden */
+export interface PaperFlag { code: string; pages: number[] }
+export type LooseReason = 'otro' | 'otro_examen' | 'sin_examen' | 'extra_sin_examen' | 'sin_leer' | 'movida';
+export interface LoosePage extends ScanPage { reason: LooseReason; candidates: StudentRef[] }
+export type Tray = 'unplaced' | 'discarded';
+
 export interface CorrectionStudent {
   student: StudentRef; paper_id: string | null; match_status: MatchStatus | null; match_confidence: number | null; detected_name: string | null;
-  thumb_url: string | null; grade: CorrectionGrade | null;
+  thumb_url: string | null; grade: CorrectionGrade | null; pages: ScanPage[]; flags: PaperFlag[]; extra_count: number;
 }
 export interface UnmatchedPaper {
   paper_id: string; detected_name: string | null; confidence: number | null; thumb_url: string | null; pages: number; candidates: StudentRef[];
+  page_list: ScanPage[]; flags: PaperFlag[];
 }
 export interface FrequentError { item_id: string; label: string; text: string; avg_ratio: number }
 export interface CorrectionStats {
@@ -36,17 +49,23 @@ export interface Correction {
   activity: ActivityHead; document_url: string | null; key_url: string | null; generated: boolean; rubric: Rubric | null;
   pages_per_paper: number | null; step: CorrectionStep; students: CorrectionStudent[]; unmatched: UnmatchedPaper[];
   stats: CorrectionStats; next_pending_id: string | null; job: Job | null;
+  exam_code: string | null; unplaced: LoosePage[]; discarded: ScanPage[];
 }
 
 export interface Paper {
   id: string; student: StudentRef | null; detected_name: string | null; match_confidence: number | null; match_status: MatchStatus; pages_urls: string[];
+  pages: ScanPage[]; flags: PaperFlag[];
 }
+/** Where a page goes: another paper, a student's paper (created if needed) or a tray. */
+export interface PageTarget { to_paper_id?: string; to_student_id?: string; to?: Tray }
+/** `resuggest`: students whose unconfirmed AI suggestion was dropped because their pages changed. */
+export interface PageOpResult { paper: Paper | null; resuggest: string[] }
 
 export interface AIItem { id: string; points: number; feedback: string; confidence: number }
 export interface Review {
   student: StudentRef; activity: ActivityHead; position: number; total: number;
   prev_student_id: string | null; next_student_id: string | null; next_pending_id: string | null;
-  paper_id: string | null; pages_urls: string[]; items: RubricItem[]; rubric_total: number;
+  paper_id: string | null; pages_urls: string[]; pages: ScanPage[]; items: RubricItem[]; rubric_total: number;
   grade: CorrectionGrade | null; ai: { items: AIItem[]; summary: string; suggested_score: number | null } | null;
 }
 export interface ReviewInput { item_scores?: Record<string, number>; score?: number | null; comment?: string | null; absent?: boolean }
@@ -100,16 +119,49 @@ export function useSaveRubric(activityId: string) {
   return useCorrectionMutation(activityId, (items: RubricItem[]) => api.put<Rubric>(`/activities/${activityId}/rubric`, { items }));
 }
 
-/** Signed URL of the printable exam or the answer key (rendered on first request). */
+/** Signed URL of the printable exam (with the page marker), the answer key or the blank "Hoja extra". */
 export function useDocumentUrl(activityId: string) {
   return useMutation({
-    mutationFn: (variant: 'print' | 'key') => api.get<{ url: string }>(`/activities/${activityId}/${variant}.pdf`),
+    mutationFn: (variant: 'print' | 'key' | 'extra-sheet') => api.get<{ url: string }>(`/activities/${activityId}/${variant}.pdf`),
   });
 }
 
+/** The scanned pile: pages are sorted into papers by their printed marker and written name (no page count needed). */
 export function useUploadPapers(activityId: string) {
-  return useCorrectionMutation(activityId, ({ files, pagesPerPaper, mode }: { files: File[]; pagesPerPaper: number; mode: 'names' | 'list_order' }) =>
-    api.upload<JobRef>(`/activities/${activityId}/papers`, filesForm(files, { pages_per_paper: String(pagesPerPaper), mode })));
+  return useCorrectionMutation(activityId, ({ files, mode }: { files: File[]; mode: 'names' | 'list_order' }) =>
+    api.upload<JobRef>(`/activities/${activityId}/papers`, filesForm(files, { mode })));
+}
+
+export function useMovePage(activityId: string) {
+  return useCorrectionMutation(activityId, ({ paperId, pageIndex, ...target }: PageTarget & { paperId: string; pageIndex: number }) =>
+    api.post<PageOpResult>(`/papers/${paperId}/pages/move`, { page_index: pageIndex, ...target }));
+}
+
+export function useSplitPaper(activityId: string) {
+  return useCorrectionMutation(activityId, ({ paperId, pageIndex }: { paperId: string; pageIndex: number }) =>
+    api.post<PageOpResult>(`/papers/${paperId}/split`, { page_index: pageIndex }));
+}
+
+/** The pages of `otherId` join `paperId`. */
+export function useMergePapers(activityId: string) {
+  return useCorrectionMutation(activityId, ({ paperId, otherId }: { paperId: string; otherId: string }) =>
+    api.post<PageOpResult>(`/papers/${paperId}/merge`, { paper_id: otherId }));
+}
+
+/** Place a loose page (tray "unplaced") or restore a discarded one. */
+export function useMoveLoosePage(activityId: string) {
+  return useCorrectionMutation(activityId, ({ tray, pageIndex, ...target }: PageTarget & { tray: Tray; pageIndex: number }) =>
+    api.post<PageOpResult>(`/activities/${activityId}/scan/${tray}/${pageIndex}/move`, target));
+}
+
+export function useDeleteLoosePage(activityId: string) {
+  return useCorrectionMutation(activityId, ({ tray, pageIndex }: { tray: Tray; pageIndex: number }) =>
+    api.delete(`/activities/${activityId}/scan/${tray}/${pageIndex}`));
+}
+
+/** The teacher looked at a flagged paper and it is fine: clear its flags. */
+export function useFlagsChecked(activityId: string) {
+  return useCorrectionMutation(activityId, (paperId: string) => api.patch<Paper>(`/papers/${paperId}`, { flags_ok: true }));
 }
 
 export function usePapers(activityId: string | undefined) {

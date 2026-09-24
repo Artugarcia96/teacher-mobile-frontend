@@ -1,4 +1,4 @@
-import { ArrowSquareOut, DotsThree, Exam, Key, NotePencil, PencilLine, UploadSimple } from '@phosphor-icons/react';
+import { ArrowSquareOut, DotsThree, Exam, Key, NotePencil, PencilLine, Rows, UploadSimple } from '@phosphor-icons/react';
 import { useRef } from 'react';
 import { useDocumentUrl, useUploadDocument, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
@@ -34,7 +34,7 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
       onError: (e) => toast(e.message, { tone: 'error' }),
     });
   };
-  const open = (variant: 'print' | 'key') => openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }));
+  const open = (variant: 'print' | 'key' | 'extra-sheet') => openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }));
 
   const fileInput = (
     <input ref={input} type="file" hidden multiple accept="application/pdf,image/*"
@@ -71,9 +71,15 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
       {fileInput}
       <List>
         {correction.document_url && (
-          <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Examen para imprimir"
-            sub={correction.pages_per_paper ? `PDF · ${plural(correction.pages_per_paper, 'página', 'páginas')} por alumno` : 'PDF'}
+          <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Examen para imprimir" wrapSub
+            sub={[correction.pages_per_paper && `${plural(correction.pages_per_paper, 'página', 'páginas')} por alumno`,
+              correction.exam_code && `cada página lleva la marca ${correction.exam_code}`].filter(Boolean).join(' · ') || 'PDF'}
             trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('print')} />
+        )}
+        {correction.document_url && (
+          <Row lead={<RowIcon><Rows size={20} /></RowIcon>} title="Hoja extra" wrapSub
+            sub="Folio pautado para quien necesite más espacio, con nombre y número de ejercicio"
+            trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('extra-sheet')} />
         )}
         <Row lead={<RowIcon><Key size={20} /></RowIcon>} title="Soluciones" sub="Con la solución y los pasos de cada pregunta"
           trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('key')} />

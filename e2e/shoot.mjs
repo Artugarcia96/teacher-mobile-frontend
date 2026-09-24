@@ -2,7 +2,8 @@
 // Capture screenshots of app routes as the demo teacher, phone (390×844 @2x) and desktop (1440×900).
 // Usage: node e2e/shoot.mjs <outDir> /hoy /clases "/clases/<id>/cuaderno" …
 //   env: APP=http://127.0.0.1:5173  API=http://127.0.0.1:8000  ONLY=mobile|desktop  WAIT=1200
-//   A route can include an action after "::", e.g. "/hoy::click=text=Pasar lista" (Playwright selector).
+//   A route can include actions after "::", e.g. "/hoy::click=text=Pasar lista" (Playwright selector);
+//   several are run in order: "/ruta::click=text=Recoger::click=.page-thumb" (also scroll=<selector>).
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
@@ -30,10 +31,13 @@ for (const [name, viewport, dpr] of viewports) {
   page.on('console', (m) => m.type() === 'error' && console.log(`[${name}] console.error ${m.text()}`));
   let i = 0;
   for (const spec of routes) {
-    const [path, action] = spec.split('::');
+    const [path, ...actions] = spec.split('::');
     await page.goto(APP + path);
     await page.waitForTimeout(WAIT);
-    if (action?.startsWith('click=')) { await page.locator(action.slice(6)).first().click(); await page.waitForTimeout(WAIT); }
+    for (const action of actions) {
+      if (action.startsWith('click=')) { await page.locator(action.slice(6)).first().click(); await page.waitForTimeout(WAIT); }
+      if (action.startsWith('scroll=')) { await page.locator(action.slice(7)).first().scrollIntoViewIfNeeded(); await page.waitForTimeout(WAIT); }
+    }
     const file = `${out}/${name}-${String(i++).padStart(2, '0')}-${path.replace(/[^a-z0-9]+/gi, '_').slice(1, 50) || 'root'}.png`;
     await page.screenshot({ path: file, fullPage: process.env.FULL === '1' });
     console.log(file);

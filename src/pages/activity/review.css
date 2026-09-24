@@ -13,7 +13,12 @@
 .review-pages { min-width: 0; }
 .review-scroll { display: flex; gap: var(--s-3); overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter) 4px; scrollbar-width: none; }
 .review-scroll::-webkit-scrollbar { display: none; }
-.review-page { flex: none; height: min(38vh, 380px); scroll-snap-align: center; }
+.review-page { position: relative; flex: none; height: min(38vh, 380px); scroll-snap-align: center; }
+.review-page__tag {
+  position: absolute; z-index: 1; bottom: 8px; left: 8px; padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent); font-size: var(--fs-caption); font-weight: 600;
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
 .review-page img { height: 100%; width: auto; max-width: none; border-radius: var(--r-row); box-shadow: var(--e1); background: var(--paper); cursor: zoom-in; }
 .review-thumbs { display: none; }
 .review-nopages { display: flex; align-items: center; gap: 10px; padding: var(--s-4); border-radius: var(--r-card); background: var(--paper); box-shadow: var(--e1); font-size: var(--fs-sub); }

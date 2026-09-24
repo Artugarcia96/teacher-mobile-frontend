@@ -9,6 +9,7 @@ import { CollectStep } from '../../features/papers/CollectStep';
 import { ExamStep } from '../../features/papers/ExamStep';
 import GenerateExamSheet from '../../features/papers/GenerateExamSheet';
 import { ManualGrades } from '../../features/papers/ManualGrades';
+import { needsLook } from '../../features/papers/pageLabels';
 import { PrepareStep } from '../../features/papers/PrepareStep';
 import { ReviewMenu, ReviewStep } from '../../features/papers/ReviewStep';
 import '../../features/papers/papers.css';
@@ -24,7 +25,11 @@ const COLLECT_JOBS = ['ingest_papers'];
 const DONE_TOAST: Record<string, (job: Job) => string> = {
   extract_rubric: () => 'Preguntas leídas. Revisa puntos y soluciones antes de imprimir.',
   generate_exam: () => 'Examen generado. Revisa las preguntas antes de imprimir.',
-  ingest_papers: (j) => `${j.result?.matched ?? 0} de ${j.result?.papers ?? 0} hojas emparejadas`,
+  ingest_papers: (j) => {
+    const r = j.result ?? {};
+    const extra = Number(r.discarded) ? ` · ${r.discarded} reversos en blanco descartados` : '';
+    return `${r.matched ?? 0} de ${r.papers ?? 0} hojas emparejadas${extra}`;
+  },
   suggest_grades: () => 'Sugerencias de la IA listas',
 };
 
@@ -35,9 +40,14 @@ function prepareSummary(c: Correction, manual: boolean) {
 }
 
 function collectSummary(c: Correction) {
-  if (!c.stats.papers) return c.rubric ? 'Aún no has subido las hojas' : 'Primero prepara el examen';
+  if (!c.stats.papers && !c.unplaced.length) return c.rubric ? 'Aún no has subido las hojas' : 'Primero prepara el examen';
   const hojas = plural(c.stats.papers, 'hoja', 'hojas');
-  return c.unmatched.length ? `${hojas} · ${c.unmatched.length} sin identificar` : `${hojas} · ${c.stats.matched} de ${c.students.length} emparejados`;
+  const todo = [
+    c.unmatched.length && `${c.unmatched.length} sin identificar`,
+    c.unplaced.length && plural(c.unplaced.length, 'página por colocar', 'páginas por colocar'),
+    c.students.filter((s) => needsLook(s.flags)).length && `${c.students.filter((s) => needsLook(s.flags)).length} por revisar`,
+  ].filter(Boolean);
+  return todo.length ? `${hojas} · ${todo.join(' · ')}` : `${hojas} · ${c.stats.matched} de ${c.students.length} emparejados`;
 }
 
 function reviewSummary(c: Correction) {
