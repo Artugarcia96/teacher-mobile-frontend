@@ -16,7 +16,13 @@ export const keys = {
   students: (courseId: string) => ['course', courseId, 'students'] as const,
   student: (id: string) => ['student', id] as const,
   job: (id: string) => ['job', id] as const,
+  archivedCourses: ['courses', 'archived'] as const,
+  groupStudents: (groupId: string) => ['groups', groupId, 'students'] as const,
+  aiUsage: ['me', 'ai-usage'] as const,
 };
+
+export interface ParsedStudents { students: { first_name: string; last_name: string }[]; warnings: string[] }
+export interface AIUsage { month: string; calls: number; cost_usd: number; by_feature: { feature: string; calls: number; cost_usd: number }[] }
 
 export function useMe(enabled = true) {
   return useQuery({ queryKey: keys.me, queryFn: () => api.get<Me>('/me'), enabled, staleTime: 60_000 });
@@ -77,7 +83,7 @@ export function useDeleteCourse() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, permanent }: { id: string; permanent?: boolean }) => api.delete(`/courses/${id}${permanent ? '?permanent=true' : ''}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.courses }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.courses }); qc.invalidateQueries({ queryKey: keys.groups }); },
   });
 }
 
@@ -94,7 +100,53 @@ export function useStudentFile(id: string | undefined) {
 }
 
 export function useParseStudents() {
-  return useMutation({ mutationFn: (text: string) => api.post<{ students: { first_name: string; last_name: string }[]; warnings: string[] }>('/students/parse', { text }) });
+  return useMutation({ mutationFn: (text: string) => api.post<ParsedStudents>('/students/parse', { text }) });
+}
+
+/** CSV preview (nothing is saved until useAddStudents). */
+export function useImportStudentsFile(groupId: string) {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return api.upload<ParsedStudents>(`/groups/${groupId}/students/import`, form);
+    },
+  });
+}
+
+export function useGroupStudents(groupId: string | undefined) {
+  return useQuery({ queryKey: keys.groupStudents(groupId!), queryFn: () => api.get<StudentRef[]>(`/groups/${groupId}/students`), enabled: !!groupId });
+}
+
+export function useArchivedCourses(enabled = true) {
+  return useQuery({ queryKey: keys.archivedCourses, queryFn: () => api.get<CourseSummary[]>('/courses?archived=true'), enabled });
+}
+
+/** Unenroll from any group (the student and their grades are kept). */
+export function useUnenroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, studentId }: { groupId: string; studentId: string }) => api.delete(`/groups/${groupId}/students/${studentId}`),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['course'] });
+      qc.invalidateQueries({ queryKey: keys.courses });
+      qc.invalidateQueries({ queryKey: keys.groups });
+      qc.invalidateQueries({ queryKey: keys.student(v.studentId) });
+    },
+  });
+}
+
+/** IA: guion para una tutoría con la familia. */
+export function useStudentBrief(id: string) {
+  return useMutation({ mutationFn: () => api.post<{ bullets: string[] }>(`/students/${id}/brief`) });
+}
+
+export function useAiUsage() {
+  return useQuery({ queryKey: keys.aiUsage, queryFn: () => api.get<AIUsage>('/me/ai-usage'), staleTime: 60_000 });
+}
+
+export function useSendFeedback() {
+  return useMutation({ mutationFn: (text: string) => api.post('/feedback', { text }) });
 }
 
 export function useAddStudents(groupId: string) {
@@ -102,7 +154,10 @@ export function useAddStudents(groupId: string) {
   return useMutation({
     mutationFn: (body: { students?: { first_name: string; last_name: string }[]; student_ids?: string[] }) =>
       api.post<StudentRef[]>(`/groups/${groupId}/students`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses }); qc.invalidateQueries({ queryKey: keys.groups }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses });
+      qc.invalidateQueries({ queryKey: keys.groups }); qc.invalidateQueries({ queryKey: ['student'] });
+    },
   });
 }
 

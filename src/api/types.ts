@@ -30,7 +30,8 @@ export interface Note {
   id: string; date: string; kind: NoteKind; text: string; course?: CourseRef | null; students: StudentRef[]; created_at: string; updated_at: string;
 }
 
-export interface TermCell { term: number; average: number | null; final: number | null }
+/** `final` is the teacher's final grade (only if set); `proposed` the rounded average. */
+export interface TermCell { term: number; average: number | null; proposed?: number | null; final: number | null }
 export interface GradeLine { activity_id: string; title: string; date: string; category_label: string; score: number | null; max_score: number; normalized: number | null; status: string }
 export interface StudentCourse { course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number }
 export interface StudentFile {

@@ -1,0 +1,7 @@
+.login {
+  width: min(400px, 100%); display: grid; gap: var(--s-5);
+  padding: var(--s-6) var(--s-5) var(--s-5); border-radius: var(--r-sheet);
+}
+.login__brand { display: grid; justify-items: center; gap: var(--s-1); text-align: center; }
+.login__brand img { margin-bottom: var(--s-1); }
+.login__name { font-size: var(--fs-display); line-height: 1; }
