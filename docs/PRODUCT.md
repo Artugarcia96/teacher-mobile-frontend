@@ -141,7 +141,7 @@ Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE/adaptación). Secciones: notas po
 ## 6. Uso de la IA
 
 Todas las llamadas pasan por **un único gateway** (`app/ai/`) con dos proveedores: `openai` y `mock`.
-- `AI_PROVIDER=mock` (por defecto en desarrollo y siempre que no haya clave): respuestas deterministas y realistas en español, sin coste. **Toda prueba de usabilidad, E2E o captura de pantalla se hace en mock.**
+- En desarrollo los prompts y esquemas **reales** se ejecutan con Claude por terminal (`claude_cli`); en producción, con OpenAI. Solo cambia a dónde apunta. Las pruebas de uso, E2E y capturas usan IA real; el `mock` determinista queda solo para tests unitarios.
 - Salidas estructuradas (esquemas Pydantic) — sin reparar JSON a mano.
 - Registro de uso (`ai_calls`): funcionalidad, modelo, tokens, coste estimado, latencia.
 - Privacidad: los nombres de alumnos no se envían para emparejar exámenes (el emparejamiento es local). Para comentarios de boletín se envía solo el nombre de pila.

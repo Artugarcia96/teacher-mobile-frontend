@@ -14,12 +14,12 @@ npm run e2e          # Playwright: flujos de profesor contra el backend en modo 
 npm run shots        # igual, guardando capturas en e2e/screenshots/
 ```
 
-Backend en modo demo (IA simulada, datos de ejemplo, "hoy" congelado en 19/11/2026 10:40):
+Backend en modo demo (IA real vía Claude, datos de ejemplo, "hoy" congelado en 19/11/2026 10:40):
 `../teacher-mobile-backend/scripts/dev.sh --demo` · usuario `demo@sepia.es` / `sepia1234`.
 
 ## Reglas
 
-1. **IA siempre simulada en desarrollo.** Nunca actives `SEPIA_AI_PROVIDER=openai` para probar: cuesta dinero. El mock devuelve contenido realista.
+1. **IA real en desarrollo, igual que en producción.** El backend usa por defecto `claude_cli` (mismos prompts y esquemas que producción, ejecutados con Claude por terminal). Nunca pongas `SEPIA_AI_PROVIDER=openai` en desarrollo (cuesta dinero) ni uses el `mock` para probar la experiencia: el mock es solo para tests unitarios. Las operaciones de IA tardan de verdad (10-80 s): la interfaz debe mostrar progreso y dejar seguir trabajando.
 2. **Nada de cálculos de notas en el cliente.** Medias, propuestas y "a vigilar" vienen del backend. Aquí solo se formatea (`src/lib/format.ts`).
 3. **Kit único** (`src/ui`): `Page`, `Section`, `List`/`Row`, `Sheet`, `Segmented`, `Button`, campos, `Chip`, `GradePill`, `EmptyState`… No crees cabeceras, tarjetas o modales propios. Si falta algo genérico, añádelo al kit (y a `src/ui/ui.css`).
 4. **Colores solo en `src/styles/tokens.css`.** CSS de página = layout (grid, gap, tamaños). `npm run check:tokens` lo vigila.
