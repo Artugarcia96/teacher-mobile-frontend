@@ -1,11 +1,15 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { gradeTone, formatGrade } from '../lib/format';
 
-export function Chip({ children, tone, onClick, selected, icon }: {
+export function Chip({ children, tone, onClick, selected, icon, disabled, title }: {
   children: ReactNode; tone?: 'ok' | 'warn' | 'danger' | 'accent' | 'info' | 'outline'; onClick?: () => void; selected?: boolean; icon?: ReactNode;
+  /** Tappable chips only; `title` says why it is disabled. */
+  disabled?: boolean; title?: string;
 }) {
   const cls = ['chip', tone && `chip--${tone}`, selected && 'chip--selected'].filter(Boolean).join(' ');
-  if (onClick) return <button type="button" className={cls} onClick={onClick} aria-pressed={selected}>{icon}{children}</button>;
+  if (onClick) {
+    return <button type="button" className={cls} onClick={onClick} aria-pressed={selected} disabled={disabled} title={title}>{icon}{children}</button>;
+  }
   return <span className={cls}>{icon}{children}</span>;
 }
 

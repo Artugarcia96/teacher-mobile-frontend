@@ -20,17 +20,41 @@ import './activity.css';
 
 const STEP_INDEX = { prepare: 1, collect: 2, review: 3, done: 3 } as const;
 const PREPARE_JOBS = ['extract_rubric', 'generate_exam'];
-const COLLECT_JOBS = ['ingest_papers'];
+const COLLECT_JOBS = ['ingest_papers', 'reclassify_pages'];
+
+interface Attached { student_id: string; name: string; kind: string }
+
+/** What a batch of scanned pages did: new papers, pages added to papers already there, loose pages, blank backs. */
+function pagesToast(j: Job): string {
+  const r = j.result ?? {};
+  const papers = Number(r.papers) || 0;
+  const attached = (r.attached ?? []) as Attached[];
+  const graded = (r.graded ?? []) as { name: string }[];
+  const parts: string[] = [];
+  if (papers > 0) parts.push(`${r.matched ?? 0} de ${papers} hojas emparejadas`);
+  if (attached.length === 1 && !papers) {
+    parts.push(`${attached[0].kind === 'extra_sheet' ? 'Hoja extra añadida' : 'Página añadida'} a la de ${attached[0].name}`);
+  } else if (attached.length) {
+    parts.push(plural(attached.length, 'página añadida a su hoja', 'páginas añadidas a sus hojas'));
+  }
+  if (Number(r.unplaced)) parts.push(plural(Number(r.unplaced), 'página por colocar', 'páginas por colocar'));
+  if (Number(r.discarded)) parts.push(plural(Number(r.discarded), 'reverso en blanco descartado', 'reversos en blanco descartados'));
+  if (!parts.length) parts.push('No había páginas nuevas');
+  const text = parts.join(' · ');
+  return graded.length ? `${text}. ${graded.map((g) => g.name).join(' y ')} ya ${graded.length > 1 ? 'tenían' : 'tenía'} nota confirmada: revísala.` : text;
+}
 
 const DONE_TOAST: Record<string, (job: Job) => string> = {
   extract_rubric: () => 'Preguntas leídas. Revisa puntos y soluciones antes de imprimir.',
   generate_exam: () => 'Examen generado. Revisa las preguntas antes de imprimir.',
-  ingest_papers: (j) => {
-    const r = j.result ?? {};
-    const extra = Number(r.discarded) ? ` · ${r.discarded} reversos en blanco descartados` : '';
-    return `${r.matched ?? 0} de ${r.papers ?? 0} hojas emparejadas${extra}`;
+  ingest_papers: pagesToast,
+  reclassify_pages: pagesToast,
+  suggest_grades: (j) => {
+    const done = Number(j.result?.suggested) || 0;
+    const held = Number(j.result?.skipped) || 0;
+    const base = done ? 'Sugerencias de la IA listas' : 'La IA no ha sugerido ninguna nota nueva';
+    return held ? `${base} · ${plural(held, 'hoja por revisar queda', 'hojas por revisar quedan')} sin sugerencia` : base;
   },
-  suggest_grades: () => 'Sugerencias de la IA listas',
 };
 
 function prepareSummary(c: Correction, manual: boolean) {
@@ -63,8 +87,9 @@ export default function ActivityPage() {
   const { toast, confirm } = useFeedback();
   const { data: c, isLoading, error } = useCorrection(activityId);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(() => (params.get('paso') === 'recoger' ? 2 : null)); // "Ordenar páginas"
   const pinned = useRef<number | null>(null);
+  const lastStep = useRef<string | undefined>(undefined);
   const [manual, setManual] = useState(false);
   const [editing, setEditing] = useState(false);
   const generateOpen = params.get('generar') === '1';
@@ -73,9 +98,11 @@ export default function ActivityPage() {
   const job = useActivityJob(activityId!, activeJobId, {
     onDone: (j) => {
       toast(DONE_TOAST[j.kind]?.(j) ?? 'Hecho');
-      setJobId(null);
-      // After preparing, keep step 1 open so the teacher reviews the questions before printing.
-      pinned.current = PREPARE_JOBS.includes(j.kind) ? 1 : null;
+      setJobId((j.result?.suggest_job as string | undefined) ?? null); // grading goes on in its own job
+      if (j.kind === 'suggest_grades') return; // never move the teacher away from what they are doing
+      // After preparing, keep step 1 open so the teacher reviews the questions before printing; after a scan with
+      // something to fix, keep "Recoger" open.
+      pinned.current = PREPARE_JOBS.includes(j.kind) ? 1 : COLLECT_JOBS.includes(j.kind) && Number(j.result?.attention) > 0 ? 2 : null;
       setOpen(pinned.current);
     },
     onFail: (j) => { toast(j.error || 'No se ha podido completar. Inténtalo de nuevo.', { tone: 'error' }); setJobId(null); },
@@ -83,7 +110,14 @@ export default function ActivityPage() {
   const running = !!activeJobId && (!job || job.status === 'queued' || job.status === 'running');
   const runningKind = running ? job?.kind ?? c?.job?.kind ?? null : null;
 
-  useEffect(() => { setOpen(pinned.current); pinned.current = null; }, [c?.step]);
+  useEffect(() => { // when the step changes (not on first load), open the new one unless a step was pinned
+    if (!c?.step) return;
+    if (lastStep.current !== undefined && lastStep.current !== c.step) {
+      setOpen(pinned.current);
+      pinned.current = null;
+    }
+    lastStep.current = c.step;
+  }, [c?.step]);
 
   const remove = useMutation({
     mutationFn: () => api.delete(`/activities/${activityId}`),
@@ -151,7 +185,8 @@ export default function ActivityPage() {
           </ExamStep>
           {!noDocument && (
             <ExamStep n={2} title="Recoger" summary={collectSummary(c)} open={current === 2} onOpen={() => setOpen(2)}>
-              <CollectStep correction={c} job={job} running={!!runningKind && COLLECT_JOBS.includes(runningKind)} onJob={onJob} />
+              <CollectStep correction={c} job={job} running={!!runningKind && COLLECT_JOBS.includes(runningKind)}
+                grading={runningKind === 'suggest_grades'} onJob={onJob} />
             </ExamStep>
           )}
           <ExamStep n={noDocument ? 2 : 3} title={noDocument ? 'Poner notas' : 'Revisar'} summary={reviewSummary(c)}

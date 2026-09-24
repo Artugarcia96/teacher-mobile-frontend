@@ -9,14 +9,17 @@ import { ScanPages } from './ScanPages';
 interface Props {
   correction: Correction;
   job: Job | undefined;
+  /** The pile is being read (upload or «Volver a leer»): pages cannot be edited meanwhile. */
   running: boolean;
+  /** The AI is suggesting grades: pages can still be fixed (the grading re-checks them before saving). */
+  grading: boolean;
   onJob: (job: Job) => void;
 }
 
 type Mode = 'names' | 'list_order';
 
 /** Step 2 — upload the scanned pile; pages are sorted by their printed marker and names matched with the class list. */
-export function CollectStep({ correction, job, running, onJob }: Props) {
+export function CollectStep({ correction, job, running, grading, onJob }: Props) {
   const upload = useUploadPapers(correction.activity.id);
   const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
@@ -25,6 +28,7 @@ export function CollectStep({ correction, job, running, onJob }: Props) {
   const missing = students.filter((s) => !s.paper_id);
   const busy = running || upload.isPending;
   const pages = students.reduce((n, s) => n + s.pages.length, 0) + correction.unmatched.reduce((n, u) => n + u.pages, 0);
+  const blocked = busy ? `Espera a que termine: ${(running && job?.message) || 'subiendo las hojas…'}` : null;
 
   const onFiles = (files: File[]) => upload.mutate({ files, mode }, {
     onSuccess: ({ job: j }) => onJob(j),
@@ -34,14 +38,15 @@ export function CollectStep({ correction, job, running, onJob }: Props) {
   const uploader = (
     <>
       <p className="muted step-lead">
-        Fotocopia el mismo examen para todos. Escanea el montón a una o dos caras, o haz fotos, en cualquier orden:
-        cada página lleva una marca y se ordena sola. Los reversos en blanco se descartan.
+        {mode === 'names'
+          ? 'Escanea el montón a una o dos caras, o haz fotos. Si lo imprimiste desde Sepia, cada página lleva una marca y el montón se ordena solo, aunque venga desordenado. Los reversos en blanco se descartan.'
+          : 'Ordena el montón por apellidos y escanéalo a una o dos caras. Si lo imprimiste desde Sepia, cada página lleva una marca que separa un alumno del siguiente. Los reversos en blanco se descartan.'}
       </p>
       <List>
         <Row className="collect-mode" title="Emparejar" wrapSub
           sub={mode === 'names'
             ? 'Se lee el nombre de la cabecera y se compara con tu lista, que no sale de Sepia.'
-            : 'Por orden alfabético de apellidos. Ordena el montón antes de escanear.'}
+            : 'Por orden alfabético de apellidos. También se lee el nombre, para avisarte si el orden no cuadra.'}
           trail={<Segmented label="Cómo emparejar" value={mode} onChange={setMode}
             options={[{ value: 'names', label: 'Leer nombres' }, { value: 'list_order', label: 'En orden de lista' }]} />} />
       </List>
@@ -56,7 +61,13 @@ export function CollectStep({ correction, job, running, onJob }: Props) {
 
   return (
     <>
-      {busy && <JobLine job={job} fallback={upload.isPending ? 'Subiendo las hojas…' : 'Procesando…'} />}
+      {busy && <JobLine job={running ? job : undefined} fallback={upload.isPending ? 'Subiendo las hojas…' : 'Procesando…'} />}
+      {grading && !busy && (
+        <>
+          <JobLine job={job} fallback="Corrigiendo…" />
+          <p className="muted step-hint">Mientras, puedes seguir ordenando páginas: la IA no guarda la nota de una hoja que cambies.</p>
+        </>
+      )}
       {stats.papers === 0 && !busy && correction.unplaced.length === 0 && uploader}
       {stats.papers > 0 && (
         <p className="collect-count">
@@ -66,7 +77,7 @@ export function CollectStep({ correction, job, running, onJob }: Props) {
           )}
         </p>
       )}
-      <ScanPages correction={correction} busy={busy} onJob={onJob} />
+      <ScanPages correction={correction} blocked={blocked} busy={busy || grading} onJob={onJob} />
       {(stats.papers > 0 || correction.unplaced.length > 0) && !busy && <Section title="Añadir hojas">{uploader}</Section>}
     </>
   );

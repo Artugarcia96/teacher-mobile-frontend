@@ -1,10 +1,12 @@
-/** Page operations of the "Recoger" step with feedback and undo: every change is reversible from the toast. */
+/** Page operations of the "Recoger" step with feedback and undo: every change is reversible from the toast.
+ * Pages are addressed by their stable id, and nothing can be tapped while a change is being saved (`lock`). */
 import {
   useDeleteLoosePage, useMergePapers, useMoveLoosePage, useMovePage, useSplitPaper, type Correction, type PageOpResult, type Tray,
 } from '../../api/papers';
 import { useFeedback } from '../../ui';
 
-export function usePageOps(correction: Correction) {
+/** `blocked`: why pages cannot be edited right now (a job is reading the pile), or null. */
+export function usePageOps(correction: Correction, blocked: string | null = null) {
   const id = correction.activity.id;
   const move = useMovePage(id);
   const split = useSplitPaper(id);
@@ -17,34 +19,38 @@ export function usePageOps(correction: Correction) {
   const onError = (e: Error) => toast(e.message, { tone: 'error' });
   const dropped = (r: PageOpResult) => r.resuggest.length
     ? ` Se ha quitado la sugerencia de la IA de ${r.resuggest.map(name).join(' y ')}.` : '';
-  const discardedAt = correction.discarded.length; // a page sent to the discarded tray lands here
+  const graded = (r: PageOpResult) => r.graded.length
+    ? ` ${r.graded.map(name).join(' y ')} ya ${r.graded.length > 1 ? 'tenían' : 'tenía'} nota confirmada: revísala.` : '';
+  const busy = move.isPending || split.isPending || merge.isPending || moveLoose.isPending || remove.isPending;
 
   return {
-    busy: move.isPending || split.isPending || merge.isPending || moveLoose.isPending || remove.isPending,
+    busy,
+    /** Why page actions are disabled right now (null = they can be used). */
+    lock: blocked ?? (busy ? 'Guardando el cambio anterior…' : null),
 
     /** A page of a paper → another student's paper (created if needed). */
-    toStudent(paperId: string, pageIndex: number, studentId: string) {
-      move.mutate({ paperId, pageIndex, to_student_id: studentId }, {
-        onSuccess: (r) => toast(`Página movida a la hoja de ${name(studentId)}.${dropped(r)}`), onError,
+    toStudent(paperId: string, pageId: string, studentId: string) {
+      move.mutate({ paperId, pageId, to_student_id: studentId }, {
+        onSuccess: (r) => toast(`Página movida a la hoja de ${name(studentId)}.${graded(r)}${dropped(r)}`), onError,
       });
     },
 
-    /** "Quitar": to the discarded tray (recoverable). */
-    discard(paperId: string, pageIndex: number, studentId: string | null) {
-      move.mutate({ paperId, pageIndex, to: 'discarded' }, {
-        onSuccess: (r) => toast(`Página quitada.${dropped(r)}`, {
-          action: {
-            label: 'Deshacer',
-            run: () => moveLoose.mutate({ tray: 'discarded', pageIndex: discardedAt, ...(studentId ? { to_student_id: studentId } : { to: 'unplaced' }) }, { onError }),
-          },
-        }),
+    /** "Quitar": to the discarded tray (recoverable). Undo puts it back in the same paper (or student's paper). */
+    discard(paperId: string, pageId: string, studentId: string | null) {
+      move.mutate({ paperId, pageId, to: 'discarded' }, {
+        onSuccess: (r) => {
+          const back = studentId ? { to_student_id: studentId } : r.from_paper_id ? { to_paper_id: r.from_paper_id } : { to: 'unplaced' as const };
+          toast(`Página quitada.${dropped(r)}`, {
+            action: { label: 'Deshacer', run: () => moveLoose.mutate({ tray: 'discarded', pageId, ...back }, { onError }) },
+          });
+        },
         onError,
       });
     },
 
     /** "Separar aquí": this page and the following ones become another paper. */
-    split(paperId: string, pageIndex: number) {
-      split.mutate({ paperId, pageIndex }, {
+    split(paperId: string, pageId: string) {
+      split.mutate({ paperId, pageId }, {
         onSuccess: (r) => toast(r.paper?.student ? `Separada: es de ${r.paper.student.first_name}.` : 'Separada. Elige de quién es en «Sin identificar».', {
           action: r.paper ? { label: 'Deshacer', run: () => merge.mutate({ paperId, otherId: r.paper!.id }, { onError }) } : undefined,
         }),
@@ -55,35 +61,35 @@ export function usePageOps(correction: Correction) {
     /** Unmatched paper → a student who already has pages: one paper. */
     mergeInto(paperId: string, intoPaperId: string, studentId: string) {
       merge.mutate({ paperId: intoPaperId, otherId: paperId }, {
-        onSuccess: (r) => toast(`Páginas añadidas a la hoja de ${name(studentId)}.${dropped(r)}`), onError,
+        onSuccess: (r) => toast(`Páginas añadidas a la hoja de ${name(studentId)}.${graded(r)}${dropped(r)}`), onError,
       });
     },
 
     /** A loose or discarded page → a student's paper. */
-    placeLoose(tray: Tray, pageIndex: number, studentId: string) {
-      moveLoose.mutate({ tray, pageIndex, to_student_id: studentId }, {
-        onSuccess: (r) => toast(`Página añadida a la hoja de ${name(studentId)}.${dropped(r)}`), onError,
+    placeLoose(tray: Tray, pageId: string, studentId: string) {
+      moveLoose.mutate({ tray, pageId, to_student_id: studentId }, {
+        onSuccess: (r) => toast(`Página añadida a la hoja de ${name(studentId)}.${graded(r)}${dropped(r)}`), onError,
       });
     },
 
-    discardLoose(pageIndex: number) {
-      moveLoose.mutate({ tray: 'unplaced', pageIndex, to: 'discarded' }, {
+    discardLoose(pageId: string) {
+      moveLoose.mutate({ tray: 'unplaced', pageId, to: 'discarded' }, {
         onSuccess: () => toast('Página descartada.', {
-          action: { label: 'Deshacer', run: () => moveLoose.mutate({ tray: 'discarded', pageIndex: discardedAt, to: 'unplaced' }, { onError }) },
+          action: { label: 'Deshacer', run: () => moveLoose.mutate({ tray: 'discarded', pageId, to: 'unplaced' }, { onError }) },
         }),
         onError,
       });
     },
 
-    restore(pageIndex: number) {
-      moveLoose.mutate({ tray: 'discarded', pageIndex, to: 'unplaced' }, {
+    restore(pageId: string) {
+      moveLoose.mutate({ tray: 'discarded', pageId, to: 'unplaced' }, {
         onSuccess: () => toast('Página recuperada: está en «Páginas por colocar».'), onError,
       });
     },
 
-    async deleteForever(tray: Tray, pageIndex: number) {
+    async deleteForever(tray: Tray, pageId: string) {
       if (!(await confirm({ title: 'Borrar esta página', text: 'Se borra la imagen escaneada. No se puede deshacer.', confirm: 'Borrar', danger: true }))) return;
-      remove.mutate({ tray, pageIndex }, { onSuccess: () => toast('Página borrada'), onError });
+      remove.mutate({ tray, pageId }, { onSuccess: () => toast('Página borrada'), onError });
     },
   };
 }

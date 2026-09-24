@@ -34,7 +34,8 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
       onError: (e) => toast(e.message, { tone: 'error' }),
     });
   };
-  const open = (variant: 'print' | 'key' | 'extra-sheet') => openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }));
+  const open = (variant: 'print' | 'key' | 'extra-sheet') =>
+    openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }), (m) => toast(m));
 
   const fileInput = (
     <input ref={input} type="file" hidden multiple accept="application/pdf,image/*"
