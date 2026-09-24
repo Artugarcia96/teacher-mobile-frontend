@@ -1,0 +1,12 @@
+/* Unidad — layout only. */
+.unit-eyebrow { color: var(--ink); }
+.unit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.unit-actions > .btn { flex: 1 1 160px; }
+@media (min-width: 768px) {
+  .unit-actions > .btn { flex: 0 0 auto; }
+}
+.unit-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); max-width: 860px; min-width: 0; }
+.material-sub { display: inline-flex; align-items: center; gap: 8px; }
+.material-error { color: var(--danger); }
+.unit-actions--center { justify-content: center; margin-top: 6px; }
+.unit-actions--center > .btn { flex: 0 0 auto; }

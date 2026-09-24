@@ -1,0 +1,28 @@
+/* Programación tab — layout only. */
+.plan { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); min-width: 0; }
+.plan-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+.plan-bar__meta { color: var(--ink-2); font-size: var(--fs-sub); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-bar__meta b { color: var(--ink); font-weight: 600; }
+.plan-bar__actions { display: flex; align-items: center; gap: 4px; flex: none; }
+
+.plan-terms { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); min-width: 0; }
+@media (min-width: 1024px) {
+  .plan-terms { max-width: 860px; }
+}
+.plan-term__count { font-size: var(--fs-footnote); color: var(--ink-3); }
+.plan-term__empty { color: var(--ink-3); font-weight: 500; }
+
+.plan-unit { position: relative; }
+.plan-unit + .plan-unit::before { content: ''; position: absolute; z-index: 1; top: 0; right: 0; left: 56px; height: 0.5px; background: var(--line); }
+.plan-unit .row { padding-right: 8px; }
+.plan-unit__gap { display: block; width: 36px; }
+.plan-unit__menu { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); }
+.plan-unit__title--done { color: var(--ink-2); font-weight: 500; }
+
+.unit-mark { display: block; width: 24px; height: 24px; flex: none; }
+.unit-mark--pending { width: 18px; height: 18px; margin: 3px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.unit-mark--current { width: 18px; height: 18px; margin: 3px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.unit-mark--done { color: var(--ink-3); }
+
+.plan-empty__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.unit-mark--sm { width: 12px; height: 12px; margin: 3px; box-shadow: none; }
