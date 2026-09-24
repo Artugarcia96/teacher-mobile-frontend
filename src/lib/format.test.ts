@@ -10,6 +10,12 @@ describe('grade rules', () => {
     expect(formatProposal(6.5)).toBe('7');
     expect(formatAverage(null)).toBe('—');
   });
+  it('rounds half up on the decimal value, same table as the backend (tests/test_courses.py TestTextRules)', () => {
+    const table: [number, string][] = [[4.25, '4,3'], [4.35, '4,4'], [6.875, '6,9'], [7, '7'], [6.95, '7'], [0.05, '0,1'], [5.29, '5,3'], [10, '10']];
+    for (const [v, text] of table) expect(formatAverage(v)).toBe(text);
+    expect(formatScore(1.005)).toBe('1,01');
+    expect(formatScore(8.125)).toBe('8,13');
+  });
   it('three tones', () => {
     expect([4.99, 5, 8.9, 9, null].map(gradeTone)).toEqual(['fail', 'pass', 'pass', 'great', 'none']);
   });

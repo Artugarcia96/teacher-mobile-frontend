@@ -188,7 +188,7 @@ function EvalRowItem({ row, onOpen }: { row: EvalRow; onOpen: () => void }) {
       </>}
       sub={<>
         <span className="ev-row__meta">
-          Media <Grade value={row.average} digits={2} />
+          Media <Grade value={row.average} />
           {adjusted && row.proposed != null && <> · propuesta {row.proposed}{row.qualitative ? ` ${row.qualitative}` : ''}</>}
           {row.absences > 0 && <> · {plural(row.absences, 'falta', 'faltas')}</>}
         </span>
@@ -197,7 +197,7 @@ function EvalRowItem({ row, onOpen }: { row: EvalRow; onOpen: () => void }) {
       wrapSub
       trail={<div className="ev-row__final">
         {adjusted && <Chip tone="warn">Ajustada</Chip>}
-        {row.final != null ? <GradePill value={row.final} label={row.final_qualitative} /> : <span className="faint">{formatGrade(null)}</span>}
+        {row.final != null ? <GradePill value={row.final} label={row.final_qualitative} proposal /> : <span className="faint">{formatGrade(null)}</span>}
       </div>}
     />
   );

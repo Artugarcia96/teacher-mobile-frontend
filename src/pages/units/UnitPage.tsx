@@ -8,7 +8,7 @@ import { kindLabel, MaterialIcon } from '../../features/units/kinds';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
 import { fileUrl } from '../../lib/api';
 import { useToday } from '../../lib/auth';
-import { addDays, shortDate, TERM_LABEL } from '../../lib/format';
+import { addDays, ordinals, shortDate, TERM_LABEL } from '../../lib/format';
 import {
   AIBadge, Button, Chip, Dot, EmptyState, IconButton, List, Menu, Page, Row, RowIcon, Section, SkeletonList, Spinner, useFeedback,
 } from '../../ui';
@@ -38,14 +38,14 @@ export default function UnitPage() {
 
   if (error) {
     return (
-      <Page title="Unidad" back={planPath} backLabel="Programación">
+      <Page title="Unidad" back={planPath} backLabel="Temario">
         <EmptyState icon={<WarningCircle size={24} />} title="No se ha encontrado la unidad" text={(error as Error).message}
-          action={<Button variant="neutral" to={planPath}>Volver a la programación</Button>} />
+          action={<Button variant="neutral" to={planPath}>Volver al temario</Button>} />
       </Page>
     );
   }
   if (isLoading || !data) {
-    return <Page title="" back={planPath} backLabel="Programación"><SkeletonList rows={5} /></Page>;
+    return <Page title="" back={planPath} backLabel="Temario"><SkeletonList rows={5} /></Page>;
   }
 
   const { unit, course, materials } = data;
@@ -104,7 +104,7 @@ export default function UnitPage() {
     <Page
       title={unit.title}
       back={planPath}
-      backLabel={course.group.name}
+      backLabel={ordinals(course.group.name)}
       eyebrow={<><Dot color={course.color} large /><span className="eyebrow unit-eyebrow">{course.label}</span></>}
       subtitle={<>
         <span>{unit.term ? TERM_LABEL[unit.term] : 'Sin evaluación'}</span>

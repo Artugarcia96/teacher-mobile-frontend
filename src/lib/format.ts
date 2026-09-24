@@ -69,11 +69,14 @@ export function relativeDay(iso: string, today: string): string {
 }
 
 /** Number with Spanish decimal comma, up to `digits` decimals: 6.5 → "6,5"; 7 → "7"; null → "—".
- *  Grades use the three rules below; call this directly only for other numbers (weights, points). */
+ *  Half up on the decimal value, like the backend (`services/text.one_decimal`): 4.25 → "4,3", 4.35 → "4,4"
+ *  (plain Math.round(4.35 * 10) gives 43 because 4.35 * 10 = 43.4999…).
+ *  Grades use the three rules below; call this directly only for other numbers (weights, points, maximum scores). */
 export function formatGrade(v: number | null | undefined, digits = 1): string {
   if (v === null || v === undefined || Number.isNaN(v)) return '—';
-  const rounded = Math.round(v * 10 ** digits) / 10 ** digits;
-  return String(rounded).replace('.', ',');
+  const scaled = Number((Math.abs(v) * 10 ** digits).toPrecision(12));
+  const rounded = (Math.sign(v) * Math.round(scaled)) / 10 ** digits;
+  return String(rounded === 0 ? 0 : rounded).replace('.', ',');
 }
 
 /** Rule 1 — averages (evaluación, categoría, clase, final): one decimal. 6.875 → "6,9". */

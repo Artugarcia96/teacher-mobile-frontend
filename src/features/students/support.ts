@@ -12,7 +12,12 @@ export const MEASURES: { key: Measure; label: string; short: string }[] = [
 
 const SHORT = Object.fromEntries(MEASURES.map((m) => [m.key, m.short])) as Record<Measure, string>;
 
-/** "NEAE · TDAH", "ACNEE", or null when the student has no mark. */
+/** "NEAE" or "ACNEE" (no diagnosis): lists and search results, which teachers often project in class. */
+export function supportFlag(s: Support | null | undefined): string | null {
+  return s?.acnee ? 'ACNEE' : s?.neae ? 'NEAE' : null;
+}
+
+/** "NEAE · TDAH", "ACNEE", or null when the student has no mark. Only in the student file. */
 export function supportLabel(s: Support | null | undefined): string | null {
   if (!s) return null;
   const parts = [s.acnee ? 'ACNEE' : s.neae ? 'NEAE' : null, s.kind || null].filter(Boolean);

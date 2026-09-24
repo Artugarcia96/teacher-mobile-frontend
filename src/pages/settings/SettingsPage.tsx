@@ -1,5 +1,5 @@
 import { Plus, SignOut, Warning, X } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMe, usePatchMe, useRegions, useSaveSchoolYear, useSendFeedback } from '../../api/core';
 import type { Holiday, Me, Term } from '../../api/types';
 import { ApiError } from '../../lib/api';
@@ -8,7 +8,7 @@ import { shortDate, TERM_LABEL } from '../../lib/format';
 import { getTheme, setTheme, type Theme } from '../../lib/theme';
 import {
   ActionBar, Button, DateField, EmptyState, IconButton, List, Page, Row, Section, Segmented, Select, SkeletonList, TextArea, TextField,
-  useFeedback,
+  useDraft, useFeedback,
 } from '../../ui';
 import './settings.css';
 
@@ -22,7 +22,6 @@ const yearOf = (me: Me): Year => {
   const y = me.school_year;
   return { label: y.label, start_date: y.start_date, end_date: y.end_date, terms: y.terms, holidays: y.holidays };
 };
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /** "8 sept 2026 – 22 dic 2026" pair of date fields. */
 function Range({ label, start, end, onChange }: { label: string; start: string; end: string; onChange: (start: string, end: string) => void }) {
@@ -48,7 +47,7 @@ function ProfileSection({ me, value, onChange }: { me: Me; value: Profile; onCha
           error={value.name.trim() ? undefined : 'Escribe tu nombre.'} />
         <TextField label="Centro" placeholder="IES Miguel de Cervantes" value={value.school} onChange={(e) => onChange({ ...value, school: e.target.value })} />
         <Select label="Comunidad autónoma" value={value.region} onChange={(e) => onChange({ ...value, region: e.target.value })}
-          hint={region?.platform ? `Las exportaciones de notas se preparan para ${region.platform}.` : undefined}>
+          hint={region ? (region.platform ? `Plataforma de notas: ${region.platform}` : 'Sin una plataforma de notas única') : undefined}>
           <option value="">Sin indicar</option>
           {(regions.data ?? []).map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
           {!regions.data && value.region && <option value={value.region}>{me.region?.name ?? value.region}</option>}
@@ -147,44 +146,41 @@ function FeedbackSection() {
   );
 }
 
-/** Profile + school year are edited as one draft: a sticky "Guardar cambios" bar appears while something changed. */
+/** Profile + school year are edited as one draft: a sticky "Guardar cambios" bar appears while something changed.
+ *  Each part follows /me only while untouched (useDraft) and keeps its edits until *it* is saved. */
 function SettingsForm({ me }: { me: Me }) {
   const { toast } = useFeedback();
   const patchMe = usePatchMe();
   const saveYear = useSaveSchoolYear();
-  const [profile, setProfile] = useState(() => profileOf(me));
-  const [year, setYear] = useState(() => yearOf(me));
+  const profile = useDraft(profileOf(me));
+  const year = useDraft(yearOf(me));
   const [error, setError] = useState<string | null>(null);
-
-  // A refetch of /me (e.g. after saving) resets the draft to what the server has.
-  useEffect(() => { setProfile(profileOf(me)); setYear(yearOf(me)); }, [me]);
-
-  const profileDirty = !same(profile, profileOf(me));
-  const yearDirty = !same(year, yearOf(me));
   const saving = patchMe.isPending || saveYear.isPending;
 
-  const discard = () => { setProfile(profileOf(me)); setYear(yearOf(me)); setError(null); };
+  const discard = () => { profile.reset(); year.reset(); setError(null); };
   const save = async () => {
     setError(null);
     try {
-      if (profileDirty) await patchMe.mutateAsync({ name: profile.name.trim(), school: profile.school.trim() || null, region: profile.region || null });
-      if (yearDirty) await saveYear.mutateAsync(year);
+      if (profile.dirty) {
+        const p = profile.draft;
+        const t = await patchMe.mutateAsync({ name: p.name.trim(), school: p.school.trim() || null, region: p.region || null });
+        profile.setDraft({ name: t.name, school: t.school ?? '', region: t.region ?? '' });
+      }
+      if (year.dirty) year.setDraft(yearOf({ ...me, school_year: await saveYear.mutateAsync(year.draft) }));
       toast('Cambios guardados');
     } catch (e) {
-      const msg = errText(e, 'No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.');
-      setError(msg);
-      toast(msg, { tone: 'error' });
+      setError(errText(e, 'No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.'));
     }
   };
 
   return (
     <>
-      <ProfileSection me={me} value={profile} onChange={setProfile} />
-      <SchoolYearSection value={year} onChange={setYear} />
-      {(profileDirty || yearDirty) && (
-        <ActionBar note={error ? <span className="field__error" role="alert">{error}</span> : 'Sin guardar'}>
+      <ProfileSection me={me} value={profile.draft} onChange={profile.setDraft} />
+      <SchoolYearSection value={year.draft} onChange={year.setDraft} />
+      {(profile.dirty || year.dirty) && (
+        <ActionBar note="Sin guardar" error={error}>
           <Button size="sm" variant="neutral" onClick={discard} disabled={saving}>Descartar</Button>
-          <Button size="sm" onClick={save} loading={saving} disabled={!profile.name.trim()}>Guardar cambios</Button>
+          <Button size="sm" onClick={save} loading={saving} disabled={!profile.draft.name.trim()}>Guardar cambios</Button>
         </ActionBar>
       )}
     </>

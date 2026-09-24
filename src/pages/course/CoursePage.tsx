@@ -52,12 +52,15 @@ export default function CoursePage() {
   const now = me?.now;
   const canTake = isLive(next, today, now) && !next?.taken;
   const when = next ? sessionText(next, today, now) : course.schedule.length ? null : 'Sin horario';
-  const facts = [plural(course.student_count, 'alumno', 'alumnos'), course.room && `Aula ${course.room}`, when].filter(Boolean).join(' · ');
+  // The session may be in another room than the class's usual one ("Lab. 1"); a bare number reads "Aula 204".
+  const room = next?.room ?? course.room;
+  const where = room && (/^\d/.test(room) ? `Aula ${room}` : room);
+  const facts = [plural(course.student_count, 'alumno', 'alumnos'), where, when].filter(Boolean).join(' · ');
 
   const items: MenuItem[] = [
     ...menu.items,
     { label: 'Añadir alumnos', icon: <UserPlus size={18} />, separatorBefore: menu.items.length > 0,
-      onSelect: () => navigate(`/clases/${course.id}/alumnos?anadir=1`) },
+      onSelect: () => navigate(`/clases/${course.id}/alumnos?anadir=1`, { replace: true }) },
     { label: 'Ajustes de la clase', icon: <GearSix size={18} />, onSelect: () => setSettings(true) },
   ];
 

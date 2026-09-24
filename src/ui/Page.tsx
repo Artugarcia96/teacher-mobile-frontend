@@ -123,11 +123,13 @@ export function Section({ title, action, footer, children, className }: SectionP
   );
 }
 
-/** Sticky bar at the end of a page for its pending action ("Guardar cambios"). On phones it floats above the tab capsule. */
-export function ActionBar({ note, children }: { note?: ReactNode; children: ReactNode }) {
+/** Sticky bar at the end of a page for its pending action ("Guardar cambios"). On phones it floats above the tab capsule.
+ *  `error` (a failed save) takes its own line above the buttons, in place of the note. */
+export function ActionBar({ note, error, children }: { note?: ReactNode; error?: string | null; children: ReactNode }) {
   return (
-    <div className="action-bar glass">
-      {note && <span className="action-bar__note">{note}</span>}
+    <div className="action-bar">
+      {error ? <span className="action-bar__error field__error" role="alert">{error}</span>
+        : note && <span className="action-bar__note">{note}</span>}
       <div className="action-bar__buttons">{children}</div>
     </div>
   );

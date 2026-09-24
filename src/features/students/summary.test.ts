@@ -27,4 +27,15 @@ describe('studentSummary', () => {
       '· 10 nov, positivo: Ayuda a un compañero.',
     ].join('\n'));
   });
+  it('says "nota" for the teacher\'s term grade and leaves out zero justified absences', () => {
+    const f: StudentFile = {
+      student: { id: 's', first_name: 'Eva', last_name: 'Mora', name: 'Eva Mora', sort_name: '', initials: 'EM' },
+      groups: [], watch: [], notes: [],
+      courses: [{
+        course, grades: [], absences: 3, justified: 0, lates: 0,
+        terms: [{ term: 1, average: 5.29, final: 6 }], pending_exams: [],
+      }],
+    };
+    expect(studentSummary(f, 1)).toBe('Eva Mora\nMatemáticas · 2.º ESO B: nota 6 en la 1.ª evaluación · 3 faltas');
+  });
 });

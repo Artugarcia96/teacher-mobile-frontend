@@ -6,7 +6,7 @@ import { useSearch } from '../../api/core';
 import type { CourseRef, SearchResult } from '../../api/types';
 import { courseLabel, ordinals } from '../../lib/format';
 import { Callout, Dot, EmptyState, List, Row, SearchField, Section, Sheet, SkeletonList } from '../../ui';
-import { supportLabel } from './support';
+import { supportFlag } from './support';
 
 /** "2.º ESO B · Mates, FyQ" — where the student is. */
 function whereText(courses: CourseRef[]): string {
@@ -31,7 +31,8 @@ export function SearchResults({ q, onOpen }: { q: string; onOpen: (path: string)
   if (!data?.students.length && !data?.courses.length) {
     return (
       <div className="list">
-        <EmptyState icon={<MagnifyingGlass size={24} />} title="Sin resultados" text={`Nadie se llama «${q.trim()}» en tus clases. Prueba con el apellido.`} />
+        <EmptyState icon={<MagnifyingGlass size={24} />} title="Sin resultados"
+          text={`No hay alumnos ni clases que coincidan con «${q.trim()}». Prueba con el apellido o el grupo («2 ESO B»).`} />
       </div>
     );
   }
@@ -41,7 +42,7 @@ export function SearchResults({ q, onOpen }: { q: string; onOpen: (path: string)
         <Section title="Alumnos">
           <List>
             {data.students.map(({ student, courses }) => {
-              const flag = supportLabel(student.support);
+              const flag = supportFlag(student.support);
               return (
                 <Row key={student.id} title={student.sort_name} onClick={() => onOpen(`/alumnos/${student.id}`)}
                   sub={flag ? `${whereText(courses)} · ${flag}` : whereText(courses)} />

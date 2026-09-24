@@ -10,7 +10,7 @@
 .gb-card { width: fit-content; max-width: 100%; background: var(--paper); border-radius: var(--r-card); box-shadow: var(--e1); overflow: hidden; margin-top: calc(-1 * var(--s-2)); }
 .gb-scroll {
   --name-w: 132px; --col-w: 78px; --row-h: 44px;
-  overflow: auto; max-height: calc(100dvh - 150px); overscroll-behavior-x: contain;
+  overflow: auto; max-height: calc(100dvh - 150px - var(--capsule-clearance)); overscroll-behavior-x: contain;
   scroll-padding-left: var(--name-w); scroll-padding-top: 64px;
 }
 @media (min-width: 768px) { .gb-scroll { --name-w: 240px; --col-w: 88px; } }

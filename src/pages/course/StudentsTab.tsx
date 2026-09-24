@@ -3,19 +3,20 @@ import { useSearchParams } from 'react-router-dom';
 import { useCourseStudents, useMe } from '../../api/core';
 import type { CourseDetail, StudentRow } from '../../api/types';
 import AddStudentsSheet from '../../features/students/AddStudentsSheet';
-import { measureChips, supportLabel } from '../../features/students/support';
+import { measureChips, supportFlag } from '../../features/students/support';
 import { plural, TERM_LABEL } from '../../lib/format';
 import { Button, Chip, EmptyState, GradePill, List, Row, Section, SkeletonList } from '../../ui';
 import './students-tab.css';
 
 const MAX_MEASURE_CHIPS = 2;
 
-/** "Apellidos, Nombre" + one line: the first "a vigilar" reason, support measures and absences (from 3) + term average. */
+/** "Apellidos, Nombre" + one line: the first "a vigilar" reason, support measures and absences (from 3) + term average.
+ *  A low average is not repeated as a reason: the red pill already says it. */
 function StudentLine({ s }: { s: StudentRow }) {
-  const reason = s.watch[0];
+  const reason = s.watch.find((w) => !/^media\b/i.test(w));
   const measures = measureChips(s.support);
   const shown = measures.slice(0, MAX_MEASURE_CHIPS);
-  const flag = measures.length ? null : supportLabel(s.support);
+  const flag = measures.length ? null : supportFlag(s.support);
   const absences = s.absences >= 3 && !(reason && /falta/i.test(reason));
   const sub = (reason || measures.length || flag || absences) ? (
     <span className="roster__sub">

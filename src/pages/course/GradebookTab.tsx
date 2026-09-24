@@ -11,7 +11,7 @@ import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { KindIcon } from '../../features/activities/kinds';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { formatGrade, formatNumber, parseGradeInput, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { formatAverage, formatNumber, formatScore, parseGradeInput, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Row, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
@@ -39,8 +39,10 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
     download(`/courses/${course.id}/gradebook.csv?term=${term}`, `Cuaderno ${course.subject} ${course.group.name} ${TERM_SHORT[term]}.csv`)
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
+  // The region's grades platform names the file's destination ("Exportar CSV para Raíces (Madrid)").
+  const exportLabel = me?.region?.export_label ? `Exportar CSV para ${me.region.export_label}` : 'Exportar CSV';
   useCourseMenu([
-    { label: 'Exportar CSV', icon: <FileCsv size={18} />, onSelect: exportCsv },
+    { label: exportLabel, icon: <FileCsv size={18} />, onSelect: exportCsv },
     { label: 'Ponderaciones', icon: <Scales size={18} />, onSelect: () => setWeights(true) },
   ]);
 
@@ -91,7 +93,7 @@ function cellText(cell: GradeCell | undefined): string {
   if (!cell) return '';
   if (cell.status === 'absent') return 'NP';
   if (cell.score == null) return '';
-  return formatGrade(cell.score, 2);
+  return formatScore(cell.score);
 }
 
 function Grid({ course, data, focus, onFocusDone, onEdit }: {
@@ -214,7 +216,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                   </th>
                   {final
                     ? data.categories.map((c) => (
-                      <td key={c.key} className="gb-cell gb-cell--ro"><Grade value={row.categories[c.key]} digits={2} /></td>
+                      <td key={c.key} className="gb-cell gb-cell--ro"><Grade value={row.categories[c.key]} /></td>
                     ))
                     : acts.map((a, c) => {
                       const isEditing = editing?.r === r && editing.c === c;
@@ -238,11 +240,11 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     })}
                   <td className="gb-avg">
                     <button type="button" className="gb-avg__btn" onClick={() => setAvgRow(row)} aria-label={`Media de ${row.student.name}`}>
-                      <Grade value={row.average} digits={2} />
+                      <Grade value={row.average} />
                     </button>
                   </td>
                   <td className="gb-prop">
-                    {row.proposed != null ? <GradePill value={row.proposed} label={row.qualitative} /> : <span className="faint">—</span>}
+                    {row.proposed != null ? <GradePill value={row.proposed} label={row.qualitative} proposal /> : <span className="faint">—</span>}
                   </td>
                 </tr>
               ))}
@@ -251,7 +253,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
               <tr>
                 <th className="gb-name" scope="row"><span className="gb-foot__label">Media de la clase</span></th>
                 {(final ? data.categories : acts).map((x) => <td key={'key' in x ? x.key : x.id} className={`gb-cell${!final && (x as GradebookActivity).date === today ? ' gb-today' : ''}`} />)}
-                <td className="gb-avg"><Grade value={data.class_average} digits={2} /></td>
+                <td className="gb-avg"><Grade value={data.class_average} /></td>
                 <td className="gb-prop" />
               </tr>
             </tfoot>
@@ -275,11 +277,11 @@ function CellValue({ cell, max }: { cell: GradeCell | undefined; max: number }) 
   if (cell.status === 'suggested') {
     return (
       <span className="gb-sug" title="Sugerida por IA · revisar">
-        {formatGrade(cell.score, 2)}<span className="gb-sug__mark">IA</span>
+        {formatScore(cell.score)}<span className="gb-sug__mark">IA</span>
       </span>
     );
   }
-  return <Grade value={cell.score} max={max} digits={2} />;
+  return <Grade value={cell.score} max={max} />;
 }
 
 function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label, above }: {
@@ -344,26 +346,26 @@ function AverageSheet({ row, onClose, data, categories }: {
   const used = row ? categories.filter((c) => row.categories[c.key] != null && (final || c.weight > 0)) : [];
   const totalW = used.reduce((a, c) => a + c.weight, 0);
   const formula = final
-    ? `(${used.map((c) => formatGrade(row?.categories[c.key], 2)).join(' + ')}) / ${used.length}`
-    : `(${used.map((c) => `${formatGrade(row?.categories[c.key], 2)} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
+    ? `(${used.map((c) => formatAverage(row?.categories[c.key])).join(' + ')}) / ${used.length}`
+    : `(${used.map((c) => `${formatAverage(row?.categories[c.key])} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
   return (
     <Sheet open={!!row} onClose={onClose} title={row?.student.name ?? ''} subtitle={`Media de la ${final ? 'evaluación final' : data.term_label}`}>
       {row && (
         <div className="gb-avg-sheet">
           <div className="gb-avg-sheet__head">
-            <span className="gb-avg-sheet__num display"><Grade value={row.average} digits={2} /></span>
-            {row.proposed != null && <span className="muted">Propuesta <GradePill value={row.proposed} label={row.qualitative} /></span>}
+            <span className="gb-avg-sheet__num display"><Grade value={row.average} /></span>
+            {row.proposed != null && <span className="muted">Propuesta <GradePill value={row.proposed} label={row.qualitative} proposal /></span>}
           </div>
           <List>
             {categories.map((c) => (
               <Row key={c.key} title={c.label} sub={final ? undefined : `Pesa un ${formatNumber(c.weight, 0)} %`}
                 muted={row.categories[c.key] == null}
-                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} digits={2} />} />
+                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} />} />
             ))}
           </List>
           {used.length > 0 ? (
             <p className="gb-formula">
-              <span className="num">{formula} = {formatGrade(row.average, 2)}</span>
+              <span className="num">{formula} = {formatAverage(row.average)}</span>
               {!final && used.length < categories.length && <> · Las categorías sin notas no cuentan: su peso se reparte entre las demás.</>}
               {final && <> · Media de las evaluaciones con nota.</>}
             </p>

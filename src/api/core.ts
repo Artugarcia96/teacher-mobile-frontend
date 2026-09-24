@@ -18,7 +18,6 @@ export const keys = {
   job: (id: string) => ['job', id] as const,
   archivedCourses: ['courses', 'archived'] as const,
   groupStudents: (groupId: string) => ['groups', groupId, 'students'] as const,
-  adaptations: (courseId: string) => ['course', courseId, 'adaptations'] as const,
   regions: ['regions'] as const,
   search: (q: string) => ['search', q] as const,
 };
@@ -148,10 +147,6 @@ export function useRegions() {
 }
 
 /** Students of the class with adaptation measures (to prepare adapted versions of an exam). */
-export function useAdaptations(courseId: string | undefined) {
-  return useQuery({ queryKey: keys.adaptations(courseId!), queryFn: () => api.get<StudentRef[]>(`/courses/${courseId}/adaptations`), enabled: !!courseId });
-}
-
 /** Search students (accent-insensitive) and classes. Debounced; keeps the previous results while typing. */
 export function useSearch(q: string) {
   const [term, setTerm] = useState(q.trim());

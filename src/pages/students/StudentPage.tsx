@@ -50,7 +50,7 @@ function CourseGrades({ sc, single, expanded }: { sc: StudentCourse; single: boo
         {sc.terms.map((t) => (
           <div key={t.term} className="st-term">
             <span className="st-term__label">{TERM_SHORT[t.term]}</span>
-            <GradePill value={termValue(t, sc.terms)} />
+            <GradePill value={termValue(t, sc.terms)} proposal={t.final != null} />
           </div>
         ))}
       </div>
@@ -232,7 +232,8 @@ export default function StudentPage() {
       <QuickNoteSheet open={noting} onClose={() => setNoting(false)} studentIds={[s.id]}
         courseId={single ? f.courses[0].course.id : undefined} />
       <BriefSheet open={briefing} onClose={() => setBriefing(false)} studentId={s.id} name={s.name} />
-      <EditStudentSheet open={editing} onClose={() => setEditing(false)} student={s} notesText={f.notes_text} />
+      <EditStudentSheet open={editing} onClose={() => setEditing(false)} student={s} notesText={f.notes_text}
+        acsAllowed={!f.groups.length || f.groups.some((g) => g.stage === 'primaria' || g.stage === 'eso')} />
       <EditNoteSheet note={editNote} onClose={() => setEditNote(null)} />
     </Page>
   );
