@@ -1,0 +1,162 @@
+# Sepia — especificación de producto
+
+> Documento canónico. Si el código contradice este documento, uno de los dos está mal: arréglalo o actualiza el documento en el mismo commit.
+> El backend (`../teacher-mobile-backend`) y el frontend (este repo) implementan lo que aquí se describe.
+
+## 1. Para quién y para qué
+
+Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en España. Un profesor típico tiene 4-6 grupos, ~120 alumnos, y abre la app **entre clases, con 30 segundos**. Sepia debe resolver, en este orden:
+
+1. **Hoy**: qué clase tengo ahora, pasar lista en 2 toques, apuntar una incidencia en 5 segundos.
+2. **Cuaderno**: poner notas (a mano o corrigiendo con IA), ver medias por evaluación que cuadren siempre.
+3. **Programación**: unidades por trimestre y los materiales de cada unidad (apuntes, presentación, fichas, exámenes).
+4. **Evaluación**: llegar a la sesión de evaluación con notas propuestas, notas finales y comentarios de boletín redactados.
+
+### Principios (no negociables)
+
+- **Operativo antes que vistoso.** Cada pantalla responde a una tarea real del día a día. Si algo no ayuda a dar clase, poner notas, pasar lista o evaluar, no existe.
+- **Cero entropía.** Nada de paneles de "insights", resúmenes que repiten datos, contadores decorativos, onboarding con barra de progreso, confeti ni saludos. Un dato aparece una vez, en el sitio donde se usa.
+- **La IA propone, el profesor decide.** Todo lo que genera la IA llega como *borrador* editable, marcado "Borrador IA". La IA nunca escribe una nota definitiva.
+- **La IA solo donde ahorra horas**: corregir un montón de exámenes, redactar 30 comentarios de boletín, generar un examen/ficha/apuntes/presentación de una unidad, importar un temario. Nunca para repetir datos que la app ya tiene (el "Prepara tu día" con IA desaparece: "Hoy" es determinista e instantáneo).
+- **Un número, una fórmula.** Las medias se calculan solo en el backend (`app/services/grading.py`). El frontend nunca recalcula notas.
+- **Nada se pierde.** Editar un horario no borra sesiones pasadas; quitar un alumno de un grupo no lo borra; los comentarios de boletín se guardan.
+
+## 2. Glosario (UI ↔ código)
+
+| UI (español)        | Código          | Qué es |
+|---------------------|-----------------|--------|
+| Grupo               | `Group`         | Conjunto de alumnos: "2º ESO B". Tiene etapa y nivel. |
+| Clase               | `Course`        | Una materia impartida a un grupo: "Matemáticas · 2º ESO B". **Unidad de trabajo de toda la app.** Tiene horario, aula, color y ponderaciones. |
+| Alumno              | `Student`       | Pertenece al profesor; se matricula en grupos (`Enrollment`). Puede tener marca NEAE/ACNEE + adaptación. |
+| Unidad              | `Unit`          | Tema de la programación de una clase, con trimestre y estado (pendiente / en curso / impartida). |
+| Material            | `Material`      | Documento de una unidad: subido, apuntes, presentación, resumen, versión adaptada, ficha (con solucionario). |
+| Actividad           | `Activity`      | Todo lo que se califica en el cuaderno: examen, trabajo, ficha, oral, cuaderno, actitud… Tiene categoría, fecha, evaluación y nota máxima. |
+| Nota                | `Grade`         | Nota de un alumno en una actividad. Estados: sin nota, sugerida (IA), confirmada, NP. |
+| Hoja / papel        | `Paper`         | Páginas escaneadas/fotografiadas de un alumno para una actividad. |
+| Evaluación          | `term` 1/2/3 + final (4) | Trimestres del curso escolar. |
+| Nota de evaluación  | `TermGrade`     | Nota calculada + nota final ajustada + comentario de boletín, por alumno/clase/evaluación. |
+| Observación         | `Note`          | Nota rápida del profesor (observación, incidencia, positivo, familia) ligada a alumnos y/o clase. |
+| Sesión              | calculada       | Cada hueco del horario en un día lectivo. No se guarda: se calcula de `Course.schedule` + curso escolar − festivos ± excepciones. |
+| Curso escolar       | `SchoolYear`    | Fechas de inicio/fin, trimestres y festivos. Se crea solo con valores por defecto de España. |
+
+## 3. Navegación
+
+Tres destinos y un menú de cuenta. Profundidad máxima 3.
+
+```
+Hoy            /hoy                     ← inicio
+Clases         /clases                  lista "Matemáticas · 2º ESO B"
+  Clase        /clases/:courseId        pestañas: Cuaderno · Alumnos · Programación · Asistencia
+    Actividad  /clases/:courseId/actividades/:activityId      (examen: preparar → recoger → revisar)
+    Revisión   /clases/:courseId/actividades/:activityId/revisar   (modo foco, alumno a alumno)
+    Unidad     /clases/:courseId/unidades/:unitId
+    Material   /clases/:courseId/unidades/:unitId/materiales/:materialId
+    Evaluación /clases/:courseId/evaluacion/:term             notas finales + boletín
+  Alumno       /alumnos/:studentId      ficha del alumno (todas sus clases)
+Evaluar        /evaluar                 bandeja: por corregir · evaluaciones · boletines
+Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar sesión, sugerencias
+```
+
+- Móvil: barra inferior flotante (cápsula de cristal) con Hoy · Clases · Evaluar. Ajustes desde el avatar.
+- Escritorio (≥1024px): barra lateral de cristal con los 3 destinos + lista de clases; Hoy a dos columnas.
+
+## 4. Flujos por momento del curso
+
+### 4.1 Septiembre — poner en marcha (≤ 5 minutos)
+1. Registro → se crea el curso escolar con trimestres y festivos nacionales por defecto (editables en Ajustes).
+2. "Nueva clase": materia + grupo (crear o elegir) + horario (días y horas, tramos de 55 min por defecto) + aula.
+3. "Añadir alumnos": **pegar la lista** (un alumno por línea, acepta "Apellidos, Nombre" y "Nombre Apellidos") o importar CSV/Excel (detecta `;`, Latin-1, BOM). Si el grupo ya tiene alumnos (otra materia), se reutilizan.
+4. Programación: añadir unidades a mano, o **"Importar temario"**: pegar el índice del libro / programación → la IA propone unidades con trimestre → confirmar.
+5. Ponderaciones de la clase: por defecto *Exámenes 60 %, Trabajos y fichas 30 %, Observación 10 %*. Editable en una hoja.
+
+### 4.2 Cada día — Hoy
+- Tarjeta **Ahora / Siguiente**: materia · grupo, aula, hora, unidad en curso, "la última vez: …" (última observación de la clase).
+  - **Pasar lista**: todos presentes por defecto; tocar un alumno = falta, otro toque = retraso, otro = presente. Guardado automático. Al final, campo opcional "nota de la sesión".
+  - **Anotar**: hoja con chips de alumnos + tipo (observación / incidencia / positivo / familia) + texto.
+- **Agenda del día**: filas compactas por hora. Las sesiones pasadas sin lista muestran "Lista sin pasar".
+- **Pendiente**: exámenes con hojas por revisar, listas sin pasar, comentarios de boletín que faltan antes de la sesión de evaluación.
+- **A vigilar** (reglas deterministas, mismas en toda la app): media de la evaluación actual < 5, ≥3 faltas injustificadas en 14 días, bajada de más de 1,5 puntos, ≥2 incidencias en 7 días.
+- Selector de semana para ver otros días. Nada de IA automática; como mucho un botón "Resumen del día (IA)" con 3 viñetas.
+
+### 4.3 Exámenes y corrección (el flujo más valioso)
+Un examen es una **Actividad** de tipo examen. Pantalla única con 3 pasos:
+
+1. **Preparar**: sin documento (solo nota) · subir mi examen (PDF/fotos) · generar con IA desde unidades. Si hay documento, la IA extrae la **rúbrica** (preguntas, puntos, solución) → el profesor la revisa en una tabla compacta. Descargas: examen para imprimir (se fotocopia **el mismo** para todos; cabecera "Nombre y apellidos ____"), soluciones.
+   - **Se elimina el QR personalizado y cifrado por alumno.** En los centros se fotocopia un original; las copias personalizadas no son realistas.
+2. **Recoger**: subir el PDF del escáner de la copistería o hacer fotos del montón, en cualquier orden. Se indica "páginas por examen" (se autodetecta del original). El servidor agrupa páginas por alumno, la IA lee el nombre manuscrito de la cabecera y se empareja **localmente** con la lista (no se envía la lista a la IA). Resultado: lista de la clase con miniatura y punto de confianza (verde = seguro, ámbar = confirmar con un toque, "sin entregar"). Modo alternativo "en orden de lista" (sin leer nombres).
+3. **Revisar**: la IA sugiere puntos por pregunta contra la rúbrica. **Modo foco** alumno a alumno: hoja escaneada a la izquierda (zoom), preguntas con pasos de puntos a la derecha, comentario opcional, "Aceptar y siguiente" (Enter / deslizar). La nota = suma de puntos confirmados (escalada a la nota máxima). Siempre se puede teclear la nota a mano sin papel.
+   - Al confirmar, la nota entra en el cuaderno al instante. No hay botón "Finalizar".
+   - Tras corregir: "Errores frecuentes" (top 5) y "Crear ficha de refuerzo para los que han suspendido".
+
+### 4.4 Fichas, apuntes y presentaciones (por unidad)
+Dentro de la unidad, un único botón **"Crear con IA"** con 5 tipos:
+
+| Tipo | Resultado | Tiempo objetivo |
+|------|-----------|-----------------|
+| Apuntes | 2-6 páginas: objetivos, apartados, definiciones, ejemplos resueltos, ejercicios con solución | < 1 min |
+| Presentación | 10-15 diapositivas, .pptx editable + PDF, con notas del orador | < 1 min |
+| Resumen / esquema | 1 página | < 30 s |
+| Versión adaptada | lectura fácil para NEAE a partir de unos apuntes | < 1 min |
+| Ficha | refuerzo / práctica / ampliación, 4-10 ejercicios, PDF alumno + **un** solucionario | < 1 min |
+
+Entradas: tipo, extensión/nivel, número de ejercicios (ficha) e "indicaciones" (una línea). La IA usa el nombre de la unidad, el curso, la materia y el texto de los materiales subidos a la unidad. Resultado: vista previa en la app, editar por bloques, "reescribir este apartado", descargar PDF (y .pptx).
+- **Se elimina el generador de libros de texto** (80-200 páginas, 10-35 min, falla la mayoría de las veces) y el flujo "dividir libro en temas".
+- Una ficha puede "Evaluarse": crea una actividad en el cuaderno con su rúbrica.
+
+### 4.5 Cuaderno (cada semana)
+- Tabla alumnos × actividades de la evaluación elegida (1ª / 2ª / 3ª / Final). Columna fija con nombres (ordenados por apellidos).
+- Tocar una celda = teclado numérico; Enter baja al siguiente alumno (así se pasan notas de un montón de exámenes corregidos a mano).
+- "+ Actividad": nombre, tipo/categoría, fecha (la evaluación se deduce de la fecha), nota máxima.
+- Columna "Media" por evaluación calculada en el servidor con las ponderaciones; tocarla muestra la fórmula.
+- Notas sugeridas por IA sin confirmar se ven en gris con un punto "IA".
+- Exportar CSV (Excel español: `;`, coma decimal, BOM).
+
+### 4.6 Evaluación (final de trimestre)
+Pantalla por clase y evaluación:
+- Por alumno: media calculada, **nota propuesta** (entero 1-10 y IN/SU/BI/NT/SB en ESO/Primaria), **nota final** editable, faltas, y **comentario de boletín**.
+- "Redactar comentarios con IA": borradores para todos (en lotes), usando nota, tendencia, asistencia, y las observaciones del profesor. Se guardan; se editan; nunca se sobrescribe uno marcado como final.
+- Cabecera: media de la clase, % aprobados, distribución, lista de suspensos. "Acta (PDF)" y "Exportar CSV" para pasar a Séneca/Raíces/etc.
+
+### 4.7 Ficha del alumno
+Cabecera: nombre, grupo(s), marcas (NEAE/ACNEE/adaptación). Secciones: notas por clase y evaluación (los **mismos** números que el cuaderno), asistencia (faltas/retrasos/justificadas), observaciones (línea de tiempo editable). Botón opcional "Preparar tutoría (IA)": 5 líneas para hablar con la familia.
+
+## 5. Qué se conserva, qué se reconstruye y qué desaparece
+
+| Módulo actual | Decisión | Motivo |
+|---|---|---|
+| Calendario como inicio + "Prepara tu día" (IA) | **Reconstruido → Hoy** determinista | La IA repetía datos, tardaba 10-60 s y costaba dinero en cada apertura. |
+| Clases / Ajustes de clase / GradeBook / SubjectGradeBook | **Reconstruido → Clase** (grupo·materia) con 4 pestañas | Había dos páginas duplicadas (clase y asignatura) y ~40 rutas. |
+| Exámenes (editor, detalle, corrección a pantalla completa) | **Reconstruido → Actividad** con 3 pasos + modo foco | Tres pantallas para lo mismo; la nota sugerida por IA se descartaba y había que teclearla. |
+| QR cifrado y copias personalizadas | **Eliminado** | Irreal en centros (se fotocopia un original); el QR denso fallaba al escanear. |
+| Ejercicios (una fila por alumno) + 3 pantallas de corrección | **Reconstruido → Ficha** (material de la unidad) + corrección común | La ficha de clase ignoraba los temas; tres correctores distintos. |
+| Temario + Libros de texto (LangGraph, 7 agentes) | **Reconstruido → Programación** (unidades) + "Crear con IA" por unidad | Libros de 10-35 min con mayoría de fallos; binarios de Windows. |
+| Presentaciones | **Nuevo** (.pptx editable) | No existían. |
+| Resumen trimestral / Informes con IA / Comentarios de boletín | **Reconstruido → Evaluación** | Trimestres rotos (los exámenes no tenían evaluación), comentarios que no se guardaban, análisis inventado. |
+| Asistencia | **Conservado el gesto**, reconstruido el modelo | Solo se guardan las excepciones; sin duplicados; editable. |
+| Comentarios, menciones, observaciones de evento, generales | **Unificado → Observación** | Cuatro conceptos para lo mismo; no se podían editar ni borrar. |
+| Insights de clase con IA, radar, donut, tendencia | **Eliminado** → "A vigilar" determinista | Cada pantalla daba una media distinta. |
+| Categorías de nota, configuración académica, pesos en 5 sitios | **Unificado** → ponderaciones de la clase + curso escolar | Solo un sitio se usaba de verdad. |
+| Onboarding con checklist, confeti, FAB de feedback, saludo | **Eliminado** | Ruido. Sugerencias desde Ajustes. |
+
+## 6. Uso de la IA
+
+Todas las llamadas pasan por **un único gateway** (`app/ai/`) con dos proveedores: `openai` y `mock`.
+- `AI_PROVIDER=mock` (por defecto en desarrollo y siempre que no haya clave): respuestas deterministas y realistas en español, sin coste. **Toda prueba de usabilidad, E2E o captura de pantalla se hace en mock.**
+- Salidas estructuradas (esquemas Pydantic) — sin reparar JSON a mano.
+- Registro de uso (`ai_calls`): funcionalidad, modelo, tokens, coste estimado, latencia.
+- Privacidad: los nombres de alumnos no se envían para emparejar exámenes (el emparejamiento es local). Para comentarios de boletín se envía solo el nombre de pila.
+
+| Función | Cuándo | Modelo (tier) |
+|---|---|---|
+| `extract_rubric` | Subir examen | vision |
+| `generate_assessment` | Examen o ficha desde unidades | text |
+| `read_names` | Recoger hojas | vision (recorte de cabecera) |
+| `grade_paper` | Revisar hojas | vision |
+| `generate_material` | Apuntes / presentación / resumen / adaptada | text |
+| `import_units` | Importar temario | text |
+| `report_comments` | Boletín, en lotes de ~10 | text |
+| `brief` | Resumen del día / tutoría (bajo demanda) | text |
+
+## 7. Lenguaje visual (resumen; detalle en `DESIGN.md`)
+
+"**Cristal para el marco, papel para el contenido.**" Superficies de cristal translúcido (estilo Liquid Glass de Apple) solo en la barra superior, la cápsula de navegación, la barra lateral, las hojas y los avisos. El contenido va sobre tarjetas sólidas tipo papel, en listas agrupadas. Tipografía cuidada, un solo color de acento (verde sepia), números tabulares. Tono sobrio: sin emojis, sin exclamaciones, sin iconos de "chispas". Estados vacíos: un icono de línea, una frase, una acción.
