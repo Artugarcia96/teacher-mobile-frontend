@@ -1,15 +1,22 @@
-import { CalendarBlank, CheckCircle, Exam, PencilSimpleLine } from '@phosphor-icons/react';
-import { useInbox, type Inbox } from '../../api/inbox';
+import { CheckCircle, Exam, PencilSimpleLine, Table } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { useInbox, type Inbox, type InboxEvaluation } from '../../api/inbox';
 import { useToday } from '../../lib/auth';
 import { longDate, plural, relativeDay, shortDate, TERM_LABEL } from '../../lib/format';
 import { Button, Callout, Chip, Dot, EmptyState, List, Page, Row, RowIcon, Section, SkeletonList } from '../../ui';
+import DepartmentReportSheet from './DepartmentReportSheet';
 import './InboxPage.css';
 
 /** Evaluar: what is waiting for the teacher — exams to review, activities without grades, and the term's evaluation. */
 export default function InboxPage() {
   const q = useInbox();
+  const today = useToday();
+  const ev = q.data?.next_evaluation_event;
+  const days = ev ? Math.round((Date.parse(ev.date) - Date.parse(today)) / 86_400_000) : null;
+  const when = days === 0 ? 'hoy' : days === 1 ? 'mañana' : `en ${days} días`;
+  const subtitle = ev && `${sessionName(ev)}: ${longDate(ev.date)}, ${when}`;
   return (
-    <Page title="Evaluar">
+    <Page title="Evaluar" subtitle={subtitle}>
       {q.error && !q.data ? (
         <Callout tone="warn">
           <b>No se ha podido cargar la bandeja.</b> {q.error.message}{' '}
@@ -24,23 +31,36 @@ export default function InboxPage() {
   );
 }
 
+/** "Sesión de la 2.ª evaluación" (the term of the session's date) for the generic "Sesión de evaluación…" events;
+ * the event's own title otherwise ("Evaluación inicial"). */
+function sessionName(ev: NonNullable<Inbox['next_evaluation_event']>): string {
+  return /^sesi[oó]n de evaluaci[oó]n/i.test(ev.title.trim()) ? `Sesión de la ${TERM_LABEL[ev.term]}` : ev.title;
+}
+
+/** What is missing before the evaluation session, in words: "Falta revisar Examen U2 (18) · faltan 26 comentarios". */
+function evaluationLine(e: InboxEvaluation): string | null {
+  const parts = [
+    ...e.to_review.map((x) => `falta revisar ${x.title} (${x.count})`),
+    ...e.to_grade.map((x) => `faltan notas de ${x.title} (${x.count})`),
+  ];
+  if (e.pending_absent) parts.push(`${plural(e.pending_absent, 'alumno con examen pendiente', 'alumnos con examen pendiente')} por falta`);
+  if (e.comments_missing) parts.push(`faltan ${plural(e.comments_missing, 'comentario', 'comentarios')}`);
+  if (e.comments_draft) parts.push(`${plural(e.comments_draft, 'comentario', 'comentarios')} en borrador`);
+  if (!parts.length) return null;
+  const line = parts.join(' · ');
+  return line[0].toUpperCase() + line.slice(1);
+}
+
 function InboxBody({ data }: { data: Inbox }) {
   const today = useToday();
-  const ev = data.next_evaluation_event;
-  const days = ev ? Math.round((Date.parse(ev.date) - Date.parse(today)) / 86_400_000) : null;
-  const allCommented = data.evaluations.every((e) => e.comments_missing === 0);
+  const [report, setReport] = useState(false);
+  const nothingToGrade = !data.to_review.length && !data.to_grade.length;
+  const term = data.evaluations[0]?.term ?? 1;
   return (
     <>
-      {ev && (
-        <Callout tone="accent" icon={<CalendarBlank size={20} />}>
-          <b>{ev.title}</b>
-          <div>{longDate(ev.date)} · {days === 0 ? 'hoy' : days === 1 ? 'mañana' : `dentro de ${days} días`}</div>
-        </Callout>
-      )}
-
-      {data.count === 0 && (
+      {nothingToGrade && (
         <EmptyState icon={<CheckCircle size={24} />} title="Todo al día"
-          text={allCommented ? 'No hay exámenes por revisar ni notas pendientes.' : 'No hay exámenes por revisar ni notas pendientes. Quedan comentarios de boletín por escribir.'}
+          text="No hay exámenes por revisar ni notas pendientes."
           action={<Button variant="tinted" to="/clases">Ver clases</Button>} />
       )}
 
@@ -54,7 +74,7 @@ function InboxBody({ data }: { data: Inbox }) {
                 sub={<>
                   <span className="inbox-meta"><Dot color={x.course.color} /> {x.course.label} · {relativeDay(x.activity.date, today)}</span>
                   <span className="inbox-chips">
-                    {x.suggested > 0 && <Chip tone="accent">{plural(x.suggested, 'nota sugerida', 'notas sugeridas')}</Chip>}
+                    {x.suggested > 0 && <Chip tone="accent">{x.suggested} por revisar</Chip>}
                     {x.unmatched > 0 && <Chip tone="warn">{plural(x.unmatched, 'hoja sin alumno', 'hojas sin alumno')}</Chip>}
                   </span>
                 </>} />
@@ -68,11 +88,14 @@ function InboxBody({ data }: { data: Inbox }) {
           <List inset={64}>
             {data.to_grade.map((x) => (
               <Row key={x.activity.id} to={`/clases/${x.course.id}/cuaderno?term=${x.activity.term}&a=${x.activity.id}`} wrapSub
-                lead={<RowIcon><PencilSimpleLine size={20} /></RowIcon>}
+                lead={<RowIcon tone="accent"><PencilSimpleLine size={20} /></RowIcon>}
                 title={x.activity.title}
                 sub={<>
                   <span className="inbox-meta"><Dot color={x.course.color} /> {x.course.label} · {shortDate(x.activity.date)}</span>
-                  <span className="inbox-chips"><Chip>{x.missing} {x.missing === 1 ? 'alumno sin nota' : 'alumnos sin nota'}</Chip></span>
+                  <span className="inbox-chips">
+                    <Chip>{x.missing} sin nota</Chip>
+                    {x.pending_absent > 0 && <Chip tone="warn">{x.pending_absent === 1 ? '1 faltó' : `${x.pending_absent} faltaron`}</Chip>}
+                  </span>
                 </>} />
             ))}
           </List>
@@ -80,22 +103,23 @@ function InboxBody({ data }: { data: Inbox }) {
       )}
 
       {data.evaluations.length > 0 && (
-        <Section title={`Evaluaciones · ${TERM_LABEL[data.evaluations[0].term]}`}>
+        <Section title={TERM_LABEL[term]}
+          action={<Button size="sm" variant="plain" icon={<Table size={16} />} onClick={() => setReport(true)}>Informe del departamento</Button>}>
           <List>
             {data.evaluations.map((e) => {
-              const parts = [`${e.graded_students} de ${e.total_students} con nota`];
-              if (e.comments_missing) parts.push(plural(e.comments_missing, 'comentario pendiente', 'comentarios pendientes'));
-              else parts.push('comentarios listos');
+              const line = evaluationLine(e);
               return (
                 <Row key={e.course.id} to={`/clases/${e.course.id}/evaluacion/${e.term}`}
                   lead={<Dot color={e.course.color} large />}
                   title={e.course.label}
-                  sub={parts.join(' · ')} wrapSub />
+                  trail={line ? undefined : <Chip tone="ok">Lista</Chip>}
+                  sub={line ?? 'Notas revisadas y comentarios definitivos'} wrapSub />
               );
             })}
           </List>
         </Section>
       )}
+      <DepartmentReportSheet open={report} onClose={() => setReport(false)} initialTerm={term} />
     </>
   );
 }

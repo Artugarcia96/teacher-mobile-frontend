@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useSaveEvalRow, type EvalRow, type EvalRowInput, type Evaluation } from '../../api/evaluation';
 import type { CourseDetail } from '../../api/types';
-import { formatAverage, plural } from '../../lib/format';
-import { AIBadge, Button, Sheet, Stepper, Switch, TextArea, useFeedback } from '../../ui';
+import { formatAverage, formatProposal, plural } from '../../lib/format';
+import { AIBadge, Button, Callout, Sheet, Stepper, Switch, TextArea, useFeedback } from '../../ui';
 
 /** Edit one student's final grade and report comment; "Guardar y siguiente" walks the class list. */
 export default function EvalStudentSheet({ course, data, index, onIndex }: {
@@ -45,11 +45,18 @@ function Editor({ course, data, row, index, onIndex }: {
     });
   };
 
+  // "Usar 8": drop the adjustment made before the recovery, in one tap.
+  const applyRecovery = () => save.mutate({ studentId: row.student.id, final_grade: null }, {
+    onSuccess: () => { toast(`${row.student.first_name}: cuenta la recuperación (${formatProposal(row.proposed)})`); setGrade(row.proposed); },
+    onError: (e) => toast(e.message, { tone: 'error' }),
+  });
+
   const sub = [
     `Media ${formatAverage(row.average)}`,
     row.proposed != null ? `propuesta ${row.proposed}${row.qualitative ? ` ${row.qualitative}` : ''}` : 'sin propuesta',
     plural(row.absences, 'falta', 'faltas'),
   ].join(' · ');
+  const rec = row.recovery;
 
   return (
     <Sheet open onClose={() => onIndex(null)} title={row.student.name} subtitle={`${index + 1} de ${data.rows.length} · ${sub}`}
@@ -58,16 +65,28 @@ function Editor({ course, data, row, index, onIndex }: {
         {!last && <Button onClick={() => submit(true)} loading={save.isPending}>Guardar y siguiente</Button>}
       </>}>
       <div className="form">
+        {row.stale_adjustment && (
+          <Callout tone="warn">
+            La nota ajustada ({formatProposal(row.final_grade)}) no incluye la recuperación ({formatProposal(row.proposed)}).{' '}
+            <Button size="sm" variant="plain" loading={save.isPending} onClick={applyRecovery}>Usar {formatProposal(row.proposed)}</Button>
+          </Callout>
+        )}
+        {(rec || row.pending_exams.length > 0 || row.adapted) && (
+          <div className="ev-sheet__facts">
+            {rec && <span>Recuperación: {formatAverage(rec.score)} · la media pasa de {formatAverage(rec.before)} a {formatAverage(row.average)} ({formatProposal(rec.before_proposed)} → {formatProposal(row.proposed)} rec.)</span>}
+            {row.pending_exams.length > 0 && <span>Pendiente (faltó): {row.pending_exams.map((p) => p.title).join(', ')}</span>}
+            {row.adapted && <span>ACS: la nota y el comentario se refieren a su adaptación curricular.</span>}
+          </div>
+        )}
         <div className="ev-sheet__grade">
           <div>
             <div className="field__label">Nota final</div>
             <div className="ev-sheet__hint">
-              {grade === row.proposed ? 'Igual que la propuesta' : (
-                <>Ajustada · propuesta {row.proposed ?? '—'}{' '}
-                  {row.proposed != null && <Button size="sm" variant="plain" onClick={() => setGrade(row.proposed)}>Usar la propuesta</Button>}
-                </>
-              )}
+              {grade === row.proposed ? 'Igual que la propuesta' : <>Ajustada · propuesta {formatProposal(row.proposed)}</>}
             </div>
+            {grade !== row.proposed && row.proposed != null && (
+              <div className="ev-sheet__hint"><Button size="sm" variant="plain" onClick={() => setGrade(row.proposed)}>Usar la propuesta</Button></div>
+            )}
           </div>
           <div className="ev-sheet__stepper">
             {grade != null ? (

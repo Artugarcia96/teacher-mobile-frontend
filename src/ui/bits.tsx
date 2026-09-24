@@ -23,10 +23,13 @@ export function Avatar({ initials, size }: { initials: string; size?: 'sm' | 'lg
 }
 
 /** A grade colored by the Spanish scale (three tones). Without `max` it is an average on 0-10 (one decimal);
- *  with `max` it is an activity score as entered (up to two decimals), toned on its normalized value. */
-export function Grade({ value, max, className }: { value: number | null | undefined; max?: number; className?: string }) {
+ *  with `max` it is an activity score as entered (up to two decimals), toned on its normalized value, unless
+ *  `average` says it is an average on that scale (class average of an activity: one decimal). */
+export function Grade({ value, max, average, className }: {
+  value: number | null | undefined; max?: number; average?: boolean; className?: string;
+}) {
   const norm = value == null ? null : max ? (value / max) * 10 : value;
-  const text = max ? formatScore(value) : formatAverage(value);
+  const text = max && !average ? formatScore(value) : formatAverage(value);
   return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{text}</span>;
 }
 

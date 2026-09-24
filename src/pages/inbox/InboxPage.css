@@ -1,3 +1,10 @@
 .inbox-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-meta .dot { display: inline-block; vertical-align: middle; margin: 0 2px 2px 0; }
 .inbox-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.dept-rows { display: grid; gap: var(--s-4); }
+.dept-row { display: grid; gap: 4px; padding-bottom: var(--s-4); border-bottom: 0.5px solid var(--line); }
+.dept-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.dept-row__head { display: flex; align-items: center; gap: var(--s-2); }
+.dept-row__stats, .dept-row__units { font-size: var(--fs-footnote); color: var(--ink-2); }
+.dept-row__stats > span > span { white-space: nowrap; } /* wraps only at " · " */
+.dept-row .field { margin-top: var(--s-2); }

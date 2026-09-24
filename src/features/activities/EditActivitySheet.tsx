@@ -33,8 +33,9 @@ function EditForm({ activity, onClose, course, onDeleted }: { activity: Activity
   const [value, setValue] = useState<ActivityFormValue>({
     title: activity.title, kind: activity.kind, date: activity.date, max_score: activity.max_score,
     category: activity.category, weight: activity.weight, unit_ids: activity.unit_ids,
+    counts_for: activity.counts_for, recovers_term: activity.recovers_term, student_ids: activity.student_ids,
   });
-  const ready = value.title.trim().length > 0;
+  const ready = value.title.trim().length > 0 && !(value.student_ids && !value.student_ids.length);
 
   const save = () => {
     const { kind, date, ...rest } = toInput(value);
@@ -63,10 +64,10 @@ function EditForm({ activity, onClose, course, onDeleted }: { activity: Activity
     <Sheet open onClose={onClose} title="Editar actividad" subtitle={course.label}
       footer={<>
         <Button variant="neutral" onClick={onClose}>Cancelar</Button>
-        <Button loading={patch.isPending} disabled={!ready} onClick={save}>{ready ? 'Guardar' : 'Escribe un título'}</Button>
+        <Button loading={patch.isPending} disabled={!ready} onClick={save}>{ready ? 'Guardar' : !value.title.trim() ? 'Escribe un título' : 'Elige algún alumno'}</Button>
       </>}>
       <form onSubmit={(e) => { e.preventDefault(); if (ready) save(); }}>
-        <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} moreOpen />
+        <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} stage={course.group.stage} moreOpen />
         <button type="submit" hidden />
       </form>
       <div className="act-form__danger">
