@@ -1,6 +1,4 @@
 /* Asistencia tab — layout only. */
 .att-tab { display: grid; gap: var(--s-5); min-width: 0; }
 .att-tab__bar { overflow-x: auto; scrollbar-width: none; max-width: 480px; }
-.att-count { font-weight: 600; min-width: 20px; text-align: right; color: var(--ink); }
-.att-count--high { color: var(--danger); }
 .att-tab__bar .seg__btn { padding: 0 6px; min-width: 0; }

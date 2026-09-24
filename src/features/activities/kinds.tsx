@@ -1,8 +1,9 @@
-import { ClipboardText, DotsThreeCircle, Exam, FileText, Microphone, Notebook, UserFocus, type IconProps } from '@phosphor-icons/react';
+import { Backpack, ClipboardText, DotsThreeCircle, Exam, FileText, Microphone, Notebook, UserFocus, type IconProps } from '@phosphor-icons/react';
 import type { ComponentType } from 'react';
 import type { ActivityKind } from '../../api/activities';
 import type { SchoolYear } from '../../api/types';
 
+/** Kinds the teacher can pick. «Deberes» (homework) is not here: that column is derived from the homework checks. */
 export const KINDS: { value: ActivityKind; label: string }[] = [
   { value: 'exam', label: 'Examen' },
   { value: 'worksheet', label: 'Ficha' },
@@ -15,6 +16,7 @@ export const KINDS: { value: ActivityKind; label: string }[] = [
 
 const ICONS: Record<ActivityKind, ComponentType<IconProps>> = {
   exam: Exam, worksheet: FileText, task: ClipboardText, oral: Microphone, notebook: Notebook, attitude: UserFocus, other: DotsThreeCircle,
+  homework: Backpack,
 };
 
 export function KindIcon({ kind, size = 14 }: { kind: ActivityKind; size?: number }) {

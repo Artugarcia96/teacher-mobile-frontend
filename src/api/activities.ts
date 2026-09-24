@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { CourseRef, Ok, StudentRef } from './types';
 
-export type ActivityKind = 'exam' | 'worksheet' | 'task' | 'oral' | 'notebook' | 'attitude' | 'other';
+export type ActivityKind = 'exam' | 'worksheet' | 'task' | 'oral' | 'notebook' | 'attitude' | 'other' | 'homework';
 export type GradeStatus = 'empty' | 'suggested' | 'confirmed' | 'absent' | 'exempt';
 
 export interface ActivityInput {
@@ -99,5 +99,5 @@ export function useDeleteActivity(courseId: string) {
 
 /** Default category for a kind (mirrors grading.KIND_CATEGORY; the server validates). */
 export const KIND_CATEGORY: Record<ActivityKind, string> = {
-  exam: 'exams', worksheet: 'work', task: 'work', notebook: 'work', oral: 'exams', attitude: 'observation', other: 'work',
+  exam: 'exams', worksheet: 'work', task: 'work', notebook: 'work', oral: 'exams', attitude: 'observation', other: 'work', homework: 'work',
 };

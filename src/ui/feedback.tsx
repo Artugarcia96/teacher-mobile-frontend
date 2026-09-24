@@ -79,15 +79,19 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
   useEffect(() => {
     if (!pos) return;
     const close = () => setPos(null);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    // Capture phase + stop: Escape closes only the menu, not the sheet it was opened from.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); } };
     window.addEventListener('resize', close);
-    document.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('resize', close); document.removeEventListener('keydown', onKey); };
+    document.addEventListener('keydown', onKey, true);
+    return () => { window.removeEventListener('resize', close); document.removeEventListener('keydown', onKey, true); };
   }, [pos]);
 
   const open = () => {
     const r = anchor.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    if (!r) return;
+    const height = items.length * 42 + 12;
+    const below = r.bottom + 6 + height <= window.innerHeight - 8;
+    setPos({ top: below ? r.bottom + 6 : Math.max(8, r.top - 6 - height), right: Math.max(8, window.innerWidth - r.right) });
   };
 
   return (

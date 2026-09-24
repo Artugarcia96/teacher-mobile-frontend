@@ -167,7 +167,7 @@ export function plural(n: number, one: string, many: string): string {
 }
 
 export const KIND_LABEL: Record<string, string> = {
-  exam: 'Examen', worksheet: 'Ficha', task: 'Trabajo', oral: 'Oral', notebook: 'Cuaderno', attitude: 'Actitud', other: 'Otra',
+  exam: 'Examen', worksheet: 'Ficha', task: 'Trabajo', oral: 'Oral', notebook: 'Cuaderno', attitude: 'Actitud', other: 'Otra', homework: 'Deberes',
 };
 
 export const NOTE_KIND_LABEL: Record<string, string> = {

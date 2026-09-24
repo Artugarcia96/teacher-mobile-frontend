@@ -52,6 +52,7 @@ function usePending(today: string, enabled: boolean): Map<string, Pending> {
   return useMemo(() => {
     const m = new Map<string, Pending>();
     for (const p of day.data?.pending ?? []) {
+      if (!p.course_id) continue;
       const cur = m.get(p.course_id) ?? { lists: 0, review: 0 };
       if (p.kind === 'attendance') cur.lists += 1;
       if (p.kind === 'review') cur.review += p.count;

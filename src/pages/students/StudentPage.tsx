@@ -105,6 +105,12 @@ function attendanceText(sc: StudentCourse): string {
   return parts.length ? parts.join(' · ') : 'Sin faltas ni retrasos';
 }
 
+function homeworkText(sc: StudentCourse): string | null {
+  const h = sc.homework;
+  if (!h) return null;
+  return `Deberes: no hizo ${h.not_done} de ${h.checks}${h.partial ? ` · ${plural(h.partial, 'incompleto', 'incompletos')}` : ''}`;
+}
+
 /** /alumnos/:id — ficha del alumno: notas por clase (mismos números que el cuaderno), asistencia y observaciones. */
 export default function StudentPage() {
   const { studentId } = useParams();
@@ -204,8 +210,10 @@ export default function StudentPage() {
             <Section title="Asistencia">
               <List>
                 {f.courses.map((sc) => single
-                  ? <Row key={sc.course.id} title={attendanceText(sc)} to={`/clases/${sc.course.id}/asistencia`} />
-                  : <Row key={sc.course.id} lead={<Dot color={sc.course.color} large />} title={courseLabel(sc.course)} sub={attendanceText(sc)} to={`/clases/${sc.course.id}/asistencia`} />)}
+                  ? <Row key={sc.course.id} title={attendanceText(sc)} sub={homeworkText(sc)} to={`/clases/${sc.course.id}/asistencia`} />
+                  : <Row key={sc.course.id} lead={<Dot color={sc.course.color} large />} title={courseLabel(sc.course)} wrapSub
+                      sub={<span className="st-att"><span>{attendanceText(sc)}</span>{homeworkText(sc) && <span>{homeworkText(sc)}</span>}</span>}
+                      to={`/clases/${sc.course.id}/asistencia`} />)}
               </List>
             </Section>
           )}

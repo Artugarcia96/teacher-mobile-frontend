@@ -46,8 +46,11 @@ export interface GradeLine {
 }
 /** Past exam of the current evaluación the student still lacks (no grade or NP). */
 export interface PendingExam { activity_id: string; title: string; date: string; status: 'empty' | 'absent' }
+/** Homework checks this school year where the student was present. */
+export interface HomeworkSummary { checks: number; not_done: number; partial: number }
 export interface StudentCourse {
   course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number; pending_exams?: PendingExam[];
+  homework?: HomeworkSummary | null;
 }
 export interface StudentFile {
   student: StudentRef; notes_text?: string | null; groups: GroupRef[]; courses: StudentCourse[]; notes: Note[]; watch: string[];

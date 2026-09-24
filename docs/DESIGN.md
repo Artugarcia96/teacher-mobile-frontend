@@ -72,4 +72,4 @@ Reglas:
 
 - Móvil (≤ 767): una columna, cápsula de pestañas flotante abajo, hojas desde abajo.
 - Tablet (768–1023): una columna ancha, cápsula abajo.
-- Escritorio (≥ 1024): barra lateral de cristal (248 px) con destinos + "Mis clases"; hojas como paneles centrados; Hoy a dos columnas; Cuaderno a ancho completo.
+- Escritorio (≥ 1024): barra lateral de cristal (248 px) con destinos + "Mis clases"; hojas como paneles centrados, o como panel lateral derecho (`Sheet side`, ~440 px) cuando conviene seguir viendo la página (pasar lista, deberes, cerrar clase); Hoy a dos columnas; Cuaderno a ancho completo.
