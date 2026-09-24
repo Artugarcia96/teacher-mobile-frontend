@@ -1,0 +1,10 @@
+.courses__steps { margin: 4px 0 0; padding-left: 20px; text-align: left; display: grid; gap: 4px; }
+.courses__restore { color: var(--accent); font-weight: 500; font-size: var(--fs-sub); }
+.courses__none { padding: 0 4px; font-size: var(--fs-sub); }
+
+/* Desktop: the grouped list becomes a 2-column grid of cards. */
+@media (min-width: 1024px) {
+  .list.courses__list { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); background: none; box-shadow: none; border-radius: 0; overflow: visible; }
+  .list.courses__list > .row { background: var(--paper); border-radius: var(--r-card); box-shadow: var(--e1); min-height: 72px; padding: 14px 18px; }
+  .list.courses__list > .row::before { display: none; }
+}

@@ -1,0 +1,200 @@
+/* Sepia design tokens — the ONLY file allowed to contain raw colors (npm run check:tokens).
+   See docs/DESIGN.md. Light first, dark overrides at the bottom. */
+
+:root {
+  color-scheme: light;
+
+  /* Type */
+  --font-ui: 'Instrument Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --fs-caption: 12px;
+  --fs-footnote: 13px;
+  --fs-sub: 14px;
+  --fs-body: 15px;
+  --fs-headline: 17px;
+  --fs-title: 22px;
+  --fs-numeral: 30px;
+  --fs-display: 40px;
+
+  /* Neutrals (warm graphite) */
+  --canvas: #F3F1EC;
+  --canvas-2: #ECE9E2;
+  --paper: #FFFFFF;
+  --paper-2: #FAF9F6;
+  --ink: #1C1C1E;
+  --ink-2: #6B6A67;
+  --ink-3: #A3A19C;
+  --ink-inverse: #FFFFFF;
+  --line: rgba(40, 36, 30, 0.10);
+  --line-strong: rgba(40, 36, 30, 0.18);
+  --fill: rgba(40, 36, 30, 0.05);
+  --fill-2: rgba(40, 36, 30, 0.08);
+  --scrim: rgba(20, 18, 15, 0.28);
+
+  /* Accent (verde sepia) */
+  --accent: #0E6B63;
+  --accent-hover: #0B5C55;
+  --accent-soft: rgba(14, 107, 99, 0.10);
+  --accent-softer: rgba(14, 107, 99, 0.06);
+  --on-accent: #FFFFFF;
+
+  /* Semantic */
+  --ok: #247A3D;
+  --ok-soft: rgba(36, 122, 61, 0.10);
+  --warn: #A85500;
+  --warn-soft: rgba(178, 91, 0, 0.11);
+  --danger: #C2352E;
+  --danger-soft: rgba(194, 53, 46, 0.09);
+  --info: #1F5FAF;
+  --info-soft: rgba(31, 95, 175, 0.09);
+
+  /* Class colors (dots only) */
+  --c-teal: #0E6B63;
+  --c-ochre: #B7793A;
+  --c-indigo: #5B6FB5;
+  --c-rose: #A2536B;
+  --c-olive: #6E7D3A;
+  --c-plum: #7A5A94;
+  --c-slate: #5E6B78;
+  --c-clay: #B45F4A;
+
+  /* Glass */
+  --glass: rgba(255, 255, 255, 0.60);
+  --glass-strong: rgba(255, 255, 255, 0.78);
+  --glass-thumb: rgba(255, 255, 255, 0.85);
+  --glass-edge: rgba(255, 255, 255, 0.80);
+  --glass-edge-2: rgba(255, 255, 255, 0.25);
+  --glass-stroke: rgba(30, 25, 20, 0.10);
+  --glass-blur: blur(22px) saturate(180%);
+  --ambient-1: rgba(14, 107, 99, 0.16);
+  --ambient-2: rgba(214, 170, 110, 0.22);
+  --ambient-3: rgba(14, 107, 99, 0.07);
+
+  /* Shape */
+  --r-ctl: 10px;
+  --r-row: 14px;
+  --r-card: 20px;
+  --r-sheet: 28px;
+  --r-pill: 999px;
+
+  /* Space */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 22px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --gutter: 16px;
+  --content-max: 1180px;
+  --reading-max: 720px;
+  --sidebar-w: 248px;
+
+  /* Elevation */
+  --e1: 0 1px 2px rgba(40, 30, 20, 0.06), 0 6px 20px rgba(40, 30, 20, 0.04);
+  --e2: 0 10px 30px rgba(40, 30, 20, 0.10), 0 1px 2px rgba(40, 30, 20, 0.06);
+  --e3: 0 24px 60px rgba(40, 30, 20, 0.18), 0 2px 6px rgba(40, 30, 20, 0.08);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t-fast: 160ms;
+  --t-med: 240ms;
+  --t-slow: 320ms;
+
+  /* Grades */
+  --grade-fail: var(--danger);
+  --grade-pass: var(--ink);
+  --grade-good: var(--accent);
+  --grade-great: var(--ok);
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 24px; }
+}
+@media (min-width: 1024px) {
+  :root { --gutter: 40px; }
+}
+
+/* Dark */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --canvas: #0E0F11;
+    --canvas-2: #16171A;
+    --paper: #18191C;
+    --paper-2: #1E1F23;
+    --ink: #F2F1EE;
+    --ink-2: #A09E99;
+    --ink-3: #6D6B67;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.14);
+    --fill: rgba(255, 255, 255, 0.06);
+    --fill-2: rgba(255, 255, 255, 0.10);
+    --scrim: rgba(0, 0, 0, 0.5);
+    --accent: #4FB8AC;
+    --accent-hover: #63C6BA;
+    --accent-soft: rgba(79, 184, 172, 0.16);
+    --accent-softer: rgba(79, 184, 172, 0.09);
+    --on-accent: #06201D;
+    --ok: #5CC37A;
+    --ok-soft: rgba(92, 195, 122, 0.14);
+    --warn: #E39A4A;
+    --warn-soft: rgba(227, 154, 74, 0.15);
+    --danger: #F0766D;
+    --danger-soft: rgba(240, 118, 109, 0.14);
+    --info: #7DAAF0;
+    --info-soft: rgba(125, 170, 240, 0.14);
+    --glass: rgba(30, 31, 35, 0.58);
+    --glass-strong: rgba(30, 31, 35, 0.80);
+    --glass-thumb: rgba(70, 72, 78, 0.9);
+    --glass-edge: rgba(255, 255, 255, 0.10);
+    --glass-edge-2: rgba(255, 255, 255, 0.03);
+    --glass-stroke: rgba(255, 255, 255, 0.08);
+    --ambient-1: rgba(79, 184, 172, 0.10);
+    --ambient-2: rgba(214, 170, 110, 0.07);
+    --ambient-3: rgba(79, 184, 172, 0.04);
+    --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --e2: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --e3: 0 24px 60px rgba(0, 0, 0, 0.6);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: #0E0F11;
+  --canvas-2: #16171A;
+  --paper: #18191C;
+  --paper-2: #1E1F23;
+  --ink: #F2F1EE;
+  --ink-2: #A09E99;
+  --ink-3: #6D6B67;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --fill: rgba(255, 255, 255, 0.06);
+  --fill-2: rgba(255, 255, 255, 0.10);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --accent: #4FB8AC;
+  --accent-hover: #63C6BA;
+  --accent-soft: rgba(79, 184, 172, 0.16);
+  --accent-softer: rgba(79, 184, 172, 0.09);
+  --on-accent: #06201D;
+  --ok: #5CC37A;
+  --ok-soft: rgba(92, 195, 122, 0.14);
+  --warn: #E39A4A;
+  --warn-soft: rgba(227, 154, 74, 0.15);
+  --danger: #F0766D;
+  --danger-soft: rgba(240, 118, 109, 0.14);
+  --info: #7DAAF0;
+  --info-soft: rgba(125, 170, 240, 0.14);
+  --glass: rgba(30, 31, 35, 0.58);
+  --glass-strong: rgba(30, 31, 35, 0.80);
+  --glass-thumb: rgba(70, 72, 78, 0.9);
+  --glass-edge: rgba(255, 255, 255, 0.10);
+  --glass-edge-2: rgba(255, 255, 255, 0.03);
+  --glass-stroke: rgba(255, 255, 255, 0.08);
+  --ambient-1: rgba(79, 184, 172, 0.10);
+  --ambient-2: rgba(214, 170, 110, 0.07);
+  --ambient-3: rgba(79, 184, 172, 0.04);
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --e2: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --e3: 0 24px 60px rgba(0, 0, 0, 0.6);
+}

@@ -1,0 +1,220 @@
+/** Programación (units) & materials. Backend: app/api/units.py (slice E). Slice E extends this file;
+ * keep `Unit`, `unitKeys` and `useUnits` stable — other areas import them. */
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, fileUrl } from '../lib/api';
+import type { CourseRef, Job } from './types';
+
+export type UnitStatus = 'pending' | 'current' | 'done';
+export interface Unit { id: string; course_id: string; title: string; term: number | null; position: number; status: UnitStatus; summary?: string | null; material_count: number }
+
+export const unitKeys = {
+  list: (courseId: string) => ['course', courseId, 'units'] as const,
+  one: (unitId: string) => ['unit', unitId] as const,
+  material: (materialId: string) => ['material', materialId] as const,
+};
+
+export function useUnits(courseId: string | undefined) {
+  return useQuery({ queryKey: unitKeys.list(courseId!), queryFn: () => api.get<Unit[]>(`/courses/${courseId}/units`), enabled: !!courseId });
+}
+
+// ── Material types (mirror app/ai/schemas.py + app/schemas/units.py) ────────
+export type MaterialKind = 'upload' | 'notes' | 'slides' | 'summary' | 'adapted' | 'worksheet';
+export type GenKind = Exclude<MaterialKind, 'upload'>;
+export type WorksheetKind = 'refuerzo' | 'practica' | 'ampliacion';
+export type Difficulty = 'facil' | 'medio' | 'dificil';
+
+export interface Material {
+  id: string; unit_id: string | null; kind: MaterialKind; title: string; status: 'ready' | 'generating' | 'failed';
+  error?: string | null; options: Record<string, unknown>; created_at: string; updated_at: string;
+  file_url?: string | null; extra_url?: string | null; pptx_url?: string | null; job_id?: string | null;
+}
+
+export type BlockType = 'text' | 'definition' | 'example' | 'formula' | 'note' | 'list' | 'exercise';
+export interface Block { id: string; type: BlockType; title: string; text: string; items: string[]; solution: string }
+export interface DocSection { id: string; title: string; blocks: Block[] }
+export interface NotesDoc { title: string; subtitle: string; objectives: string[]; sections: DocSection[]; self_check: string[] }
+
+export interface Slide { title: string; bullets: string[]; example: string; notes: string }
+export interface SlideDeck { title: string; subtitle: string; slides: Slide[] }
+
+export interface Item { id: string; label: string; text: string; points: number; answer: string; steps: string[]; options: string[]; level: string }
+export interface AssessmentDoc { title: string; instructions: string; sections: { title: string; items: Item[] }[] }
+
+export interface MaterialDetail extends Material {
+  content: NotesDoc | SlideDeck | AssessmentDoc | null; course: CourseRef; unit_title?: string | null;
+}
+export interface UnitDetail { unit: Unit; course: CourseRef; materials: Material[] }
+
+export interface GenerateInput {
+  kind: GenKind; length?: 'breve' | 'normal'; worksheet_kind?: WorksheetKind; n_items?: number; difficulty?: Difficulty;
+  instructions?: string; from_material_id?: string;
+}
+
+export const MATERIAL_LABEL: Record<MaterialKind, string> = {
+  upload: 'Archivo subido', notes: 'Apuntes', slides: 'Presentación', summary: 'Resumen', adapted: 'Lectura fácil', worksheet: 'Ficha',
+};
+
+// ── Units ────────────────────────────────────────────────────────────────────
+function useInvalidateCourse(courseId: string) {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ['course', courseId] });
+    qc.invalidateQueries({ queryKey: ['unit'] });
+  };
+}
+
+export function useCreateUnit(courseId: string) {
+  const done = useInvalidateCourse(courseId);
+  return useMutation({
+    mutationFn: (body: { title: string; term: number | null; status?: UnitStatus }) => api.post<Unit>(`/courses/${courseId}/units`, body),
+    onSuccess: done,
+  });
+}
+
+export function usePatchUnit(courseId: string) {
+  const done = useInvalidateCourse(courseId);
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; title?: string; term?: number | null; status?: UnitStatus; summary?: string | null }) =>
+      api.patch<Unit>(`/units/${id}`, body),
+    onSuccess: done,
+  });
+}
+
+export function useDeleteUnit(courseId: string) {
+  const done = useInvalidateCourse(courseId);
+  return useMutation({ mutationFn: (id: string) => api.delete(`/units/${id}`), onSuccess: done });
+}
+
+export function useOrderUnits(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => api.put<Unit[]>(`/courses/${courseId}/units/order`, { ids }),
+    onMutate: (ids) => {
+      const prev = qc.getQueryData<Unit[]>(unitKeys.list(courseId));
+      if (prev) {
+        const byId = new Map(prev.map((u) => [u.id, u]));
+        qc.setQueryData(unitKeys.list(courseId), ids.map((id, i) => ({ ...byId.get(id)!, position: i })));
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(unitKeys.list(courseId), ctx.prev),
+    onSuccess: (data) => qc.setQueryData(unitKeys.list(courseId), data),
+  });
+}
+
+export function useImportUnits(courseId: string) {
+  return useMutation({
+    mutationFn: (text: string) => api.post<{ proposals: { title: string; term: number | null }[] }>(`/courses/${courseId}/units/import`, { text }),
+  });
+}
+
+export function useBulkUnits(courseId: string) {
+  const done = useInvalidateCourse(courseId);
+  return useMutation({
+    mutationFn: (units: { title: string; term: number | null }[]) => api.post<Unit[]>(`/courses/${courseId}/units/bulk`, { units }),
+    onSuccess: done,
+  });
+}
+
+export function useCopyUnits(courseId: string) {
+  const done = useInvalidateCourse(courseId);
+  return useMutation({
+    mutationFn: (fromCourseId: string) => api.post<Unit[]>(`/courses/${courseId}/units/copy`, { from_course_id: fromCourseId }),
+    onSuccess: done,
+  });
+}
+
+/** Unit + its materials. Refetches every 1,5 s while any material is being generated. */
+export function useUnit(unitId: string | undefined) {
+  return useQuery({
+    queryKey: unitKeys.one(unitId!),
+    queryFn: () => api.get<UnitDetail>(`/units/${unitId}`),
+    enabled: !!unitId,
+    refetchInterval: (q) => (q.state.data?.materials.some((m) => m.status === 'generating') ? 1500 : false),
+  });
+}
+
+// ── Materials ────────────────────────────────────────────────────────────────
+function useInvalidateUnit(unitId: string | undefined) {
+  const qc = useQueryClient();
+  return () => {
+    if (unitId) qc.invalidateQueries({ queryKey: unitKeys.one(unitId) });
+    qc.invalidateQueries({ queryKey: ['course'] });
+  };
+}
+
+export function useUploadMaterial(unitId: string) {
+  const done = useInvalidateUnit(unitId);
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return api.upload<Material>(`/units/${unitId}/materials`, form);
+    },
+    onSuccess: done,
+  });
+}
+
+export function useGenerateMaterial(unitId: string) {
+  const qc = useQueryClient();
+  const done = useInvalidateUnit(unitId);
+  return useMutation({
+    mutationFn: (body: GenerateInput) => api.post<{ material: Material; job: Job }>(`/units/${unitId}/generate`, body),
+    onSuccess: (data) => {
+      qc.setQueryData<UnitDetail>(unitKeys.one(unitId), (old) => old && ({ ...old, materials: [data.material, ...old.materials] }));
+      done();
+    },
+  });
+}
+
+export function useMaterial(materialId: string | undefined) {
+  return useQuery({
+    queryKey: unitKeys.material(materialId!),
+    queryFn: () => api.get<MaterialDetail>(`/materials/${materialId}`),
+    enabled: !!materialId,
+    refetchInterval: (q) => (q.state.data?.status === 'generating' ? 1500 : false),
+  });
+}
+
+export function usePatchMaterial(materialId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title?: string; content?: MaterialDetail['content'] }) => api.patch<MaterialDetail>(`/materials/${materialId}`, body),
+    onSuccess: (data) => {
+      qc.setQueryData(unitKeys.material(materialId), data);
+      if (data.unit_id) qc.invalidateQueries({ queryKey: unitKeys.one(data.unit_id) });
+    },
+  });
+}
+
+export function useRewriteBlock(materialId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { block_id: string; instruction: string }) => api.post<MaterialDetail>(`/materials/${materialId}/rewrite`, body),
+    onSuccess: (data) => qc.setQueryData(unitKeys.material(materialId), data),
+  });
+}
+
+export function useDeleteMaterial(unitId: string | undefined) {
+  const done = useInvalidateUnit(unitId);
+  return useMutation({ mutationFn: (id: string) => api.delete(`/materials/${id}`), onSuccess: done });
+}
+
+export function useMaterialToActivity(materialId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { date: string; max_score?: number }) => api.post<{ activity_id: string }>(`/materials/${materialId}/to-activity`, body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: ['inbox'] }); },
+  });
+}
+
+/** Ask for a signed download link and start the download (PDF, .pptx or solucionario). */
+export async function downloadMaterial(materialId: string, variant: 'pdf' | 'pptx' | 'key' = 'pdf') {
+  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?variant=${variant}`);
+  const a = document.createElement('a');
+  a.href = fileUrl(url)!;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}

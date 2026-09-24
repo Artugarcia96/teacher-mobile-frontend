@@ -1,0 +1,26 @@
+# Deploys Sepia to the VPS on every push to main (or manually).
+# Needs repository secrets: VPS_HOST, VPS_USER and VPS_SSH_KEY (private key; the public key goes in ~/.ssh/authorized_keys on the VPS).
+# Optional repository variable SEPIA_DIR (default /opt/sepia). See ../teacher-mobile-backend/docs/DEPLOY.md.
+name: Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency: deploy-vps
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update code and restart containers on the VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ vars.SEPIA_DIR || '/opt/sepia' }}"
+            git -C teacher-mobile-backend pull --ff-only
+            git -C teacher-mobile-frontend pull --ff-only
+            docker compose -f teacher-mobile-backend/deploy/docker-compose.yml up -d --build
+            docker image prune -f

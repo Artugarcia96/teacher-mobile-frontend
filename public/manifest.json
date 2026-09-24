@@ -1,17 +1,10 @@
 {
-  "short_name": "SEPIA",
-  "name": "SEPIA Education",
-  "description": "Tu asistente educativo inteligente",
-  "icons": [
-    {
-      "src": "assets/icon/squid.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    }
-  ],
-  "start_url": ".",
+  "short_name": "Sepia",
+  "name": "Sepia — cuaderno del profesor",
+  "description": "Pasar lista, notas, corrección con IA y evaluación.",
+  "icons": [{ "src": "/squid.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }],
+  "start_url": "/hoy",
   "display": "standalone",
-  "theme_color": "#15665E",
-  "background_color": "#F8FAFC"
+  "theme_color": "#F3F1EC",
+  "background_color": "#F3F1EC"
 }

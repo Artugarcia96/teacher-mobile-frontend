@@ -1,0 +1,4 @@
+.roster { max-width: 880px; }
+.roster__tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.roster__tags .chip { height: 22px; padding: 0 8px; font-size: 12px; }
+.roster__abs { font-size: var(--fs-footnote); color: var(--ink-2); }
