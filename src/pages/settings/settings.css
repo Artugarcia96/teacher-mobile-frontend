@@ -1,9 +1,13 @@
 .settings { display: grid; gap: var(--s-6); max-width: var(--reading-max); }
-.set-term { display: grid; gap: 6px; }
+.set-range { display: grid; gap: 6px; }
 .set-dates { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--s-2); align-items: center; }
-.set-dates .input, .set-pair .input { min-width: 0; padding-left: 12px; padding-right: 8px; }
+.set-dates .datefield__text { padding-left: 12px; padding-right: 34px; }
+.set-dates .datefield__icon { right: 10px; }
 .set-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); }
+@media (max-width: 479px) { .set-pair { grid-template-columns: minmax(0, 1fr); } }
 .set-sub { margin-top: var(--s-3); }
 .set-accent { color: var(--accent); font-weight: 500; }
 .set-add { display: grid; gap: var(--s-3); align-items: stretch; }
 .set-add__btns { display: flex; justify-content: flex-end; gap: var(--s-2); }
+.set-email { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings .section + .list { margin-top: var(--s-2); }

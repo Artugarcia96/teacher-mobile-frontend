@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { gradeTone, formatGrade } from '../lib/format';
+import { formatAverage, formatProposal, formatScore, gradeTone } from '../lib/format';
 
 export function Chip({ children, tone, onClick, selected, icon }: {
   children: ReactNode; tone?: 'ok' | 'warn' | 'danger' | 'accent' | 'info' | 'outline'; onClick?: () => void; selected?: boolean; icon?: ReactNode;
@@ -22,16 +22,20 @@ export function Avatar({ initials, size }: { initials: string; size?: 'sm' | 'lg
   return <span className={`avatar${size ? ` avatar--${size}` : ''}`} aria-hidden>{initials}</span>;
 }
 
-/** A grade number colored by the Spanish scale. value is 0-10 (normalized) unless `max` is given. */
-export function Grade({ value, max, className, digits }: { value: number | null | undefined; max?: number; className?: string; digits?: number }) {
+/** A grade colored by the Spanish scale (three tones). Without `max` it is an average on 0-10 (one decimal);
+ *  with `max` it is an activity score as entered (up to two decimals), toned on its normalized value. */
+export function Grade({ value, max, className }: { value: number | null | undefined; max?: number; className?: string }) {
   const norm = value == null ? null : max ? (value / max) * 10 : value;
-  return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{formatGrade(value, digits)}</span>;
+  const text = max ? formatScore(value) : formatAverage(value);
+  return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{text}</span>;
 }
 
-export function GradePill({ value, label }: { value: number | null | undefined; label?: string | null }) {
+/** A tinted pill: an average (one decimal) or, with `proposal`, a proposed / final grade (integer);
+ *  `label` = qualitative (SU, NT…). */
+export function GradePill({ value, label, proposal }: { value: number | null | undefined; label?: string | null; proposal?: boolean }) {
   return (
     <span className={`grade-pill grade--${gradeTone(value ?? null)}`}>
-      {formatGrade(value)}
+      <span>{proposal ? formatProposal(value) : formatAverage(value)}</span>
       {label && <small>{label}</small>}
     </span>
   );

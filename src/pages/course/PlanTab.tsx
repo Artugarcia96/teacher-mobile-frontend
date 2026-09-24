@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, CheckCircle, Circle, Copy, DotsThree, ListBullets, 
 import { useState } from 'react';
 import type { CourseDetail } from '../../api/types';
 import { useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
+import { useCourseMenu } from '../../features/course/CourseMenu';
 import CopyUnitsSheet from '../../features/units/CopyUnitsSheet';
 import ImportUnitsSheet from '../../features/units/ImportUnitsSheet';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
@@ -11,12 +12,17 @@ import './PlanTab.css';
 
 type SheetName = 'new' | 'import' | 'copy' | null;
 
-/** Programación: units grouped by evaluación, with status (pendiente / en curso / impartida). */
+/** Temario (URL slug "programacion"): units grouped by evaluación, with status (pendiente / en curso / impartida).
+ *  Import and copy live in the class "···" menu (features/course/CourseMenu). */
 export default function PlanTab({ course }: { course: CourseDetail }) {
   const { data: units, isLoading, error } = useUnits(course.id);
   const [sheet, setSheet] = useState<SheetName>(null);
   const [newTerm, setNewTerm] = useState<number | undefined>();
   const close = () => setSheet(null);
+  useCourseMenu([
+    { label: 'Importar temario', icon: <UploadSimple size={18} />, onSelect: () => setSheet('import') },
+    { label: 'Copiar de otra clase', icon: <Copy size={18} />, onSelect: () => setSheet('copy') },
+  ]);
 
   const sheets = (
     <>
@@ -28,7 +34,7 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
 
   if (isLoading) return <SkeletonList rows={6} />;
   if (error) {
-    return <EmptyState icon={<WarningCircle size={24} />} title="No se ha podido cargar la programación" text={(error as Error).message} />;
+    return <EmptyState icon={<WarningCircle size={24} />} title="No se ha podido cargar el temario" text={(error as Error).message} />;
   }
   const list = units ?? [];
   const addUnit = (term?: number) => { setNewTerm(term); setSheet('new'); };
@@ -64,13 +70,6 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
         </span>
         <div className="plan-bar__actions">
           <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => addUnit()}>Unidad</Button>
-          <Menu
-            trigger={(open) => <IconButton label="Más opciones de la programación" onClick={open}><DotsThree size={22} weight="bold" /></IconButton>}
-            items={[
-              { label: 'Importar temario', icon: <UploadSimple size={18} />, onSelect: () => setSheet('import') },
-              { label: 'Copiar de otra clase', icon: <Copy size={18} />, onSelect: () => setSheet('copy') },
-            ]}
-          />
         </div>
       </div>
 

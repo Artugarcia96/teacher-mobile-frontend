@@ -3,22 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { useCourses, useCreateCourse, useGroups } from '../../api/core';
 import type { GroupRef, Slot } from '../../api/types';
 import { ApiError } from '../../lib/api';
+import { ordinals } from '../../lib/format';
 import { Button, Chip, Select, Sheet, TextField, useFeedback } from '../../ui';
 import ColorSwatches, { COURSE_COLORS } from './ColorSwatches';
 import ScheduleEditor from './ScheduleEditor';
 import './course-forms.css';
 
-const SUBJECTS: [string, string][] = [
-  ['Matemáticas', 'Matemáticas'], ['Lengua', 'Lengua Castellana y Literatura'], ['Inglés', 'Inglés'],
-  ['Geografía e Historia', 'Geografía e Historia'], ['Biología', 'Biología y Geología'], ['Física y Química', 'Física y Química'],
-  ['Tecnología', 'Tecnología'], ['Ed. Física', 'Educación Física'],
+/** [chip, subject, short name for the sidebar and compact lists]. */
+const SUBJECTS: [string, string, string][] = [
+  ['Matemáticas', 'Matemáticas', 'Mates'], ['Lengua', 'Lengua Castellana y Literatura', 'Lengua'], ['Inglés', 'Inglés', 'Inglés'],
+  ['Geografía e Historia', 'Geografía e Historia', 'Geo. e Historia'], ['Biología', 'Biología y Geología', 'Biología'],
+  ['Física y Química', 'Física y Química', 'FyQ'], ['Tecnología', 'Tecnología', 'Tecnología'], ['Ed. Física', 'Educación Física', 'Ed. Física'],
 ];
 export const STAGES: { value: GroupRef['stage']; label: string }[] = [
   { value: 'eso', label: 'ESO' }, { value: 'bachillerato', label: 'Bachillerato' }, { value: 'primaria', label: 'Primaria' },
   { value: 'fp', label: 'FP' }, { value: 'otro', label: 'Otra' },
 ];
 
-/** "2º ESO B" → {stage: 'eso', level: 2}. */
+/** "2.º ESO B" → {stage: 'eso', level: 2}. */
 export function guessGroup(name: string): { stage?: GroupRef['stage']; level?: number } {
   const n = name.toLowerCase();
   const stage = /bach/.test(n) ? 'bachillerato' : /eso/.test(n) ? 'eso' : /prim/.test(n) ? 'primaria'
@@ -73,8 +75,9 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
   const submit = async () => {
     setError(null);
     try {
+      const short = SUBJECTS.find(([, full]) => full === subject.trim())?.[2] ?? null;
       const c = await create.mutateAsync({
-        subject: subject.trim(), color, room: room.trim() || null, schedule,
+        subject: subject.trim(), short, color, room: room.trim() || null, schedule,
         ...(isNew ? { new_group: { name: groupName.trim(), stage, level: level === '' ? null : level } } : { group_id: groupId! }),
       });
       toast('Clase creada');
@@ -103,21 +106,21 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
           {hasGroups && (
             <div className="chip-row">
               {groups.data!.map((g) => (
-                <Chip key={g.id} selected={groupId === g.id} onClick={() => setGroupId(g.id)}>{g.name}</Chip>
+                <Chip key={g.id} selected={groupId === g.id} onClick={() => setGroupId(g.id)}>{ordinals(g.name)}</Chip>
               ))}
               <Chip tone="outline" selected={groupId === NEW} onClick={() => setGroupId(NEW)}>Nuevo grupo</Chip>
             </div>
           )}
           {isNew && (
             <div className="new-group">
-              <TextField aria-label="Nombre del grupo" placeholder="2º ESO B" value={groupName}
+              <TextField aria-label="Nombre del grupo" placeholder="2.º ESO B" value={groupName}
                 onChange={(e) => onGroupName(e.target.value)} />
               <Select aria-label="Etapa" value={stage} onChange={(e) => { setStage(e.target.value as GroupRef['stage']); setTouched(true); }}>
                 {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </Select>
               <Select aria-label="Curso" value={level} onChange={(e) => { setLevel(e.target.value ? Number(e.target.value) : ''); setTouched(true); }}>
                 <option value="">Curso</option>
-                {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}º</option>)}
+                {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}.º</option>)}
               </Select>
             </div>
           )}

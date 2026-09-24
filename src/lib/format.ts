@@ -44,10 +44,10 @@ export function shortDate(iso: string): string {
   return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
 }
 
-/** "19/11/2026" */
-export function numericDate(iso: string): string {
+/** "martes, 8 sept 2026" — date fields (DateField), where the year matters. */
+export function dateWithYear(iso: string): string {
   const d = parseDate(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function weekdayShort(iso: string): string {
@@ -68,11 +68,30 @@ export function relativeDay(iso: string, today: string): string {
   return shortDate(iso);
 }
 
-/** 6.5 → "6,5"; 7 → "7"; null → "—" */
+/** Number with Spanish decimal comma, up to `digits` decimals: 6.5 → "6,5"; 7 → "7"; null → "—".
+ *  Half up on the decimal value, like the backend (`services/text.one_decimal`): 4.25 → "4,3", 4.35 → "4,4"
+ *  (plain Math.round(4.35 * 10) gives 43 because 4.35 * 10 = 43.4999…).
+ *  Grades use the three rules below; call this directly only for other numbers (weights, points, maximum scores). */
 export function formatGrade(v: number | null | undefined, digits = 1): string {
   if (v === null || v === undefined || Number.isNaN(v)) return '—';
-  const rounded = Math.round(v * 10 ** digits) / 10 ** digits;
-  return String(rounded).replace('.', ',');
+  const scaled = Number((Math.abs(v) * 10 ** digits).toPrecision(12));
+  const rounded = (Math.sign(v) * Math.round(scaled)) / 10 ** digits;
+  return String(rounded === 0 ? 0 : rounded).replace('.', ',');
+}
+
+/** Rule 1 — averages (evaluación, categoría, clase, final): one decimal. 6.875 → "6,9". */
+export function formatAverage(v: number | null | undefined): string {
+  return formatGrade(v, 1);
+}
+
+/** Rule 2 — a grade as the teacher entered it (activity score): up to two decimals. 6.25 → "6,25". */
+export function formatScore(v: number | null | undefined): string {
+  return formatGrade(v, 2);
+}
+
+/** Rule 3 — proposed / final grade of an evaluación: integer. 6.5 → "7" (the backend already rounds). */
+export function formatProposal(v: number | null | undefined): string {
+  return v === null || v === undefined || Number.isNaN(v) ? '—' : String(Math.round(v));
 }
 
 export function formatNumber(v: number | null | undefined, digits = 1): string {
@@ -84,13 +103,52 @@ export function formatPercent(v: number | null | undefined): string {
   return `${Math.round(v)} %`;
 }
 
-/** Tone for a 0-10 value: fail < 5 ≤ pass < 7 ≤ good < 9 ≤ great. */
-export function gradeTone(v: number | null | undefined): 'fail' | 'pass' | 'good' | 'great' | 'none' {
-  if (v === null || v === undefined) return 'none';
+export type GradeTone = 'fail' | 'pass' | 'great' | 'none';
+
+/** Tone for a 0-10 value, three states only: fail (< 5, rojo) · pass (5–8,9, tinta) · great (≥ 9, acento). */
+export function gradeTone(v: number | null | undefined): GradeTone {
+  if (v === null || v === undefined || Number.isNaN(v)) return 'none';
   if (v < 5) return 'fail';
-  if (v < 7) return 'pass';
-  if (v < 9) return 'good';
+  if (v < 9) return 'pass';
   return 'great';
+}
+
+/** Ordinal abbreviations with a period (RAE): "2º ESO B", "2°ESO B" → "2.º ESO B"; "1ª evaluación" → "1.ª evaluación".
+ *  Group names come as the teacher typed them: always show them through this. */
+export function ordinals(text: string): string {
+  return text
+    .replace(/(\d)\s*\.?\s*([ºª°])/g, (_, n: string, o: string) => `${n}.${o === 'ª' ? 'ª' : 'º'}`)
+    .replace(/(\d\.[ºª])(?=[A-Za-zÁÉÍÓÚÑáéíóúñ0-9])/g, '$1 ');
+}
+
+interface CourseNames { subject: string; short?: string | null; group: { name: string } }
+
+/** "Matemáticas · 2.º ESO B" */
+export function courseLabel(c: CourseNames): string {
+  return `${c.subject} · ${ordinals(c.group.name)}`;
+}
+
+/** "2.º ESO B · Mates": group first so long subjects never hide it (sidebar, compact lists). */
+export function courseShortLabel(c: CourseNames): string {
+  return `${ordinals(c.group.name)} · ${c.short || c.subject}`;
+}
+
+/** The session is running now (server "today" and "now"). */
+export function isLive(s: { date: string; start: string; end: string } | null | undefined, today: string, now?: string | null): boolean {
+  return !!s && !!now && s.date === today && s.start <= now && now < s.end;
+}
+
+/** Current or next session, one short phrase: "En clase hasta 11:15" · "Hoy 12:40" · "Mañana 11:45" · "Lunes 23 nov, 08:30".
+ *  Same text in Clases and in the class header. */
+export function sessionText(s: { date: string; start: string; end: string } | null | undefined, today: string, now?: string | null): string | null {
+  if (!s) return null;
+  if (isLive(s, today, now)) return `En clase hasta ${s.end}`;
+  const diff = Math.round((parseDate(s.date).getTime() - parseDate(today).getTime()) / 86400000);
+  if (diff === 0) return `Hoy ${s.start}`;
+  if (diff === 1) return `Mañana ${s.start}`;
+  const d = parseDate(s.date);
+  const wd = WEEKDAYS[d.getDay()];
+  return `${wd[0].toUpperCase()}${wd.slice(1)} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}, ${s.start}`;
 }
 
 export const QUALITATIVE: Record<string, string> = { IN: 'Insuficiente', SU: 'Suficiente', BI: 'Bien', NT: 'Notable', SB: 'Sobresaliente' };

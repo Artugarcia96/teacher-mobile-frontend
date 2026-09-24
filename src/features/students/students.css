@@ -3,3 +3,7 @@
 .brief { display: grid; gap: var(--s-3); justify-items: start; }
 .brief__list { margin: 0; padding-left: 20px; display: grid; gap: var(--s-2); }
 .brief__list li { line-height: 1.5; }
+.edit-st__group { display: grid; gap: var(--s-2); }
+.edit-st__measure { font-weight: 500; white-space: normal; }
+.search-sheet { display: grid; gap: var(--s-5); }
+.search-sheet__hint { padding: 0 4px; font-size: var(--fs-sub); }

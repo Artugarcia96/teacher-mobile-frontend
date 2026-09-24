@@ -9,6 +9,6 @@
 .sbar--fail { background: var(--grade-fail); }
 .sbar--pass { background: var(--ink-3); }
 .sbar--pass-2 { background: var(--ink-2); }
-.sbar--good { background: var(--grade-good); }
+.sbar--good { background: var(--band-notable); }
 .sbar--great { background: var(--grade-great); }
 .sbar--neutral { background: var(--line-strong); }

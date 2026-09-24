@@ -6,7 +6,7 @@ import {
 } from '../../api/core';
 import type { CourseDetail } from '../../api/types';
 import { ApiError } from '../../lib/api';
-import { plural } from '../../lib/format';
+import { ordinals, plural } from '../../lib/format';
 import {
   Avatar, Button, Callout, Chip, EmptyState, IconButton, List, Row, Segmented, Sheet, SkeletonList, TextArea, useFeedback,
 } from '../../ui';
@@ -114,7 +114,7 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
   const removeParsed = (i: number) => parsed && setParsed({ ...parsed, students: parsed.students.filter((_, j) => j !== i) });
 
   return (
-    <Sheet open={open} onClose={onClose} title="Añadir alumnos" subtitle={course.group.name} size="large"
+    <Sheet open={open} onClose={onClose} title="Añadir alumnos" subtitle={ordinals(course.group.name)} size="large"
       footer={<Button full onClick={submit} loading={add.isPending} disabled={!!blocker}>
         {blocker ?? `Añadir ${plural(count, 'alumno', 'alumnos')}`}
       </Button>}>
@@ -148,7 +148,7 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
           <>
             <div className="chip-row">
               {otherGroups.map((g) => (
-                <Chip key={g.id} selected={fromGroup === g.id} onClick={() => { setFromGroup(g.id); setPicked(new Set()); }}>{g.name}</Chip>
+                <Chip key={g.id} selected={fromGroup === g.id} onClick={() => { setFromGroup(g.id); setPicked(new Set()); }}>{ordinals(g.name)}</Chip>
               ))}
             </div>
             {!fromGroup ? <p className="muted">Elige el grupo del que vienen. Sus notas y observaciones siguen con ellos.</p>

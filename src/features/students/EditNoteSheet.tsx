@@ -3,7 +3,7 @@ import { useUpdateNote } from '../../api/notes';
 import type { Note, NoteKind } from '../../api/types';
 import { ApiError } from '../../lib/api';
 import { NOTE_KIND_LABEL } from '../../lib/format';
-import { Button, Chip, Sheet, TextArea, TextField, useFeedback } from '../../ui';
+import { Button, Chip, DateField, Sheet, TextArea, useFeedback } from '../../ui';
 
 const KINDS: NoteKind[] = ['observation', 'incident', 'positive', 'family'];
 
@@ -40,7 +40,7 @@ export default function EditNoteSheet({ note, onClose }: { note: Note | null; on
         <div className="chip-row" role="group" aria-label="Tipo">
           {KINDS.map((k) => <Chip key={k} selected={kind === k} onClick={() => setKind(k)}>{NOTE_KIND_LABEL[k]}</Chip>)}
         </div>
-        <TextField label="Fecha" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <DateField label="Fecha" value={date} onChange={(v) => v && setDate(v)} />
         {error && <div className="field__error" role="alert">{error}</div>}
       </div>
     </Sheet>

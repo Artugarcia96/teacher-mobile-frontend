@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSaveEvalRow, type EvalRow, type EvalRowInput, type Evaluation } from '../../api/evaluation';
 import type { CourseDetail } from '../../api/types';
-import { formatGrade, plural } from '../../lib/format';
+import { formatAverage, plural } from '../../lib/format';
 import { AIBadge, Button, Sheet, Stepper, Switch, TextArea, useFeedback } from '../../ui';
 
 /** Edit one student's final grade and report comment; "Guardar y siguiente" walks the class list. */
@@ -46,7 +46,7 @@ function Editor({ course, data, row, index, onIndex }: {
   };
 
   const sub = [
-    `Media ${formatGrade(row.average, 2)}`,
+    `Media ${formatAverage(row.average)}`,
     row.proposed != null ? `propuesta ${row.proposed}${row.qualitative ? ` ${row.qualitative}` : ''}` : 'sin propuesta',
     plural(row.absences, 'falta', 'faltas'),
   ].join(' · ');

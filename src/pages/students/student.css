@@ -1,6 +1,17 @@
-.st-actions { display: flex; gap: var(--s-2); }
-.st-actions > .btn { flex: 1; }
-@media (min-width: 768px) { .st-actions > .btn { flex: none; } }
+/* Phone: "Anotar" on its own row, the two secondary actions below (text only). Tablet+: one row. */
+.st-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.st-actions > .btn:first-child { grid-column: 1 / -1; }
+.st-actions > .btn:not(:first-child) { padding: 0 10px; }
+.st-actions > .btn:not(:first-child) svg { display: none; }
+@media (min-width: 768px) {
+  .st-actions { display: flex; }
+  .st-actions > .btn:not(:first-child) { padding: 0 18px; }
+  .st-actions > .btn:not(:first-child) svg { display: block; }
+}
+
+.st-support { display: grid; gap: 6px; }
+.st-support__notes { color: var(--ink-2); font-size: var(--fs-sub); max-width: var(--reading-max); }
+.st-comment { display: block; margin-top: 2px; color: var(--ink); font-style: italic; }
 
 .st-grid { display: grid; gap: var(--s-5); align-items: start; }
 .st-col { display: grid; gap: var(--s-5); min-width: 0; }
