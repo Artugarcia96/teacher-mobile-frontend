@@ -1,0 +1,14 @@
+.sbar { display: grid; gap: 8px; }
+.sbar__track { display: flex; gap: 2px; height: 8px; border-radius: var(--r-pill); overflow: hidden; background: var(--fill-2); }
+.sbar__seg { display: block; flex-basis: 0; min-width: 4px; }
+.sbar__legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--fs-footnote); color: var(--ink-2); }
+.sbar__legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sbar__legend b { color: var(--ink); font-weight: 600; }
+.sbar__zero { opacity: 0.55; }
+.sbar__dot { width: 8px; height: 8px; border-radius: 3px; display: inline-block; }
+.sbar--fail { background: var(--grade-fail); }
+.sbar--pass { background: var(--ink-3); }
+.sbar--pass-2 { background: var(--ink-2); }
+.sbar--good { background: var(--grade-good); }
+.sbar--great { background: var(--grade-great); }
+.sbar--neutral { background: var(--line-strong); }
