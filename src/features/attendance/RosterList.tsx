@@ -65,6 +65,8 @@ function RosterLine({ n, row, label, tone, onTap, items }: {
         if (origin.current && Math.hypot(e.clientX - origin.current.x, e.clientY - origin.current.y) > 8) cancel();
       }}
       onPointerUp={cancel} onPointerCancel={cancel} onPointerLeave={cancel}
+      // After a long-press the menu is open: the click the browser synthesises on release would land on its backdrop.
+      onTouchEnd={(e) => { if (longPressed.current) e.preventDefault(); }}
       onContextMenu={(e) => {
         if (!open) return;
         e.preventDefault();

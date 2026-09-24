@@ -79,10 +79,11 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
   useEffect(() => {
     if (!pos) return;
     const close = () => setPos(null);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    // Capture phase + stop: Escape closes only the menu, not the sheet it was opened from.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); } };
     window.addEventListener('resize', close);
-    document.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('resize', close); document.removeEventListener('keydown', onKey); };
+    document.addEventListener('keydown', onKey, true);
+    return () => { window.removeEventListener('resize', close); document.removeEventListener('keydown', onKey, true); };
   }, [pos]);
 
   const open = () => {

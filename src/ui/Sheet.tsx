@@ -20,10 +20,13 @@ interface SheetProps {
 /** Bottom sheet on phones, centered glass panel on tablet/desktop (or a side panel). Esc and scrim close it. */
 export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', wide, side, children }: SheetProps) {
   const ref = useRef<HTMLDivElement>(null);
+  // Latest onClose without re-running the open effect (it would steal focus from inputs on every render).
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; });
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -33,7 +36,7 @@ export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', w
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return createPortal(
