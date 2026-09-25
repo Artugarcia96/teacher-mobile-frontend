@@ -7,7 +7,7 @@ import type { MaterialKind } from '../../api/units';
 import { readingStatus, typeLabel } from '../../features/materials/MaterialRow';
 import PlaceMaterialSheet from '../../features/materials/PlaceMaterialSheet';
 import { useOpenMaterial } from '../../features/materials/open';
-import { isDraft, isGenerated, MaterialIcon, shortTitle } from '../../features/units/kinds';
+import { isDraft, isGenerated, kindLabel, MaterialIcon, shortTitle } from '../../features/units/kinds';
 import { useToday } from '../../lib/auth';
 import { courseShortLabel, plural, shortDate } from '../../lib/format';
 import { AIBadge, Button, Chip, Dot, EmptyState, IconButton, List, Menu, Row, RowIcon, SearchField, SkeletonList } from '../../ui';
@@ -114,10 +114,14 @@ function LibraryRow({ m, archived, today, onOpen, onReuse }: {
 }) {
   const date = m.created_at.slice(0, 10);
   const type = typeLabel(m);
-  const meta = [courseShortLabel(m.course) + (archived ? ' (archivada)' : ''), m.unit?.title, type, date === today ? 'Hoy' : shortDate(date)]
-    .filter(Boolean).join(' · ');
   const reading = readingStatus(m);
-  const title = shortTitle(m.title, m.unit?.title);
+  // «Apuntes · El átomo» across 30 units: the unit is what tells them apart, so it goes first (the kind in the sub)
+  const short = shortTitle(m.title, m.unit?.title);
+  const label = kindLabel(m);
+  const byUnit = isGenerated(m.kind) && !!m.unit && short.startsWith(label);
+  const title = byUnit ? `${m.unit!.title}${short.slice(label.length)}` : short;
+  const meta = [byUnit ? label : '', courseShortLabel(m.course) + (archived ? ' (archivada)' : ''), byUnit ? '' : m.unit?.title, type,
+    date === today ? 'Hoy' : shortDate(date)].filter(Boolean).join(' · ');
   return (
     <div className="mrow">
       <Row onClick={onOpen} chevron={false} wrapSub

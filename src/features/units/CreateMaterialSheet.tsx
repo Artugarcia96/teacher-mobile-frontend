@@ -1,10 +1,10 @@
 import { CheckCircle, Circle } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Level } from '../../api/content';
 import { useAIUnavailable } from '../../api/core';
 import { useLibrary } from '../../api/library';
 import { useGenerateMaterial, type GenKind, type Material, type Unit } from '../../api/units';
-import { List, Row, RowIcon, Segmented, Select, Sheet, Stepper, TextArea, Button, useFeedback } from '../../ui';
+import { List, Row, RowIcon, Segmented, Select, Sheet, Stepper, Switch, TextArea, Button, useFeedback } from '../../ui';
 import { GroundingList } from '../materials/GroundingList';
 import { watchJob } from '../materials/watch';
 import { failedText, MaterialIcon, readyText, withArticle } from './kinds';
@@ -57,13 +57,20 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
   const [kind, setKind] = useState<GenKind>(initial?.kind ?? 'notes');
   const [level, setLevel] = useState<LevelChoice>(initial?.level ?? 'todos');
   const [nItems, setNItems] = useState(10);
+  const [notebook, setNotebook] = useState(false);
   const [sessions, setSessions] = useState(1);
-  const [guide, setGuide] = useState('');
+  const [guide, setGuide] = useState<string | null>(null);  // null: not chosen yet (the programación is proposed)
   const [instructions, setInstructions] = useState(initial?.instructions ?? '');
   const notes = materials.find((m) => m.kind === 'notes' && m.status === 'ready');
+  const notesBusy = materials.some((m) => m.kind === 'notes' && m.status === 'generating');
   const uploads = useLibrary({ courseId, kinds: ['upload'] });
   const guides = (uploads.data ?? []).filter((m) => m.text_status !== 'reading' && m.text_status !== 'failed');
+  const programacion = guides.find((m) => !m.unit && m.title === 'Programación');
+  useEffect(() => {  // the imported programación is the guide unless the teacher chooses otherwise
+    if (guide === null && programacion) setGuide(programacion.id);
+  }, [guide, programacion]);
   const chosen = KINDS.find((k) => k.kind === kind)!;
+  const buildsOnNotes = kind === 'worksheet' || kind === 'slides' || kind === 'adapted';
 
   const submit = async () => {
     if (generate.isPending) return;
@@ -71,7 +78,7 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
       const { material, job } = await generate.mutateAsync({
         kind, instructions: instructions.trim(),
         ...(guide ? { guide_material_id: guide } : {}),
-        ...(kind === 'worksheet' ? { n_items: nItems, ...(level !== 'todos' ? { level } : {}) } : {}),
+        ...(kind === 'worksheet' ? { n_items: nItems, notebook, ...(level !== 'todos' ? { level } : {}) } : {}),
         ...((kind === 'notes' || kind === 'slides') && sessions > 1 ? { sessions } : {}),
       });
       watchJob({
@@ -115,10 +122,18 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
                 {level === 'todos' ? 'Refuerzo, básico y ampliación en la misma ficha, de menos a más.' : 'Todos los ejercicios de ese nivel.'}
               </span>
             </div>
-            <div className="option-line">
-              <span>Ejercicios</span>
-              <Stepper label="Número de ejercicios" value={nItems} onChange={setNItems} min={4} max={15} />
+            <div className="field">
+              <div className="option-line">
+                <span>Ejercicios</span>
+                <Stepper label="Número de ejercicios" value={nItems} onChange={setNItems} min={4} max={15} />
+              </div>
+              <span className="field__hint">Como mucho {nItems}. Si no caben todas las tareas clave de la unidad, algunas se juntan en un ejercicio y te lo dice.</span>
             </div>
+            <div className="option-line">
+              <span>Para hacer en el cuaderno</span>
+              <Switch checked={notebook} onChange={setNotebook} label="Para hacer en el cuaderno, sin espacio para responder" />
+            </div>
+            {notebook && <span className="field__hint">Sin espacio para responder: la ficha ocupa menos páginas.</span>}
           </>
         )}
         {(kind === 'notes' || kind === 'slides') && (
@@ -132,17 +147,22 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
         <GroundingList unitIds={[unit.id]} what="el material" ownOnly label="Lo que leerá la IA" />
         <ul className="create-sources">
           {unit.summary?.trim() && <li><b>Temario:</b> el guion de la unidad («{clip(unit.summary)}»)</li>}
-          {notes && kind !== 'notes' && kind !== 'summary' && (
-            <li><b>Apuntes de la unidad:</b> {kind === 'adapted' ? 'los adapta' : 'no repite sus ejemplos'}</li>
+          {notes && buildsOnNotes && !notesBusy && (
+            <li><b>Apuntes de la unidad:</b> {kind === 'adapted' ? 'los adapta' : kind === 'slides' ? 'los usa como base'
+              : 'no repite sus ejemplos ni sus actividades'}</li>
+          )}
+          {notesBusy && buildsOnNotes && (
+            <li><b>Apuntes de la unidad:</b> se están creando. Esperará a que terminen para {kind === 'adapted' ? 'adaptarlos'
+              : kind === 'slides' ? 'usarlos como base' : 'no repetir sus ejemplos'}.</li>
           )}
           <li>Las unidades de antes y de después, para no solaparse</li>
         </ul>
 
         {guides.length > 0 && (
-          <Select label="Seguir una guía (opcional)" value={guide} onChange={(e) => setGuide(e.target.value)}
+          <Select label="Seguir una guía (opcional)" value={guide ?? ''} onChange={(e) => setGuide(e.target.value)}
             hint="Tu programación o una guía docente subida a la clase: la IA sigue sus indicaciones.">
             <option value="">Ninguna</option>
-            {guides.map((m) => <option key={m.id} value={m.id}>{m.title}{m.unit ? ` (${m.unit.title})` : ''}</option>)}
+            {guides.map((m) => <option key={m.id} value={m.id}>{m.title}{m.unit ? ` (${m.unit.title})` : ' (de la clase)'}</option>)}
           </Select>
         )}
 

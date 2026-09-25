@@ -31,6 +31,8 @@ export interface ExerciseBlock {
   steps: string[]; item_answers: string[]; answer: string; space: 'lines' | 'grid' | 'box' | 'none'; lines: number;
   /** Práctica: computed so that the sheet adds up to 10. */
   points: number | null;
+  /** Printed order (relacionar: the right column; ordenar: the elements), the same in the PDF and its key. */
+  shown: number[];
 }
 export interface CheckBlock { id: string; type: 'check'; question: string; answer: string }
 export type Block =

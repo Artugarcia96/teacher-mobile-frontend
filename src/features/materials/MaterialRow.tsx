@@ -3,7 +3,7 @@ import {
   Student, Trash, WarningCircle,
 } from '@phosphor-icons/react';
 import { useDeleteMaterial, useReadMaterial, useRetryMaterial, useUnshareMaterial, useUpdateMaterial, type Material } from '../../api/units';
-import { shortDate } from '../../lib/format';
+import { plural, shortDate } from '../../lib/format';
 import { AIBadge, Button, IconButton, Menu, Row, RowIcon, Spinner, useFeedback, type MenuItem } from '../../ui';
 import { failedText, isDraft, isGenerated, kindLabel, MaterialIcon, readyText, shortTitle, withArticle } from '../units/kinds';
 import { useOpenMaterial } from './open';
@@ -23,7 +23,7 @@ const FILE_TYPE: Record<string, string> = {
 };
 
 /** Type for the meta line, without repeating the title: "PDF", "Fotos · 6 páginas", "Vídeo de YouTube",
- *  "10 ejercicios" (title "Ficha de refuerzo · …"), "" for "Apuntes · Fracciones". */
+ *  "10 ejercicios · 3 páginas" (title "Ficha de refuerzo · …"), "5 páginas" for "Apuntes · Fracciones". */
 export function typeLabel(m: Material): string {
   if (m.kind === 'upload') {
     const pages = Number(m.options?.pages ?? 0);
@@ -33,8 +33,10 @@ export function typeLabel(m: Material): string {
   }
   const label = kindLabel(m);
   const named = m.title.startsWith(label);
-  const items = m.kind === 'worksheet' && m.options?.n_items ? `${m.options.n_items} ejercicios` : '';
-  return [named ? '' : label, items].filter(Boolean).join(' · ');
+  const n = Number(m.options?.n_items_used ?? m.options?.n_items ?? 0);
+  const items = m.kind === 'worksheet' && n ? `${n} ejercicios` : '';
+  const pages = m.kind !== 'slides' ? Number(m.options?.pages ?? 0) : 0;  // of the PDF: what printing it takes
+  return [named ? '' : label, items, pages ? plural(pages, 'página', 'páginas') : ''].filter(Boolean).join(' · ');
 }
 
 /** One material of a unit: opens on tap, actions in its menu (grouped "Para alumnos" / "Solo para ti"). The title

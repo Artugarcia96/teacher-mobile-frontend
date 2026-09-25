@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import type { Block, Element, Slide } from '../../api/content';
+import { fromText, toText, type TextKind } from '../../features/materials/fieldText';
 import { Button, RichText, Sheet, TextArea, TextField } from '../../ui';
 
-/** How a field is written in the form: one line, a paragraph, one item per line, cells split by «|», or a table
- *  (one row per line, cells split by «|»). */
-type Kind = 'line' | 'area' | 'lines' | 'cells' | 'rows' | 'pairs';
-interface Field { path: string; label: string; kind: Kind; hint?: string }
+interface Field { path: string; label: string; kind: TextKind; hint?: string }
 
 const LINES = 'Uno por línea';
-const ROWS = 'Una fila por línea; las celdas, separadas por «|»';
+const ROWS = 'Una fila por línea; las celdas, separadas por « | », con un espacio a cada lado';
 
 function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
   const f: Field[] = [{ path: 'statement', label: 'Enunciado', kind: 'area' }];
   if (b.passage) f.push({ path: 'passage', label: 'Texto', kind: 'area' });
-  if (b.item_type === 'relacionar') f.push({ path: 'pairs', label: 'Parejas correctas', kind: 'pairs', hint: 'Una por línea: «izquierda | derecha». Se imprimen desordenadas' });
+  if (b.item_type === 'relacionar') f.push({ path: 'pairs', label: 'Parejas correctas', kind: 'pairs', hint: 'Una por línea: «izquierda | derecha», con un espacio a cada lado de «|». Se imprimen desordenadas' });
   else if (b.items.length || !b.options.length) f.push({ path: 'items', label: b.item_type === 'ordenar' ? 'Elementos, en el orden correcto' : 'Apartados', kind: 'lines', hint: LINES });
   if (b.options.length) f.push({ path: 'options', label: 'Opciones', kind: 'lines', hint: LINES });
   if (b.categories.length) f.push({ path: 'categories', label: 'Categorías', kind: 'lines', hint: LINES });
@@ -59,7 +57,7 @@ export function fieldsOf(el: Element): Field[] {
     case 'note': return [{ path: 'text', label: 'Texto', kind: 'area' }];
     case 'list': return [{ path: 'title', label: 'Título', kind: 'line' }, { path: 'items', label: 'Elementos', kind: 'lines', hint: LINES }];
     case 'table': return [
-      { path: 'header', label: 'Encabezados', kind: 'cells', hint: 'Separados por «|»' }, { path: 'rows', label: 'Filas', kind: 'rows', hint: ROWS },
+      { path: 'header', label: 'Encabezados', kind: 'cells', hint: 'Separados por « | », con un espacio a cada lado' }, { path: 'rows', label: 'Filas', kind: 'rows', hint: ROWS },
       { path: 'caption', label: 'Pie', kind: 'line' },
     ];
     case 'figure': return [{ path: 'caption', label: 'Pie de la figura', kind: 'line' }];
@@ -76,24 +74,6 @@ function set<T>(obj: T, path: string, value: unknown): T {
   const [head, ...rest] = path.split('.');
   const o = obj as Record<string, unknown>;
   return { ...o, [head]: rest.length ? set(o[head], rest.join('.'), value) : value } as T;
-}
-
-const clean = (text: string) => text.split('\n').map((l) => l.trim()).filter(Boolean);
-const cells = (line: string) => line.split('|').map((c) => c.trim());
-
-function toText(kind: Kind, v: unknown): string {
-  if (kind === 'lines') return ((v as string[]) ?? []).join('\n');
-  if (kind === 'cells') return ((v as string[]) ?? []).join(' | ');
-  if (kind === 'rows' || kind === 'pairs') return ((v as string[][]) ?? []).map((r) => r.join(' | ')).join('\n');
-  return String(v ?? '');
-}
-
-function fromText(kind: Kind, text: string): unknown {
-  if (kind === 'lines') return clean(text);
-  if (kind === 'cells') return cells(text).filter(Boolean);
-  if (kind === 'rows') return clean(text).map(cells);
-  if (kind === 'pairs') return clean(text).map(cells).filter((p) => p.length === 2 && p[0] && p[1]);
-  return text.trim();
 }
 
 /** «Editar texto» of one block or slide: its fields as plain text (lists one per line), saved as the whole element. */

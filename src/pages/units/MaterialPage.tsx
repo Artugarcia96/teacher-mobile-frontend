@@ -22,7 +22,8 @@ import {
   AIBadge, Button, Callout, Dot, EmptyState, IconButton, Menu, Page, Progress, Segmented, SkeletonList, Spinner, Switch, useFeedback,
   type MenuItem,
 } from '../../ui';
-import DocView from './DocView';
+import { figureCaption } from './blocks';
+import DocView, { docOutline } from './DocView';
 import EditElementSheet from './EditElementSheet';
 import type { ElementAction } from './ElementMenu';
 import Presenter from './Presenter';
@@ -228,6 +229,7 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
       subtitle={<>{unitTitle && <span>{unitTitle}</span>}{count && <span>{count}</span>}{isDraft(m) && <AIBadge />}</>}
       actions={<Menu trigger={(open) => <IconButton label="Más opciones" glass onClick={open}><DotsThree size={22} weight="bold" /></IconButton>} items={menu} />}
       toolbar={toolbar}>
+      <div className={slides ? undefined : 'material-layout'}>
       <div className={`material-body${slides ? '' : ' material-body--reading'}`}>
         {!doc ? (
           <Callout tone="warn">Este material no se puede mostrar ni editar en la app. Descarga el PDF para verlo.</Callout>
@@ -243,9 +245,15 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
             </div>
           </Callout>
         )}
+        {doc && <Problems m={m} />}
+        {doc && typeof m.options.coverage_note === 'string' && m.options.coverage_note && (
+          <Callout>{m.options.coverage_note} Si quieres una ficha con todas, créala con más ejercicios.</Callout>
+        )}
         {doc && (slides
           ? <SlidesView doc={doc} kicker={kicker} figures={m.figures} showNotes={showNotes} editing={editMode} busy={busy} onAction={onAction} noAI={noAI} />
           : <DocView doc={doc} figures={m.figures} solutions={solutions} editing={editMode} busy={busy} onAction={onAction} noAI={noAI} />)}
+      </div>
+      {doc && !slides && <Outline doc={doc} />}
       </div>
 
       {doc && slides && presenting && <Presenter doc={doc} kicker={kicker} figures={m.figures} onClose={() => setPresenting(false)} />}
@@ -256,7 +264,8 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
       {(editing?.action === 'figure' || editing?.action === 'solution_figure') && (() => {
         const el = editing.el as Element & { figure?: FigureSpec | null; solution_figure?: FigureSpec | null; caption?: string };
         const spec = editing.action === 'figure' ? el.figure : el.solution_figure;
-        const caption = editing.action === 'figure' && 'caption' in el ? el.caption : undefined;
+        const caption = editing.action !== 'figure' ? undefined : 'type' in el && el.type === 'figure' ? figureCaption(el)
+          : 'caption' in el ? el.caption : undefined;  // a figure block shows the caption the PDF prints
         return spec ? (
           <FigureSheet spec={spec} caption={caption} saving={patchBlock.isPending} onClose={() => setEditing(null)}
             onSave={(s, c) => saveFigure(el, editing.action as 'figure' | 'solution_figure', s, c)} />
@@ -265,6 +274,50 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
       {renaming && <EditMaterialSheet material={m} onClose={() => setRenaming(false)} />}
       {sharing && <ShareSheet material={m} onClose={() => setSharing(false)} />}
     </Page>
+  );
+}
+
+/** What prints broken: figures that cannot be drawn and formulas the PDF shows as code (backend figure_errors,
+ *  render_issues). The broken figures are marked where they are. */
+function Problems({ m }: { m: MaterialDetail }) {
+  const figures = m.figure_errors?.length ?? 0;
+  const issues = m.render_issues ?? [];
+  if (!figures && !issues.length) return null;
+  return (
+    <Callout tone="warn" icon={<WarningCircle size={20} />}>
+      <b>Revisa este material antes de imprimirlo.</b>{' '}
+      {figures > 0 && <>{figures === 1 ? 'Una figura no se ha podido dibujar' : `${figures} figuras no se han podido dibujar`} y
+        no sale{figures === 1 ? '' : 'n'} en el PDF: está{figures === 1 ? '' : 'n'} marcada{figures === 1 ? '' : 's'} abajo. </>}
+      {issues.length > 0 && <>En el PDF hay partes que no salen bien: {issues.slice(0, 3).join(' · ')}. </>}
+      Edítalas o reescríbelas con IA.
+    </Callout>
+  );
+}
+
+/** Desktop: the sections and exercise numbers beside the document, to jump to them. */
+function Outline({ doc }: { doc: ContentDoc }) {
+  const entries = docOutline(doc).filter((e) => e.label || e.exercises.length);
+  if (entries.length < 2) return null;
+  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return (
+    <nav className="material-outline" aria-label="Índice del material">
+      <div className="material-outline__title">En este material</div>
+      <ol>
+        {entries.map((e) => (
+          <li key={e.id}>
+            <button type="button" className="material-outline__link" onClick={() => go(`sec-${e.id}`)}>{e.label || 'Ejercicios'}</button>
+            {e.exercises.length > 0 && (
+              <div className="material-outline__nums">
+                {e.exercises.map((n) => (
+                  <button key={n} type="button" className="material-outline__num num" onClick={() => go(`ex-${n}`)}
+                    aria-label={`Ejercicio ${n}`}>{n}</button>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 

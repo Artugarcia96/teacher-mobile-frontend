@@ -1,24 +1,26 @@
-import type { Block, ExampleBlock, ExerciseBlock } from '../../api/content';
+import { WarningCircle } from '@phosphor-icons/react';
+import type { Block, ExampleBlock, ExerciseBlock, FigureBlock, FigureSpec } from '../../api/content';
 import { LEVEL_LABEL } from '../../api/content';
 import { Figure } from '../../features/materials/Figure';
 import { formatNumber } from '../../lib/format';
-import { RichText } from '../../ui';
+import { Callout, RichText } from '../../ui';
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 const NOTE: Record<string, string> = { ojo: 'Ojo', sabias: '¿Sabías que…?', consejo: 'Consejo' };
 const pts = (p: number) => `${formatNumber(p, 2)} ${p === 1 ? 'punto' : 'puntos'}`;
 
-/** A stable shuffle for what the student sees in a different order (relacionar, ordenar): never the right order. */
-export function scramble(n: number, seed: string): number[] {
-  let h = 2166136261;
-  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  const order = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i--) {
-    h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
-    const j = h % (i + 1);
-    [order[i], order[j]] = [order[j], order[i]];
-  }
-  return n > 1 && order.every((v, i) => v === i) ? [...order.slice(1), order[0]] : order;
+/** The printed order of a matching's right column or of the elements to order (stored in the document by the
+ *  server, so the app, the PDF and the solucionario give the same letters). */
+function shownOrder(b: ExerciseBlock, n: number): number[] {
+  const s = b.shown ?? [];
+  return s.length === n && [...s].sort((x, y) => x - y).every((v, i) => v === i) ? s : Array.from({ length: n }, (_, i) => i);
+}
+
+/** The letter each element has on paper (index in the stored order → its printed letter). */
+function letters(order: number[]): string[] {
+  const out: string[] = [];
+  order.forEach((orig, pos) => { out[orig] = LETTERS[pos]; });
+  return out;
 }
 
 export interface BlockViewProps {
@@ -29,6 +31,25 @@ export interface BlockViewProps {
   solutions: boolean;
   /** Show the level of each exercise (apuntes: activities of mixed levels). */
   levels?: boolean;
+}
+
+/** A figure of the document: its drawing, or a warning when the server could not draw it (the PDF leaves it out). */
+export function DocFigure({ spec, svg, caption }: { spec: FigureSpec | null | undefined; svg: string | undefined; caption?: string }) {
+  if (!spec) return null;
+  if (!svg) {
+    return (
+      <Callout tone="warn" icon={<WarningCircle size={20} />}>
+        Esta figura no se ha podido dibujar y no sale en el PDF. Edítala o reescríbela con IA.
+      </Callout>
+    );
+  }
+  return <Figure svg={svg} caption={caption} />;
+}
+
+/** The caption of a figure block as the PDF prints it: its own, else the one or the title of its figure. */
+export function figureCaption(b: FigureBlock): string {
+  const f = b.figure as { caption?: unknown; title?: unknown };
+  return b.caption || (typeof f.caption === 'string' ? f.caption : '') || (typeof f.title === 'string' ? f.title : '');
 }
 
 /** One block of a ContentDoc on paper, as the PDF prints it (in the app, solutions only on request). */
@@ -64,7 +85,7 @@ export function BlockView({ block: b, number = 0, figures, solutions, levels }: 
         </figure>
       );
     case 'figure':
-      return <Figure svg={figures[b.id]} caption={b.caption} />;
+      return <DocFigure spec={b.figure} svg={figures[b.id]} caption={figureCaption(b)} />;
     case 'check':
       return (
         <div className="panel panel--check">
@@ -85,11 +106,11 @@ function Example({ b, figure }: { b: ExampleBlock; figure?: string }) {
       <div className="panel__label">Ejemplo</div>
       {title && <div className="dblock__title"><RichText text={title} /></div>}
       <RichText as="p" text={b.statement} />
-      {figure && <Figure svg={figure} />}
+      <DocFigure spec={b.figure} svg={figure} />
       {b.steps.length > 0 && (b.format === 'pasos'
         ? <ol className="dblock__steps">{b.steps.map((s, i) => <li key={i}><RichText text={s} /></li>)}</ol>
         : <ul className="dblock__list">{b.steps.map((s, i) => <li key={i}><RichText text={s} /></li>)}</ul>)}
-      {b.result && <p className="panel__result"><span>Resultado</span> <RichText text={b.result} /></p>}
+      {b.result && <p className="panel__result"><span className="panel__result-label">Resultado</span> <RichText text={b.result} /></p>}
     </div>
   );
 }
@@ -102,18 +123,20 @@ function Exercise({ b, number, figure, solved, solutions, levels }: {
   let body = null;
   let key = null;
   if (t === 'relacionar' && b.pairs.length) {
-    const order = scramble(b.pairs.length, b.statement);
+    const order = shownOrder(b, b.pairs.length);
+    const at = letters(order);
     body = (
       <div className="ex__match">
         <ol>{b.pairs.map((p, i) => <li key={i}><RichText text={p[0]} /></li>)}</ol>
         <ol type="a">{order.map((k) => <li key={k}><RichText text={b.pairs[k][1]} /></li>)}</ol>
       </div>
     );
-    key = <ul className="dblock__list">{b.pairs.map((p, i) => <li key={i}><RichText text={p[0]} /> → <RichText text={p[1]} /></li>)}</ul>;
+    key = <p><b>{b.pairs.map((_, i) => `${i + 1}-${at[i]}`).join(', ')}</b></p>;
   } else if (t === 'ordenar' && b.items.length) {
-    const order = scramble(b.items.length, b.statement);
+    const order = shownOrder(b, b.items.length);
+    const at = letters(order);
     body = <ol type="a" className="ex__items">{order.map((k) => <li key={k}><RichText text={b.items[k]} /></li>)}</ol>;
-    key = <ol className="dblock__list">{b.items.map((it, i) => <li key={i}><RichText text={it} /></li>)}</ol>;
+    key = <p><b>{b.items.map((_, i) => at[i]).join(' → ')}</b></p>;
   } else if (b.items.length) {
     body = (
       <>
@@ -133,7 +156,7 @@ function Exercise({ b, number, figure, solved, solutions, levels }: {
   } else if (b.options.length) {
     body = <ol type="a" className="ex__options">{b.options.map((o, i) => <li key={i}><RichText text={o} /></li>)}</ol>;
   }
-  const hasKey = !!(key || b.answer || (!answers.length && b.item_answers.length) || b.steps.length || solved);
+  const hasKey = !!(key || b.answer || (!answers.length && b.item_answers.length) || b.steps.length || b.solution_figure);
   return (
     <div className="ex">
       <span className="ex__num num">{number}</span>
@@ -146,7 +169,7 @@ function Exercise({ b, number, figure, solved, solutions, levels }: {
         )}
         <RichText as="p" text={b.statement} />
         {b.passage && <blockquote className="ex__passage"><RichText text={b.passage} /></blockquote>}
-        {figure && <Figure svg={figure} />}
+        <DocFigure spec={b.figure} svg={figure} />
         {body}
         {solutions && hasKey && (
           <div className="solution">
@@ -155,7 +178,7 @@ function Exercise({ b, number, figure, solved, solutions, levels }: {
             {b.answer && <RichText as="p" text={b.answer} />}
             {!answers.length && b.item_answers.map((a, i) => <p key={i}><b>{LETTERS[i]})</b> <RichText text={a} /></p>)}
             {b.steps.length > 0 && <ol className="dblock__steps">{b.steps.map((s, i) => <li key={i}><RichText text={s} /></li>)}</ol>}
-            {solved && <Figure svg={solved} />}
+            <DocFigure spec={b.solution_figure} svg={solved} />
           </div>
         )}
       </div>

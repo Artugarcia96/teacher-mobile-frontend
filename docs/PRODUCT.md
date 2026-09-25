@@ -239,7 +239,7 @@ Perfil (nombre, centro, comunidad autónoma con su plataforma de notas: "Platafo
 
 ## 6. Uso de la IA
 
-Todas las llamadas pasan por **un único gateway** (`app/ai/`) con tres proveedores: `claude_cli` (desarrollo), `openai` (producción) y `mock` (solo tests, puesto a propósito). Un servidor sin IA configurada (`ai_provider: "none"`) desactiva lo que usa IA diciendo por qué («La IA no está configurada en este servidor.»); nunca responde con IA simulada.
+Todas las llamadas pasan por **un único gateway** (`app/ai/`) con cuatro proveedores: `claude_cli` (desarrollo), `openai` o `anthropic` (producción; hoy `openai`) y `mock` (solo tests, puesto a propósito). Un servidor sin IA configurada (`ai_provider: "none"`) desactiva lo que usa IA diciendo por qué («La IA no está configurada en este servidor.»); nunca responde con IA simulada.
 - En desarrollo los prompts y esquemas **reales** se ejecutan con Claude por terminal (`claude_cli`); en producción, con OpenAI. Solo cambia a dónde apunta. Las pruebas de uso, E2E y capturas usan IA real; el `mock` determinista queda solo para tests unitarios.
 - Salidas estructuradas (esquemas Pydantic) — sin reparar JSON a mano.
 - Registro de uso (`ai_calls`): funcionalidad, modelo, tokens, coste estimado, latencia.

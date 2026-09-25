@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { failedText, readyText, shortTitle } from './kinds';
-import { scramble } from '../../pages/units/blocks';
 
 describe('material names', () => {
   it('leaves out the unit the page already shows', () => {
@@ -15,16 +14,5 @@ describe('material names', () => {
     expect(readyText({ kind: 'worksheet', options: { level: 'refuerzo' } }, 'El átomo')).toBe('Ficha de refuerzo de «El átomo» lista');
     expect(failedText({ kind: 'notes', options: {} }, 'El átomo')).toBe('No se han podido crear los apuntes de «El átomo»');
     expect(failedText({ kind: 'summary', options: {} }, 'El átomo')).toBe('No se ha podido crear el resumen de «El átomo»');
-  });
-});
-
-describe('scramble', () => {
-  it('is stable and never the right order', () => {
-    for (const n of [2, 3, 4, 6, 8]) {
-      const order = scramble(n, `enunciado ${n}`);
-      expect(order).toEqual(scramble(n, `enunciado ${n}`));
-      expect([...order].sort((a, b) => a - b)).toEqual([...Array(n).keys()]);
-      expect(order).not.toEqual([...Array(n).keys()]);
-    }
   });
 });

@@ -39,7 +39,7 @@ export interface Material {
   /** AI reading of photos / scanned PDFs, so generation for the unit can use their text. */
   text_status?: 'reading' | 'done' | 'failed' | null;
   url?: string | null; link_kind?: LinkKind | null; shared: boolean;
-  /** Generated: the teacher edited, rewrote, shared or checked it (no «Borrador IA» mark). */
+  /** Generated: the teacher marked it as reviewed (no «Borrador IA» mark). */
   reviewed?: boolean;
 }
 
@@ -56,14 +56,27 @@ export interface MaterialDetail extends Material {
   content: ContentDoc | Record<string, unknown> | null;
   /** SVG of each figure by element id ("b7"; "b7:solucion" = the solved figure of an exercise). */
   figures: Record<string, string>;
+  /** Ids of the figures that cannot be drawn (the PDF leaves them out): shown as a warning to edit them. */
+  figure_errors: string[];
+  /** What prints broken in the PDF («p. 2: fórmula sin componer (…)»). */
+  render_issues: string[];
   course: CourseRef; unit_title?: string | null;
 }
-export interface UnitDetail { unit: Unit; course: CourseRef; materials: Material[] }
+export interface UnitDetail {
+  unit: Unit; course: CourseRef; materials: Material[];
+  /** The class's own files outside any unit that the AI can follow as a guide (the imported «Programación»). */
+  guides: { id: string; title: string }[];
+}
 
-/** «Crear con IA». Ficha: one `level` (none = the three levels) and `n_items`; `sessions` splits it in class sessions. */
+/** «Crear con IA». Ficha: one `level` (none = the three levels), at most `n_items` exercises and `notebook` (no space to
+ *  answer); `sessions` splits it in class sessions. */
 export interface GenerateInput {
   kind: GenKind; instructions?: string; guide_material_id?: string; level?: Level; n_items?: number; sessions?: number;
+  notebook?: boolean;
 }
+
+/** A unit of an imported programación: its title, term and the saberes it lists (the unit's summary). */
+export interface UnitProposal { title: string; term: number | null; summary: string }
 
 // ── Units ────────────────────────────────────────────────────────────────────
 function useInvalidateCourse(courseId: string) {
@@ -116,17 +129,18 @@ export function useOrderUnits(courseId: string) {
 export function useImportUnits(courseId: string) {
   return useMutation({
     mutationFn: (text: string) =>
-      api.post<{ proposals: { title: string; term: number | null }[]; warning: string | null }>(`/courses/${courseId}/units/import`, { text }, { slow: true }),
+      api.post<{ proposals: UnitProposal[]; warning: string | null }>(`/courses/${courseId}/units/import`, { text }, { slow: true }),
   });
 }
 
-/** The programación as a file (PDF with text, Word, PowerPoint, text): the same proposals as pasting it. */
+/** The programación as a file (PDF with text, Word, PowerPoint, text): the same proposals as pasting it; the file stays
+ *  as the class's «Programación», a guide for «Crear con IA». */
 export function useImportUnitsFile(courseId: string) {
   return useMutation({
     mutationFn: (file: File) => {
       const form = new FormData();
       form.append('file', file);
-      return api.upload<{ proposals: { title: string; term: number | null }[]; warning: string | null }>(`/courses/${courseId}/units/import-file`, form);
+      return api.upload<{ proposals: UnitProposal[]; warning: string | null }>(`/courses/${courseId}/units/import-file`, form);
     },
   });
 }
@@ -134,7 +148,7 @@ export function useImportUnitsFile(courseId: string) {
 export function useBulkUnits(courseId: string) {
   const done = useInvalidateCourse(courseId);
   return useMutation({
-    mutationFn: (units: { title: string; term: number | null }[]) => api.post<Unit[]>(`/courses/${courseId}/units/bulk`, { units }),
+    mutationFn: (units: UnitProposal[]) => api.post<Unit[]>(`/courses/${courseId}/units/bulk`, { units }),
     onSuccess: done,
   });
 }
@@ -294,12 +308,16 @@ export function useGenerateMaterial(unitId: string) {
   });
 }
 
-/** «Preparar el trimestre»: the chosen kinds for each chosen unit, one job for all of them. */
+/** «Preparar el trimestre» makes at most this many materials at once (backend PREPARE_MAX). */
+export const PREPARE_MAX = 15;
+
+/** «Preparar el trimestre»: the chosen kinds for each chosen unit, one job for all of them. The kinds a unit already
+ *  has are skipped (`skipped`) unless `replace`. */
 export function usePrepareMaterials(courseId: string) {
   const done = useInvalidateMaterials();
   return useMutation({
-    mutationFn: (body: { unit_ids: string[]; kinds: GenKind[]; instructions?: string }) =>
-      api.post<{ materials: Material[]; job: Job }>(`/courses/${courseId}/prepare`, body),
+    mutationFn: (body: { unit_ids: string[]; kinds: GenKind[]; instructions?: string; notebook?: boolean; replace?: boolean }) =>
+      api.post<{ materials: Material[]; job: Job; skipped: number }>(`/courses/${courseId}/prepare`, body),
     onSuccess: done,
   });
 }
@@ -331,7 +349,8 @@ function useSetMaterial(materialId: string) {
   };
 }
 
-/** The teacher's version of one element (block or slide, same id): validated, files rebuilt, «revisado». */
+/** The teacher's version of one element (block or slide, same id): validated, files rebuilt (still a draft until she
+ *  marks the material as reviewed). */
 export function usePatchBlock(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({

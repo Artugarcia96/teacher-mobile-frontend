@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FigureSpec, FigureType } from '../../api/content';
 import { useFigurePreview } from '../../api/units';
-import { Button, Sheet, Spinner, TextArea, TextField } from '../../ui';
+import { Button, Sheet, Spinner, Switch, TextArea, TextField } from '../../ui';
+import { cells, lines } from './fieldText';
 import { Figure } from './Figure';
 
 /** A field of a figure as the teacher writes it: a number, a word, or one element per line in a short pattern. The
  *  spec keeps everything else it had (styles, tangents, dominance…). */
 interface Field {
   key: string; label: string; hint?: string; lines?: boolean;
+  /** A yes/no field (a switch): read and write «sí» / «no». */
+  toggle?: boolean;
   read: (s: FigureSpec) => string;
   write: (text: string, s: FigureSpec) => Partial<FigureSpec>;
 }
@@ -17,7 +20,6 @@ const num = (t: string) => {
   return t.trim() !== '' && Number.isFinite(v) ? v : NaN;
 };
 const numText = (v: unknown) => (typeof v === 'number' ? String(Number(v.toFixed(4))).replace('.', ',') : '');
-const lines = (t: string) => t.split('\n').map((l) => l.trim()).filter(Boolean);
 const arr = <T,>(v: unknown) => (Array.isArray(v) ? (v as T[]) : []);
 /** «a: b» → [a, b] (b may be empty). */
 const pair = (l: string): [string, string] => {
@@ -86,14 +88,18 @@ const FIELDS: Partial<Record<FigureType, Field[]>> = {
     text('angle_top', 'Ángulo de arriba'), text('angle_bottom', 'Ángulo de abajo'),
   ],
   table: [
-    { key: 'header', label: 'Encabezados', hint: 'Separados por «|»', read: (s) => arr<string>(s.header).join(' | '), write: (t) => ({ header: t.split('|').map((c) => c.trim()) }) },
+    { key: 'header', label: 'Encabezados', hint: 'Separados por « | », con un espacio a cada lado', read: (s) => arr<string>(s.header).join(' | '), write: (t) => ({ header: cells(t) }) },
     {
-      key: 'rows', label: 'Filas', lines: true, hint: 'Una fila por línea; las celdas, separadas por «|»',
+      key: 'rows', label: 'Filas', lines: true, hint: 'Una fila por línea, con tantas celdas como encabezados, separadas por « | » (así |x| se queda en su celda)',
       read: (s) => arr<string[]>(s.rows).map((r) => r.join(' | ')).join('\n'),
-      write: (t) => ({ rows: lines(t).map((l) => l.split('|').map((c) => c.trim())) }),
+      write: (t) => ({ rows: lines(t).map(cells) }),
     },
   ],
-  punnett_square: [text('parent1', 'Progenitor 1', 'Genotipo: Aa, AaBb, X^A/X^a'), text('parent2', 'Progenitor 2')],
+  punnett_square: [
+    text('parent1', 'Progenitor 1', 'Genotipo: Aa, AaBb, X^A/X^a'), text('parent2', 'Progenitor 2'),
+    { key: 'show_offspring', label: 'Mostrar los hijos', toggle: true, read: (s) => (s.show_offspring === false ? 'no' : 'sí'),
+      write: (t) => ({ show_offspring: t !== 'no' }) },
+  ],
   timeline: [{
     key: 'events', label: 'Hitos', lines: true,
     hint: 'Uno por línea: «año | rótulo» o «año | fecha como se escribe | rótulo». Antes de Cristo, en negativo: -3000',
@@ -176,6 +182,15 @@ export default function FigureSheet({ spec, caption, saving, onSave, onClose }: 
             onChange: (e: { target: { value: string } }) => setValues((v) => ({ ...v, [f.key]: e.target.value })),
             ...(i === 0 ? { 'data-autofocus': true } : {}),
           };
+          if (f.toggle) {
+            return (
+              <div key={f.key} className="option-line">
+                <span>{f.label}</span>
+                <Switch checked={values[f.key] !== 'no'} label={f.label}
+                  onChange={(on) => setValues((v) => ({ ...v, [f.key]: on ? 'sí' : 'no' }))} />
+              </div>
+            );
+          }
           return f.lines
             ? <TextArea key={f.key} {...common} rows={Math.min(12, Math.max(3, values[f.key].split('\n').length + 1))} />
             : <TextField key={f.key} {...common} />;

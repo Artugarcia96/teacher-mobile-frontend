@@ -1,11 +1,11 @@
 import { CaretDown, FileArrowUp, X } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
-import { useBulkUnits, useImportUnits, useImportUnitsFile } from '../../api/units';
+import { useBulkUnits, useImportUnits, useImportUnitsFile, type UnitProposal } from '../../api/units';
 import { plural } from '../../lib/format';
 import { Button, Callout, IconButton, Sheet, TextArea, useFeedback } from '../../ui';
 import './units.css';
 
-interface Proposal { key: number; title: string; term: number | null }
+interface Proposal extends UnitProposal { key: number }
 
 const PLACEHOLDER = `Tema 1. Números enteros
 Tema 2. Fracciones
@@ -29,7 +29,7 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
   const [warning, setWarning] = useState<string | null>(null);
 
   const reading = parse.isPending || parseFile.isPending;
-  const show = ({ proposals, warning }: { proposals: { title: string; term: number | null }[]; warning: string | null }) => {
+  const show = ({ proposals, warning }: { proposals: UnitProposal[]; warning: string | null }) => {
     setItems(proposals.map((p, i) => ({ key: i, ...p })));
     setWarning(warning);
   };
@@ -52,7 +52,7 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
   const valid = (items ?? []).filter((p) => p.title.trim());
   const create = async () => {
     try {
-      await bulk.mutateAsync(valid.map((p) => ({ title: p.title.trim(), term: p.term })));
+      await bulk.mutateAsync(valid.map((p) => ({ title: p.title.trim(), term: p.term, summary: p.summary.trim() })));
       toast(`${plural(valid.length, 'unidad creada', 'unidades creadas')}`);
       onClose();
     } catch (e) {
@@ -84,7 +84,7 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
 
   return (
     <Sheet open onClose={onClose} title="Revisa las unidades" size="large"
-      subtitle="Corrige los títulos, elige la evaluación (1.ª, 2.ª, 3.ª) o quita las que sobren."
+      subtitle="Corrige los títulos y los contenidos, elige la evaluación (1.ª, 2.ª, 3.ª) o quita las que sobren. Los contenidos guían a la IA al crear los materiales de cada unidad."
       footer={<>
         <Button variant="neutral" onClick={() => setItems(null)}>Volver al texto</Button>
         <Button onClick={create} loading={bulk.isPending} disabled={!valid.length}>
@@ -97,8 +97,8 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
           {items.map((p, i) => (
             <div key={p.key} className="proposal">
               <span className="proposal__n num">{i + 1}</span>
-              <input className="input proposal__title" value={p.title} aria-label={`Título de la unidad ${i + 1}`}
-                onChange={(e) => update(p.key, { title: e.target.value })} />
+              <textarea className="input proposal__title" value={p.title} aria-label={`Título de la unidad ${i + 1}`}
+                rows={lines(p.title, 26)} onChange={(e) => update(p.key, { title: e.target.value.replace(/\n/g, ' ') })} />
               <div className="select-wrap proposal__term">
                 <select className="select" aria-label="Evaluación" value={p.term ?? ''}
                   onChange={(e) => update(p.key, { term: e.target.value ? Number(e.target.value) : null })}>
@@ -112,10 +112,18 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
               <IconButton label="Quitar" size="sm" onClick={() => setItems((xs) => xs && xs.filter((x) => x.key !== p.key))}>
                 <X size={16} />
               </IconButton>
+              <textarea className="input proposal__summary" value={p.summary} maxLength={600}
+                aria-label={`Contenidos de la unidad ${i + 1}`} placeholder="Contenidos (opcional)"
+                rows={Math.min(lines(p.summary, 40), 5)} onChange={(e) => update(p.key, { summary: e.target.value })} />
             </div>
           ))}
         </div>
       </div>
     </Sheet>
   );
+}
+
+/** Rows a textarea needs for a text at about `perRow` characters a row. */
+function lines(text: string, perRow: number): number {
+  return Math.max(1, Math.ceil(text.length / perRow));
 }

@@ -4,6 +4,28 @@
 .material-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .material-switch { display: inline-flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--ink-2); font-weight: 500; }
 .material-body { display: grid; gap: var(--s-4); min-width: 0; }
+.material-layout { display: grid; gap: 28px; align-items: start; min-width: 0; }
+.material-outline { display: none; }
+@media (min-width: 1200px) {
+  .material-layout { grid-template-columns: minmax(0, var(--reading-max)) minmax(200px, 260px); }
+  .material-outline {
+    display: grid; gap: 10px; position: sticky; top: 88px; max-height: calc(100vh - 110px); overflow: auto;
+    padding: 16px; border-radius: var(--r-card); background: var(--paper); box-shadow: var(--e1);
+  }
+}
+.material-outline__title { font-size: var(--fs-footnote); font-weight: 600; color: var(--ink-2); }
+.material-outline ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.material-outline__link {
+  display: block; width: 100%; min-height: 32px; padding: 4px 0; border: 0; background: none; text-align: left; cursor: pointer;
+  font: inherit; font-size: var(--fs-sub); color: var(--ink);
+}
+.material-outline__link:hover { color: var(--accent); }
+.material-outline__nums { display: flex; flex-wrap: wrap; gap: 4px; }
+.material-outline__num {
+  min-width: 32px; height: 32px; border: 0; border-radius: var(--r-pill); background: var(--canvas); color: var(--ink-2);
+  font: inherit; font-size: var(--fs-footnote); cursor: pointer;
+}
+.material-outline__num:hover { background: var(--accent-softer); color: var(--accent); }
 .review-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 .review-note > span { flex: 1 1 260px; }
 
@@ -54,7 +76,7 @@
 .panel--consejo { background: var(--warn-soft); box-shadow: inset 3px 0 0 var(--warn); }
 .panel--consejo .panel__label { color: var(--warn); }
 .panel--check { box-shadow: inset 0 0 0 1px var(--line-strong); }
-.panel__result span { font-size: var(--fs-caption); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); margin-right: 6px; }
+.panel__result-label { font-size: var(--fs-caption); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); margin-right: 6px; }
 .dtable { margin: 0; display: grid; gap: 6px; justify-items: center; min-width: 0; }
 .dtable__scroll { max-width: 100%; overflow-x: auto; }
 .dtable table { border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }

@@ -1,5 +1,6 @@
 import type { ContentDoc, Element } from '../../api/content';
-import { RichText } from '../../ui';
+import { WarningCircle } from '@phosphor-icons/react';
+import { Callout, RichText } from '../../ui';
 import { ElementMenu, Rewriting, type ElementAction } from './ElementMenu';
 import { CoverSlide, SlideFace, slideKey } from './SlideFace';
 
@@ -27,6 +28,11 @@ export default function SlidesView({ doc, kicker, figures, showNotes, editing, b
         return (
           <figure key={s.id} className={`slide-card element${editing ? ' element--editing' : ''}${isBusy ? ' element--busy' : ''}`}>
             <SlideFace slide={s} figure={figures[s.id]} n={i + 2} />
+            {s.figure && !figures[s.id] && (
+              <Callout tone="warn" icon={<WarningCircle size={20} />}>
+                La figura de esta diapositiva no se ha podido dibujar y no sale al proyectar. Edítala o reescríbela con IA.
+              </Callout>
+            )}
             {editing && !isBusy && <div className="element__menu"><ElementMenu el={s} doc={doc} onAction={onAction} noAI={noAI} /></div>}
             {isBusy && <Rewriting />}
             {showNotes && (s.notes || key.length > 0) && (

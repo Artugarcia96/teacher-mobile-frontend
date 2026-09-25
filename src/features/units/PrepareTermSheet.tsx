@@ -2,7 +2,7 @@ import { CheckCircle, Circle, CheckSquare, Square, WarningCircle } from '@phosph
 import { useEffect, useState } from 'react';
 import { useJob } from '../../api/core';
 import type { CourseDetail, Job } from '../../api/types';
-import { usePrepareMaterials, useUnitDetails, type GenKind, type Unit } from '../../api/units';
+import { PREPARE_MAX, usePrepareMaterials, useUnitDetails, type GenKind, type Material, type Unit } from '../../api/units';
 import { useAuth } from '../../lib/auth';
 import { plural, TERM_LABEL } from '../../lib/format';
 import { Button, List, Progress, Row, RowIcon, Section, Segmented, Sheet, Spinner, TextArea, useFeedback } from '../../ui';
@@ -43,14 +43,17 @@ function PrepareChoose({ course, units, onClose, onStarted }: {
   const { toast } = useFeedback();
   const prepare = usePrepareMaterials(course.id);
   const terms = [1, 2, 3].filter((t) => units.some((u) => u.term === t));
-  const current = me?.school_year.current_term ?? 1;
-  const [term, setTerm] = useState(terms.includes(current) ? current : terms[0] ?? 1);
+  const [term, setTerm] = useState(() => defaultTerm(units, terms, me?.school_year.current_term ?? 1));
   const inTerm = units.filter((u) => u.term === term);
   const [picked, setPicked] = useState<Set<string>>(() => new Set(inTerm.filter((u) => u.status !== 'done').map((u) => u.id)));
   const [kinds, setKinds] = useState<Set<GenKind>>(new Set(DEFAULT_KINDS));
   const [instructions, setInstructions] = useState('');
+  const details = useUnitDetails(inTerm.map((u) => u.id), false);
+  const mats = new Map(inTerm.map((u, i) => [u.id, details[i]?.data?.materials]));
+  const has = (uid: string, kind: GenKind) => !!mats.get(uid)?.some((m) => m.kind === kind && m.status !== 'failed');
   const chosen = inTerm.filter((u) => picked.has(u.id));
-  const total = chosen.length * kinds.size;
+  const total = chosen.reduce((n, u) => n + [...kinds].filter((k) => !has(u.id, k)).length, 0);
+  const skipped = chosen.length * kinds.size - total;
 
   const pickTerm = (t: number) => {
     setTerm(t);
@@ -66,20 +69,21 @@ function PrepareChoose({ course, units, onClose, onStarted }: {
     if (prepare.isPending || !total) return;
     try {
       const order = KINDS.map((k) => k.kind).filter((k) => kinds.has(k));
-      const { materials, job } = await prepare.mutateAsync({ unit_ids: chosen.map((u) => u.id), kinds: order, instructions: instructions.trim() });
+      const { materials, job, skipped: kept } = await prepare.mutateAsync({ unit_ids: chosen.map((u) => u.id), kinds: order, instructions: instructions.trim() });
       const batch: Batch = { job: job.id, kind: 'batch', courseId: course.id, materials: materials.map((m) => ({ id: m.id, unit_id: m.unit_id, kind: m.kind })) };
       watchJob(batch);
       onStarted(batch);
-      toast(`Preparando ${plural(materials.length, 'material', 'materiales')}. Puedes seguir trabajando.`);
+      toast(`Preparando ${plural(materials.length, 'material', 'materiales')}${kept ? ` (${plural(kept, 'ya estaba hecho', 'ya estaban hechos')})` : ''}. Puedes seguir trabajando.`);
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
     }
   };
 
-  const reason = !chosen.length ? 'Elige al menos una unidad' : !kinds.size ? 'Elige al menos un tipo de material' : '';
+  const reason = !chosen.length ? 'Elige al menos una unidad' : !kinds.size ? 'Elige al menos un tipo de material'
+    : !total ? 'Esas unidades ya tienen esos materiales' : total > PREPARE_MAX ? `Elige como mucho ${PREPARE_MAX} materiales a la vez` : '';
   return (
     <Sheet open onClose={onClose} title="Preparar el trimestre" size="large" dirty={!!instructions.trim()}
-      subtitle="Crea con IA los materiales de varias unidades a la vez, a partir de lo que has subido a cada una. Tarda varios minutos y puedes seguir trabajando."
+      subtitle="Crea con IA los materiales de varias unidades a la vez, a partir de lo que has subido a cada una y de su temario. Tarda varios minutos y puedes seguir trabajando."
       footer={<Button full onClick={submit} loading={prepare.isPending} disabled={!!reason}>
         {reason || `Crear ${plural(total, 'material', 'materiales')}`}
       </Button>}>
@@ -92,9 +96,10 @@ function PrepareChoose({ course, units, onClose, onStarted }: {
           <List inset={56}>
             {inTerm.map((u) => {
               const on = picked.has(u.id);
+              const info = unitInfo(u, mats.get(u.id), [...kinds]);
               return (
                 <Row key={u.id} title={u.title} chevron={false} onClick={() => setPicked(toggle(picked, u.id))} aria-label={u.title}
-                  sub={u.status === 'done' ? 'Impartida' : u.status === 'current' ? 'En curso' : plural(u.material_count, 'material', 'materiales')}
+                  wrapSub sub={info.warn ? <span className="prepare-warn"><WarningCircle size={14} weight="bold" /> {info.text}</span> : info.text}
                   lead={on ? <CheckSquare size={24} weight="fill" className="kind-row__check" /> : <Square size={24} className="kind-row__radio" />} />
               );
             })}
@@ -113,11 +118,42 @@ function PrepareChoose({ course, units, onClose, onStarted }: {
             })}
           </List>
         </Section>
+        {skipped > 0 && total > 0 && (
+          <p className="field__hint">{plural(skipped, 'material ya está hecho', 'materiales ya están hechos')} en esas unidades: no se repite{skipped === 1 ? '' : 'n'}.</p>
+        )}
         <TextArea label="Indicaciones para todas (opcional)" value={instructions} onChange={(e) => setInstructions(e.target.value)}
           maxLength={1500} rows={2} placeholder="Por ejemplo: grupo con nivel bajo, ejemplos de la vida diaria" />
       </div>
     </Sheet>
   );
+}
+
+/** The evaluación to prepare: the current one, or the next one when 70 % of the current one's units are taught. */
+function defaultTerm(units: Unit[], terms: number[], current: number): number {
+  const mine = units.filter((u) => u.term === current);
+  const done = mine.filter((u) => u.status === 'done').length;
+  const next = terms.find((t) => t > current);
+  if (mine.length && done / mine.length >= 0.7 && next) return next;
+  return terms.includes(current) ? current : terms[0] ?? 1;
+}
+
+const HAS: Partial<Record<GenKind, string>> = { notes: 'apuntes', worksheet: 'ficha', slides: 'presentación', summary: 'resumen', adapted: 'lectura fácil' };
+
+/** What the AI has for a unit (its files, or only its temario or title) and which chosen kinds it already has. */
+function unitInfo(u: Unit, materials: Material[] | undefined, kinds: GenKind[]): { text: string; warn: boolean } {
+  const status = u.status === 'done' ? 'Impartida' : u.status === 'current' ? 'En curso' : '';
+  const own = materials?.filter((m) => m.kind === 'upload' || m.kind === 'link').length ?? 0;
+  const done = kinds.filter((k) => materials?.some((m) => m.kind === k && m.status !== 'failed')).map((k) => HAS[k]!);
+  const parts = [status];
+  let warn = false;
+  if (materials && !own) {
+    warn = !u.summary?.trim();
+    parts.push(warn ? 'Sin archivos: la IA solo tiene el título' : 'Sin archivos: la IA usa el temario');
+  } else if (own) {
+    parts.push(plural(own, 'archivo', 'archivos'));
+  }
+  if (done.length) parts.push(`Ya tiene ${done.length > 1 ? `${done.slice(0, -1).join(', ')} y ${done.at(-1)}` : done[0]}`);
+  return { text: parts.filter(Boolean).join(' · '), warn };
 }
 
 function PrepareProgress({ batch, units, courseId, onClose }: { batch: Batch; units: Unit[]; courseId: string; onClose: () => void }) {
@@ -157,7 +193,10 @@ function PrepareProgress({ batch, units, courseId, onClose }: { batch: Batch; un
                   return <Row key={b.id} lead={lead} title={label} wrapSub sub={<span className="mrow__error">{m.error || 'No se ha podido crear'}</span>}
                     to={`/clases/${courseId}/unidades/${uid}`} />;
                 }
-                return <Row key={b.id} lead={lead} title={label} sub={finished ? '' : 'Creando…'} trail={finished ? undefined : <Spinner />} />;
+                const waiting = b.kind !== 'notes' && batch.materials.some((o) => o.unit_id === uid && o.kind === 'notes'
+                  && byId.get(o.id)?.status === 'generating');
+                return <Row key={b.id} lead={lead} title={label} sub={finished ? '' : waiting ? 'Esperando a los apuntes' : 'Creando…'}
+                  trail={finished ? undefined : <Spinner />} />;
               })}
             </List>
           </Section>
