@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Runs ON THE VPS, called by .github/workflows/deploy.yml (see ../teacher-mobile-backend/docs/DEPLOY.md).
+# Runs ON THE VPS, called by the backend repo's .github/workflows/deploy-frontend.yml («Deploy web»; see
+# ../teacher-mobile-backend/docs/DEPLOY.md).
 # Publishes the built site (app + landing) in ~/sepia-cuaderno/web and (re)starts sepia-cuaderno-web: nginx:alpine on
 # the public port 8200, serving the site and proxying /api to the sepia-cuaderno-api container.
 # The VPS also runs sepia-education and coteacher: this script only touches sepia-cuaderno-* resources.
