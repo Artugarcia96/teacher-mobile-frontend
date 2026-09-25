@@ -2,9 +2,10 @@
 import type { LoosePage, PaperFlag, ScanPage } from '../../api/papers';
 
 /** Flags that need the teacher to look; the others (orden, reverso_escrito, pagina_deducida…) only explain. */
-const ATTENTION = new Set(['falta_pagina', 'pagina_duplicada', 'extra_sin_nombre', 'pagina_dudosa', 'nombre_distinto', 'nombre_repetido']);
+const ATTENTION = new Set(['falta_pagina', 'pagina_duplicada', 'extra_sin_nombre', 'pagina_dudosa', 'nombre_distinto', 'nombre_repetido',
+  'version_distinta']);
 /** Possibly incomplete or mixed: the AI does not suggest a grade until the teacher fixes it or marks it OK. */
-const NO_AUTO_GRADE = new Set(['falta_pagina', 'pagina_duplicada', 'pagina_dudosa', 'nombre_distinto', 'nombre_repetido']);
+const NO_AUTO_GRADE = new Set(['falta_pagina', 'pagina_duplicada', 'pagina_dudosa', 'nombre_distinto', 'nombre_repetido', 'version_distinta']);
 
 export const needsLook = (flags: PaperFlag[]) => flags.some((f) => ATTENTION.has(f.code));
 export const isAttention = (f: PaperFlag) => ATTENTION.has(f.code);
@@ -39,6 +40,7 @@ export function flagLabel(f: PaperFlag): string {
     case 'pagina_dudosa': return f.pages.length ? `Revisa la ${pagesText(f.pages)}` : 'Revisa las páginas';
     case 'nombre_distinto': return f.pages.length ? `Otro nombre en la ${pagesText(f.pages)}` : 'El nombre no coincide';
     case 'nombre_repetido': return 'Mismo nombre en otra hoja';
+    case 'version_distinta': return f.pages.length ? `La ${pagesText(f.pages)} es de otra versión` : 'Páginas de otra versión';
     case 'orden': return 'Reordenada';
     case 'reverso_escrito': return 'Reverso escrito';
     case 'pagina_deducida': return f.pages.length ? `Nº de ${pagesText(f.pages)} deducido` : 'Nº de página deducido';

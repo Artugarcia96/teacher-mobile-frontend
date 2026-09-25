@@ -13,6 +13,8 @@ interface RowProps {
   sub?: ReactNode;
   trail?: ReactNode;
   to?: string;
+  /** History state of the `to` link (e.g. where the next screen goes back to). */
+  state?: unknown;
   onClick?: () => void;
   chevron?: boolean;
   muted?: boolean;
@@ -22,7 +24,7 @@ interface RowProps {
 }
 
 /** Grouped-list row. Clickable when `to` or `onClick` is given (then shows a chevron unless chevron=false). */
-export function Row({ lead, title, sub, trail, to, onClick, chevron, muted, wrapSub, className, ...aria }: RowProps) {
+export function Row({ lead, title, sub, trail, to, state, onClick, chevron, muted, wrapSub, className, ...aria }: RowProps) {
   const interactive = Boolean(to || onClick);
   const showChev = chevron ?? interactive;
   const cls = ['row', muted && 'row--muted', className].filter(Boolean).join(' ');
@@ -41,7 +43,7 @@ export function Row({ lead, title, sub, trail, to, onClick, chevron, muted, wrap
       )}
     </>
   );
-  if (to) return <Link to={to} className={cls} {...aria}>{inner}</Link>;
+  if (to) return <Link to={to} state={state} className={cls} {...aria}>{inner}</Link>;
   if (onClick) return <button type="button" onClick={onClick} className={cls} {...aria}>{inner}</button>;
   return <div className={cls} {...aria}>{inner}</div>;
 }

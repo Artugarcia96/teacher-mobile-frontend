@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { invalidateCorrection, type ActivityHead } from '../../api/papers';
 import { api } from '../../lib/api';
 import { parseGradeInput } from '../../lib/format';
-import { Button, Sheet, TextField, useFeedback } from '../../ui';
+import { Button, DateField, Sheet, TextField, useFeedback } from '../../ui';
 
 /** "Editar datos": title, date and maximum score (PATCH /activities/{id}). */
 export default function ActivityDataSheet({ open, onClose, activity }: { open: boolean; onClose: () => void; activity: ActivityHead }) {
@@ -37,7 +37,7 @@ export default function ActivityDataSheet({ open, onClose, activity }: { open: b
       <div className="form">
         <TextField label="Título" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
         <div className="form-row">
-          <TextField label="Fecha" type="date" value={date} onChange={(e) => setDate(e.target.value)} hint="La evaluación se deduce de la fecha." />
+          <DateField label="Fecha" value={date} onChange={(v) => v && setDate(v)} hint="La evaluación se deduce de la fecha." />
           <TextField label="Nota máxima" inputMode="decimal" value={max} onChange={(e) => setMax(e.target.value)} />
         </div>
       </div>

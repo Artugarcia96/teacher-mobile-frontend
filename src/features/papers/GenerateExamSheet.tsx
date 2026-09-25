@@ -4,13 +4,18 @@ import type { Job } from '../../api/types';
 import { useUnits } from '../../api/units';
 import { Button, Chip, Segmented, Sheet, Skeleton, Stepper, TextArea, useFeedback } from '../../ui';
 import { GroundingList } from '../materials/GroundingList';
+import { unitFor } from '../units/unitFor';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   activityId: string;
   courseId: string;
+  /** The unit the teacher came from ("Generar examen" in a unit): preselected over anything else. */
   initialUnitId?: string | null;
+  /** To preselect the unit of the exam: the one linked to it, else the one its title names, else the current one. */
+  activityTitle: string;
+  activityUnitIds: string[];
   onJob: (job: Job) => void;
 }
 
@@ -21,7 +26,7 @@ const DIFFICULTY: { value: Difficulty; label: string }[] = [
 ];
 
 /** "Generar con IA": units + number of questions + difficulty + one line of instructions. */
-export default function GenerateExamSheet({ open, onClose, activityId, courseId, initialUnitId, onJob }: Props) {
+export default function GenerateExamSheet({ open, onClose, activityId, courseId, initialUnitId, activityTitle, activityUnitIds, onJob }: Props) {
   const units = useUnits(open ? courseId : undefined);
   const generate = useGenerateExam(activityId);
   const { toast } = useFeedback();
@@ -35,10 +40,10 @@ export default function GenerateExamSheet({ open, onClose, activityId, courseId,
   }, [open, initialUnitId]);
 
   useEffect(() => {
-    // Preselect the unit in progress when nothing was chosen.
+    // Preselect the exam's unit when nothing was chosen.
     if (open && !initialUnitId && units.data?.length && selected.length === 0) {
-      const current = units.data.find((u) => u.status === 'current');
-      if (current) setSelected([current.id]);
+      const id = unitFor(units.data, activityTitle, activityUnitIds);
+      if (id) setSelected([id]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, units.data]);

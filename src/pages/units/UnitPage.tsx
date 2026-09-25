@@ -2,7 +2,7 @@ import {
   CalendarBlank, Camera, DotsThree, Exam, FolderOpen, LinkSimple, PencilSimple, Plus, Trash, UploadSimple, WarningCircle,
 } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCreateActivity } from '../../api/activities';
 import { useDeleteUnit, usePatchUnit, useUnit, useUploadMaterials, type Material, type UnitStatus } from '../../api/units';
 import AddLinkSheet from '../../features/materials/AddLinkSheet';
@@ -37,6 +37,7 @@ type Target = { m: Material; kind: 'edit' | 'share' } | { m: Material; kind: 'pl
 export default function UnitPage() {
   const { courseId = '', unitId = '' } = useParams();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const today = useToday();
   const { toast, confirm } = useFeedback();
   const { data, isLoading, error } = useUnit(unitId);
@@ -44,7 +45,8 @@ export default function UnitPage() {
   const delUnit = useDeleteUnit(courseId);
   const upload = useUploadMaterials(unitId);
   const createActivity = useCreateActivity(courseId);
-  const [sheet, setSheet] = useState<Sheet>(null);
+  // «Crear ficha de refuerzo» from an exam: the worksheet form opens with what the class got wrong.
+  const [sheet, setSheet] = useState<Sheet>(() => (params.get('crear') === 'ficha' ? 'create' : null));
   const [target, setTarget] = useState<Target>(null);
   const [sent, setSent] = useState<number | null>(null); // upload progress 0-1
   const coarse = useCoarsePointer();
@@ -207,7 +209,9 @@ export default function UnitPage() {
         </Section>
       </div>
 
-      <CreateMaterialSheet open={sheet === 'create'} onClose={() => setSheet(null)} unitId={unit.id} notesId={notes?.id} />
+      <CreateMaterialSheet open={sheet === 'create'} unitId={unit.id} notesId={notes?.id}
+        initial={params.get('crear') === 'ficha' ? { kind: 'worksheet', worksheetKind: 'refuerzo', instructions: params.get('indicaciones') ?? '' } : undefined}
+        onClose={() => { setSheet(null); if (params.has('crear')) setParams({}, { replace: true }); }} />
       <UnitFormSheet open={sheet === 'edit'} onClose={() => setSheet(null)} courseId={courseId} unit={unit} />
       <AddLinkSheet open={sheet === 'link'} onClose={() => setSheet(null)} unitId={unit.id} />
       <PhotoPagesSheet open={sheet === 'photos'} onClose={() => setSheet(null)} unitId={unit.id} />

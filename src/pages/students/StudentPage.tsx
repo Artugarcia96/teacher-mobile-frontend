@@ -35,6 +35,7 @@ function GradeRow({ g }: { g: GradeLine }) {
     <Row title={g.title} wrapSub trail={score}
       sub={<>
         <span>{shortDate(g.date)} · {g.category_label}</span>
+        {g.adapted && <span className="st-adapted"><Chip tone={g.adapted.acs ? 'warn' : undefined}>{g.adapted.label}</Chip></span>}
         {g.comment && <span className="st-comment">«{g.comment}»</span>}
       </>} />
   );

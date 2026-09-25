@@ -1,5 +1,5 @@
 import { CaretDown } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCourseStudents } from '../../api/core';
 import { KIND_CATEGORY, type ActivityInput, type ActivityKind, type CountsFor } from '../../api/activities';
 import { finalRecoveryLabel } from '../../api/evaluation';
@@ -7,7 +7,8 @@ import type { Category } from '../../api/types';
 import { useUnits } from '../../api/units';
 import { useAuth } from '../../lib/auth';
 import { formatNumber, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
-import { Button, Chip, Select, Stepper, TextField } from '../../ui';
+import { Button, Chip, DateField, Select, Stepper, TextField } from '../../ui';
+import { unitFor } from '../units/unitFor';
 import { KindIcon, KINDS, termForDate } from './kinds';
 import './activities.css';
 
@@ -48,14 +49,17 @@ function dateHint(v: ActivityFormValue, term: number | null, stage: string): str
   return term ? `Cuenta para la ${TERM_LABEL[term]}` : undefined;
 }
 
-/** Fields shared by NewActivitySheet and EditActivitySheet. Controlled. `stage` of the class (labels of the final recovery). */
-export function ActivityForm({ value, onChange, categories, courseId, stage, moreOpen, autoFocus }: {
+/** Fields shared by NewActivitySheet and EditActivitySheet. Controlled. `stage` of the class (labels of the final recovery).
+ * `pickUnit`: a new activity follows its title to preselect the unit ("Examen U3 · Potencias" → Potencias; else the
+ * unit in progress) until the teacher chooses. */
+export function ActivityForm({ value, onChange, categories, courseId, stage, moreOpen, autoFocus, pickUnit }: {
   value: ActivityFormValue; onChange: (v: ActivityFormValue) => void; categories: Category[]; courseId: string; stage: string;
-  moreOpen?: boolean; autoFocus?: boolean;
+  moreOpen?: boolean; autoFocus?: boolean; pickUnit?: boolean;
 }) {
   const { me } = useAuth();
   const [more, setMore] = useState(!!moreOpen);
   const [catTouched, setCatTouched] = useState(!!moreOpen);
+  const [unitsTouched, setUnitsTouched] = useState(!pickUnit);
   const units = useUnits(courseId);
   const students = useCourseStudents(more ? courseId : undefined);
   // Students already chosen when the form opens (a recovery for the failing ones) are listed first.
@@ -64,6 +68,13 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
   const term = termForDate(me?.school_year, value.date);
   const set = (patch: Partial<ActivityFormValue>) => onChange({ ...value, ...patch });
   const derived = value.kind === 'homework'; // «Deberes»: kind and date are fixed by the homework checks
+
+  useEffect(() => {
+    if (unitsTouched || !units.data?.length) return;
+    const id = unitFor(units.data, value.title);
+    const next = id ? [id] : [];
+    if (next.join() !== value.unit_ids.join()) onChange({ ...value, unit_ids: next });
+  }, [unitsTouched, units.data, value, onChange]);
 
   const setKind = (kind: ActivityKind) => {
     const def = KIND_CATEGORY[kind];
@@ -93,14 +104,31 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
       )}
       <div className="act-form__row">
         {!derived && (
-          <TextField label="Fecha" type="date" value={value.date} required onChange={(e) => e.target.value && set({ date: e.target.value })}
-            hint={dateHint(value, term, stage)} />
+          <DateField label="Fecha" value={value.date} onChange={(v) => v && set({ date: v })} hint={dateHint(value, term, stage)} />
         )}
         <div className="field">
           <span className="field__label">Nota máxima</span>
           <Stepper label="Nota máxima" value={value.max_score} min={1} max={100} onChange={(v) => set({ max_score: v })} />
         </div>
       </div>
+      {!!units.data?.length && (
+        <div className="field">
+          <span className="field__label">Unidades</span>
+          <div className="chip-row">
+            {units.data.map((u) => {
+              const on = value.unit_ids.includes(u.id);
+              return (
+                <Chip key={u.id} selected={on} onClick={() => {
+                  setUnitsTouched(true);
+                  set({ unit_ids: on ? value.unit_ids.filter((x) => x !== u.id) : [...value.unit_ids, u.id] });
+                }}>
+                  {u.title}
+                </Chip>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {!more ? (
         <Button type="button" variant="plain" size="sm" className="act-form__more" icon={<CaretDown size={14} />} onClick={() => setMore(true)}>
           Más opciones
@@ -137,22 +165,6 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
                     <Chip key={st.id} selected={on}
                       onClick={() => set({ student_ids: on ? value.student_ids!.filter((x) => x !== st.id) : [...value.student_ids!, st.id] })}>
                       {st.first_name} {st.last_name.split(' ')[0]}
-                    </Chip>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {!!units.data?.length && (
-            <div className="field">
-              <span className="field__label">Unidades</span>
-              <div className="chip-row">
-                {units.data.map((u) => {
-                  const on = value.unit_ids.includes(u.id);
-                  return (
-                    <Chip key={u.id} selected={on}
-                      onClick={() => set({ unit_ids: on ? value.unit_ids.filter((x) => x !== u.id) : [...value.unit_ids, u.id] })}>
-                      {u.title}
                     </Chip>
                   );
                 })}

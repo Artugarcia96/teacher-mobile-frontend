@@ -11,11 +11,19 @@ export type CorrectionStep = 'prepare' | 'collect' | 'review' | 'done';
 export type MatchStatus = 'unmatched' | 'suggested' | 'confirmed';
 export type Difficulty = 'facil' | 'medio' | 'dificil';
 
-export interface RubricItem { id: string; label: string; text: string; points: number; answer: string; steps: string[] }
+/** `title`: what the question assesses, 2-4 words ("Operaciones combinadas"); "" when the AI did not give one. */
+export interface RubricItem { id: string; label: string; title?: string; text: string; points: number; answer: string; steps: string[] }
 export interface Rubric { title: string; items: RubricItem[]; total: number }
 
+/** Which version of the exam a student takes or a paper is («Modelo B», «Adaptado · letra ampliada»); `base` = the
+ * activity's own exam. Full versions: src/api/versions.ts. */
+export type VersionKind = 'base' | 'modelo' | 'adaptada';
+export interface VersionRef { key: string; label: string; kind: VersionKind }
+
+/** `repeat_of`: the original exam when this one is its repeat ("repesca"). */
 export interface ActivityHead {
   id: string; title: string; kind: ActivityKind; category: string; date: string; term: number; max_score: number; course: CourseRef;
+  repeat_of: string | null;
 }
 export interface CorrectionGrade {
   score: number | null; status: GradeStatus; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null;
@@ -27,7 +35,8 @@ export interface ScanPage {
   id: string; index: number; url: string; thumb_url: string; kind: PageKind; page_number: number | null; total_pages: number | null;
   exam_code: string | null; written_name: string; questions: string[]; back: boolean; maybe_written: boolean;
 }
-/** Warnings: falta_pagina · pagina_duplicada · extra_sin_nombre · pagina_dudosa · nombre_distinto · nombre_repetido.
+/** Warnings: falta_pagina · pagina_duplicada · extra_sin_nombre · pagina_dudosa · nombre_distinto · nombre_repetido ·
+ * version_distinta.
  * Info: orden · reverso_escrito · pagina_deducida · pagina_nueva_tras_nota. */
 export interface PaperFlag { code: string; pages: number[] }
 /** Another exam of the same teacher (a page of it in this pile, or the exam the pile was photocopied from). */
@@ -36,24 +45,37 @@ export type LooseReason = 'otro' | 'otro_examen' | 'sin_examen' | 'extra_sin_exa
 export interface LoosePage extends ScanPage { reason: LooseReason; candidates: StudentRef[]; other_exam: ExamRef | null }
 export type Tray = 'unplaced' | 'discarded';
 
+/** `version`: the version of their paper (or the one they take); null when the exam has no versions. */
 export interface CorrectionStudent {
   student: StudentRef; paper_id: string | null; match_status: MatchStatus | null; match_confidence: number | null; detected_name: string | null;
   thumb_url: string | null; grade: CorrectionGrade | null; pages: ScanPage[]; flags: PaperFlag[]; extra_count: number;
+  version: VersionRef | null;
 }
 export interface UnmatchedPaper {
   paper_id: string; detected_name: string | null; confidence: number | null; thumb_url: string | null; pages: number; candidates: StudentRef[];
   page_list: ScanPage[]; flags: PaperFlag[];
 }
-export interface FrequentError { item_id: string; label: string; text: string; avg_ratio: number }
+/** A question the class got wrong: "P5 · Operaciones combinadas" · "0,9 de 1,5 de media · 11 por debajo de la mitad".
+ * `title` is short and never cuts a formula. */
+export interface FrequentError {
+  item_id: string; label: string; title: string; avg_points: number; points: number; below_half: number; graded: number; avg_ratio: number;
+}
+/** `average`/`pass_rate` include the AI's unreviewed suggestions while there are any (`provisional` of them).
+ * `frequent_errors` only add up versions with Modelo A's questions: `excluded_adapted` / `excluded_modelo` papers are
+ * left out ("3 exámenes adaptados no cuentan en esta tabla"). */
 export interface CorrectionStats {
   papers: number; matched: number; suggested: number; confirmed: number; pending: number;
-  average: number | null; pass_rate: number | null; frequent_errors: FrequentError[];
+  average: number | null; pass_rate: number | null; provisional: number; frequent_errors: FrequentError[];
+  excluded_adapted: number; excluded_modelo: number;
 }
 export interface Correction {
   activity: ActivityHead; document_url: string | null; key_url: string | null; generated: boolean; rubric: Rubric | null;
   pages_per_paper: number | null; step: CorrectionStep; students: CorrectionStudent[]; unmatched: UnmatchedPaper[];
   stats: CorrectionStats; next_pending_id: string | null; job: Job | null;
   exam_code: string | null; unplaced: LoosePage[]; discarded: ScanPage[]; printed_from: ExamRef | null;
+  /** Other versions of the exam (Modelo B, adapted ones); `pending_adapted`: students whose measures ask for an adapted
+   * version they do not take yet; `named_print`: the class print was made (named copies go back to their student). */
+  versions: VersionRef[]; pending_adapted: number; named_print: boolean;
 }
 
 export interface Paper {
@@ -69,13 +91,24 @@ export interface PageOpResult {
 }
 
 export interface AIItem { id: string; points: number; feedback: string; confidence: number }
+/** Where one question's answer is: `index` into Review.pages, the band as fractions of the image. */
+export interface Crop { page_id: string; index: number; x0: number; y0: number; x1: number; y1: number }
+/** `pending`: students of the sequence still without a final grade (this one included). `match_status` "suggested":
+ * the name read on the paper must be confirmed before its grade can be accepted. `crops`: per rubric item;
+ * `page_hints`: for an item without crops, the index into `pages` where it most likely is. */
 export interface Review {
-  student: StudentRef; activity: ActivityHead; position: number; total: number;
+  student: StudentRef; activity: ActivityHead; position: number; total: number; pending: number;
   prev_student_id: string | null; next_student_id: string | null; next_pending_id: string | null;
-  paper_id: string | null; pages_urls: string[]; pages: ScanPage[]; flags: PaperFlag[]; items: RubricItem[]; rubric_total: number;
+  paper_id: string | null; match_status: MatchStatus | null; detected_name: string | null;
+  pages_urls: string[]; pages: ScanPage[]; flags: PaperFlag[]; items: RubricItem[]; rubric_total: number;
   grade: CorrectionGrade | null; ai: { items: AIItem[]; summary: string; suggested_score: number | null } | null;
+  crops: Record<string, Crop[]>; page_hints: Record<string, number>;
+  /** The paper's version («Modelo B», «Adaptado · letra ampliada»): its questions are the ones in `items`. */
+  version: VersionRef | null;
 }
 export interface ReviewInput { item_scores?: Record<string, number>; score?: number | null; comment?: string | null; absent?: boolean }
+/** `reviewed` of `total` students of the sequence have a final grade after this one. */
+export interface ReviewResult { grade: CorrectionGrade; next_student_id: string | null; reviewed: number; total: number }
 
 export interface GenerateInput { unit_ids: string[]; n_items: number; difficulty: Difficulty; instructions?: string }
 
@@ -88,6 +121,7 @@ export const correctionKeys = {
 /** Everything that shows grades or pending work for this activity. */
 export function invalidateCorrection(qc: QueryClient, activityId: string, courseId?: string) {
   qc.invalidateQueries({ queryKey: correctionKeys.one(activityId) });
+  qc.invalidateQueries({ queryKey: ['versions', activityId] });
   qc.invalidateQueries({ queryKey: activityKeys.one(activityId) });
   qc.invalidateQueries({ queryKey: ['inbox'] });
   qc.invalidateQueries({ queryKey: ['today'] });
@@ -182,9 +216,10 @@ export function usePapers(activityId: string | undefined) {
   return useQuery({ queryKey: correctionKeys.papers(activityId!), queryFn: () => api.get<Paper[]>(`/activities/${activityId}/papers`), enabled: !!activityId });
 }
 
+/** Assign a paper: its AI grading goes along; joined to pages the student already had, it is graded again (`job`). */
 export function useAssignPaper(activityId: string) {
   return useCorrectionMutation(activityId, ({ paperId, studentId }: { paperId: string; studentId: string | null }) =>
-    api.patch<Paper>(`/papers/${paperId}`, { student_id: studentId }));
+    api.patch<Paper & { job: Job | null }>(`/papers/${paperId}`, { student_id: studentId }));
 }
 
 /** «Descartar hoja»: its pages go to the discarded tray (recoverable). */
@@ -197,8 +232,9 @@ export function useSuggest(activityId: string) {
     api.post<JobRef>(`/activities/${activityId}/suggest`, { student_ids: studentIds ?? null }));
 }
 
+/** Confirms every AI suggestion except those whose paper's name is still to confirm (`skipped`). */
 export function useAcceptAll(activityId: string, courseId?: string) {
-  return useCorrectionMutation(activityId, () => api.post<{ count: number }>(`/activities/${activityId}/accept-all`), courseId);
+  return useCorrectionMutation(activityId, () => api.post<{ count: number; skipped: number }>(`/activities/${activityId}/accept-all`), courseId);
 }
 
 export function useReview(activityId: string | undefined, studentId: string | null | undefined) {
@@ -220,7 +256,7 @@ export function prefetchReview(qc: QueryClient, activityId: string, studentId: s
 
 export function useConfirmReview(activityId: string, courseId?: string) {
   return useCorrectionMutation(activityId, ({ studentId, ...body }: ReviewInput & { studentId: string }) =>
-    api.post<{ grade: CorrectionGrade; next_student_id: string | null }>(`/activities/${activityId}/review/${studentId}`, body), courseId);
+    api.post<ReviewResult>(`/activities/${activityId}/review/${studentId}`, body), courseId);
 }
 
 /** Poll a job that works on this activity; refresh the correction when it ends. */

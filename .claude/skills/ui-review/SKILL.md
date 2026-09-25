@@ -10,6 +10,9 @@ description: Screenshot Sepia screens on phone and desktop and review them again
    node e2e/shoot.mjs e2e/screenshots/review /hoy "/clases" "/clases/<id>/cuaderno"
    # acciones: "/hoy::click=text=Pasar lista" abre la hoja antes de capturar
    ```
+   El móvil se emula como un teléfono (táctil, viewport móvil). Si una página es más ancha que la pantalla, el
+   script lo dice (`OVERFLOW …`) y termina con error: en Android esa página se desplaza de lado y la barra fija
+   queda fuera de la vista.
 2. **Abre y mira cada PNG** (herramienta Read). No declares nada terminado sin haberlo visto.
 3. Revisa con esta lista (y arregla lo que falle):
    - ¿Un profesor con 30 segundos entre clases entiende la pantalla y encuentra la acción principal sin buscar?

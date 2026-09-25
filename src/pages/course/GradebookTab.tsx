@@ -100,7 +100,7 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
 interface Pending { key: string; lead: ReactNode; title: string; sub: string; to?: string; onClick?: () => void }
 
 /** One row per column that needs something while they are few (one on phones, two on desktop); beyond that one summary
- * row ("Revisar 18 borradores" · "2 faltas en exámenes") that opens them in a sheet, so the grid keeps the screen.
+ * row ("18 por revisar" · "2 faltas en exámenes") that opens them in a sheet, so the grid keeps the screen.
  * A scheduled repesca needs nothing until its date: not listed. */
 function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data: Gradebook; onAbsences: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -113,7 +113,7 @@ function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data:
     if (a.suggested > 0) {
       drafts += a.suggested;
       items.push({ key: `d-${a.id}`, lead: <AIBadge />, to: `/clases/${course.id}/actividades/${a.id}`,
-        title: `Revisar ${plural(a.suggested, 'borrador', 'borradores')}`, sub: `${a.title} · no cuentan en la media hasta que los revises` });
+        title: `${a.suggested} por revisar`, sub: `${a.title} · no cuentan en la media hasta que los revises` });
     }
     const names = missedNames(a);
     if (names.length) {
@@ -136,7 +136,7 @@ function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data:
       onClick={it.onClick && (() => { close?.(); it.onClick!(); })} />
   ));
   const parts = [
-    drafts > 0 && `Revisar ${plural(drafts, 'borrador', 'borradores')}`,
+    drafts > 0 && `${drafts} por revisar`,
     missed > 0 && `${plural(missed, 'falta', 'faltas')} en exámenes`,
     conflicts > 0 && plural(conflicts, 'aviso de lista', 'avisos de lista'),
   ].filter((p): p is string => !!p);
