@@ -2,20 +2,20 @@ import { ArrowRight, Exam, FileCsv, PencilSimple, Plus, Scales, Student, UserMin
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActivityBrief, GradeInput } from '../../api/activities';
-import { useGradebook, useSaveCell, type Gradebook, type GradebookActivity, type GradebookRow, type GradeCell } from '../../api/gradebook';
+import { useGradebook, useSaveCell, useUnsavedCells, type Gradebook, type GradebookActivity, type GradebookRow, type GradeCell } from '../../api/gradebook';
 import type { CourseDetail } from '../../api/types';
 import { useCourseMenu } from '../../features/course/CourseMenu';
-import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
 import EditActivitySheet from '../../features/activities/EditActivitySheet';
 import ExamAbsencesSheet from '../../features/activities/ExamAbsencesSheet';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { KindIcon } from '../../features/activities/kinds';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { exportCsvLabel, formatAverage, formatNumber, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { exportCsvLabel, formatAverage, formatNumber, formatProposal, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Row, RowIcon, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
+import WeightsSheet from './WeightsSheet';
 import './GradebookTab.css';
 
 const TERMS = [1, 2, 3, 4].map((t) => ({ value: t, label: TERM_SHORT[t] }));
@@ -31,9 +31,9 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [absencesId, setAbsencesId] = useState<string | null>(null);
   const [weights, setWeights] = useState(false);
-  const [settings, setSettings] = useState(false);
   const [focus, setFocus] = useState<{ id: string; edit: boolean } | null>(() => (params.get('a') ? { id: params.get('a')!, edit: false } : null));
   const { toast } = useFeedback();
+  const navigate = useNavigate();
 
   const setTerm = (t: number) => setParams((p) => { p.set('term', String(t)); p.delete('a'); return p; }, { replace: true });
 
@@ -42,7 +42,9 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
       .then(() => toast('CSV descargado'))
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
+  const evaluate = term === 4 ? 'Evaluación final' : `Evaluar la ${TERM_SHORT[term]}`;
   useCourseMenu([
+    { label: evaluate, icon: <ArrowRight size={18} />, onSelect: () => navigate(`/clases/${course.id}/evaluacion/${term}`) },
     { label: exportCsvLabel(me?.region), icon: <FileCsv size={18} />, onSelect: exportCsv },
     { label: 'Ponderaciones', icon: <Scales size={18} />, onSelect: () => setWeights(true) },
   ]);
@@ -58,12 +60,7 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
     <>
       <div className="gb-toolbar">
         <Segmented label="Evaluación" value={term} options={TERMS} onChange={setTerm} />
-        <div className="gb-toolbar__actions">
-          <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => setNewOpen(true)}>Actividad</Button>
-          <Button size="sm" variant="neutral" to={`/clases/${course.id}/evaluacion/${term}`} icon={<ArrowRight size={16} />}>
-            {term === 4 ? 'Evaluación final' : `Evaluar la ${TERM_SHORT[term]}`}
-          </Button>
-        </div>
+        <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => setNewOpen(true)}>Actividad</Button>
       </div>
 
       {gb.error && !data ? (
@@ -90,8 +87,7 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
       <NewActivitySheet open={newOpen} onClose={() => setNewOpen(false)} course={course} onCreated={onCreated} />
       <EditActivitySheet activityId={editId} onClose={() => setEditId(null)} course={course} />
       <ExamAbsencesSheet activityId={absencesId} onClose={() => setAbsencesId(null)} course={course} />
-      <WeightsSheet open={weights} onClose={() => setWeights(false)} course={course} onEdit={() => { setWeights(false); setSettings(true); }} />
-      <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
+      <WeightsSheet open={weights} onClose={() => setWeights(false)} course={course} />
     </>
   );
 }
@@ -187,7 +183,8 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   const today = useToday();
   const navigate = useNavigate();
   const { toast } = useFeedback();
-  const save = useSaveCell(course.id, data.term);
+  const save = useSaveCell(course.id);
+  const unsaved = useUnsavedCells(course.id);
   const [editing, setEditingState] = useState<Pos | null>(null);
   const editingRef = useRef<Pos | null>(null);
   const [draft, setDraft] = useState('');
@@ -262,7 +259,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
       optimistic = { score: parsed, status: 'confirmed', ...via };
     }
     if (grade && optimistic) {
-      save.mutate({ activityId: target, columnId: act.id, grade, optimistic }, {
+      save.mutate({ term: data.term, activityId: target, columnId: act.id, grade, optimistic }, {
         onError: (e) => toast(`No se ha guardado la nota de ${row.student.first_name}. ${e.message}`, { tone: 'error' }),
       });
     }
@@ -293,8 +290,15 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   };
 
   const draftsNote = data.drafts > 0;
+  const retryAll = () => unsaved.forEach((u) => save.mutate(u));
   return (
     <>
+      {unsaved.length > 0 && (
+        <Callout tone="warn">
+          <b>{unsaved.length === 1 ? '1 nota sin guardar' : `${unsaved.length} notas sin guardar`}</b>{' '}
+          <Button size="sm" variant="plain" onClick={retryAll}>Reintentar</Button>
+        </Callout>
+      )}
       <div className="gb-card">
         <div className={`gb-scroll${more ? ' gb-scroll--more' : ''}`} ref={scroller}>
           <table className="gb">
@@ -316,9 +320,12 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     onOpen={() => navigate(`/clases/${course.id}/actividades/${a.id}`)} onEdit={() => onEdit(a.id)} />
                 ))}
                 <th className="gb-avg" scope="col">
-                  <span className="gb-avg__head">Media{draftsNote && <small>sin contar borradores</small>}</span>
+                  <Link className="gb-avg__head" to={`/clases/${course.id}/evaluacion/${data.term}`}
+                    aria-label={`Media. ${final ? 'Evaluación final' : `Evaluar la ${TERM_SHORT[data.term]}`}`}>
+                    Media<small className="gb-avg__link">{final ? 'Final ›' : `Evaluar ›`}</small>
+                  </Link>
                 </th>
-                <th className="gb-prop" scope="col">Prop.</th>
+                <th className="gb-prop" scope="col">Nota</th>
               </tr>
             </thead>
             <tbody>
@@ -340,15 +347,22 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                       return <td key={a.id} className="gb-cell gb-cell--na" aria-label={`${label}: no hace esta actividad`} />;
                     }
                     const isEditing = editing?.r === r && editing.c === c;
+                    const failed = unsaved.find((u) => u.term === data.term && u.columnId === a.id && u.grade.student_id === row.student.id);
                     const cls = ['gb-cell', a.date === today && 'gb-today', flash === a.id && 'gb-flash', isEditing && 'gb-cell--editing'].filter(Boolean).join(' ');
                     return (
                       <td key={a.id} className={cls}>
                         {isEditing ? (
-                          <CellInput value={draft} onChange={setDraft} above={r > 1}
+                          <CellInput value={draft} onChange={setDraft}
                             onKeyDown={(e) => onKey(e, { r, c })}
                             onBlur={() => { const p = editingRef.current; if (p && p.r === r && p.c === c) commit(p, null); }}
                             onQuick={(v) => commit({ r, c }, step(r, c, 1), v)}
                             label={label} />
+                        ) : failed ? (
+                          <button type="button" className="gb-cell__btn gb-unsaved" onClick={() => save.mutate(failed)}
+                            aria-label={`${label}: ${cellText(failed.optimistic) || 'borrar nota'}, sin guardar. Toca para reintentar`}>
+                            <span>{cellText(failed.optimistic) || '—'}</span>
+                            <small>Sin guardar</small>
+                          </button>
                         ) : (
                           <button type="button" className="gb-cell__btn" onClick={() => setEditing({ r, c })}
                             aria-label={`${label}: ${cellLabel(cell, a.kind === 'homework')}`}
@@ -367,7 +381,12 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     </button>
                   </td>
                   <td className="gb-prop">
-                    {row.proposed != null ? <GradePill value={row.proposed} label={row.qualitative} proposal /> : <span className="gb-empty">—</span>}
+                    {row.final != null ? (
+                      <span className="gb-prop__val" title={row.adjusted ? `Ajustada en Evaluación (propuesta ${formatProposal(row.proposed)})` : 'Propuesta'}>
+                        <GradePill value={row.final} label={row.qualitative} proposal />
+                        {row.adjusted && <span className="gb-avg__rec">aj.</span>}
+                      </span>
+                    ) : <span className="gb-empty">—</span>}
                   </td>
                 </tr>
               ))}
@@ -419,9 +438,11 @@ function CellValue({ cell, max, calculated }: { cell: GradeCell | undefined; max
   return <Grade value={cell.score} max={max} className={cell.repeat ? 'gb-repeat' : undefined} />;
 }
 
-function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label, above }: {
+/** The phone's decimal keypad has no letters: NP sits beside the cell, over the same row, so the column being typed stays
+ *  visible. Emptying the cell deletes the grade. */
+function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label }: {
   value: string; onChange: (v: string) => void; onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void; onBlur: () => void;
-  onQuick: (v: string) => void; label: string; above: boolean;
+  onQuick: (v: string) => void; label: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -436,9 +457,8 @@ function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label, above }
     <>
       <input ref={ref} className="gb-input num" inputMode="decimal" autoComplete="off" enterKeyHint="next" aria-label={label}
         value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} onBlur={onBlur} />
-      <div className={`gb-quick glass${above ? ' gb-quick--above' : ''}`}>
-        <button type="button" onPointerDown={keep} onClick={() => onQuick('NP')}>NP</button>
-        <button type="button" onPointerDown={keep} onClick={() => onQuick('')}>Borrar</button>
+      <div className="gb-quick glass">
+        <button type="button" onPointerDown={keep} onClick={() => onQuick('NP')} aria-label="No presentado">NP</button>
       </div>
     </>
   );
@@ -501,7 +521,11 @@ function AverageSheet({ row, onClose, data, categories }: {
         <div className="gb-avg-sheet">
           <div className="gb-avg-sheet__head">
             <span className="gb-avg-sheet__num display"><Grade value={row.average} /></span>
-            {row.proposed != null && <span className="muted">Propuesta <GradePill value={row.proposed} label={row.qualitative} proposal /></span>}
+            {row.final != null && (
+              <span className="muted">
+                {row.adjusted ? `Propuesta ${formatProposal(row.proposed)} · ajustada a` : 'Propuesta'} <GradePill value={row.final} label={row.qualitative} proposal />
+              </span>
+            )}
           </div>
           <List>
             {categories.map((c) => (
@@ -535,25 +559,3 @@ const RULE_TEXT: Record<Gradebook['recovery_rule'], string> = {
   cap_5: 'la recuperación deja como máximo un 5',
   average: 'media de la evaluación y la recuperación',
 };
-
-function WeightsSheet({ open, onClose, course, onEdit }: { open: boolean; onClose: () => void; course: CourseDetail; onEdit: () => void }) {
-  const total = course.categories.reduce((a, c) => a + c.weight, 0);
-  return (
-    <Sheet open={open} onClose={onClose} title="Ponderaciones" subtitle={course.label}
-      footer={<Button variant="tinted" full onClick={onEdit}>Cambiar ponderaciones</Button>}>
-      <div className="gb-avg-sheet">
-        <List>
-          {course.categories.map((c) => (
-            <Row key={c.key} title={c.label} trail={<span className="num">{formatNumber(total ? (c.weight / total) * 100 : 0, 0)} %</span>} />
-          ))}
-        </List>
-        <p className="muted">
-          La media de cada categoría es la media de sus actividades (según su peso). La media de la evaluación combina las
-          categorías con estos porcentajes; si una categoría aún no tiene notas, no cuenta. Las notas sugeridas (por la IA o
-          calculadas con los deberes) no cuentan hasta que las confirmas, y las actividades marcadas «No cuenta» (evaluación
-          inicial) nunca cuentan.
-        </p>
-      </div>
-    </Sheet>
-  );
-}

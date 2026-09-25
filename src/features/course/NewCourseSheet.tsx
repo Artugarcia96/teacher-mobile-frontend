@@ -126,7 +126,12 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
           )}
           {!isNew && groupId && (
             <span className="field__hint">
-              {(() => { const g = groups.data?.find((x) => x.id === groupId); return g?.student_count ? `Ya tiene ${g.student_count} alumnos: se usarán en esta clase.` : 'Aún no tiene alumnos.'; })()}
+              {(() => {
+                const g = groups.data?.find((x) => x.id === groupId);
+                return g?.student_count
+                  ? `Ya tiene ${g.student_count} alumnos: se usarán en esta clase. ¿Solo algunos? Elige «Nuevo grupo» y añádelos desde ${ordinals(g.name)}.`
+                  : 'Aún no tiene alumnos.';
+              })()}
             </span>
           )}
         </div>

@@ -11,7 +11,7 @@ import EditStudentSheet from '../../features/students/EditStudentSheet';
 import { measureChips, supportLabel } from '../../features/students/support';
 import { studentSummary } from '../../features/students/summary';
 import { ApiError } from '../../lib/api';
-import { courseLabel, formatScore, NOTE_KIND_LABEL, ordinals, plural, shortDate, TERM_SHORT } from '../../lib/format';
+import { courseLabel, formatAverage, formatScore, NOTE_KIND_LABEL, ordinals, plural, shortDate, TERM_SHORT } from '../../lib/format';
 import {
   Button, Callout, Chip, DESKTOP, Dot, EmptyState, Grade, GradePill, IconButton, List, Menu, Page, Row, Section, SkeletonList,
   useFeedback, useMediaQuery, type MenuItem,
@@ -20,11 +20,11 @@ import './student.css';
 
 const KIND_TONE: Record<string, 'danger' | 'ok' | 'info' | undefined> = { incident: 'danger', positive: 'ok', family: 'info' };
 
-/** Terms 1-3 show the teacher's final grade if set, else the average. The final one stays "—" until the 3rd term has
- *  an average (or the teacher sets it): before that it would only repeat the terms already shown. */
+/** The grade that counts (the teacher's adjustment, else the proposal), as in Cuaderno and Evaluación. The final one stays
+ *  "—" until the 3rd term has an average (or the teacher sets it): before that it would only repeat the terms already shown. */
 function termValue(t: TermCell, terms: TermCell[]): number | null {
   if (t.term === 4 && t.final == null && terms.find((x) => x.term === 3)?.average == null) return null;
-  return t.final ?? t.average;
+  return t.final ?? t.proposed ?? null;
 }
 
 function GradeRow({ g }: { g: GradeLine }) {
@@ -51,7 +51,8 @@ function CourseGrades({ sc, single, expanded }: { sc: StudentCourse; single: boo
         {sc.terms.map((t) => (
           <div key={t.term} className="st-term">
             <span className="st-term__label">{TERM_SHORT[t.term]}</span>
-            <GradePill value={termValue(t, sc.terms)} proposal={t.final != null} />
+            <GradePill value={termValue(t, sc.terms)} proposal />
+            {termValue(t, sc.terms) != null && t.average != null && <span className="st-term__avg num">media {formatAverage(t.average)}</span>}
           </div>
         ))}
       </div>

@@ -1,11 +1,11 @@
 import { Books, CaretDown, Plus } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useArchivedCourses, useCourses, usePatchCourse } from '../../api/core';
+import { useArchivedCourses, useCourses, usePatchCourse, useSearch } from '../../api/core';
 import { useDay } from '../../api/today';
 import type { CourseSummary } from '../../api/types';
 import NewCourseSheet from '../../features/course/NewCourseSheet';
-import { SearchResults } from '../../features/students/StudentSearch';
+import { firstResultPath, SearchResults } from '../../features/students/StudentSearch';
 import { useAuth, useToday } from '../../lib/auth';
 import { courseLabel, plural, sessionText } from '../../lib/format';
 import { Button, Chip, Dot, EmptyState, List, Page, Row, SearchField, Segmented, SkeletonList, useFeedback } from '../../ui';
@@ -72,6 +72,7 @@ export default function CoursesPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
+  const search = useSearch(q);
   const creating = params.get('nueva') === '1';
   const pending = usePending(today, !!data?.length);
   const view = params.get('vista') === 'materiales' ? 'materials' : 'classes';
@@ -140,7 +141,11 @@ export default function CoursesPage() {
       actions={data?.length ? <Button size="sm" variant="plain" icon={<Plus size={16} weight="bold" />} onClick={openNew}>Nueva clase</Button> : undefined}>
       {!!data?.length && (
         <div className="courses__search">
-          <SearchField value={q} onChange={setQ} placeholder="Buscar alumno o clase" label="Buscar alumno o clase" />
+          <SearchField value={q} onChange={setQ} placeholder="Buscar alumno o clase" label="Buscar alumno o clase"
+            onKeyDown={(e) => {
+              const path = e.key === 'Enter' && !search.isPlaceholderData ? firstResultPath(search.data) : null;
+              if (path) navigate(path);
+            }} />
         </div>
       )}
       {body}
