@@ -1,10 +1,6 @@
-/* Phone: «Anotar» and «Preparar tutoría» side by side, full width. Tablet+: one row of their own size. */
-.st-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
-.st-actions > .btn { padding: 0 10px; }
-@media (min-width: 768px) {
-  .st-actions { display: flex; }
-  .st-actions > .btn { padding: 0 18px; }
-}
+/* Phone: «Anotar» full width. Tablet+: its own size. */
+.st-actions { display: grid; }
+@media (min-width: 768px) { .st-actions { display: flex; } }
 .st-acked { display: block; margin-top: 2px; }
 
 .st-support { display: grid; gap: 6px; }

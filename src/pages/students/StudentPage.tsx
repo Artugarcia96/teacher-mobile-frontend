@@ -1,4 +1,4 @@
-import { CaretDown, ChatCircleText, CheckCircle, DotsThree, NotePencil, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
+import { CaretDown, CheckCircle, DotsThree, NotePencil, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useSetMark } from '../../api/attendance';
@@ -7,7 +7,6 @@ import { useDeleteNote } from '../../api/notes';
 import type { WatchItem } from '../../api/today';
 import type { AttendanceEntry, GradeLine, GroupRef, Note, StudentCourse, TermCell } from '../../api/types';
 import QuickNoteSheet from '../../features/notes/QuickNoteSheet';
-import BriefSheet from '../../features/students/BriefSheet';
 import EditNoteSheet from '../../features/students/EditNoteSheet';
 import EditStudentSheet from '../../features/students/EditStudentSheet';
 import FamilyMessageSheet from '../../features/students/FamilyMessageSheet';
@@ -164,7 +163,6 @@ export default function StudentPage() {
   const desktop = useMediaQuery(DESKTOP);
   const unenroll = useUnenroll();
   const [noting, setNoting] = useState(false);
-  const [briefing, setBriefing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState<Note | null>(null);
   const [watchItem, setWatchItem] = useState<WatchItem | null>(null);
@@ -235,7 +233,6 @@ export default function StudentPage() {
       toolbar={
         <div className="st-actions">
           <Button variant="tinted" icon={<NotePencil size={18} />} onClick={() => setNoting(true)}>Anotar</Button>
-          <Button variant="neutral" icon={<ChatCircleText size={18} />} onClick={() => setBriefing(true)}>Preparar tutoría</Button>
         </div>
       }
     >
@@ -293,7 +290,6 @@ export default function StudentPage() {
 
       <QuickNoteSheet open={noting} onClose={() => setNoting(false)} studentIds={[s.id]}
         courseIds={f.courses.map((c) => c.course.id)} />
-      <BriefSheet open={briefing} onClose={() => setBriefing(false)} studentId={s.id} name={s.name} />
       <EditStudentSheet open={editing} onClose={() => setEditing(false)} student={s} notesText={f.notes_text}
         acsAllowed={!f.groups.length || f.groups.some((g) => g.stage === 'primaria' || g.stage === 'eso')} />
       <EditNoteSheet note={editNote} onClose={() => setEditNote(null)} />

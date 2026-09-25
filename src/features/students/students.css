@@ -1,9 +1,5 @@
 .add-st__preview { display: grid; gap: var(--s-2); }
 .add-st__on { color: var(--accent); }
-.brief { display: grid; gap: var(--s-3); }
-.brief > .ai-badge { justify-self: start; }
-.brief__lines { display: grid; gap: 12px; padding: 4px 0 8px; }
-.brief__text.textarea { min-height: 0; line-height: 1.5; }
 .edit-st__group { display: grid; gap: var(--s-2); }
 .row__title > .edit-st__measure { font-weight: 500; white-space: normal; }
 .search-sheet { display: grid; gap: var(--s-5); }
