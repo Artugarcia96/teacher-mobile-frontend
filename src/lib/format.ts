@@ -181,6 +181,11 @@ export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/** "1" · "1 y 3" · "1, 2 y 3" */
+export function listed(names: string[]): string {
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0] ?? '';
+}
+
 export const KIND_LABEL: Record<string, string> = {
   exam: 'Examen', worksheet: 'Ficha', task: 'Trabajo', oral: 'Oral', notebook: 'Cuaderno', attitude: 'Actitud', other: 'Otra', homework: 'Deberes',
 };

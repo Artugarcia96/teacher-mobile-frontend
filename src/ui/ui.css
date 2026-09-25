@@ -258,6 +258,7 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .stepper button:hover:not(:disabled) { background: var(--paper); }
 .stepper button:disabled { opacity: 0.35; }
 .stepper output { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+.stepper output.stepper__unset { color: var(--ink-3); font-weight: 400; }
 
 /* ── Sheet ──────────────────────────────────────────────── */
 .sheet-scrim { position: fixed; inset: 0; z-index: 100; background: var(--scrim); animation: fade-in var(--t-med) var(--ease); }

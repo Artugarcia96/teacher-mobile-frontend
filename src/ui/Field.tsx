@@ -168,7 +168,8 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 interface StepperProps {
-  value: number;
+  /** null: nothing set yet ("—"): «Menos» sets the minimum and «Más» the maximum, to fine-tune from there. */
+  value: number | null;
   onChange: (v: number) => void;
   min?: number;
   max?: number;
@@ -181,9 +182,11 @@ export function Stepper({ value, onChange, min = 0, max = 100, step = 1, format,
   const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v / step) * step));
   return (
     <div className="stepper" role="group" aria-label={label}>
-      <button type="button" aria-label="Menos" disabled={value <= min} onClick={() => onChange(clamp(value - step))}><Minus size={16} weight="bold" /></button>
-      <output>{format ? format(value) : value}</output>
-      <button type="button" aria-label="Más" disabled={value >= max} onClick={() => onChange(clamp(value + step))}><Plus size={16} weight="bold" /></button>
+      <button type="button" aria-label="Menos" disabled={value !== null && value <= min}
+        onClick={() => onChange(value === null ? min : clamp(value - step))}><Minus size={16} weight="bold" /></button>
+      <output className={value === null ? 'stepper__unset' : undefined}>{value === null ? '—' : format ? format(value) : value}</output>
+      <button type="button" aria-label="Más" disabled={value !== null && value >= max}
+        onClick={() => onChange(value === null ? max : clamp(value + step))}><Plus size={16} weight="bold" /></button>
     </div>
   );
 }
