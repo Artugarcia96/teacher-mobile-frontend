@@ -5,9 +5,8 @@
 # workflow_dispatch: choose "Use workflow from" = this branch; the repo's default branch deploys the old coteacher app.
 name: Deploy web
 
+# Manual only: nothing is published until the owner decides (Actions → Deploy web → Run workflow).
 on:
-  push:
-    branches: [claude/repo-analysis-webpage-issue-7t3d8w, main]
   workflow_dispatch:
 
 concurrency:
