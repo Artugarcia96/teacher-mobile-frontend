@@ -82,8 +82,8 @@ Ajustes        /ajustes                 perfil, curso escolar, festivos, cerrar 
 ### 4.1 Septiembre — poner en marcha (≤ 5 minutos)
 1. Registro → se crea el curso escolar con trimestres y festivos nacionales por defecto (editables en Ajustes).
 2. "Nueva clase": materia + grupo (crear o elegir) + horario (días y horas, tramos de 55 min por defecto) + aula.
-3. "Añadir alumnos": **pegar la lista** (un alumno por línea, acepta "Apellidos, Nombre" y "Nombre Apellidos") o importar CSV/Excel (detecta `;`, Latin-1, BOM). Si el grupo ya tiene alumnos (otra materia), se reutilizan.
-4. Programación: añadir unidades a mano, o **"Importar temario"**: pegar el índice del libro / programación → la IA propone unidades con trimestre → confirmar.
+3. "Añadir alumnos": **pegar la lista** (un alumno por línea, acepta "Apellidos, Nombre" y "Nombre Apellidos") o importar CSV/Excel (detecta `;`, Latin-1, BOM). Si el grupo ya tiene alumnos (otra materia), se reutilizan. La primera lista es la clase desde el principio; un alumno añadido después llega hoy: nada anterior le falta (no sale «sin nota» en Evaluar ni en sus exámenes pendientes, no está en las listas ni en los deberes de días anteriores).
+4. Programación: añadir unidades a mano, o **"Importar temario"**: pegar el índice del libro / programación (entera, con su preámbulo) → la IA propone unidades con trimestre → confirmar. Si el texto es demasiado largo, la revisión dice hasta dónde se ha leído.
 5. Ponderaciones de la clase: por defecto *Exámenes 60 %, Trabajos y fichas 30 %, Observación 10 %*. Editable en una hoja.
 
 ### 4.2 Cada día — Hoy

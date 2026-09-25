@@ -123,7 +123,8 @@ export function useOrderUnits(courseId: string) {
 
 export function useImportUnits(courseId: string) {
   return useMutation({
-    mutationFn: (text: string) => api.post<{ proposals: { title: string; term: number | null }[] }>(`/courses/${courseId}/units/import`, { text }),
+    mutationFn: (text: string) =>
+      api.post<{ proposals: { title: string; term: number | null }[]; warning: string | null }>(`/courses/${courseId}/units/import`, { text }),
   });
 }
 
