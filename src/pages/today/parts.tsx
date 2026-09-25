@@ -1,10 +1,11 @@
 /** Building blocks of Hoy: "Ahora" card, agenda, pendiente, a vigilar. Layout in today.css. */
 import {
-  CalendarBlank, ChatCenteredText, Check, Exam, FlagCheckered, ListChecks, NotePencil, Table, UsersThree,
+  CalendarBlank, CalendarPlus, ChatCenteredText, Check, Exam, FlagCheckered, ListChecks, NotePencil, Table, UserPlus, UsersThree,
 } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { PendingItem, Today, TodayEvent, TodaySession, WatchItem } from '../../api/today';
+import type { CourseSummary } from '../../api/types';
 import { MaterialChips } from '../../features/materials/MaterialChips';
 import { courseShortLabel, ordinals, parseDate, plural, roomLabel, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, Dot, List, Row, RowIcon } from '../../ui';
@@ -209,15 +210,34 @@ const PENDING_ICON: Record<PendingItem['kind'], ReactNode> = {
   attendance: <ListChecks size={20} />, review: <Exam size={20} />, grades: <Table size={20} />, comments: <ChatCenteredText size={20} />,
 };
 
-/** Already sorted by urgency by the server. */
-export function PendingList({ items, onOpen }: { items: PendingItem[]; onOpen: (p: PendingItem) => void }) {
-  if (!items.length) return <List><Row lead={<RowIcon><Check size={20} /></RowIcon>} title="Todo al día" sub="No hay listas, correcciones ni comentarios pendientes." muted /></List>;
+/** A class that cannot be used yet, and what it needs first: without a timetable it never shows up in Hoy, without
+ *  students it has no list nor grades. */
+export type SetupStep = { course: CourseSummary; need: 'schedule' | 'students' };
+
+/** The one next step to finish setting up the classes (the first class, in list order, that lacks something). */
+export function setupStep(courses: CourseSummary[] | undefined): SetupStep | null {
+  const course = courses?.find((c) => !c.schedule.length || !c.student_count);
+  return course ? { course, need: course.schedule.length ? 'students' : 'schedule' } : null;
+}
+
+/** Already sorted by urgency by the server. A class still to set up comes last, as one line with its verb: «Todo al
+ *  día» is only said when there is really nothing left. */
+export function PendingList({ items, onOpen, setup, onSetup }: {
+  items: PendingItem[]; onOpen: (p: PendingItem) => void; setup: SetupStep | null; onSetup: (s: SetupStep) => void;
+}) {
+  if (!items.length && !setup) return <List><Row lead={<RowIcon><Check size={20} /></RowIcon>} title="Todo al día" sub="No hay listas, correcciones ni comentarios pendientes." muted /></List>;
+  const label = setup && courseShortLabel(setup.course);
   return (
     <List inset={64}>
       {items.map((p) => (
         <Row key={`${p.kind}-${p.course_id ?? ''}-${p.activity_id ?? ''}-${p.date ?? ''}-${p.start ?? ''}`} onClick={() => onOpen(p)}
           lead={<RowIcon tone={p.kind === 'attendance' ? 'warn' : 'accent'}>{PENDING_ICON[p.kind]}</RowIcon>} title={p.title} sub={p.sub} />
       ))}
+      {setup && (setup.need === 'schedule'
+        ? <Row onClick={() => onSetup(setup)} lead={<RowIcon><CalendarPlus size={20} /></RowIcon>} wrapSub
+            title="Añadir horario" sub={`${label} aún no tiene horario: no sale en Hoy ni se pasa lista.`} />
+        : <Row onClick={() => onSetup(setup)} lead={<RowIcon><UserPlus size={20} /></RowIcon>} wrapSub
+            title="Añadir alumnos" sub={`${label} aún no tiene alumnos: no hay lista ni notas.`} />)}
     </List>
   );
 }

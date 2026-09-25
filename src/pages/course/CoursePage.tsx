@@ -1,6 +1,6 @@
 import { ClipboardText, DotsThree, GearSix, UserPlus, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCourse } from '../../api/core';
 import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
 import { CourseMenuProvider, useCourseMenuState } from '../../features/course/CourseMenu';
@@ -25,7 +25,8 @@ const TABS = [
 type Tab = (typeof TABS)[number]['value'];
 
 /** Clase = materia impartida a un grupo. Header: one line of facts + "Pasar lista" while the class is on.
- *  One "···" menu for the whole class: the open tab adds its actions to it (features/course/CourseMenu). */
+ *  One "···" menu for the whole class: the open tab adds its actions to it (features/course/CourseMenu).
+ *  ?ajustes=1 opens «Ajustes de la clase» (Hoy sends a class without a timetable here). */
 export default function CoursePage() {
   const { courseId, tab } = useParams();
   const navigate = useNavigate();
@@ -33,7 +34,13 @@ export default function CoursePage() {
   const today = useToday();
   const { data: course, isLoading, error, refetch } = useCourse(courseId);
   const menu = useCourseMenuState();
-  const [settings, setSettings] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const settings = params.get('ajustes') === '1';
+  const setSettings = (open: boolean) => setParams((p) => {
+    const next = new URLSearchParams(p);
+    if (open) next.set('ajustes', '1'); else next.delete('ajustes');
+    return next;
+  }, { replace: true });
   const [taking, setTaking] = useState(false);
   const current: Tab = (TABS.find((t) => t.value === tab)?.value ?? 'cuaderno') as Tab;
 
