@@ -3,7 +3,8 @@
 # deploy and deploy/sepiaeducation-certs.sh. Serves https://app.sepiaeducation.com from sepia-cuaderno-web (the owner
 # asked for it: nobody uses the previous app there), reusing the sepia-education nginx, its certificate for that name and
 # its port-80 server, which stays as it is (http → https and the ACME challenges that renew the certificates). It only:
-#   1. connects the sepia-education nginx container to the sepia-cuaderno network (so it reaches sepia-cuaderno-web);
+#   1. connects the sepia-education nginx container to the sepia-cuaderno network (so it reaches sepia-cuaderno-web), on
+#      every run: a recreated container loses it while the config keeps our block;
 #   2. in its nginx config, edited in place after a copy: renames the server_name of the existing 443 server for
 #      app.sepiaeducation.com to a name that never resolves (marked comment on that line), and adds right after that
 #      server a marked server block for app.sepiaeducation.com that proxies everything to sepia-cuaderno-web;
@@ -64,11 +65,15 @@ awk -v begin="$BEGIN" -v end="$END" -v parked="server_name $PARKED; $PARK_NOTE" 
 
 # 2) Unless --remove: find the one 443 server whose server_name line is exactly "server_name app.sepiaeducation.com;",
 #    park that line and add our server after its closing brace, with its listen and TLS lines (its certificate).
+#    HTTP/2: kept if that server had it; otherwise "http2 on;" on nginx 1.25.1 or later, since "http2" on a listen line
+#    would turn it on for every server of that address (www and the apex too).
 if $REMOVE; then
   cp "$ORIGINAL" "$NEW"
 else
+  MODERN="$({ docker exec "$NGINX" nginx -v 2>&1 || true; } | sed -nE 's#.*nginx/([0-9]+)\.([0-9]+)\.([0-9]+).*#\1 \2 \3#p' \
+    | awk '{ print ($1 > 1 || $2 > 25 || ($2 == 25 && $3 >= 1)) ? 1 : 0 }')"
   if ! awk -v app="$APP" -v parked="server_name $PARKED; $PARK_NOTE" -v begin="$BEGIN" -v end="$END" \
-      -v upstream="$UPSTREAM" -v errfile="$WORK/error" '
+      -v upstream="$UPSTREAM" -v errfile="$WORK/error" -v modern="${MODERN:-0}" '
     function code(line,   out, i, c, q) {  # the line without comments and quoted strings: braces and directives
       out = ""; q = ""
       for (i = 1; i <= length(line); i++) {
@@ -79,6 +84,18 @@ else
         out = out c
       }
       return out
+    }
+    function proxy(r) {
+      print r "set $sepia_cuaderno_web " upstream ";   # resolved per request: nginx starts without it"
+      print r "proxy_pass $sepia_cuaderno_web;"
+      print r "proxy_http_version 1.1;"
+      print r "proxy_set_header Host $host;"
+      print r "proxy_set_header X-Forwarded-Proto https;"
+      print r "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+      print r "proxy_set_header X-Real-IP $remote_addr;"
+      print r "proxy_connect_timeout 10s;"
+      print r "proxy_send_timeout 300s;"
+      print r "proxy_read_timeout 300s;"
     }
     function listen_line(c,   n, t, i, out) {  # address, ssl and http2: default_server, reuseport… stay theirs
       n = split(c, t, /[ \t;]+/)
@@ -134,11 +151,8 @@ else
         p = b_indent; q = p "    "; r = q "    "
         print p begin
         print p "server {"
-        for (i = 1; i <= nb; i++) {
-          l = b_keep[i]
-          if (!b_h2 && l ~ /^listen /) sub(/;$/, " http2;", l)
-          print q l
-        }
+        for (i = 1; i <= nb; i++) print q b_keep[i]
+        if (!b_h2 && modern) print q "http2 on;"
         print q "server_name " app ";"
         if (!b_cert) {
           print q "ssl_certificate /etc/letsencrypt/live/" app "/fullchain.pem;"
@@ -151,17 +165,13 @@ else
         print q "add_header Strict-Transport-Security \"max-age=31536000\" always;"
         print q "add_header X-Content-Type-Options \"nosniff\" always;"
         print q "add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;"
+        print q "location ^~ /api/s/ {   # pages shared with students: their own Referrer-Policy (no-referrer) is the only one"
+        proxy(r)
+        print r "add_header Strict-Transport-Security \"max-age=31536000\" always;"
+        print r "add_header X-Content-Type-Options \"nosniff\" always;"
+        print q "}"
         print q "location / {"
-        print r "set $sepia_cuaderno_web " upstream ";   # resolved per request: nginx starts without it"
-        print r "proxy_pass $sepia_cuaderno_web;"
-        print r "proxy_http_version 1.1;"
-        print r "proxy_set_header Host $host;"
-        print r "proxy_set_header X-Forwarded-Proto https;"
-        print r "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
-        print r "proxy_set_header X-Real-IP $remote_addr;"
-        print r "proxy_connect_timeout 10s;"
-        print r "proxy_send_timeout 300s;"
-        print r "proxy_read_timeout 300s;"
+        proxy(r)
         print q "}"
         print p "}"
         print p end
@@ -195,17 +205,17 @@ declare -A BEFORE
 for h in "${OTHERS[@]}"; do BEFORE[$h]="$(status "$h" /)"; done
 say "Antes: $(for h in "${OTHERS[@]}"; do printf 'https://%s/ → %s · ' "$h" "${BEFORE[$h]}"; done)https://$APP/ → $(status "$APP" /)"
 
+if ! $REMOVE; then
+  docker network inspect "$NETWORK" >/dev/null 2>&1 || die "No existe la red $NETWORK: despliega antes la web."
+  if ! docker inspect "$NGINX" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | tr ' ' '\n' | grep -qxF "$NETWORK"; then
+    say "Conectando $NGINX a la red $NETWORK"
+    docker network connect "$NETWORK" "$NGINX"
+  fi
+fi
+
 if cmp -s "$NEW" "$CONF"; then
   say "La configuración ya estaba así; no hace falta recargar."
 else
-  if ! $REMOVE; then
-    docker network inspect "$NETWORK" >/dev/null 2>&1 || die "No existe la red $NETWORK: despliega antes la web."
-    if ! docker inspect "$NGINX" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | tr ' ' '\n' | grep -qxF "$NETWORK"; then
-      say "Conectando $NGINX a la red $NETWORK"
-      docker network connect "$NETWORK" "$NGINX"
-    fi
-  fi
-
   mkdir -p "$BACKUPS"
   chmod 700 "$BACKUPS"
   BACKUP="$BACKUPS/$(basename "$CONF").$(date -u +%Y%m%dT%H%M%SZ).app"
@@ -221,7 +231,7 @@ else
   cat "$NEW" > "$CONF"            # in place, same inode
   say "Comprobando la configuración (nginx -t)"
   if ! docker exec "$NGINX" nginx -t -q; then restore; die "nginx -t falla con el cambio; se ha dejado como estaba."; fi
-  docker exec "$NGINX" nginx -s reload
+  if ! docker exec "$NGINX" nginx -s reload; then restore; die "nginx no ha recargado con el cambio; se ha dejado como estaba."; fi
   sleep 2
   changed=""
   for h in "${OTHERS[@]}"; do

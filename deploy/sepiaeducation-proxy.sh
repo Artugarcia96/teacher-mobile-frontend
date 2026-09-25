@@ -4,7 +4,8 @@
 # /landing_test/), reusing the sepia-education nginx and its HTTPS certificate (the owner asked for it), or turns that
 # path into a permanent redirect to https://app.sepiaeducation.com once the app lives there (sepiaeducation-app.sh).
 # It only:
-#   1. (publishing) connects the sepia-education nginx container to the sepia-cuaderno network (to reach sepia-cuaderno-web);
+#   1. (publishing) connects the sepia-education nginx container to the sepia-cuaderno network (to reach sepia-cuaderno-web),
+#      on every run: a recreated container loses it while the config keeps the block;
 #   2. adds one marked block to the www.sepiaeducation.com server of its nginx config, edited in place (one at a time:
 #      publishing and redirecting replace each other);
 #   3. checks the config with `nginx -t` and reloads nginx (no restart).
@@ -94,18 +95,18 @@ awk -v begin="$BEGIN" -v end="$END" -v host="$HOST" -v prefix="$PREFIX" -v upstr
 ' "$CONF" > "$NEW"
 if [ -n "$(tail -c 1 "$CONF")" ]; then truncate -s -1 "$NEW"; fi   # awk ends with a newline the file may not have
 
+if [ "$MODE" = proxy ]; then   # every run: a recreated container loses the network while the config keeps the block
+  docker network inspect "$NETWORK" >/dev/null 2>&1 || die "No existe la red $NETWORK: despliega antes la web."
+  if ! docker inspect "$NGINX" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | tr ' ' '\n' | grep -qxF "$NETWORK"; then
+    say "Conectando $NGINX a la red $NETWORK"
+    docker network connect "$NETWORK" "$NGINX"
+  fi
+fi
+
 if cmp -s "$NEW" "$CONF"; then
   say "La configuración ya estaba así; no hace falta recargar."
   rm -f "$BACKUP"
 else
-  if [ "$MODE" = proxy ]; then
-    docker network inspect "$NETWORK" >/dev/null 2>&1 || die "No existe la red $NETWORK: despliega antes la web."
-    if ! docker inspect "$NGINX" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | tr ' ' '\n' | grep -qxF "$NETWORK"; then
-      say "Conectando $NGINX a la red $NETWORK"
-      docker network connect "$NETWORK" "$NGINX"
-    fi
-  fi
-
   restore() {
     echo "Restaurando la configuración anterior" >&2
     cat "$BACKUP" > "$CONF"      # in place: the file is bind-mounted, a new inode would not be seen by the container
@@ -115,7 +116,7 @@ else
   cat "$NEW" > "$CONF"            # in place, same inode
   say "Comprobando la configuración (nginx -t)"
   if ! docker exec "$NGINX" nginx -t -q; then restore; die "nginx -t falla con el cambio; se ha dejado como estaba."; fi
-  docker exec "$NGINX" nginx -s reload
+  if ! docker exec "$NGINX" nginx -s reload; then restore; die "nginx no ha recargado con el cambio; se ha dejado como estaba."; fi
   sleep 2
   WWW_AFTER="$(status "$HOST" /)"
   APP_AFTER="$(status app.sepiaeducation.com /)"
