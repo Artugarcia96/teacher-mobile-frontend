@@ -1,5 +1,11 @@
 # Sepia web in "solo landing" mode (Deploy web → solo_landing): only the landing is public while the app is not
 # published yet; every other path goes back to "/". Same container and port as the full site (deploy/deploy.sh).
+# Only a plain path prefix set by our own proxy is honoured (never markup or another origin).
+map $http_x_forwarded_prefix $sepia_prefix {
+    default "";
+    "~^/[A-Za-z0-9_-]+$" $http_x_forwarded_prefix;
+}
+
 server {
     listen 80;
     server_name _;
@@ -9,6 +15,13 @@ server {
     gzip on;
     gzip_comp_level 5;
     gzip_types text/css application/javascript image/svg+xml;
+    absolute_redirect off;              # relative Location headers: they stay right behind a proxy and its prefix
+
+    # Behind a path prefix (https://www.sepiaeducation.com/landing_test/ proxies here with X-Forwarded-Prefix, see
+    # deploy/sepiaeducation-proxy.sh), root-relative URLs in the pages get the prefix; without the header nothing changes.
+    sub_filter_once off;
+    sub_filter '="/' '="$sepia_prefix/';
+    sub_filter ', /' ', $sepia_prefix/';
 
     location = / {
         add_header Cache-Control "no-cache";
@@ -19,6 +32,6 @@ server {
         try_files $uri =404;
     }
     location / {
-        return 302 /;
+        return 302 $sepia_prefix/;
     }
 }
