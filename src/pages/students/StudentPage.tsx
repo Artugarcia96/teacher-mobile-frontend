@@ -1,4 +1,4 @@
-import { CaretDown, ChatCircleText, Copy, DotsThree, NotePencil, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
+import { CaretDown, ChatCircleText, CheckCircle, DotsThree, NotePencil, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useSetMark } from '../../api/attendance';
@@ -13,7 +13,7 @@ import EditStudentSheet from '../../features/students/EditStudentSheet';
 import FamilyMessageSheet from '../../features/students/FamilyMessageSheet';
 import WatchItemSheet from '../../features/students/WatchItemSheet';
 import { measureChips, supportLabel } from '../../features/students/support';
-import { attendanceText, homeworkText, studentSummary } from '../../features/students/summary';
+import { attendanceText, homeworkText } from '../../features/students/summary';
 import { ApiError } from '../../lib/api';
 import { courseLabel, formatAverage, formatScore, NOTE_KIND_LABEL, ordinals, plural, shortDate, TERM_LABEL, TERM_SHORT, weekdayShort } from '../../lib/format';
 import {
@@ -211,15 +211,6 @@ export default function StudentPage() {
     }
   };
 
-  const copySummary = async () => {
-    try {
-      await navigator.clipboard.writeText(studentSummary(f));
-      toast('Resumen copiado');
-    } catch {
-      toast('No se ha podido copiar. Tu navegador no deja usar el portapapeles.', { tone: 'error' });
-    }
-  };
-
   const menu: MenuItem[] = [
     { label: 'Editar datos y apoyos', icon: <PencilSimple size={18} />, onSelect: () => setEditing(true) },
     ...f.groups.map((g, i) => ({ label: `Quitar de ${ordinals(g.name)}`, icon: <UserMinus size={18} />, danger: true, separatorBefore: i === 0, onSelect: () => removeFrom(g) })),
@@ -244,23 +235,30 @@ export default function StudentPage() {
       toolbar={
         <div className="st-actions">
           <Button variant="tinted" icon={<NotePencil size={18} />} onClick={() => setNoting(true)}>Anotar</Button>
-          <Button variant="neutral" icon={<Copy size={18} />} onClick={copySummary}>Copiar resumen</Button>
           <Button variant="neutral" icon={<ChatCircleText size={18} />} onClick={() => setBriefing(true)}>Preparar tutoría</Button>
         </div>
       }
     >
-      {f.watch.map((w) => (
-        <Callout key={w.course.id} tone="warn" icon={<Warning size={18} />} onClick={() => setWatchItem(w)} label={`A vigilar: ${w.reasons.join(', ')}`}>
-          <b>A vigilar{single ? '' : ` en ${w.course.subject}`}:</b> {w.reasons.join(' · ')}
-        </Callout>
-      ))}
+      {f.watch.map((w) => {
+        const acked = w.acked_on ? `Ya lo sabes desde el ${shortDate(w.acked_on)}` : null;
+        return (
+          <Callout key={w.course.id} tone={acked ? undefined : 'warn'} icon={acked ? <CheckCircle size={18} /> : <Warning size={18} />}
+            onClick={() => setWatchItem(w)} label={`A vigilar: ${w.reasons.join(', ')}${acked ? `. ${acked}` : ''}`}>
+            <b>A vigilar{single ? '' : ` en ${w.course.subject}`}:</b> {w.reasons.join(' · ')}
+            {acked && <span className="st-acked">{acked}</span>}
+          </Callout>
+        );
+      })}
+      {/* Desktop: grades on the left; attendance and observations on the right, so a meeting fits one screen. */}
       <div className="st-grid">
         <div className="st-col">
           <Section title="Notas">
             {f.courses.length === 0 ? (
               <div className="list"><EmptyState icon={<Warning size={24} />} title="No está en ninguna clase" text="Añádelo desde la pestaña Alumnos de una clase." /></div>
-            ) : f.courses.map((sc) => <CourseGrades key={sc.course.id} sc={sc} single={single} expanded={desktop} />)}
+            ) : f.courses.map((sc) => <CourseGrades key={sc.course.id} sc={sc} single={single} expanded={desktop && single} />)}
           </Section>
+        </div>
+        <div className="st-col">
           {f.courses.length > 0 && (
             <div id="asistencia" className="st-anchor"><Section title="Asistencia">
               <div className="st-col">
@@ -280,8 +278,6 @@ export default function StudentPage() {
               <div className="card card--pad st-private">{f.notes_text}</div>
             </Section>
           )}
-        </div>
-        <div className="st-col">
           <Section title="Observaciones">
             {f.notes.length === 0 ? (
               <div className="list">

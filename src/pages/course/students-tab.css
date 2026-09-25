@@ -1,6 +1,7 @@
 .students-roster { max-width: 880px; }
-.students-roster__sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 3px; min-width: 0; }
-.students-roster__sub .chip { height: 22px; padding: 0 8px; font-size: 12px; flex: none; }
-.students-roster__sub .chip:first-child { height: auto; min-height: 22px; padding: 3px 8px; line-height: 16px; white-space: normal; flex: 0 1 auto; min-width: 0; }
+.students-roster__sub { display: grid; gap: 4px; margin-top: 2px; min-width: 0; }
+.students-roster__reason { color: var(--warn); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.students-roster__chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.students-roster__chips .chip { height: 22px; padding: 0 8px; font-size: 12px; flex: none; }
 .students-roster__abs { font-size: var(--fs-footnote); color: var(--ink-2); white-space: nowrap; margin-left: 2px; }
 .students-roster__add { color: var(--accent); font-weight: 500; }

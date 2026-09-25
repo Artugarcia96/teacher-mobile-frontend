@@ -15,6 +15,7 @@ export const keys = {
   groups: ['groups'] as const,
   students: (courseId: string) => ['course', courseId, 'students'] as const,
   student: (id: string) => ['student', id] as const,
+  brief: (id: string) => ['student', id, 'brief'] as const,
   job: (id: string) => ['job', id] as const,
   archivedCourses: ['courses', 'archived'] as const,
   groupStudents: (groupId: string) => ['groups', groupId, 'students'] as const,
@@ -160,8 +161,24 @@ export function useUnenroll() {
 }
 
 /** IA: guion para una tutoría con la familia. */
-export function useStudentBrief(id: string) {
-  return useMutation({ mutationFn: () => api.post<{ bullets: string[] }>(`/students/${id}/brief`, {}, { slow: true }) });
+/** «Preparar tutoría»: the AI draft (one line per point, editable) is kept until the student's data changes (it lives
+ *  under the student's key, so what invalidates the file makes it stale) and only runs while the sheet is open. The
+ *  request finishes even if the sheet is closed; `edited` = the teacher changed the text. */
+export interface StudentBrief { text: string; edited: boolean }
+export function useStudentBrief(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.brief(id), enabled, staleTime: Infinity, gcTime: Infinity, retry: false, refetchOnWindowFocus: false,
+    queryFn: async (): Promise<StudentBrief> => {
+      const { bullets } = await api.post<{ bullets: string[] }>(`/students/${id}/brief`, {}, { slow: true });
+      return { text: bullets.map((b) => `· ${b}`).join('\n'), edited: false };
+    },
+  });
+}
+
+/** The teacher's edits to the draft stay with it. */
+export function useEditStudentBrief(id: string) {
+  const qc = useQueryClient();
+  return (text: string) => qc.setQueryData<StudentBrief>(keys.brief(id), { text, edited: true });
 }
 
 /** Comunidades autónomas with their grades platform (static list). */

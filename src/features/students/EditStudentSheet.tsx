@@ -8,6 +8,12 @@ import './students.css';
 
 const EMPTY: Support = { neae: false, acnee: false, kind: null, measures: [], acs_level: null, notes: null };
 
+/** The support as it would be saved, to tell whether anything changed. */
+const saved = (s: Support) => JSON.stringify({
+  neae: s.neae || s.acnee, acnee: s.acnee, kind: s.kind?.trim() || null, measures: [...s.measures].sort(),
+  acs_level: s.acs_level?.trim() || null, notes: s.notes?.trim() || null,
+});
+
 /** "Editar datos y apoyos": name, NEAE/ACNEE marks, adaptation measures (toggles), their details and private notes.
  *  An ACS is only for ACNEE students in compulsory stages: `acsAllowed` = the student is in a Primaria/ESO group
  *  (the toggle still shows if they already have one, so it can be removed); switching it on marks ACNEE. */
@@ -41,6 +47,8 @@ export default function EditStudentSheet({ open, onClose, student, notesText, ac
   const marked = sup.neae || sup.acnee;
   const hasAcs = sup.measures.includes('acs');
   const measures = MEASURES.filter((m) => m.key !== 'acs' || acsAllowed || hasAcs);
+  const dirty = open && (first !== student.first_name || last !== student.last_name || notes !== (notesText ?? '')
+    || saved(sup) !== saved({ ...EMPTY, ...student.support }));
 
   const save = async () => {
     setError(null);
@@ -57,7 +65,7 @@ export default function EditStudentSheet({ open, onClose, student, notesText, ac
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Editar datos y apoyos" subtitle={student.name} size="large" side
+    <Sheet open={open} onClose={onClose} title="Editar datos y apoyos" subtitle={student.name} size="large" side dirty={dirty}
       footer={<Button full onClick={save} loading={patch.isPending} disabled={!first.trim()}>{first.trim() ? 'Guardar' : 'Escribe el nombre'}</Button>}>
       <div className="form">
         <div className="form-row">

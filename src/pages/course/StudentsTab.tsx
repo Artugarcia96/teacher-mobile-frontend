@@ -10,24 +10,29 @@ import './students-tab.css';
 
 const MAX_MEASURE_CHIPS = 2;
 
-/** "Apellidos, Nombre" + one line: the first "a vigilar" reason, support measures and absences (from 3) + term average.
- *  A low average is never a reason (backend rule): the red pill says it. */
-function StudentLine({ s }: { s: StudentRow }) {
+/** "Apellidos, Nombre", the first "a vigilar" reason in one line, then support measures and absences (from 3); the term
+ *  average at the right once the class has grades. A low average is never a reason (backend rule): the red pill says it. */
+function StudentLine({ s, average }: { s: StudentRow; average: boolean }) {
   const reason = s.watch[0];
   const measures = measureChips(s.support);
   const shown = measures.slice(0, MAX_MEASURE_CHIPS);
   const flag = measures.length ? null : supportFlag(s.support);
   const absences = s.absences >= 3 && !(reason && /falta/i.test(reason));
-  const sub = (reason || measures.length || flag || absences) ? (
+  const chips = measures.length > 0 || !!flag || absences;
+  const sub = (reason || chips) ? (
     <span className="students-roster__sub">
-      {reason && <Chip tone="warn">{reason[0].toUpperCase() + reason.slice(1)}</Chip>}
-      {shown.map((m) => <Chip key={m} tone="info">{m}</Chip>)}
-      {measures.length > shown.length && <Chip tone="info">+{measures.length - shown.length}</Chip>}
-      {flag && <Chip tone="info">{flag}</Chip>}
-      {absences && <span className="students-roster__abs">{plural(s.absences, 'falta', 'faltas')}</span>}
+      {reason && <span className="students-roster__reason">{reason[0].toUpperCase() + reason.slice(1)}</span>}
+      {chips && (
+        <span className="students-roster__chips">
+          {shown.map((m) => <Chip key={m} tone="outline">{m}</Chip>)}
+          {measures.length > shown.length && <Chip tone="outline">+{measures.length - shown.length}</Chip>}
+          {flag && <Chip tone="info">{flag}</Chip>}
+          {absences && <span className="students-roster__abs">{plural(s.absences, 'falta', 'faltas')}</span>}
+        </span>
+      )}
     </span>
   ) : undefined;
-  return <Row to={`/alumnos/${s.id}`} title={s.sort_name} sub={sub} wrapSub trail={<GradePill value={s.term_average} />} />;
+  return <Row to={`/alumnos/${s.id}`} title={s.sort_name} sub={sub} wrapSub trail={average ? <GradePill value={s.term_average} /> : undefined} />;
 }
 
 /** Clase › Alumnos: roster sorted by surname. ?anadir=1 opens "Añadir alumnos" (also in the class "···" menu). */
@@ -54,10 +59,12 @@ export default function StudentsTab({ course }: { course: CourseDetail }) {
       </div>
     );
   } else {
+    const graded = data.some((s) => s.term_average != null);
     body = (
-      <Section title={plural(data.length, 'alumno', 'alumnos')} footer={`Nota: media de la ${TERM_LABEL[term]}.`} className="students-roster">
+      <Section title={plural(data.length, 'alumno', 'alumnos')} footer={graded ? `Nota: media de la ${TERM_LABEL[term]}.` : undefined}
+        className="students-roster">
         <List>
-          {data.map((s) => <StudentLine key={s.id} s={s} />)}
+          {data.map((s) => <StudentLine key={s.id} s={s} average={graded} />)}
           <Row lead={<UserPlus size={18} className="students-roster__add" />} title={<span className="students-roster__add">Añadir alumnos</span>}
             onClick={open} chevron={false} />
         </List>

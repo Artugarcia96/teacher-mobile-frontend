@@ -50,6 +50,8 @@ export interface WatchItem {
   reasons: string[]; reason: string; severity: 1 | 2 | 3;
   /** Date of the latest triggering fact. */
   since: string;
+  /** Student file only: the day the teacher said «Ya lo sé» about these facts. */
+  acked_on?: string | null;
 }
 export interface Today {
   date: string; is_today: boolean; term: number; term_label: string; week: number | null; lective: boolean; holiday: string | null;
