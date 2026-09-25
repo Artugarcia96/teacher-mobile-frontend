@@ -19,12 +19,12 @@ function StudentLine({ s }: { s: StudentRow }) {
   const flag = measures.length ? null : supportFlag(s.support);
   const absences = s.absences >= 3 && !(reason && /falta/i.test(reason));
   const sub = (reason || measures.length || flag || absences) ? (
-    <span className="roster__sub">
+    <span className="students-roster__sub">
       {reason && <Chip tone="warn">{reason[0].toUpperCase() + reason.slice(1)}</Chip>}
       {shown.map((m) => <Chip key={m} tone="info">{m}</Chip>)}
       {measures.length > shown.length && <Chip tone="info">+{measures.length - shown.length}</Chip>}
       {flag && <Chip tone="info">{flag}</Chip>}
-      {absences && <span className="roster__abs">{plural(s.absences, 'falta', 'faltas')}</span>}
+      {absences && <span className="students-roster__abs">{plural(s.absences, 'falta', 'faltas')}</span>}
     </span>
   ) : undefined;
   return <Row to={`/alumnos/${s.id}`} title={s.sort_name} sub={sub} trail={<GradePill value={s.term_average} />} />;
@@ -55,10 +55,10 @@ export default function StudentsTab({ course }: { course: CourseDetail }) {
     );
   } else {
     body = (
-      <Section title={plural(data.length, 'alumno', 'alumnos')} footer={`Nota: media de la ${TERM_LABEL[term]}.`} className="roster">
+      <Section title={plural(data.length, 'alumno', 'alumnos')} footer={`Nota: media de la ${TERM_LABEL[term]}.`} className="students-roster">
         <List>
           {data.map((s) => <StudentLine key={s.id} s={s} />)}
-          <Row lead={<UserPlus size={18} className="roster__add" />} title={<span className="roster__add">Añadir alumnos</span>}
+          <Row lead={<UserPlus size={18} className="students-roster__add" />} title={<span className="students-roster__add">Añadir alumnos</span>}
             onClick={open} chevron={false} />
         </List>
       </Section>
