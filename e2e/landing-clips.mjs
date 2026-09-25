@@ -167,9 +167,9 @@ async function prepareVersions(r, d) {
   await sheet.getByText(/^Preguntas · \d+/).waitFor();
   await r.settle();
   await r.hold(900);
+  r.poster(); // the version's sheet at rest, before it scrolls to its questions
   await r.scrollIn(sheet.getByText(/^Preguntas · \d+/), 'top', 1400);
   await r.hold(2600);
-  r.poster();
 }
 
 /** Revisar › Errores frecuentes → «Crear ficha de refuerzo» (AI, in the unit while the teacher waits) → the worksheet
@@ -186,6 +186,7 @@ async function remedialWorksheet(r, d) {
     await r.settle();
   });
   await r.hold(900);
+  r.poster(); // the «Crear con IA» sheet at rest, with the worksheet chosen
   await r.scrollIn(dialog.getByLabel('Indicaciones (opcional)'), 'reveal', 1100); // the questions the class got wrong
   await r.hold(1600);
   await r.tap(createButton);
@@ -210,7 +211,6 @@ async function remedialWorksheet(r, d) {
   await r.hold(800);
   await r.scrollBy(460, 1600);
   await r.hold(2200);
-  r.poster();
 }
 
 /** Hoy › A vigilar: the student who has just missed class again → «Avisar a la familia» → «Copiar y guardar». */
