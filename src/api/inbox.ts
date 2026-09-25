@@ -14,8 +14,8 @@ export interface InboxEvaluation {
   pending_absent: number;
   /** Without any comment. */
   comments_missing: number;
-  /** Written but not final (a comment is done only when final). */
-  comments_draft: number;
+  /** AI drafts the teacher has not accepted yet. */
+  comments_unreviewed: number;
 }
 export interface Inbox {
   to_review: { activity: ActivityRef; course: CourseRef; suggested: number; unmatched: number; remaining: number }[];

@@ -37,18 +37,23 @@ function sessionName(ev: NonNullable<Inbox['next_evaluation_event']>): string {
   return /^sesi[oó]n de evaluaci[oó]n/i.test(ev.title.trim()) ? `Sesión de la ${TERM_LABEL[ev.term]}` : ev.title;
 }
 
-/** What is missing before the evaluation session, in words: "Examen U2: 18 por revisar · faltan 26 comentarios". */
+/** What only the evaluation page can settle, in words: "Faltan 3 comentarios · 22 comentarios de la IA sin revisar ·
+ *  2 alumnos con examen pendiente". Activities to review or grade are already listed above. */
 function evaluationLine(e: InboxEvaluation): string | null {
-  const parts = [
-    ...e.to_review.map((x) => `${x.title}: ${x.count} por revisar`),
-    ...e.to_grade.map((x) => `faltan notas de ${x.title} (${x.count})`),
-  ];
+  const parts = [];
+  if (e.comments_missing) parts.push(e.comments_missing === 1 ? 'falta 1 comentario' : `faltan ${e.comments_missing} comentarios`);
+  if (e.comments_unreviewed) parts.push(plural(e.comments_unreviewed, 'comentario de la IA sin revisar', 'comentarios de la IA sin revisar'));
   if (e.pending_absent) parts.push(`${plural(e.pending_absent, 'alumno con examen pendiente', 'alumnos con examen pendiente')} por falta`);
-  if (e.comments_missing) parts.push(`faltan ${plural(e.comments_missing, 'comentario', 'comentarios')}`);
-  if (e.comments_draft) parts.push(`${plural(e.comments_draft, 'comentario', 'comentarios')} en borrador`);
   if (!parts.length) return null;
   const line = parts.join(' · ');
   return line[0].toUpperCase() + line.slice(1);
+}
+
+/** The class is ready for the session only when its grades are too (they are listed in «Por revisar» / «Por calificar»). */
+function gradesPending(e: InboxEvaluation): string | null {
+  const acts = [...e.to_review, ...e.to_grade];
+  if (!acts.length) return null;
+  return acts.length === 1 ? `faltan notas de ${acts[0].title}` : `faltan notas en ${acts.length} actividades`;
 }
 
 function InboxBody({ data }: { data: Inbox }) {
@@ -108,12 +113,14 @@ function InboxBody({ data }: { data: Inbox }) {
           <List>
             {data.evaluations.map((e) => {
               const line = evaluationLine(e);
+              const grades = gradesPending(e);
+              const text = [line, grades && (line ? grades : grades[0].toUpperCase() + grades.slice(1))].filter(Boolean).join(' · ');
               return (
                 <Row key={e.course.id} to={`/clases/${e.course.id}/evaluacion/${e.term}`}
                   lead={<Dot color={e.course.color} large />}
                   title={e.course.label}
-                  trail={line ? undefined : <Chip tone="ok">Lista</Chip>}
-                  sub={line ?? 'Notas revisadas y comentarios definitivos'} wrapSub />
+                  trail={text ? undefined : <Chip tone="ok">Lista</Chip>}
+                  sub={text || 'Notas y comentarios revisados'} wrapSub />
               );
             })}
           </List>

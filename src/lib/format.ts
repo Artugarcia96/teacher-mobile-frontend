@@ -103,9 +103,9 @@ export function formatNumber(v: number | null | undefined, digits = 1): string {
   return formatGrade(v, digits);
 }
 
+/** A whole percentage the backend already rounded (`grading.percent`, the same figure as the acta): only printed. */
 export function formatPercent(v: number | null | undefined): string {
-  if (v === null || v === undefined) return '—';
-  return `${Math.round(v)} %`;
+  return v === null || v === undefined ? '—' : `${v} %`;
 }
 
 export type GradeTone = 'fail' | 'pass' | 'great' | 'none';
@@ -165,11 +165,6 @@ export function parseGradeInput(raw: string): number | null | 'NP' | undefined {
   if (/^np$/i.test(s)) return 'NP';
   const n = Number(s);
   return Number.isFinite(n) ? n : undefined;
-}
-
-/** "Exportar CSV para Raíces (Madrid)": the teacher's region names where the grades file goes (`/me › region`). */
-export function exportCsvLabel(region: { export_label?: string | null } | null | undefined): string {
-  return region?.export_label ? `Exportar CSV para ${region.export_label}` : 'Exportar CSV';
 }
 
 /** Lowercase without accents ("Raíces" → "raices"), to compare what the teacher typed. */

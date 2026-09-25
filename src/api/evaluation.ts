@@ -23,11 +23,15 @@ export interface EvalRow {
   comment: string | null;
   comment_status: 'draft' | 'final' | null;
   comment_source: 'ai' | 'manual' | null;
+  /** Grade that counted when the comment was written or accepted: if it is no longer `final`, «Escrito con la nota anterior». */
+  comment_grade: number | null;
   absences: number;
   /** "4 → 6 (rec.)": proposal before the recovery → proposed. */
   recovery: { before: number | null; before_proposed: number | null; score: number; activity_id: string } | null;
   /** Exams missed (attendance) still without a grade. */
   pending_exams: ActivityRef[];
+  /** Past activities of the term without a grade that counts (AI drafts included). */
+  missing_grades: ActivityRef[];
   /** ACS: grade referred to the student's curricular adaptation. */
   adapted: boolean;
 }
@@ -37,9 +41,18 @@ export interface Evaluation {
   rows: EvalRow[];
   recovery_rule: RecoveryRule;
   comments_missing: number;
-  comments_draft: number;
-  /** Activities of the term with AI drafts (not counted in the proposals yet). */
+  /** AI drafts the teacher has not accepted yet. */
+  comments_unreviewed: number;
+  /** What the proposals are still missing — same figures as the Evaluar inbox. AI drafts not counted yet: */
   to_review: ActivityCount[];
+  /** Past activities with students without a grade. */
+  to_grade: ActivityCount[];
+  /** Students who missed an exam that still has no grade. */
+  pending_absent: number;
+  /** The evaluation session of this term. */
+  session: { date: string; title: string; term: number } | null;
+  /** Latest comments job of this term while it runs, or failed (until a new one starts). */
+  job: Job | null;
 }
 export interface EvalRowInput { final_grade?: number | null; comment?: string | null; comment_status?: 'draft' | 'final' | null }
 
@@ -49,7 +62,8 @@ export interface DepartmentRow {
   graded: number; pass_rate: number | null; average: number | null;
   distribution: Record<Band, number>; units_planned: number; units_done: number; units_in_progress: string[]; units_pending: string[]; notes: string;
 }
-export interface DepartmentReport { term: number; term_label: string; rows: DepartmentRow[] }
+/** One table per subject: each department reads its own. */
+export interface DepartmentReport { term: number; term_label: string; subjects: { subject: string; rows: DepartmentRow[] }[] }
 
 export const evaluationKeys = {
   one: (courseId: string, term: number) => ['course', courseId, 'evaluation', term] as const,
@@ -92,18 +106,6 @@ export function useDraftComments(courseId: string, term: number) {
   });
 }
 
-/** A comments job already running for this class and term (started earlier, before leaving the page).
- * The job carries its term in `result.term` from the start. */
-export function useRunningCommentsJob(courseId: string | undefined, term: number) {
-  return useQuery({
-    queryKey: ['jobs', 'active', 'report_comments', courseId],
-    queryFn: () => api.get<Job[]>('/jobs?active=true'),
-    enabled: !!courseId,
-    staleTime: 0,
-    select: (jobs) => jobs.find((j) => j.kind === 'report_comments' && j.ref_id === courseId && j.result?.term === term) ?? null,
-  });
-}
-
 /** Department rule for recoveries (replace if higher, cap at 5, average both). */
 export function useSetRecoveryRule(courseId: string) {
   const qc = useQueryClient();
@@ -133,7 +135,8 @@ export function useSaveDepartmentNote(term: number) {
       api.put<{ text: string }>(`/courses/${courseId}/evaluation/${term}/department-note`, { text }),
     onSuccess: ({ text }, { courseId }) => {
       qc.setQueryData<DepartmentReport>(evaluationKeys.department(term), (rep) => rep && {
-        ...rep, rows: rep.rows.map((r) => (r.course.id === courseId ? { ...r, notes: text } : r)),
+        ...rep,
+        subjects: rep.subjects.map((s) => ({ ...s, rows: s.rows.map((r) => (r.course.id === courseId ? { ...r, notes: text } : r)) })),
       });
     },
   });

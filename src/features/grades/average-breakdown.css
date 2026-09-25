@@ -1,0 +1,4 @@
+.avg-breakdown { display: grid; gap: var(--s-3); }
+.avg-breakdown__note { font-size: var(--fs-footnote); color: var(--ink-2); }
+.avg-breakdown__note b { font-weight: 600; color: var(--ink); }
+.avg-breakdown__out { margin: 2px 0 0; padding-left: 1.1em; display: grid; gap: 2px; }

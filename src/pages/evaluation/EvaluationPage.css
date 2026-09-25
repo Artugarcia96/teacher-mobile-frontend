@@ -41,8 +41,9 @@
 .ev-sheet__hint { display: block; font-size: var(--fs-footnote); color: var(--ink-2); margin-top: 2px; }
 .ev-sheet__hint .btn--plain { height: 24px; padding: 0 6px; margin-left: -6px; }
 .ev-sheet__label { display: inline-flex; align-items: center; gap: var(--s-2); }
-.ev-sheet__switch { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) 14px; border-radius: var(--r-row); background: var(--fill); }
-.ev-sheet__switch b { font-weight: 600; }
+.ev-sheet__toggle { margin-left: -10px; }
+.ev-sheet__breakdown { margin-top: var(--s-2); }
+.ev-sheet__warn { color: var(--warn); font-weight: 600; }
 .ev-sheet__facts { display: grid; gap: 4px; font-size: var(--fs-footnote); color: var(--ink-2); }
 .ev-sheet__facts .btn--plain { height: 24px; padding: 0 6px; }
-.ev-row__final .grade-pill, .gb-avg-sheet .grade-pill { align-items: center; }
+.ev-row__final .grade-pill { align-items: center; }

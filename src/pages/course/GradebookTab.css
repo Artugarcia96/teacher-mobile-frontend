@@ -136,5 +136,4 @@ a.gb-avg__head { color: inherit; text-decoration: none; min-height: 44px; justif
 .gb-avg-sheet__num { font-size: var(--fs-numeral); line-height: 1; }
 .gb-avg-sheet__head .muted { display: inline-flex; align-items: center; gap: var(--s-2); }
 .gb-avg-sheet .btn--plain { justify-self: start; margin-left: -10px; }
-.gb-formula { font-size: var(--fs-footnote); color: var(--ink-2); }
 .gb-avg-sheet .grade-pill { align-items: center; }
