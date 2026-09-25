@@ -7,21 +7,25 @@ import { invalidateCorrection, type Rubric, type RubricItem, type VersionKind, t
 import type { Job, Measure, StudentRef } from './types';
 
 /** `base` = the activity's own exam (key "A"). `draft`: written by the AI and not opened or edited yet.
- * `comparable`: same questions as Modelo A (its results add up per question). `stale`: written from an earlier Modelo A.
- * `same_questions`: Modelo A's questions in large print (edited in Modelo A). `in_use`: papers or grades of it exist
- * (it can no longer be redone or removed). */
+ * `comparable`: Modelo A's questions (its results add up per question). `stale`: written from an earlier Modelo A.
+ * `same_questions`: Modelo A's questions in large print (edited in Modelo A); `enlarged`: the teacher's own PDF on A3.
+ * `in_use`: papers or grades of it exist (it can no longer be redone or removed). `warnings`: what to look at before
+ * printing it. */
 export interface Version {
   key: string; kind: VersionKind; label: string; measures: Measure[]; student_ids: string[]; code: string | null;
   status: 'generating' | 'ready' | 'failed'; error: string | null; draft: boolean; comparable: boolean; stale: boolean;
-  same_questions: boolean; in_use: boolean; large_print: boolean; pages: number | null; items: number;
+  same_questions: boolean; in_use: boolean; large_print: boolean; enlarged: boolean; pages: number | null; items: number;
+  warnings: string[];
 }
 export interface Adaptation { student: StudentRef; measures: Measure[]; version: VersionRef }
 /** Measures that do not change the document: «Más tiempo: Mario, Lucía». */
 export interface Reminder { measure: Measure; label: string; students: StudentRef[] }
 /** `pending_adapted`: students whose measures ask for an adapted version they do not take yet.
- * `named_print`: the class print was made (the scans are read with its print map). */
+ * `named_print`: the class print was made (the scans are read with its print map). `numbers`: each student's number on
+ * the named copies and the printed class list. */
 export interface Versions {
   base: Version; versions: Version[]; adaptations: Adaptation[]; reminders: Reminder[]; pending_adapted: number; named_print: boolean;
+  numbers: Record<string, number>;
 }
 export interface VersionDetail extends Version { rubric: Rubric | null }
 
@@ -30,8 +34,10 @@ export const versionKeys = {
   one: (activityId: string, key: string) => ['versions', activityId, key] as const,
 };
 
-export function useVersions(activityId: string) {
-  return useQuery({ queryKey: versionKeys.all(activityId), queryFn: () => api.get<Versions>(`/activities/${activityId}/versions`) });
+export function useVersions(activityId: string, enabled = true) {
+  return useQuery({
+    queryKey: versionKeys.all(activityId), queryFn: () => api.get<Versions>(`/activities/${activityId}/versions`), enabled,
+  });
 }
 
 export function useVersion(activityId: string, key: string | null) {

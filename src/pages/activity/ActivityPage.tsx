@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams
 import { useActivity } from '../../api/activities';
 import { useCourse } from '../../api/core';
 import { useActivityJob, useCorrection, useDocumentUrl, type Correction } from '../../api/papers';
-import { useClassPrintUrl } from '../../api/versions';
+import { useVersions } from '../../api/versions';
 import type { Job } from '../../api/types';
 import ExamAbsencesSheet, { conflictsText } from '../../features/activities/ExamAbsencesSheet';
 import ActivityDataSheet from '../../features/papers/ActivityDataSheet';
@@ -15,6 +15,8 @@ import GenerateExamSheet from '../../features/papers/GenerateExamSheet';
 import { ManualGrades } from '../../features/papers/ManualGrades';
 import { missingStudents, repeatCovered } from '../../features/papers/MissingPapers';
 import { openSigned } from '../../features/papers/openDoc';
+import { useClassPrint } from '../../features/papers/useClassPrint';
+import { VERSION_PARAM } from '../../features/papers/VersionsSection';
 import { needsLook } from '../../features/papers/pageLabels';
 import { PrepareStep } from '../../features/papers/PrepareStep';
 import { ReviewMenu, ReviewStep } from '../../features/papers/ReviewStep';
@@ -119,11 +121,15 @@ export default function ActivityPage() {
   const detail = useActivity(activityId).data; // attendance of the exam day, units of the exam
   const course = useCourse(courseId).data;
   const docUrl = useDocumentUrl(activityId!);
-  const classPrint = useClassPrintUrl(activityId!);
+  const versions = useVersions(activityId!, !!c?.versions.length).data;
+  const [open, setOpen] = useState<number | null>(() => (params.get('paso') === 'recoger' ? 2 : null)); // "Ordenar páginas"
+  const classPrint = useClassPrint(activityId!, versions, (key) => { // «Revisar»: that version's sheet, in Preparar
+    setParams((p) => { p.set(VERSION_PARAM, key); return p; }, { replace: true });
+    setOpen(1);
+  });
   const [absences, setAbsences] = useState(false);
   const absent = useMemo(() => new Set(detail?.sheet.filter((r) => r.pending_absent).map((r) => r.student.id)), [detail]);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [open, setOpen] = useState<number | null>(() => (params.get('paso') === 'recoger' ? 2 : null)); // "Ordenar páginas"
   const pinned = useRef<number | null>(null);
   const lastStep = useRef<string | undefined>(undefined);
   const [manual, setManual] = useState(false);
@@ -218,10 +224,7 @@ export default function ActivityPage() {
   const menu: MenuItem[] = [];
   if (c.document_url || (c.generated && c.rubric)) { // a repeat of a generated exam is laid out on first print
     menu.push({ label: 'Examen para imprimir', icon: <Exam size={18} />, onSelect: () => openDoc('print') });
-    menu.push({
-      label: 'Imprimir para la clase', icon: <Printer size={18} />,
-      onSelect: () => openSigned(() => classPrint.mutateAsync(), (m) => toast(m, { tone: 'error' }), (m) => toast(m)),
-    });
+    menu.push({ label: 'Imprimir para la clase', icon: <Printer size={18} />, onSelect: classPrint.print });
     menu.push({ label: 'Hoja extra', icon: <Rows size={18} />, onSelect: () => openDoc('extra-sheet') });
   }
   if (c.rubric) menu.push({ label: 'Soluciones', icon: <Key size={18} />, onSelect: () => openDoc('key') });

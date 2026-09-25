@@ -3,9 +3,9 @@ import type { Measure, Support } from '../../api/types';
 /** Adaptation measures, in the order the backend returns them. `label` for the editing sheet, `short` for chips. */
 export const MEASURES: { key: Measure; label: string; short: string }[] = [
   { key: 'mas_tiempo', label: 'Más tiempo en los exámenes', short: 'Más tiempo' },
-  { key: 'letra_ampliada', label: 'Letra ampliada', short: 'Letra grande' },
+  { key: 'letra_ampliada', label: 'Letra ampliada', short: 'Letra ampliada' },
   { key: 'enunciados_por_pasos', label: 'Enunciados por pasos', short: 'Por pasos' },
-  { key: 'lectura_en_voz_alta', label: 'Lectura de enunciados en voz alta', short: 'Voz alta' },
+  { key: 'lectura_en_voz_alta', label: 'Lectura de enunciados en voz alta', short: 'Lectura en voz alta' },
   { key: 'examen_adaptado', label: 'Examen adaptado', short: 'Examen adaptado' },
   { key: 'acs', label: 'Adaptación curricular significativa (ACS)', short: 'ACS' },
 ];

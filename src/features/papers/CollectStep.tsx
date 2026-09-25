@@ -48,9 +48,12 @@ export function CollectStep({ correction, job, running, grading, onJob, onOpenMi
       </p>
       <List>
         <Row className="collect-mode" title="Emparejar" wrapSub
-          sub={mode === 'names'
-            ? 'Se lee el nombre de la cabecera y se compara con tu lista, que no sale de Sepia.'
-            : 'Por orden alfabético de apellidos. También se lee el nombre, para avisarte si el orden no cuadra.'}
+          sub={<>
+            {mode === 'names'
+              ? 'Se lee el nombre de la cabecera y se compara con tu lista, que no sale de Sepia.'
+              : 'Por orden alfabético de apellidos. También se lee el nombre, para avisarte si el orden no cuadra.'}
+            {correction.named_print && ' Las copias con nombre vuelven solas a su alumno: esto solo cuenta para las copias sin nombre.'}
+          </>}
           trail={<Segmented label="Cómo emparejar" value={mode} onChange={setMode}
             options={[{ value: 'names', label: 'Leer nombres' }, { value: 'list_order', label: 'En orden de lista' }]} />} />
       </List>

@@ -69,10 +69,12 @@ export default function VersionSheet({ activityId, versionKey, versions, correct
         {v.status === 'failed' && <Callout tone="warn">{v.error || 'No se ha podido preparar.'} Pulsa «Rehacer».</Callout>}
         {v.status === 'generating' && <Callout>La IA está escribiendo esta versión. Puedes seguir trabajando.</Callout>}
         {v.stale && <Callout tone="warn">Se escribió a partir de un modelo A que ya ha cambiado. Rehazla para que coincida.</Callout>}
+        {ready && v.warnings.map((w) => <Callout key={w} tone="warn">{w}</Callout>)}
         {ready && (
           <List>
             <Row lead={<RowIcon><ArrowSquareOut size={20} /></RowIcon>} title="Ver el examen" chevron={false}
-              sub={isBase ? 'Para fotocopiar, sin nombres' : 'Sin nombres, con su marca en cada página'} onClick={() => open('print')} />
+              sub={isBase ? 'Para fotocopiar, sin nombres' : v.enlarged ? 'Sin nombres, en A3: imprímelo en A3' : 'Sin nombres, con su marca en cada página'}
+              onClick={() => open('print')} />
             <Row lead={<RowIcon><Key size={20} /></RowIcon>} title="Soluciones" chevron={false} onClick={() => open('key')} />
           </List>
         )}
@@ -84,7 +86,11 @@ export default function VersionSheet({ activityId, versionKey, versions, correct
 
         {isBase && <p className="muted">Sus preguntas son las de la rúbrica del paso «Preparar».</p>}
         {v.same_questions && (
-          <p className="muted">Las mismas preguntas del modelo A, con letra más grande y más espacio para responder. Se editan en el modelo A.</p>
+          <p className="muted">
+            {v.enlarged
+              ? 'Tu examen tal cual, con sus figuras, ampliado a A3 (141 %). Sus preguntas se editan en el modelo A.'
+              : 'Las mismas preguntas del modelo A, con letra más grande y más espacio para responder. Se editan en el modelo A.'}
+          </p>
         )}
         {ai && ready && (
           detail?.rubric

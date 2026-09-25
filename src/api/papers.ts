@@ -74,8 +74,8 @@ export interface Correction {
   stats: CorrectionStats; next_pending_id: string | null; job: Job | null;
   exam_code: string | null; unplaced: LoosePage[]; discarded: ScanPage[]; printed_from: ExamRef | null;
   /** Other versions of the exam (Modelo B, adapted ones); `pending_adapted`: students whose measures ask for an adapted
-   * version they do not take yet. */
-  versions: VersionRef[]; pending_adapted: number;
+   * version they do not take yet; `named_print`: the class print was made (named copies go back to their student). */
+  versions: VersionRef[]; pending_adapted: number; named_print: boolean;
 }
 
 export interface Paper {

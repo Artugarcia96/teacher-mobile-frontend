@@ -1,16 +1,20 @@
 import { Exam, Info, Plus, Printer, UsersThree, Warning } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Correction } from '../../api/papers';
 import type { Job, StudentRef } from '../../api/types';
-import { useClassPrintUrl, useCreateModelB, usePrepareAdapted, useVersions, versionKeys, type Adaptation, type Version, type Versions } from '../../api/versions';
+import { useCreateModelB, usePrepareAdapted, useVersions, versionKeys, type Adaptation, type Version, type Versions } from '../../api/versions';
 import { plural } from '../../lib/format';
 import { AIBadge, Button, Callout, List, Row, RowIcon, Section, Spinner, useFeedback } from '../../ui';
 import { measureChips } from '../students/support';
 import AssignmentSheet from './AssignmentSheet';
 import { JobLine } from './JobLine';
-import { openSigned } from './openDoc';
+import { useClassPrint } from './useClassPrint';
 import VersionSheet from './VersionSheet';
+
+/** `?version=S`: open that version's sheet (from «Revisar» before printing for the class). */
+export const VERSION_PARAM = 'version';
 
 interface Props {
   correction: Correction;
@@ -41,7 +45,10 @@ function versionSub(v: Version, byId: Map<string, StudentRef>) {
   if (v.status === 'failed') return <span className="version-status version-status--warn"><Warning size={14} /> No se ha podido preparar · ábrela para rehacerla</span>;
   const who = `${plural(v.student_ids.length, 'alumno', 'alumnos')} · ${whoText(v.student_ids, byId)}`;
   if (v.stale) return <span className="version-status version-status--warn"><Warning size={14} /> Escrita para otro modelo A · rehazla</span>;
-  return <span className="version-status">{v.draft && <AIBadge />}{who}</span>;
+  if (v.warnings.length) {
+    return <span className="version-status">{v.draft && <AIBadge />}<span className="version-warn"><Warning size={14} /> Revísala antes de imprimir</span>{who}</span>;
+  }
+  return <span className="version-status">{v.draft && <AIBadge />}{v.enlarged ? `Tu examen en A3 · ${who}` : who}</span>;
 }
 
 /** Under a student with measures: the version they take ("Adaptado · por pasos") or that they still take the class's. */
@@ -60,14 +67,21 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
   const { data: vs } = useVersions(id);
   const createB = useCreateModelB(id);
   const adapt = usePrepareAdapted(id);
-  const classPrint = useClassPrintUrl(id);
   const { toast } = useFeedback();
+  const [params, setParams] = useSearchParams();
   const [open, setOpen] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const classPrint = useClassPrint(id, vs, setOpen);
   const progress = job?.progress;
   useEffect(() => { // each version appears as soon as it is ready
     if (running) qc.invalidateQueries({ queryKey: versionKeys.all(id) });
   }, [progress, running, qc, id]);
+  const asked = params.get(VERSION_PARAM);
+  useEffect(() => {
+    if (!asked) return;
+    setOpen(asked);
+    setParams((p) => { p.delete(VERSION_PARAM); return p; }, { replace: true });
+  }, [asked, setParams]);
 
   if (!vs) return null;
   const byId = new Map(correction.students.map((s) => [s.student.id, s.student]));
@@ -82,7 +96,6 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
     onSuccess: ({ job: j }) => (j ? onJob(j) : toast('Versiones adaptadas al día')),
     onError: fail,
   });
-  const onPrint = () => openSigned(() => classPrint.mutateAsync(), (m) => toast(m, { tone: 'error' }), (m) => toast(m));
   const printBlocked = busy ? 'Espera a que terminen las versiones'
     : pendingVersions.some((v) => v.status === 'failed') ? 'Rehaz o quita las versiones que no se han podido preparar' : undefined;
 
@@ -137,7 +150,7 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
       )}
 
       <div className="versions-action">
-        <Button icon={<Printer size={18} />} onClick={onPrint} loading={classPrint.isPending} disabled={!!printBlocked}>
+        <Button icon={<Printer size={18} />} onClick={classPrint.print} loading={classPrint.isPending} disabled={!!printBlocked}>
           Imprimir para la clase
         </Button>
         <span className="muted">

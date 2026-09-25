@@ -28,8 +28,8 @@ export default function AssignmentSheet({ open, onClose, activityId, versions, s
     <Sheet open={open} onClose={onClose} side size="large" title="Quién hace cada versión"
       subtitle="Por defecto, A y B alternos por orden de lista; las versiones adaptadas, según las medidas de cada alumno.">
       <List>
-        {students.map((s, k) => (
-          <Row key={s.id} className="assign-row" title={s.sort_name} lead={<span className="assign-row__n num">{k + 1}</span>} wrapSub
+        {students.map((s) => (
+          <Row key={s.id} className="assign-row" title={s.sort_name} lead={<span className="assign-row__n num">{versions.numbers[s.id] ?? ''}</span>} wrapSub
             sub={
               <Select aria-label={`Versión de ${s.name}`} value={current.get(s.id) ?? 'A'} onChange={(e) => change(s, e.target.value)}
                 disabled={assign.isPending}>

@@ -22,11 +22,11 @@ function renderRich(text: string): string {
 }
 
 /** Text with inline LaTeX math ($…$), as produced by the AI and stored in materials/rubrics. `oneLine`: a single line
- * that fades out at the right edge only when it is cut. */
+ * (line breaks become spaces) that fades out at the right edge only when it is cut. */
 export const RichText = memo(function RichText({ text, as = 'span', className, oneLine = false }: {
   text: string; as?: 'span' | 'div' | 'p'; className?: string; oneLine?: boolean;
 }) {
-  const html = useMemo(() => renderRich(text || ''), [text]);
+  const html = useMemo(() => renderRich(oneLine ? (text || '').replace(/\s*\n+\s*/g, ' ') : text || ''), [text, oneLine]);
   const ref = useRef<HTMLElement>(null);
   const [cut, setCut] = useState(false);
   useLayoutEffect(() => {

@@ -6,7 +6,8 @@ import { Sheet } from './Sheet';
 
 // ── Toasts ───────────────────────────────────────────────────────────────────
 interface Toast { id: number; text: string; tone: 'ok' | 'error'; action?: { label: string; run: () => void } }
-interface ConfirmOpts { title: string; text?: ReactNode; confirm: string; danger?: boolean }
+/** `other`: a third way out (the confirm resolves false and it runs): «Revisar» instead of printing anyway. */
+interface ConfirmOpts { title: string; text?: ReactNode; confirm: string; danger?: boolean; other?: { label: string; run: () => void } }
 
 interface Ctx {
   toast: (text: string, opts?: { tone?: 'ok' | 'error'; action?: Toast['action'] }) => void;
@@ -54,7 +55,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       )}
       <Sheet open={!!pending} onClose={() => close(false)} title={pending?.title ?? ''}
         footer={<>
-          <Button variant="neutral" onClick={() => close(false)}>Cancelar</Button>
+          {pending?.other
+            ? <Button variant="neutral" onClick={() => { const run = pending.other!.run; close(false); run(); }}>{pending.other.label}</Button>
+            : <Button variant="neutral" onClick={() => close(false)}>Cancelar</Button>}
           <Button variant={pending?.danger ? 'danger' : 'primary'} onClick={() => close(true)} data-autofocus>{pending?.confirm}</Button>
         </>}>
         {pending?.text && <p className="muted">{pending.text}</p>}
