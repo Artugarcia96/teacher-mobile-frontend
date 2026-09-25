@@ -85,8 +85,10 @@ export function SkeletonList({ rows = 4 }: { rows?: number }) {
   );
 }
 
-export function Progress({ value, total }: { value: number; total: number }) {
+/** `indeterminate`: work under way whose share is not known yet (a bar that moves instead of one stuck at 0). */
+export function Progress({ value, total, indeterminate }: { value: number; total: number; indeterminate?: boolean }) {
   const pct = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
+  if (indeterminate) return <div className="progress progress--indeterminate" role="progressbar" aria-valuemin={0} aria-valuemax={100}><i /></div>;
   return <div className="progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>;
 }
 

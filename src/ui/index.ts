@@ -15,3 +15,4 @@ export { CropImage } from './CropImage';
 export { Fullscreen } from './Fullscreen';
 export { useMediaQuery, DESKTOP } from './useMediaQuery';
 export { useDraft } from './useDraft';
+export { useSettled } from './useSettled';

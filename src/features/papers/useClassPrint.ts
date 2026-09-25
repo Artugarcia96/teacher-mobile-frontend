@@ -1,3 +1,4 @@
+import type { Correction } from '../../api/papers';
 import type { Job, StudentRef } from '../../api/types';
 import { useClassPrintUrl, usePrepareAdapted, type Versions } from '../../api/versions';
 import { useFeedback } from '../../ui';
@@ -8,6 +9,14 @@ export function firstNames(students: StudentRef[]): string {
   const names = students.map((s) => s.first_name);
   if (names.length > 3) return `${names.slice(0, 2).join(', ')} y ${names.length - 2} más`;
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0] ?? '';
+}
+
+/** Who the named print is for when the exam is only for some students (a repeat, a recovery): "Paula", "2 alumnos";
+ * null for the whole class. */
+export function printedFor(c: Correction): { who: string; names: string } | null {
+  if (!c.activity.student_ids && !c.activity.repeat_of) return null;
+  const students = c.students.map((s) => s.student);
+  return { who: students.length === 1 ? students[0].first_name : `${students.length} alumnos`, names: firstNames(students) };
 }
 
 /** «Imprimir para la clase» from any entry point. Asked first: students whose measures ask for an adapted version they

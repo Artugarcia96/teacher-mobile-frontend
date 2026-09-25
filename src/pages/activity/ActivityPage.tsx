@@ -15,7 +15,7 @@ import GenerateExamSheet from '../../features/papers/GenerateExamSheet';
 import { ManualGrades } from '../../features/papers/ManualGrades';
 import { missingStudents } from '../../features/papers/MissingPapers';
 import { openSigned } from '../../features/papers/openDoc';
-import { firstNames, useClassPrint } from '../../features/papers/useClassPrint';
+import { firstNames, printedFor, useClassPrint } from '../../features/papers/useClassPrint';
 import { VERSION_PARAM } from '../../features/papers/VersionsSection';
 import { needsLook } from '../../features/papers/pageLabels';
 import { PrepareStep } from '../../features/papers/PrepareStep';
@@ -53,9 +53,10 @@ function pagesToast(j: Job): string {
   }
   if (Number(r.unplaced)) parts.push(plural(Number(r.unplaced), 'página por colocar', 'páginas por colocar'));
   if (Number(r.discarded)) parts.push(plural(Number(r.discarded), 'reverso en blanco descartado', 'reversos en blanco descartados'));
-  if (Number(r.unread)) parts.push(`${plural(Number(r.unread), 'página sin leer', 'páginas sin leer')}: pulsa «Volver a leer»`);
+  if (Number(r.unread)) parts.push(plural(Number(r.unread), 'página sin leer', 'páginas sin leer'));
   if (!parts.length) parts.push('No había páginas nuevas');
-  const text = parts.join(' · ');
+  let text = parts.join(' · ');
+  if (Number(r.unread)) text += `. ${r.unread_reason ? `${String(r.unread_reason).replace(/\.?$/, '.')} ` : ''}Pulsa «Volver a leer».`;
   return graded.length ? `${text}. ${graded.map((g) => g.name).join(' y ')} ya ${graded.length > 1 ? 'tenían' : 'tenía'} nota confirmada: revísala.` : text;
 }
 
@@ -64,8 +65,8 @@ const DONE_TOAST: Record<string, (job: Job) => string> = {
   generate_exam: () => 'Examen generado. Revisa las preguntas antes de imprimir.',
   prepare_versions: (j) => {
     const failed = Number(j.result?.failed) || 0;
-    return failed ? `${plural(failed, 'versión no se ha podido preparar', 'versiones no se han podido preparar')}: ábrelas y pulsa «Rehacer»`
-      : 'Versiones preparadas. Revísalas antes de imprimir.';
+    if (failed) return `${plural(failed, 'versión no se ha podido preparar', 'versiones no se han podido preparar')}: ábrelas y pulsa «Rehacer»`;
+    return Number(j.result?.ready) ? 'Versiones preparadas. Revísalas antes de imprimir.' : 'No se ha podido rehacer: sigue la versión anterior.';
   },
   ingest_papers: pagesToast,
   reclassify_pages: pagesToast,
@@ -109,7 +110,13 @@ function reviewSummary(c: Correction) {
   return 'Sin notas todavía';
 }
 
-export default function ActivityPage() {
+/** Another activity (its repeat, opened from a sheet of this one) is a new page: nothing of this one stays open. */
+export default function ActivityRoute() {
+  const { activityId } = useParams();
+  return <ActivityPage key={activityId} />;
+}
+
+function ActivityPage() {
   const { courseId, activityId } = useParams();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
@@ -141,7 +148,8 @@ export default function ActivityPage() {
   const activeJobId = jobId ?? shownJob?.id ?? null;
   const job = useActivityJob(activityId!, activeJobId, {
     onDone: (j) => {
-      toast(DONE_TOAST[j.kind]?.(j) ?? 'Hecho');
+      const unread = COLLECT_JOBS.includes(j.kind) && Number(j.result?.unread) > 0; // not a success: say so until read
+      toast(DONE_TOAST[j.kind]?.(j) ?? 'Hecho', unread ? { tone: 'error' } : undefined);
       setJobId((j.result?.suggest_job as string | undefined) ?? null); // grading goes on in its own job
       if (j.kind === 'suggest_grades') return; // never move the teacher away from what they are doing
       // After preparing, keep step 1 open so the teacher reviews the questions before printing; after a scan with
@@ -193,14 +201,14 @@ export default function ActivityPage() {
   const back = `/clases/${courseId}/cuaderno`;
   if (error) {
     return (
-      <Page title="Actividad" back={back} backLabel="Cuaderno">
+      <Page title="Actividad" back={back} backLabel="Cuaderno" backToOrigin>
         <EmptyState icon={<FileX size={24} />} title="No se ha podido abrir la actividad" text={error.message}
           action={<Button variant="tinted" to={back}>Volver al cuaderno</Button>} />
       </Page>
     );
   }
   if (isLoading || !c) {
-    return <Page title="" back={back} backLabel="Cuaderno"><SkeletonList rows={5} /></Page>;
+    return <Page title="" back={back} backLabel="Cuaderno" backToOrigin><SkeletonList rows={5} /></Page>;
   }
 
   const a = c.activity;
@@ -228,7 +236,8 @@ export default function ActivityPage() {
   const menu: MenuItem[] = [];
   if (c.document_url || (c.generated && c.rubric)) { // a repeat of a generated exam is laid out on first print
     menu.push({ label: 'Examen para imprimir', icon: <Exam size={18} />, onSelect: () => openDoc('print') });
-    menu.push({ label: 'Imprimir para la clase', icon: <Printer size={18} />, onSelect: classPrint.print });
+    const only = printedFor(c);
+    menu.push({ label: only ? `Imprimir para ${only.who}` : 'Imprimir para la clase', icon: <Printer size={18} />, onSelect: classPrint.print });
     menu.push({ label: 'Hoja extra', icon: <Rows size={18} />, onSelect: () => openDoc('extra-sheet') });
   }
   if (c.rubric) menu.push({ label: 'Soluciones', icon: <Key size={18} />, onSelect: () => openDoc('key') });
@@ -240,6 +249,7 @@ export default function ActivityPage() {
       title={a.title}
       back={back}
       backLabel="Cuaderno"
+      backToOrigin
       compactTitle={a.title.length > 22}
       eyebrow={<><Dot color={a.course.color} large /><span className="eyebrow activity-eyebrow">{a.course.label}</span></>}
       subtitle={[longDate(a.date), TERM_LABEL[a.term], isExam ? null : KIND_LABEL[a.kind], `sobre ${formatGrade(a.max_score)}`]
@@ -258,7 +268,7 @@ export default function ActivityPage() {
         <div className="exam-steps">
           {c.stats.papers > 0 && pending > 0 && (
             <Button to={`/clases/${courseId}/actividades/${activityId}/revisar`} state={FROM_ACTIVITY} className="review-main">
-              Revisar alumno a alumno · faltan {pending}
+              {runningKind === 'suggest_grades' ? 'Revisar sin esperar a la IA' : `Revisar alumno a alumno · faltan ${pending}`}
             </Button>
           )}
           {!!detail?.attendance_conflicts.length && (

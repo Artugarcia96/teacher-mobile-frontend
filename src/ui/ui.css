@@ -49,6 +49,9 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 .progress { height: 6px; border-radius: var(--r-pill); background: var(--fill-2); overflow: hidden; }
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width var(--t-med) var(--ease); }
+.progress--indeterminate > i { width: 35%; animation: progress-slide 1.6s var(--ease) infinite; }
+@keyframes progress-slide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) { .progress--indeterminate > i { width: 100%; opacity: .35; animation: none; } }
 
 /* ── Page header ─────────────────────────────────────────── */
 /* Every page ends clear of the tab capsule (phones) so its last row can scroll above it. */

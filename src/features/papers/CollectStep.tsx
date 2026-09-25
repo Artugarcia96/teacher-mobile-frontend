@@ -3,7 +3,7 @@ import { useAIUnavailable } from '../../api/core';
 import { useUploadPapers, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
 import { plural } from '../../lib/format';
-import { DropZone, List, Row, Section, Segmented, useFeedback } from '../../ui';
+import { DropZone, List, Row, Section, Segmented, useFeedback, useMediaQuery } from '../../ui';
 import { JobLine } from './JobLine';
 import { MissingPapersRow, missingText } from './MissingPapers';
 import { ScanPages } from './ScanPages';
@@ -29,6 +29,7 @@ export function CollectStep({ correction, job, running, grading, onJob, onOpenMi
   const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
   const [sent, setSent] = useState(0);
+  const canDrag = useMediaQuery('(hover: hover) and (pointer: fine)'); // a phone has nothing to drag
 
   const { stats, students } = correction;
   const busy = running || upload.isPending;
@@ -61,8 +62,9 @@ export function CollectStep({ correction, job, running, grading, onJob, onOpenMi
       )}
       {!busy && (
         <DropZone onFiles={onFiles} multiple accept="application/pdf,image/*" disabled={!!noAI}
-          title={stats.papers ? 'Añadir más hojas' : 'Arrastra aquí el PDF del escáner o las fotos'}
-          hint={noAI ?? (stats.papers ? 'Se suman a las que ya has subido.' : 'PDF, JPG o PNG. Puedes subirlas en varias tandas.')}
+          title={stats.papers ? 'Añadir más hojas' : 'Sube el PDF del escáner o haz fotos del montón'}
+          hint={noAI ?? [canDrag && 'También puedes arrastrarlo aquí.',
+            stats.papers ? 'Se suman a las que ya has subido.' : 'PDF, JPG o PNG. Puedes subirlas en varias tandas.'].filter(Boolean).join(' ')}
           buttonLabel="Subir hojas" cameraLabel="Hacer fotos" />
       )}
     </>

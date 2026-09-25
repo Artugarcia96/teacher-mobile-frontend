@@ -23,8 +23,8 @@
 .review-name__actions { display: flex; gap: 6px; }
 
 .review-summary { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; font-size: var(--fs-sub); color: var(--ink-2); padding: 0 4px; }
-.review-summary > span:not(.ai-badge) { flex: 1 1 200px; min-width: 0; }
-.review-summary .ai-badge { flex: none; }
+.review-summary__text { flex: 1 1 100%; min-width: 0; margin: 0; }
+.review-summary__text .ai-badge { vertical-align: 1px; margin-right: 2px; }
 .review-summary__sheet { margin-left: auto; }
 
 .ritem { display: grid; gap: 10px; padding: 14px 16px; min-width: 0; }

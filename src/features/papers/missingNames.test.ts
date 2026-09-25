@@ -9,17 +9,17 @@ const st = (first_name: string, last_name: string): StudentRef => ({
 });
 
 describe('missingNames', () => {
-  const everyone = [st('Ana', 'Pérez Gil'), st('Luis', 'Ruiz Sanz'), st('Nerea', 'Cortés Domínguez'), st('Carmen', 'Cortés Rodríguez')];
-  it('lists first surnames with commas (never "y": it reads as a double surname)', () => {
-    expect(missingNames([everyone[0], everyone[1]], everyone)).toBe('Pérez, Ruiz');
+  const everyone = [st('Ana', 'Pérez Gil'), st('Luis', 'Ruiz Sanz'), st('Rubén', 'Cortés Domínguez'), st('Rubén', 'Fernández Rodríguez')];
+  it('lists first names, like the rest of the row', () => {
+    expect(missingNames([everyone[0], everyone[1]], everyone)).toBe('Ana y Luis');
+    expect(missingNames([everyone[1]], everyone)).toBe('Luis');
   });
-  it('names everyone with first name and surname when two students share a surname', () => {
-    expect(missingNames([everyone[3], everyone[0]], everyone)).toBe('Carmen Cortés y Ana Pérez');
-    expect(missingNames([everyone[3]], everyone)).toBe('Carmen Cortés');
+  it('adds the initial of the surname when two students share a first name', () => {
+    expect(missingNames([everyone[3], everyone[0]], everyone)).toBe('Rubén F. y Ana');
   });
   it('cuts a long list', () => {
-    const many = ['A', 'B', 'C', 'D', 'E', 'F'].map((x) => st('X', `${x}z`));
-    expect(missingNames(many, many)).toBe('Az, Bz, Cz y 3 más');
+    const many = ['A', 'B', 'C', 'D', 'E', 'F'].map((x) => st(x, 'Z'));
+    expect(missingNames(many, many)).toBe('A, B, C y 3 más');
   });
 });
 

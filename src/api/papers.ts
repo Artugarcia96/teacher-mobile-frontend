@@ -20,10 +20,11 @@ export interface Rubric { title: string; items: RubricItem[]; total: number }
 export type VersionKind = 'base' | 'modelo' | 'adaptada';
 export interface VersionRef { key: string; label: string; kind: VersionKind }
 
-/** `repeat_of`: the original exam when this one is its repeat ("repesca"). */
+/** `repeat_of`: the original exam when this one is its repeat ("repesca"); `student_ids`: only these students (a repeat
+ * or a recovery), null = the whole class. */
 export interface ActivityHead {
   id: string; title: string; kind: ActivityKind; category: string; date: string; term: number; max_score: number; course: CourseRef;
-  repeat_of: string | null;
+  repeat_of: string | null; student_ids: string[] | null;
 }
 export interface CorrectionGrade {
   score: number | null; status: GradeStatus; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null;
@@ -42,7 +43,8 @@ export interface PaperFlag { code: string; pages: number[] }
 /** Another exam of the same teacher (a page of it in this pile, or the exam the pile was photocopied from). */
 export interface ExamRef { id: string; title: string; course: string }
 export type LooseReason = 'otro' | 'otro_examen' | 'sin_examen' | 'extra_sin_examen' | 'sin_leer' | 'movida';
-export interface LoosePage extends ScanPage { reason: LooseReason; candidates: StudentRef[]; other_exam: ExamRef | null }
+/** `error` (reason `sin_leer`): why the AI could not read it. */
+export interface LoosePage extends ScanPage { reason: LooseReason; candidates: StudentRef[]; other_exam: ExamRef | null; error: string | null }
 export type Tray = 'unplaced' | 'discarded';
 
 /** No paper and missed the exam: marked absent that day (`absent`) and/or with a repeat exam scheduled (its date and,

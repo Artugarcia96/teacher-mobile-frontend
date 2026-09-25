@@ -14,7 +14,7 @@ import { fileUrl } from '../../lib/api';
 import { formatGrade, formatNumber, formatScore, gradeTone, parseGradeInput, shortDate } from '../../lib/format';
 import {
   AIBadge, Button, Callout, CropImage, DESKTOP, EmptyState, IconButton, Lightbox, Menu, RichText, Skeleton, Stepper, TextField,
-  useFeedback, useMediaQuery, type MenuItem,
+  useFeedback, useMediaQuery, useSettled, type MenuItem,
 } from '../../ui';
 import '../../features/papers/papers.css';
 import './review.css';
@@ -150,6 +150,8 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
 }) {
   const { toast } = useFeedback();
   const confirmReview = useConfirmReview(activityId, courseId);
+  // A tap or an Enter meant for the student before never confirms this one unseen.
+  const settled = useSettled(r.student.id);
   const assign = useAssignPaper(activityId);
   const correction = useCorrection(activityId);
   const aiById = useMemo(() => new Map((r.ai?.items ?? []).map((i) => [i.id, i])), [r.ai]);
@@ -215,6 +217,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   }, [desktop, focusCrop, focusPage]);
 
   const accept = () => {
+    if (!settled || confirmReview.isPending) return;
     if (missed) { onNp(); return; }
     let payload: { item_scores?: Record<string, number>; score?: number } = {};
     if (hasItems) payload = { item_scores: scores };
@@ -253,7 +256,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
       const field = !!t.closest('input, textarea, select, [contenteditable]');
       if (e.key === 'Enter') {
         const control = t.closest('textarea, select, button, a, [role="button"], [role="menuitem"], [contenteditable], .review-foot');
-        if (control || e.isComposing || toConfirm) return;
+        if (control || e.isComposing || toConfirm || e.repeat) return;
         e.preventDefault();
         acceptRef.current();
         return;
@@ -342,7 +345,11 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
         {grading && r.paper_id && !r.ai && <JobLine job={grading} fallback="La IA está corrigiendo esta hoja…" />}
         {(r.ai?.summary || (!desktop && pages.length > 0)) && (
           <div className="review-summary">
-            {r.ai?.summary && <><AIBadge label={r.grade?.status === 'suggested' ? 'Borrador IA' : 'IA'} /><RichText text={r.ai.summary} /></>}
+            {r.ai?.summary && (
+              <p className="review-summary__text">
+                <AIBadge label={r.grade?.status === 'suggested' ? 'Borrador IA' : 'IA'} /> <RichText text={r.ai.summary} />
+              </p>
+            )}
             {!desktop && pages.length > 0 && (
               <Button variant="tinted" size="sm" icon={<Images size={16} />} className="review-summary__sheet" onClick={() => setViewer(0)}>Ver hoja</Button>
             )}
@@ -424,7 +431,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
               <Button variant="neutral" icon={<CaretLeft size={18} weight="bold" />} aria-label="Alumno anterior" className="review-foot__nav"
                 disabled={!r.prev_student_id} onClick={() => r.prev_student_id && onGo(r.prev_student_id)} />
             )}
-            <Button onClick={accept} loading={confirmReview.isPending || (missed && busy)} disabled={toConfirm || (busy && !missed)}
+            <Button onClick={accept} loading={confirmReview.isPending || (missed && busy)} disabled={toConfirm || (busy && !missed) || !settled}
               className="review-accept">{acceptLabel}</Button>
             {!desktop && (
               <Button variant="neutral" icon={<CaretRight size={18} weight="bold" />} aria-label="Alumno siguiente, sin aceptar" className="review-foot__nav"

@@ -4,7 +4,7 @@ import { useCourseStudents } from '../../api/core';
 import { KIND_CATEGORY, type ActivityInput, type ActivityKind, type CountsFor } from '../../api/activities';
 import { finalRecoveryLabel } from '../../api/evaluation';
 import type { Category } from '../../api/types';
-import { useUnits } from '../../api/units';
+import { useUnits, type Unit } from '../../api/units';
 import { useAuth } from '../../lib/auth';
 import { formatNumber, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import { Button, Chip, DateField, Select, Stepper, TextField } from '../../ui';
@@ -46,12 +46,18 @@ function dateHint(v: ActivityFormValue, term: number | null, stage: string): str
     return v.recovers_term === 4 ? `Recuperación ${finalRecoveryLabel(stage)}` : `Recupera la ${TERM_LABEL[v.recovers_term ?? 1]}`;
   }
   if (v.counts_for === 'none') return 'No cuenta para la media';
-  return term ? `Cuenta para la ${TERM_LABEL[term]}` : undefined;
+  return term ? `${TERM_LABEL[term]} (por la fecha)` : undefined;
+}
+
+/** The units a new recovery covers: those of the term it recovers (all of them for the final). */
+function recoveredUnits(units: Unit[], term: number | null): string[] {
+  return units.filter((u) => term === 4 || u.term === term).map((u) => u.id);
 }
 
 /** Fields shared by NewActivitySheet and EditActivitySheet. Controlled. `stage` of the class (labels of the final recovery).
  * `pickUnit`: a new activity follows its title to preselect the unit ("Examen U3 · Potencias" → Potencias; else the
- * unit in progress) until the teacher chooses. */
+ * unit in progress), or a recovery the units of the term it recovers, until the teacher chooses. Only the units of the
+ * activity's term are listed (by its date, or the term a recovery recovers); the rest wait behind «Otras unidades». */
 export function ActivityForm({ value, onChange, categories, courseId, stage, moreOpen, autoFocus, pickUnit }: {
   value: ActivityFormValue; onChange: (v: ActivityFormValue) => void; categories: Category[]; courseId: string; stage: string;
   moreOpen?: boolean; autoFocus?: boolean; pickUnit?: boolean;
@@ -60,6 +66,7 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
   const [more, setMore] = useState(!!moreOpen);
   const [catTouched, setCatTouched] = useState(!!moreOpen);
   const [unitsTouched, setUnitsTouched] = useState(!pickUnit);
+  const [otherUnits, setOtherUnits] = useState(false);
   const units = useUnits(courseId);
   const students = useCourseStudents(more ? courseId : undefined);
   // Students already chosen when the form opens (a recovery for the failing ones) are listed first.
@@ -68,13 +75,31 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
   const term = termForDate(me?.school_year, value.date);
   const set = (patch: Partial<ActivityFormValue>) => onChange({ ...value, ...patch });
   const derived = value.kind === 'homework'; // «Deberes»: kind and date are fixed by the homework checks
+  const recovery = value.counts_for === 'recovery';
+  const unitTerm = recovery ? value.recovers_term : term;
+  const allUnits = units.data ?? [];
+  const inTerm = (u: Unit) => !unitTerm || unitTerm === 4 || !u.term || u.term === unitTerm || value.unit_ids.includes(u.id);
+  const termUnits = allUnits.filter(inTerm);
+  const restUnits = allUnits.filter((u) => !inTerm(u));
 
   useEffect(() => {
     if (unitsTouched || !units.data?.length) return;
     const id = unitFor(units.data, value.title);
-    const next = id ? [id] : [];
+    const next = recovery ? recoveredUnits(units.data, value.recovers_term) : id ? [id] : [];
     if (next.join() !== value.unit_ids.join()) onChange({ ...value, unit_ids: next });
-  }, [unitsTouched, units.data, value, onChange]);
+  }, [unitsTouched, units.data, value, onChange, recovery]);
+
+  const unitChip = (u: Unit) => {
+    const on = value.unit_ids.includes(u.id);
+    return (
+      <Chip key={u.id} selected={on} onClick={() => {
+        setUnitsTouched(true);
+        set({ unit_ids: on ? value.unit_ids.filter((x) => x !== u.id) : [...value.unit_ids, u.id] });
+      }}>
+        {u.title}
+      </Chip>
+    );
+  };
 
   const setKind = (kind: ActivityKind) => {
     const def = KIND_CATEGORY[kind];
@@ -111,21 +136,15 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
           <Stepper label="Nota máxima" value={value.max_score} min={1} max={100} onChange={(v) => set({ max_score: v })} />
         </div>
       </div>
-      {!!units.data?.length && (
+      {allUnits.length > 0 && (
         <div className="field">
           <span className="field__label">Unidades</span>
           <div className="chip-row">
-            {units.data.map((u) => {
-              const on = value.unit_ids.includes(u.id);
-              return (
-                <Chip key={u.id} selected={on} onClick={() => {
-                  setUnitsTouched(true);
-                  set({ unit_ids: on ? value.unit_ids.filter((x) => x !== u.id) : [...value.unit_ids, u.id] });
-                }}>
-                  {u.title}
-                </Chip>
-              );
-            })}
+            {termUnits.map(unitChip)}
+            {otherUnits && restUnits.map(unitChip)}
+            {restUnits.length > 0 && !otherUnits && (
+              <Chip tone="outline" icon={<CaretDown size={14} />} onClick={() => setOtherUnits(true)}>Otras unidades</Chip>
+            )}
           </div>
         </div>
       )}
@@ -135,16 +154,18 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
         </Button>
       ) : (
         <>
-          <div className="act-form__row">
-            <Select label="Categoría" value={value.category} onChange={(e) => { setCatTouched(true); set({ category: e.target.value }); }}>
-              {categories.map((c) => <option key={c.key} value={c.key}>{c.label} ({formatNumber(c.weight, 0)} %)</option>)}
-            </Select>
-            <div className="field">
-              <span className="field__label">Peso dentro de la categoría</span>
-              <Stepper label="Peso" value={value.weight} min={0.5} max={10} step={0.5} format={(v) => `×${formatNumber(v)}`}
-                onChange={(v) => set({ weight: v })} />
+          {!recovery && ( // a recovery replaces the term's result: no category or weight in the average
+            <div className="act-form__row">
+              <Select label="Categoría" value={value.category} onChange={(e) => { setCatTouched(true); set({ category: e.target.value }); }}>
+                {categories.map((c) => <option key={c.key} value={c.key}>{c.label} ({formatNumber(c.weight, 0)} %)</option>)}
+              </Select>
+              <div className="field">
+                <span className="field__label">Peso dentro de la categoría</span>
+                <Stepper label="Peso" value={value.weight} min={0.5} max={10} step={0.5} format={(v) => `×${formatNumber(v)}`}
+                  onChange={(v) => set({ weight: v })} />
+              </div>
             </div>
-          </div>
+          )}
           <Select label="Cuenta para" value={countsValue(value)} onChange={(e) => {
             const v = e.target.value;
             if (v.startsWith('rec-')) set({ counts_for: 'recovery', recovers_term: Number(v.slice(4)) });
@@ -155,7 +176,7 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
           {roster.length > 0 && (
             <div className="field">
               <span className="field__label">
-                Alumnos · {value.student_ids ? `${plural(value.student_ids.length, 'alumno', 'alumnos')} de ${roster.length}` : 'toda la clase'}
+                Alumnos{value.student_ids ? ` · ${plural(value.student_ids.length, 'alumno', 'alumnos')} de ${roster.length}` : ''}
               </span>
               <div className="chip-row">
                 <Chip selected={!value.student_ids} onClick={() => set({ student_ids: value.student_ids ? null : [] })}>Toda la clase</Chip>

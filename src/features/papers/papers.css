@@ -7,6 +7,7 @@
 
 .job-line { display: grid; gap: 10px; padding: var(--s-4); }
 .job-line__msg { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.job-line__hint { font-size: var(--fs-sub); }
 
 .choice-list .row { min-height: 72px; padding-top: 14px; padding-bottom: 14px; }
 .step-lead { font-size: var(--fs-sub); padding: 0 4px; }
@@ -60,7 +61,6 @@
 .picker-head { width: 100%; height: 120px; object-fit: cover; object-position: 50% 14%; border-radius: var(--r-row); box-shadow: var(--e1); }
 
 /* Review step */
-.review-done { flex: 1; display: flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 500; }
 .review-stats { display: grid; gap: 6px; }
 .review-stats__note { padding: 0 4px; font-size: var(--fs-footnote); color: var(--ink-2); }
 .student-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
