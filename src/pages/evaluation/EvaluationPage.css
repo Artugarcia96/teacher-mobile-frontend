@@ -20,9 +20,12 @@
 .ev-row .row__sub { display: grid; gap: 3px; margin-top: 3px; }
 .ev-row__meta { font-size: var(--fs-footnote); }
 .ev-row__rec { color: var(--ink); font-weight: 600; }
-.ev-row__pending { color: var(--warn); font-weight: 600; }
+.ev-row__warn { color: var(--warn); font-weight: 600; }
+.ev-row__title { white-space: nowrap; }
 .ev-row__stale { font-size: var(--fs-footnote); color: var(--warn); font-weight: 600; }
 .ev-row__comment { color: var(--ink); font-size: var(--fs-sub); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: var(--reading-max); }
+.ev-row__comment .ai-badge { vertical-align: 1px; }
+.ev-row__comment--stale { color: var(--warn); font-weight: 600; font-size: var(--fs-footnote); }
 .ev-row__final { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; padding-top: 2px; min-width: 64px; }
 .ev-row__kind { font-size: 11px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
 .ev-row__kind--adjusted { color: var(--warn); }

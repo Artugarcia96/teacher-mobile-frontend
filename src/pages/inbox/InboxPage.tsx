@@ -2,7 +2,7 @@ import { CheckCircle, Exam, PencilSimpleLine, Table } from '@phosphor-icons/reac
 import { useState } from 'react';
 import { useInbox, type Inbox, type InboxEvaluation } from '../../api/inbox';
 import { useToday } from '../../lib/auth';
-import { longDate, plural, relativeDay, shortDate, TERM_LABEL } from '../../lib/format';
+import { courseShortLabel, longDate, plural, relativeDay, shortDate, TERM_LABEL } from '../../lib/format';
 import { Button, Callout, Chip, Dot, EmptyState, List, Page, Row, RowIcon, Section, SkeletonList } from '../../ui';
 import DepartmentReportSheet from './DepartmentReportSheet';
 import './InboxPage.css';
@@ -38,11 +38,14 @@ function sessionName(ev: NonNullable<Inbox['next_evaluation_event']>): string {
 }
 
 /** What only the evaluation page can settle, in words: "Faltan 3 comentarios · 22 comentarios de la IA sin revisar ·
- *  2 alumnos con examen pendiente". Activities to review or grade are already listed above. */
+ *  2 comentarios no cuadran con la nota · 2 alumnos con examen pendiente". Activities to review or grade are already
+ *  listed above. A class nobody has a grade in yet has nothing to comment: «Sin notas aún». */
 function evaluationLine(e: InboxEvaluation): string | null {
   const parts = [];
+  if (!e.graded) parts.push('sin notas aún');
   if (e.comments_missing) parts.push(e.comments_missing === 1 ? 'falta 1 comentario' : `faltan ${e.comments_missing} comentarios`);
   if (e.comments_unreviewed) parts.push(plural(e.comments_unreviewed, 'comentario de la IA sin revisar', 'comentarios de la IA sin revisar'));
+  if (e.comments_stale) parts.push(e.comments_stale === 1 ? '1 comentario no cuadra con la nota' : `${e.comments_stale} comentarios no cuadran con la nota`);
   if (e.pending_absent) parts.push(`${plural(e.pending_absent, 'alumno con examen pendiente', 'alumnos con examen pendiente')} por falta`);
   if (!parts.length) return null;
   const line = parts.join(' · ');
@@ -120,7 +123,7 @@ function InboxBody({ data }: { data: Inbox }) {
               return (
                 <Row key={e.course.id} to={`/clases/${e.course.id}/evaluacion/${e.term}`}
                   lead={<Dot color={e.course.color} large />}
-                  title={e.course.label}
+                  title={courseShortLabel(e.course)}
                   trail={text ? undefined : <Chip tone="ok">Lista</Chip>}
                   sub={text || 'Notas y comentarios revisados'} wrapSub />
               );

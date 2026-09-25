@@ -1,7 +1,7 @@
 import { CalendarBlank, CaretDown, Clock, MagnifyingGlass, Minus, Plus, X } from '@phosphor-icons/react';
 import {
-  forwardRef, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes,
-  type TextareaHTMLAttributes,
+  forwardRef, useId, useLayoutEffect, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode,
+  type SelectHTMLAttributes, type TextareaHTMLAttributes,
 } from 'react';
 import { dateWithYear, shortDate } from '../lib/format';
 
@@ -30,11 +30,19 @@ export function TextField({ label, hint, error, className, ...rest }: Wrap & Inp
   );
 }
 
-export function TextArea({ label, hint, error, className, ...rest }: Wrap & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+/** `grow`: the box follows its text (never an inner scroll), from `rows` lines up: a report comment reads whole. */
+export function TextArea({ label, hint, error, className, grow, ...rest }: Wrap & TextareaHTMLAttributes<HTMLTextAreaElement> & { grow?: boolean }) {
   const id = useId();
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!grow || !el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [grow, rest.value]);
   return (
     <FieldWrap id={id} label={label} hint={hint} error={error}>
-      <textarea id={id} className={`textarea${className ? ` ${className}` : ''}`} {...rest} />
+      <textarea ref={ref} id={id} className={['textarea', grow && 'textarea--grow', className].filter(Boolean).join(' ')} {...rest} />
     </FieldWrap>
   );
 }

@@ -12,10 +12,12 @@ export interface InboxEvaluation {
   /** Past activities with students without a grade (those who missed an exam are in pending_absent). */
   to_grade: ActivityCount[];
   pending_absent: number;
-  /** Without any comment. */
+  /** Students with a grade that counts: 0 = «Sin notas aún». */
+  graded: number;
+  /** Same three counts as the Evaluación page. */
   comments_missing: number;
-  /** AI drafts the teacher has not accepted yet. */
   comments_unreviewed: number;
+  comments_stale: number;
 }
 export interface Inbox {
   /** unread: scanned pages the AI could not read; unplaced: other pages waiting to be placed. */
