@@ -2,6 +2,7 @@ import { Exam, Info, Plus, Printer, UsersThree, Warning } from '@phosphor-icons/
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAIUnavailable } from '../../api/core';
 import type { Correction } from '../../api/papers';
 import type { Job, StudentRef } from '../../api/types';
 import { useCreateModelB, usePrepareAdapted, useVersions, versionKeys, type Adaptation, type Version, type Versions } from '../../api/versions';
@@ -67,6 +68,7 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
   const { data: vs } = useVersions(id);
   const createB = useCreateModelB(id);
   const adapt = usePrepareAdapted(id);
+  const noAI = useAIUnavailable();  // Modelo B is written by the AI
   const { toast } = useFeedback();
   const [params, setParams] = useSearchParams();
   const [open, setOpen] = useState<string | null>(null);
@@ -112,9 +114,9 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
                 : versionSub(v, byId)} />
           ))}
           {!hasB && (
-            <Row lead={<RowIcon tone="accent"><Plus size={20} /></RowIcon>} title="Añadir modelo B" wrapSub onClick={busy ? undefined : onCreateB}
-              sub={busy ? 'Espera a que termine lo que se está preparando' : 'La IA escribe otro examen con las mismas preguntas, puntos y dificultad, y otros datos. Se reparte A, B, A, B… por lista.'}
-              muted={busy} />
+            <Row lead={<RowIcon tone="accent"><Plus size={20} /></RowIcon>} title="Añadir modelo B" wrapSub onClick={busy || noAI ? undefined : onCreateB}
+              sub={noAI ?? (busy ? 'Espera a que termine lo que se está preparando' : 'La IA escribe otro examen con las mismas preguntas, puntos y dificultad, y otros datos. Se reparte A, B, A, B… por lista.')}
+              muted={busy || !!noAI} />
           )}
           {vs.versions.length > 0 && (
             <Row lead={<RowIcon><UsersThree size={20} /></RowIcon>} title="Cambiar el reparto" wrapSub onClick={() => setAssigning(true)}
