@@ -71,6 +71,7 @@ export default function VersionSheet({ activityId, versionKey, versions, correct
         {v.status === 'failed' && <Callout tone="warn">{v.error || 'No se ha podido preparar.'} Pulsa «Rehacer».</Callout>}
         {v.status === 'generating' && <Callout>La IA está escribiendo esta versión. Puedes seguir trabajando.</Callout>}
         {v.stale && <Callout tone="warn">Se escribió a partir de un modelo A que ya ha cambiado. Rehazla para que coincida.</Callout>}
+        {ready && v.error && <Callout tone="warn">{v.error}</Callout>}
         {ready && v.warnings.map((w) => <Callout key={w} tone="warn">{w}</Callout>)}
         {ready && (
           <List>

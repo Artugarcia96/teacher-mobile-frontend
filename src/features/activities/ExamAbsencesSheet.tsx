@@ -1,6 +1,7 @@
 import { Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useActivity, useMarkNotPresented, useScheduleRepeat, type ActivityDetail, type AttendanceConflict } from '../../api/activities';
+import { useVersions } from '../../api/versions';
 import type { CourseDetail, StudentRef } from '../../api/types';
 import { useToday } from '../../lib/auth';
 import { addDays, formatScore, longDate, plural, shortDate } from '../../lib/format';
@@ -33,6 +34,7 @@ function Absences({ activity, onClose, course, missing, received }: {
   const today = useToday();
   const { toast, confirm } = useFeedback();
   const repeat = useScheduleRepeat(activity.id, course.id);
+  const versions = useVersions(activity.id, activity.kind === 'exam').data;
   const np = useMarkNotPresented(activity.id, course.id);
   // Without a paper but present on the list: as pending as those who missed it (with their repeat exam, if any).
   const listed = new Set(activity.absent_students.map((a) => a.student.id));
@@ -49,6 +51,11 @@ function Absences({ activity, onClose, course, missing, received }: {
   const repeatOf = (id: string | null) => activity.repeats.find((r) => r.id === id);
 
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  // Modelo A went round the class on the exam day: whoever took it gets Modelo B's questions (api/activities.schedule_repeat).
+  const modelB = versions?.versions.some((v) => v.kind === 'modelo' && v.status === 'ready')
+    && chosen.some((a) => versions.base.student_ids.includes(a.student.id));
+  const repeatHint = `${modelB ? 'Con las preguntas del modelo B (las del A ya circulan por la clase).' : 'Con las mismas preguntas de este examen.'} ${
+    chosen.length === 1 ? 'Su nota ocupa' : 'Sus notas ocupan'} el hueco de este examen.`;
 
   const schedule = () => repeat.mutate({ date, student_ids: chosen.map((a) => a.student.id) }, {
     onSuccess: () => { toast(`Repesca el ${shortDate(date)} para ${plural(chosen.length, 'alumno', 'alumnos')}. Su nota irá a esta columna.`); onClose(); },
@@ -117,7 +124,7 @@ function Absences({ activity, onClose, course, missing, received }: {
             </div>
             {chosen.length > 0 ? (
               <DateField label="Fecha de la repesca" value={date} min={activity.date} onChange={(v) => v && setDate(v)}
-                hint="La repesca es la misma prueba (misma rúbrica) solo para ellos; su nota ocupa el hueco de este examen." />
+                hint={repeatHint} />
             ) : pending.every((a) => a.repeat_id) ? (
               <p className="muted">Repesca programada: su nota irá a la columna de este examen. Si no se presenta, elígelo para ponerle NP.</p>
             ) : (

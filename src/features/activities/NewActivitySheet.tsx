@@ -53,7 +53,7 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
       </Button>}>
       <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <ActivityForm value={value} onChange={setValue} categories={course.categories} courseId={course.id} stage={course.group.stage}
-          autoFocus={!initial} pickUnit={!initial}
+          autoFocus={!initial} pickUnit
           moreOpen={!!initial && (initial.counts_for !== undefined || initial.student_ids !== undefined)} />
         <button type="submit" hidden />
       </form>

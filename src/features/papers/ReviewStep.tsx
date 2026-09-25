@@ -1,4 +1,4 @@
-import { CaretDown, CaretUp, CheckCircle, DotsThree, ListChecks, Warning } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, DotsThree, ListChecks, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useAcceptAll, type Correction, type CorrectionStudent, type FrequentError } from '../../api/papers';
 import { useUnits } from '../../api/units';
@@ -27,8 +27,9 @@ const toConfirm = (s: CorrectionStudent) => !!s.paper_id && s.match_status === '
 const isFinal = (s: CorrectionStudent) => ['confirmed', 'absent', 'exempt'].includes(s.grade?.status ?? '');
 
 /** What is left for this student, in words (nothing once the grade is final). A student who missed the exam: their
- * repeat exam, or «Faltó» (NP or a repeat, in the sheet). */
-function statusLine(s: CorrectionStudent) {
+ * repeat exam, or «Faltó» (NP or a repeat, in the sheet). While the AI is grading, a paper without its suggestion yet
+ * says nothing. */
+function statusLine(s: CorrectionStudent, grading: boolean) {
   const g = s.grade?.status;
   if (isFinal(s)) return g === 'exempt' ? 'Exento' : undefined;
   if (s.missed?.repeat_id) return s.missed.repeat_grade ? 'Nota de la repesca' : `Repesca el ${shortDate(s.missed.repeat_date!)}`;
@@ -36,7 +37,7 @@ function statusLine(s: CorrectionStudent) {
   if (toConfirm(s)) return <Chip tone="warn">Nombre por confirmar</Chip>;
   if (needsLook(s.flags)) return <Chip tone="warn">Revisa las páginas</Chip>;
   if (g === 'suggested') return undefined;
-  if (s.paper_id) return 'Sin sugerencia de la IA';
+  if (s.paper_id) return grading ? undefined : 'Sin sugerencia de la IA';
   return 'Sin hoja';
 }
 
@@ -122,9 +123,6 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
   return (
     <>
       {running && <JobLine job={job} fallback="Corrigiendo…" />}
-      {stats.papers > 0 && stats.pending === 0 && !unmatched.length && (
-        <div className="review-done"><CheckCircle size={20} weight="fill" /><span>Todas las hojas están revisadas.</span></div>
-      )}
       <MissingPapersRow correction={correction} onOpen={onOpenMissing} />
       {unmatched.length > 0 && (
         <Callout tone="warn" icon={<Warning size={18} />}>
@@ -175,7 +173,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
             const repeat = !isFinal(s) && s.missed?.repeat_id; // their grade is in the repeat exam
             const missed = !isFinal(s) && s.missed && !repeat; // NP or a repeat: the sheet
             return (
-              <Row key={s.student.id} title={s.student.sort_name} wrapSub sub={statusLine(s)}
+              <Row key={s.student.id} title={s.student.sort_name} wrapSub sub={statusLine(s, running)}
                 to={repeat ? `/clases/${activity.course.id}/actividades/${repeat}` : missed ? undefined : `${base}/revisar?alumno=${s.student.id}`}
                 state={repeat ? undefined : FROM_ACTIVITY} onClick={missed ? onOpenMissing : undefined}
                 trail={<Score s={s} max={activity.max_score} />} />

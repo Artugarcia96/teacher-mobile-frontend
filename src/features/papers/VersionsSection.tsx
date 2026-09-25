@@ -10,8 +10,7 @@ import { plural } from '../../lib/format';
 import { AIBadge, Button, Callout, List, Row, RowIcon, Section, Spinner, useFeedback } from '../../ui';
 import { measureChips } from '../students/support';
 import AssignmentSheet from './AssignmentSheet';
-import { JobLine } from './JobLine';
-import { firstNames, useClassPrint } from './useClassPrint';
+import { firstNames, printedFor, useClassPrint } from './useClassPrint';
 import VersionSheet from './VersionSheet';
 
 /** `?version=S`: open that version's sheet (from «Revisar» before printing for the class). */
@@ -19,7 +18,7 @@ export const VERSION_PARAM = 'version';
 
 interface Props {
   correction: Correction;
-  /** The `prepare_versions` job while it runs. */
+  /** The `prepare_versions` job while it runs (each row shows its own progress). */
   job: Job | undefined;
   running: boolean;
   onJob: (job: Job) => void;
@@ -61,7 +60,8 @@ function adaptationSub(a: Adaptation, vs: Versions) {
 }
 
 /** Preparar › Versiones: Modelo A and the other versions of the exam (Modelo B written by the AI, adapted versions from
- * the class's support measures), who takes each, and «Imprimir para la clase». */
+ * the class's support measures), who takes each, and «Imprimir para la clase». An exam for some students only (a
+ * repeat, a recovery) has no versions to prepare here: its copy and «Imprimir para Paula». */
 export function VersionsSection({ correction, job, running, onJob }: Props) {
   const id = correction.activity.id;
   const qc = useQueryClient();
@@ -86,6 +86,7 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
   }, [asked, setParams]);
 
   if (!vs) return null;
+  const only = printedFor(correction);
   const byId = new Map(correction.students.map((s) => [s.student.id, s.student]));
   const busy = running || createB.isPending || adapt.isPending;
   const hasB = vs.versions.some((v) => v.kind === 'modelo');
@@ -101,10 +102,27 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
   const printBlocked = busy ? 'Espera a que terminen las versiones'
     : pendingVersions.some((v) => v.status === 'failed') ? 'Rehaz o quita las versiones que no se han podido preparar' : undefined;
 
+  if (only) {
+    return (
+      <Section title={correction.students.length === 1 ? 'Copia con nombre' : 'Copias con nombre'}>
+        <List>
+          <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title={`Examen de ${only.names}`} wrapSub
+            sub={correction.students.length === 1 ? 'Con su nombre impreso: al escanearla, vuelve sola a su hoja.'
+              : 'Cada copia con el nombre de su alumno: al escanearlas, vuelven solas a su hoja.'} />
+        </List>
+        <div className="versions-action">
+          <Button icon={<Printer size={18} />} onClick={classPrint.print} loading={classPrint.isPending} disabled={!!printBlocked}>
+            Imprimir para {only.who}
+          </Button>
+          {printBlocked && <span className="muted">{printBlocked}</span>}
+        </div>
+      </Section>
+    );
+  }
+
   return (
     <>
       <Section title="Versiones">
-        {running && <JobLine job={job} fallback="Preparando las versiones…" />}
         <List>
           {all.map((v) => (
             <Row key={v.key} lead={<RowIcon tone={v.kind === 'base' ? undefined : 'accent'}><Exam size={20} /></RowIcon>}

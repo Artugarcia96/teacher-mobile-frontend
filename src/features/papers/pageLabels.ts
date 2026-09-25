@@ -49,7 +49,6 @@ export function flagLabel(f: PaperFlag): string {
   }
 }
 
-export const extrasLabel = (n: number) => (n === 1 ? '+1 hoja extra' : `+${n} hojas extra`);
 
 /** Why a page is in "Páginas por colocar". */
 export function looseTitle(p: LoosePage): string {

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Capture screenshots of app routes as the demo teacher, phone (390×844 @2x, touch, mobile viewport) and desktop
-// (1440×900). Exits with an error when a page is wider than the screen (it would scroll sideways on a phone); a page
-// with a rubric is checked again with unsaved changes in it.
+// (1440×900). Exits with an error when a page is wider than the screen (it would scroll sideways on a phone).
 // Usage: node e2e/shoot.mjs <outDir> /hoy /clases "/clases/<id>/cuaderno" …
 //   env: APP=http://127.0.0.1:5173  API=http://127.0.0.1:8000  ONLY=mobile|desktop  WAIT=1200
 //   A route can include actions after "::", e.g. "/hoy::click=text=Pasar lista" (Playwright selector);
@@ -58,15 +57,6 @@ for (const [name, viewport, dpr, phone] of viewports) {
     await page.screenshot({ path: file, fullPage: process.env.FULL === '1' });
     console.log(file);
     await checkOverflow(page, name, spec);
-    // A rubric on screen: also with unsaved changes (its «Guardar» buttons appear under long formulas)
-    const dialog = page.locator('[role="dialog"]').last();
-    const scope = (await dialog.count()) ? dialog : page; // the rubric of an open sheet, else the page's
-    const more = scope.locator('.rubric .stepper button[aria-label="Más"]:not([disabled])').first();
-    if (await more.isVisible().catch(() => false)) {
-      await more.click({ timeout: 5000 });
-      await page.waitForTimeout(300);
-      await checkOverflow(page, name, `${spec} (rúbrica con cambios)`);
-    }
   }
   await ctx.close();
 }

@@ -13,10 +13,16 @@ export function missingStudents(c: Correction, withRepeat = false): StudentRef[]
     .map((s) => s.student);
 }
 
+/** A student by first name; when two of the class share it, with the initial of the surname ("Rubén C."). */
+function firstName(s: StudentRef, everyone: StudentRef[]): string {
+  const shared = everyone.filter((x) => x.first_name === s.first_name).length > 1;
+  return shared && s.last_name ? `${s.first_name} ${s.last_name[0]}.` : s.first_name;
+}
+
 /** "Candela: repesca el 1 dic", "Marcos: NP", "Iker: repesca, 6,5" — a student without a paper whose case is settled. */
-function settled(s: CorrectionStudent): string | null {
+function settled(s: CorrectionStudent, everyone: StudentRef[]): string | null {
   if (s.paper_id) return null;
-  const who = s.student.first_name;
+  const who = firstName(s.student, everyone);
   if (s.grade?.status === 'absent') return `${who}: NP`;
   const rep = s.missed?.repeat_id ? s.missed : null;
   if (!rep) return null;
@@ -26,27 +32,24 @@ function settled(s: CorrectionStudent): string | null {
   return `${who}: repesca el ${shortDate(rep.repeat_date!)}`;
 }
 
-/** "Pérez, Ruiz, Gil" by first surname; when two students of the class share one, "Carmen Cortés y Hugo Domínguez"
- * (first name and surname for everyone: a lone surname next to a full name reads as a double surname); "y 3 más". */
+/** "Paula", "Paula y Hugo", "Paula, Hugo, Ana y 3 más": first names, as in the rest of the row. */
 export function missingNames(missing: StudentRef[], everyone: StudentRef[]): string {
-  const surname = (s: StudentRef) => s.last_name.split(' ')[0] || s.first_name;
-  const shared = missing.some((s) => everyone.filter((x) => surname(x) === surname(s)).length > 1);
-  const names = missing.map((s) => (shared ? `${s.first_name} ${surname(s)}` : surname(s)));
+  const names = missing.map((s) => firstName(s, everyone));
   if (names.length > 4) return `${names.slice(0, 3).join(', ')} y ${names.length - 3} más`;
-  return shared && names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names.join(', ');
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0] ?? '';
 }
 
-/** "Faltan Pérez, Ruiz · Candela: repesca el 1 dic · Marcos: NP"; null when the pile is complete (or not scanned). */
+/** "Paula: pendiente · Candela: repesca el 1 dic · Marcos: NP"; null when the pile is complete (or not scanned). */
 export function missingText(c: Correction): string | null {
   if (!c.stats.papers) return null;
   const missing = missingStudents(c);
   const everyone = c.students.map((s) => s.student);
-  const parts = [missing.length ? `${missing.length === 1 ? 'Falta' : 'Faltan'} ${missingNames(missing, everyone)}` : null,
-    ...c.students.map(settled)].filter(Boolean);
+  const parts = [missing.length ? `${missingNames(missing, everyone)}: ${missing.length === 1 ? 'pendiente' : 'pendientes'}` : null,
+    ...c.students.map((s) => settled(s, everyone))].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }
 
-/** "24 de 26 hojas recibidas · Faltan Pérez, Ruiz · Candela: repesca el 1 dic · Marcos: NP" → the sheet to put NP or
+/** "24 de 26 hojas recibidas · Paula: pendiente · Candela: repesca el 1 dic · Marcos: NP" → the sheet to put NP or
  * schedule a repeat exam. It stays once everyone is settled: who missed the exam and what was done. */
 export function MissingPapersRow({ correction, onOpen }: { correction: Correction; onOpen: () => void }) {
   const sub = missingText(correction);

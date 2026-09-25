@@ -2,7 +2,7 @@
  * Keep these exported names and signatures stable: papers.ts and the activity pages import them. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { correctionKeys } from './papers';
+import { correctionKeys, invalidateCorrection } from './papers';
 import type { CourseRef, Ok, StudentRef } from './types';
 
 export type ActivityKind = 'exam' | 'worksheet' | 'task' | 'oral' | 'notebook' | 'attitude' | 'other' | 'homework';
@@ -126,12 +126,7 @@ export function useScheduleRepeat(activityId: string, courseId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { date: string; student_ids?: string[] }) => api.post<ActivityBrief>(`/activities/${activityId}/repeat`, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: activityKeys.one(activityId) });
-      qc.invalidateQueries({ queryKey: ['course', courseId] });
-      qc.invalidateQueries({ queryKey: ['inbox'] });
-      qc.invalidateQueries({ queryKey: ['today'] });
-    },
+    onSuccess: () => invalidateCorrection(qc, activityId, courseId), // the exam page says who has a repeat now
   });
 }
 

@@ -1,4 +1,4 @@
-import { ArrowClockwise, CaretDown, CaretUp, Check, DotsThree, Trash } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, Check, DotsThree, Trash, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import {
   useAssignPaper, useDeletePaper, useFlagsChecked, useReclassify, useSuggest, type Correction, type CorrectionStudent, type PaperFlag,
@@ -7,7 +7,7 @@ import type { Job } from '../../api/types';
 import { fileUrl } from '../../lib/api';
 import { plural } from '../../lib/format';
 import { Callout, Chip, IconButton, List, Row, Section, Menu, useFeedback } from '../../ui';
-import { extrasLabel, flagLabel, heldFromAI, isAttention, looseTitle, needsLook, pageCaption, shortName } from './pageLabels';
+import { flagLabel, heldFromAI, isAttention, looseTitle, needsLook, pageCaption, shortName } from './pageLabels';
 import { PageStrip } from './PageStrip';
 import { PageViewer, type ViewerTarget } from './PageViewer';
 import StudentPickerSheet from './StudentPickerSheet';
@@ -28,16 +28,14 @@ interface Props {
   onJob: (job: Job) => void;
 }
 
-/** Flag chips of a paper: warnings first (warn tone), then "+1 hoja extra" and the informative ones. */
+/** Flag chips of a paper: warnings first (warn tone), then the informative ones (extra sheets show in its strip). */
 function FlagChips({ s }: { s: CorrectionStudent }) {
   const attention = s.flags.filter(isAttention);
   const info = s.flags.filter((f) => !isAttention(f));
-  const extraChip = s.extra_count > 0 && !(s.extra_count === 1 && s.flags.some((f) => f.code === 'extra_sin_nombre'));
-  if (!attention.length && !extraChip && !info.length) return null;
+  if (!attention.length && !info.length) return null;
   return (
     <div className="chip-row">
       {attention.map((f: PaperFlag) => <Chip key={f.code} tone="warn">{flagLabel(f)}</Chip>)}
-      {extraChip && <Chip>{extrasLabel(s.extra_count)}</Chip>}
       {info.map((f: PaperFlag) => <Chip key={f.code}>{flagLabel(f)}</Chip>)}
     </div>
   );
@@ -69,7 +67,9 @@ export function ScanPages({ correction, blocked, busy, onJob }: Props) {
   const noSuggestion = correction.rubric ? withPaper.filter((s) => !s.grade) : [];
   const ready = noSuggestion.filter((s) => !heldFromAI(s.flags));
   const held = noSuggestion.filter((s) => heldFromAI(s.flags));
-  const unread = unplaced.filter((p) => p.reason === 'sin_leer').length;
+  const unreadPages = unplaced.filter((p) => p.reason === 'sin_leer');
+  const unread = unreadPages.length;
+  const unreadWhy = unreadPages.find((p) => p.error)?.error;
   const suspicious = discarded.filter((p) => p.maybe_written);
   const discardedOpen = showDiscarded ?? suspicious.length > 0;
   const onError = (e: Error) => toast(e.message, { tone: 'error' });
@@ -177,21 +177,30 @@ export function ScanPages({ correction, blocked, busy, onJob }: Props) {
         </Section>
       )}
 
+      {unread > 0 && (
+        <Callout tone="warn" icon={<Warning size={18} />}>
+          <span>{unread === 1 ? 'No se ha podido leer 1 página.' : `No se han podido leer ${unread} páginas.`}{unreadWhy ? ` ${unreadWhy}` : ''} </span>
+          <button type="button" className="link-btn" disabled={off} title={lock} onClick={readAgain}>
+            {unread > 1 ? `Volver a leer (${unread})` : 'Volver a leer'}
+          </button>
+        </Callout>
+      )}
+
       {unplaced.length > 0 && (
         <Section title={`Páginas por colocar · ${unplaced.length}`}>
           <List inset={16}>
             {unplaced.map((p, i) => (
-              <Row key={p.id} className="tray-row loose-row" title={looseTitle(p)} wrapSub
+              <Row key={p.id} className="tray-row loose-row" wrapSub
+                title={p.reason === 'sin_leer' ? ( // why it was not read is said once, above
+                  <Chip disabled={off} title={lock} onClick={() => setPick({ mode: 'page', target: { kind: 'unplaced', pages: unplaced, index: i } })}>
+                    Asignar a un alumno
+                  </Chip>
+                ) : looseTitle(p)}
                 lead={<PageStrip pages={[p]} label={looseTitle(p)} onOpen={() => setViewer({ kind: 'unplaced', pages: unplaced, index: i })} />}
-                sub={
+                sub={p.reason === 'sin_leer' ? undefined : (
                   <div className="tray-sub">
                     {p.written_name && p.reason !== 'extra_sin_examen' && <span className="muted">Se lee «{p.written_name}»</span>}
                     <div className="chip-row tray-chips">
-                      {p.reason === 'sin_leer' && (
-                        <Chip tone="accent" icon={<ArrowClockwise size={14} weight="bold" />} disabled={off} title={lock} onClick={readAgain}>
-                          {unread > 1 ? `Volver a leer (${unread})` : 'Volver a leer'}
-                        </Chip>
-                      )}
                       {p.candidates.map((c) => (
                         <Chip key={c.id} tone="outline" disabled={off} title={lock} onClick={() => ops.placeLoose('unplaced', p.id, c.id)}>{shortName(c)}</Chip>
                       ))}
@@ -200,7 +209,7 @@ export function ScanPages({ correction, blocked, busy, onJob }: Props) {
                       </Chip>
                     </div>
                   </div>
-                }
+                )}
                 trail={
                   <Menu trigger={(o) => <IconButton label="Más" size="sm" onClick={o}><DotsThree size={20} weight="bold" /></IconButton>}
                     items={[{ label: 'Descartar página', icon: <Trash size={18} />, danger: true,
