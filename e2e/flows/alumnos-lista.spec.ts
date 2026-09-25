@@ -28,8 +28,9 @@ test.describe('demo class (read only)', () => {
     const hugo = rosterRow(page, 'Domínguez Marín, Hugo');
     await expect(hugo).toContainText('7 faltas sin justificar en 14 días');
     await expect(hugo.locator('.students-roster__abs')).toHaveCount(0);
-    await expect(rosterRow(page, 'Morales Castro, Ainhoa')).toContainText('Bajó de 8,5 a 3,25 en «Cuaderno de octubre»');
-    await expect(rosterRow(page, 'Morales Castro, Ainhoa')).not.toContainText('incidencias');
+    const ainhoa = rosterRow(page, 'Morales Castro, Ainhoa');
+    await expect(ainhoa).toContainText('2 incidencias en 7 días');
+    await expect(ainhoa.locator('.students-roster__abs')).toHaveCount(0); // her one absence is not beside a reason
     // Measures as short chips, two at most and «+N»; ACS with its level.
     const ruben = rosterRow(page, 'López Vázquez, Rubén');
     await expect(ruben.locator('.chip')).toHaveText(['Más tiempo', 'Letra ampliada', '+1']);

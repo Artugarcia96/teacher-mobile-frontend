@@ -39,7 +39,7 @@ test.describe('the first list of a new class', () => {
     await expect(previewNames(s)).toHaveText([
       'García López, Ana', 'Ruiz Serrano, Pablo', 'García López, María del Carmen', 'de la Fuente, Ana', 'Molina, Hugo',
     ]);
-    await expect(s.getByText('«Pablo Ruiz Serrano» está repetido; se añade una vez.')).toBeVisible();
+    await expect(s.getByText('«Pablo Ruiz Serrano» aparece 2 veces; se añade una.')).toBeVisible();
     await shot(page, info, 'anadir-pegar');
 
     await s.getByRole('button', { name: 'Añadir 5 alumnos' }).click();
@@ -323,6 +323,10 @@ test.describe('a class that already has its list', () => {
     await s.getByRole('button', { name: 'Ortiz Vela, Noa' }).click();
     await s.getByRole('button', { name: 'Añadir 1 alumno' }).click();
     await expect(toast(page, '1 alumno añadido')).toBeVisible();
+    // The sheet has closed and given its history entry back before the next navigation.
+    await expect(s).toBeHidden();
+    await expect(rosterRow(page, 'Ortiz Vela, Noa')).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/clases/${c.id}/alumnos$`));
     await page.goto(`/clases/${c.id}/alumnos?anadir=1`);
     await s.getByRole('button', { name: 'De otro grupo' }).click();
     await s.getByRole('button', { name: '2.º ESO D' }).click();
