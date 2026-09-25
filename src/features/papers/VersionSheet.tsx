@@ -1,4 +1,5 @@
 import { ArrowClockwise, ArrowSquareOut, Key, Trash, UsersThree } from '@phosphor-icons/react';
+import { useAIUnavailable } from '../../api/core';
 import { useDocumentUrl, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
 import { useRedoVersion, useRemoveVersion, useVersion, useVersionDocUrl, type Versions } from '../../api/versions';
@@ -30,6 +31,7 @@ export default function VersionSheet({ activityId, versionKey, versions, correct
   const versionDoc = useVersionDocUrl(activityId);
   const redo = useRedoVersion(activityId);
   const remove = useRemoveVersion(activityId);
+  const noAI = useAIUnavailable();
   const { toast, confirm } = useFeedback();
   const v = isBase ? versions.base : versions.versions.find((x) => x.key === versionKey);
   if (!versionKey || !v) return null;
@@ -104,7 +106,7 @@ export default function VersionSheet({ activityId, versionKey, versions, correct
           <div className="version-end">
             {ai && (
               <Button variant="neutral" icon={<ArrowClockwise size={18} />} onClick={onRedo} loading={redo.isPending}
-                disabled={running || v.in_use || v.status === 'generating'}>
+                disabled={running || v.in_use || v.status === 'generating' || !!noAI}>
                 Rehacer
               </Button>
             )}
@@ -112,7 +114,8 @@ export default function VersionSheet({ activityId, versionKey, versions, correct
               Quitar versión
             </Button>
             {v.in_use ? <span className="muted">Ya hay hojas o notas de esta versión: se queda como se imprimió.</span>
-              : running && ai && <span className="muted">Rehacer espera a que termine lo que se está preparando.</span>}
+              : ai && noAI ? <span className="muted">{noAI}</span>
+                : running && ai && <span className="muted">Rehacer espera a que termine lo que se está preparando.</span>}
           </div>
         )}
       </div>
