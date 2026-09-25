@@ -1,5 +1,5 @@
 import { Plus, SignOut, Warning } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMe, usePatchMe, useRegions, useSaveSchoolYear, useSendFeedback } from '../../api/core';
 import type { Holiday, Me, Term } from '../../api/types';
 import { ApiError } from '../../lib/api';
@@ -15,13 +15,10 @@ import './settings.css';
 const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback);
 
 interface Profile { name: string; school: string; region: string }
-interface Year { label: string; terms: Term[]; holidays: Holiday[] }
+interface Year { terms: Term[]; holidays: Holiday[] }
 
 const profileOf = (me: Me): Profile => ({ name: me.teacher.name, school: me.teacher.school ?? '', region: me.teacher.region ?? '' });
-const yearOf = (me: Me): Year => {
-  const y = me.school_year;
-  return { label: y.label, terms: y.terms, holidays: y.holidays };
-};
+const yearOf = (me: Me): Year => ({ terms: me.school_year.terms, holidays: me.school_year.holidays });
 
 /** "8 sept 2026 – 22 dic 2026" pair of date fields. */
 function Range({ label, start, end, onChange }: { label: string; start: string; end: string; onChange: (start: string, end: string) => void }) {
@@ -39,15 +36,13 @@ function Range({ label, start, end, onChange }: { label: string; start: string; 
 
 function ProfileSection({ me, value, onChange }: { me: Me; value: Profile; onChange: (p: Profile) => void }) {
   const regions = useRegions();
-  const region = regions.data?.find((r) => r.code === value.region);
   return (
     <Section title="Perfil">
       <div className="card card--pad form">
         <TextField label="Nombre" value={value.name} autoComplete="name" onChange={(e) => onChange({ ...value, name: e.target.value })}
           error={value.name.trim() ? undefined : 'Escribe tu nombre.'} />
         <TextField label="Centro" placeholder="IES Miguel de Cervantes" value={value.school} onChange={(e) => onChange({ ...value, school: e.target.value })} />
-        <Select label="Comunidad autónoma" value={value.region} onChange={(e) => onChange({ ...value, region: e.target.value })}
-          hint={region ? (region.platform ? `Plataforma de notas: ${region.platform}` : 'Sin una plataforma de notas única') : undefined}>
+        <Select label="Comunidad autónoma" value={value.region} onChange={(e) => onChange({ ...value, region: e.target.value })}>
           <option value="">Sin indicar</option>
           {(regions.data ?? []).map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
           {!regions.data && value.region && <option value={value.region}>{me.region?.name ?? value.region}</option>}
@@ -100,7 +95,6 @@ function SchoolYearSection({ value, onChange }: { value: Year; onChange: (y: Yea
   return (
     <Section title="Curso escolar" footer="Las evaluaciones deciden a qué trimestre va cada nota. Los festivos no tienen clase en Hoy.">
       <div className="card card--pad form">
-        <TextField label="Curso" value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} />
         {value.terms.map((t) => (
           <Range key={t.n} label={TERM_LABEL[t.n]} start={t.start} end={t.end} onChange={(s, e) => setTerm(t.n, s, e)} />
         ))}
@@ -157,8 +151,9 @@ function FeedbackSection() {
 }
 
 /** Profile + school year are edited as one draft: a sticky "Guardar cambios" bar appears while something changed.
- *  Each part follows /me only while untouched (useDraft) and keeps its edits until *it* is saved. */
-function SettingsForm({ me }: { me: Me }) {
+ *  Each part follows /me only while untouched (useDraft) and keeps its edits until *it* is saved. The rest of the page
+ *  (`children`) goes between the form and the bar, so the bar ends the page with room of its own above the tab capsule. */
+function SettingsForm({ me, children }: { me: Me; children: ReactNode }) {
   const { toast } = useFeedback();
   const patchMe = usePatchMe();
   const saveYear = useSaveSchoolYear();
@@ -167,7 +162,7 @@ function SettingsForm({ me }: { me: Me }) {
   const [error, setError] = useState<string | null>(null);
   const saving = patchMe.isPending || saveYear.isPending;
   const blocker = !profile.draft.name.trim() ? 'Escribe tu nombre'
-    : year.draft.holidays.some((h) => !h.start) ? 'Pon la fecha del festivo' : null;
+    : year.draft.holidays.some((h) => !h.start) ? 'Pon la fecha' : null;
 
   const discard = () => { profile.reset(); year.reset(); setError(null); };
   const save = async () => {
@@ -192,6 +187,7 @@ function SettingsForm({ me }: { me: Me }) {
     <>
       <ProfileSection me={me} value={profile.draft} onChange={profile.setDraft} />
       <SchoolYearSection value={year.draft} onChange={year.setDraft} />
+      {children}
       {(profile.dirty || year.dirty) && (
         <ActionBar note="Sin guardar" error={error}>
           <Button size="sm" variant="neutral" onClick={discard} disabled={saving}>Descartar</Button>
@@ -209,7 +205,7 @@ export default function SettingsPage() {
   const { confirm } = useFeedback();
 
   const signOut = async () => {
-    if (await confirm({ title: 'Cerrar sesión', text: 'Tendrás que volver a entrar con tu correo y contraseña.', confirm: 'Cerrar sesión', danger: true })) logout();
+    if (await confirm({ title: 'Cerrar sesión', text: 'Tendrás que volver a entrar con tu correo y contraseña.', confirm: 'Cerrar sesión' })) logout();
   };
 
   return (
@@ -219,10 +215,11 @@ export default function SettingsPage() {
           action={<Button variant="tinted" onClick={() => refetch()}>Reintentar</Button>} />
       ) : !me ? <SkeletonList rows={6} /> : (
         <div className="settings">
-          <SettingsForm me={me} />
-          <Appearance />
-          <FeedbackSection />
-          <Button variant="danger" full icon={<SignOut size={18} />} onClick={signOut}>Cerrar sesión</Button>
+          <SettingsForm me={me}>
+            <Appearance />
+            <FeedbackSection />
+            <Button variant="neutral" full icon={<SignOut size={18} />} onClick={signOut}>Cerrar sesión</Button>
+          </SettingsForm>
         </div>
       )}
     </Page>
