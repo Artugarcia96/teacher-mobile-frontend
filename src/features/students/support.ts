@@ -7,7 +7,7 @@ export const MEASURES: { key: Measure; label: string; short: string }[] = [
   { key: 'enunciados_por_pasos', label: 'Enunciados por pasos', short: 'Por pasos' },
   { key: 'lectura_en_voz_alta', label: 'Lectura de enunciados en voz alta', short: 'Lectura en voz alta' },
   { key: 'examen_adaptado', label: 'Examen adaptado', short: 'Examen adaptado' },
-  { key: 'acs', label: 'Adaptación curricular significativa (ACS)', short: 'ACS' },
+  { key: 'acs', label: 'ACS · adaptación curricular significativa', short: 'ACS' },
 ];
 
 const SHORT = Object.fromEntries(MEASURES.map((m) => [m.key, m.short])) as Record<Measure, string>;

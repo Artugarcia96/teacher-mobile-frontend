@@ -1,8 +1,8 @@
-/** Small sheets used only by Hoy: one session (plan, materials and actions), month picker, «A vigilar» (all, and one student). */
-import { ArrowCounterClockwise, BookOpen, CalendarX, ChatCircleText, CheckCircle, FilePdf, FlagCheckered, ListChecks, NotePencil, Student } from '@phosphor-icons/react';
+/** Small sheets used only by Hoy: one session (plan, materials and actions), month picker, «A vigilar» (all classes). */
+import { ArrowCounterClockwise, BookOpen, CalendarX, FilePdf, FlagCheckered, ListChecks, NotePencil } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useAckWatch, useCalendar, useCancelSession, useWatch, type TodaySession, type WatchItem } from '../../api/today';
-import { addDays, isoDate, longDate, parseDate, shortDate } from '../../lib/format';
+import { useCalendar, useCancelSession, useWatch, type TodaySession, type WatchItem } from '../../api/today';
+import { addDays, isoDate, longDate, parseDate } from '../../lib/format';
 import { MaterialChips } from '../../features/materials/MaterialChips';
 import { fileUrl } from '../../lib/api';
 import { Button, Callout, List, MonthGrid, Row, RowIcon, Sheet, SkeletonList, TextField, useFeedback } from '../../ui';
@@ -135,41 +135,6 @@ export function WatchSheet({ open, onClose, onOpen }: { open: boolean; onClose: 
       {q.isLoading ? <SkeletonList rows={6} /> : q.error ? <p className="muted">{(q.error as Error).message}</p> : (
         <WatchRows items={q.data ?? []} onOpen={(w) => { onClose(); onOpen(w); }} empty={{ title: 'Nadie a vigilar', sub: 'Ningún alumno tiene faltas, suspensos o incidencias recientes.' }} />
       )}
-    </Sheet>
-  );
-}
-
-/** One student of «A vigilar»: why, since when, and what to do about it. */
-export function WatchItemSheet({ item, onClose, onFamily }: {
-  item: WatchItem | null; onClose: () => void; onFamily: (w: WatchItem) => void;
-}) {
-  const { toast } = useFeedback();
-  const ack = useAckWatch();
-  if (!item) return null;
-  const w = item;
-  const known = async () => {
-    try {
-      await ack.mutateAsync({ studentId: w.student.id, courseId: w.course.id });
-      toast(`${w.student.first_name} no volverá a salir hasta que haya algo nuevo`);
-      onClose();
-    } catch (e) {
-      toast((e as Error).message, { tone: 'error' });
-    }
-  };
-  return (
-    <Sheet open onClose={onClose} title={w.student.name} subtitle={`${w.course.label} · último hecho: ${shortDate(w.since)}`}
-      footer={<>
-        <Button variant="neutral" icon={<CheckCircle size={18} />} onClick={known} loading={ack.isPending}>Ya lo sé</Button>
-        <Button icon={<ChatCircleText size={18} />} onClick={() => { onClose(); onFamily(w); }}>Avisar a la familia</Button>
-      </>}>
-      <div className="form">
-        <List>
-          {w.reasons.map((r) => <Row key={r} title={<span className="watch-reason">{r}</span>} />)}
-        </List>
-        <List>
-          <Row lead={<RowIcon><Student size={20} /></RowIcon>} title="Ver ficha" sub="Notas, asistencia y observaciones" to={`/alumnos/${w.student.id}`} />
-        </List>
-      </div>
     </Sheet>
   );
 }

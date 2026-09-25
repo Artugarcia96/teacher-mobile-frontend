@@ -1,6 +1,8 @@
 /** Shared API types (mirror backend app/schemas/common.py, me.py, courses.py, notes.py).
  * Feature-specific types live next to their hooks in src/api/<area>.ts. */
 
+import type { WatchItem } from './today';
+
 /** `region` = código de comunidad autónoma ("MD"). */
 export interface Teacher { id: string; email: string; name: string; school?: string | null; region?: string | null }
 /** Comunidad autónoma y plataforma de notas: `export_label` "Raíces (Madrid)" = destino de los CSV. */
@@ -46,17 +48,28 @@ export interface TermCell { term: number; average: number | null; proposed?: num
 export interface GradeLine {
   activity_id: string; title: string; date: string; category_label: string; score: number | null; max_score: number; normalized: number | null;
   status: string; comment?: string | null; adapted?: { label: string; acs: boolean } | null;
+  /** `none`: does not count for the grade (a «Prueba inicial»). */
+  counts_for?: 'average' | 'none' | 'recovery';
+  /** Activity kind: a `suggested` grade is an AI draft, except in the derived homework column. */
+  kind?: string;
 }
 /** Past exam of the current evaluación the student still lacks (no grade or NP). */
 export interface PendingExam { activity_id: string; title: string; date: string; status: 'empty' | 'absent' }
 /** Homework checks this school year where the student was present. */
 export interface HomeworkSummary { checks: number; not_done: number; partial: number }
+/** One absence, late or justified absence in the current term. */
+export interface AttendanceEntry { date: string; start: string; status: 'absent' | 'late' | 'justified'; note?: string | null }
 export interface StudentCourse {
+  /** absences, lates, justified and attendance (newest first): current term. */
   course: CourseRef; terms: TermCell[]; grades: GradeLine[]; absences: number; lates: number; justified: number; pending_exams?: PendingExam[];
-  homework?: HomeworkSummary | null;
+  attendance?: AttendanceEntry[]; homework?: HomeworkSummary | null;
 }
 export interface StudentFile {
-  student: StudentRef; notes_text?: string | null; groups: GroupRef[]; courses: StudentCourse[]; notes: Note[]; watch: string[];
+  student: StudentRef; notes_text?: string | null; groups: GroupRef[]; courses: StudentCourse[]; notes: Note[];
+  /** Current term. */
+  term: number;
+  /** «A vigilar», one item per class (also the acknowledged ones). */
+  watch: WatchItem[];
 }
 
 export interface SearchResult { students: { student: StudentRef; courses: CourseRef[] }[]; courses: CourseRef[] }

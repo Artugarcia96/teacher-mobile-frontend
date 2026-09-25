@@ -1,4 +1,4 @@
-import { CheckCircle, Circle, FileArrowUp, X } from '@phosphor-icons/react';
+import { CheckCircle, Circle, Trash } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAddStudents, useCourseStudents, useGroups, useGroupStudents, useImportStudentsFile, useParseStudents,
@@ -8,30 +8,52 @@ import type { CourseDetail } from '../../api/types';
 import { ApiError } from '../../lib/api';
 import { ordinals, plural } from '../../lib/format';
 import {
-  Avatar, Button, Callout, Chip, EmptyState, IconButton, List, Row, Segmented, Sheet, SkeletonList, TextArea, useFeedback,
+  Avatar, Button, Callout, Chip, EmptyState, List, Row, Segmented, Sheet, SkeletonList, TextArea, TextField, useFeedback,
 } from '../../ui';
 import './students.css';
 
-type Mode = 'paste' | 'csv' | 'group';
+type Mode = 'paste' | 'group';
 type Name = { first_name: string; last_name: string };
 
 const PLACEHOLDER = 'García López, Ana\nPablo Ruiz Serrano\nMaría José Fernández Gil\n…';
 const initials = (n: Name) => ((n.first_name[0] ?? '') + (n.last_name[0] ?? n.first_name[1] ?? '')).toUpperCase();
 const sortName = (n: Name) => (n.last_name ? `${n.last_name}, ${n.first_name}` : n.first_name);
 
-/** Preview of parsed names: the teacher checks the surname/name split and can drop lines. */
-function Preview({ parsed, onRemove }: { parsed: ParsedStudents; onRemove: (i: number) => void }) {
+/** One name of the preview being corrected: surname and first name, «Quitar» drops the line. */
+function EditName({ name, onChange, onRemove, onDone }: {
+  name: Name; onChange: (n: Name) => void; onRemove: () => void; onDone: () => void;
+}) {
+  return (
+    <div className="row add-st__edit">
+      <TextField label="Apellidos" value={name.last_name} autoFocus onChange={(e) => onChange({ ...name, last_name: e.target.value })} />
+      <TextField label="Nombre" value={name.first_name} onChange={(e) => onChange({ ...name, first_name: e.target.value })}
+        onKeyDown={(e) => { if (e.key === 'Enter') onDone(); }} />
+      <div className="add-st__edit-actions">
+        <Button variant="neutral" size="sm" icon={<Trash size={16} />} onClick={onRemove}>Quitar</Button>
+        <Button size="sm" onClick={onDone} disabled={!name.first_name.trim()} title={!name.first_name.trim() ? 'Escribe el nombre' : undefined}>Hecho</Button>
+      </div>
+    </div>
+  );
+}
+
+/** Preview of parsed names: the teacher checks the surname/name split; tapping a name corrects it or drops it. */
+function Preview({ parsed, onChange }: { parsed: ParsedStudents; onChange: (students: Name[]) => void }) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const set = (i: number, n: Name) => onChange(parsed.students.map((x, j) => (j === i ? n : x)));
   return (
     <div className="add-st__preview">
       {parsed.warnings.length > 0 && <Callout tone="warn"><div>{parsed.warnings.map((w) => <div key={w}>{w}</div>)}</div></Callout>}
       {parsed.students.length > 0 && (
         <>
-          <div className="section__head"><h3 className="section__title">{plural(parsed.students.length, 'alumno', 'alumnos')} · Apellidos, Nombre</h3></div>
+          <div className="section__head">
+            <h3 className="section__title">{plural(parsed.students.length, 'alumno', 'alumnos')} · Apellidos, Nombre</h3>
+          </div>
           <List inset={56}>
-            {parsed.students.map((n, i) => (
-              <Row key={`${n.last_name}-${n.first_name}-${i}`} lead={<Avatar size="sm" initials={initials(n)} />} title={sortName(n)}
-                trail={<IconButton size="sm" label={`Quitar ${n.first_name}`} onClick={() => onRemove(i)}><X size={16} /></IconButton>} />
-            ))}
+            {parsed.students.map((n, i) => (editing === i
+              ? <EditName key={i} name={n} onChange={(x) => set(i, x)} onDone={() => setEditing(null)}
+                  onRemove={() => { setEditing(null); onChange(parsed.students.filter((_, j) => j !== i)); }} />
+              : <Row key={i} lead={<Avatar size="sm" initials={initials(n)} />} title={sortName(n)} chevron={false}
+                  trail={<span className="add-st__fix">Corregir</span>} onClick={() => setEditing(i)} />))}
           </List>
         </>
       )}
@@ -39,14 +61,14 @@ function Preview({ parsed, onRemove }: { parsed: ParsedStudents; onRemove: (i: n
   );
 }
 
-/** "Añadir alumnos": paste a list, import a CSV, or reuse students from another group. */
+/** "Añadir alumnos": paste a list (or pick a CSV/TXT/Excel file, same preview), or reuse students from another group. */
 export default function AddStudentsSheet({ open, onClose, course }: { open: boolean; onClose: () => void; course: CourseDetail }) {
   const { toast } = useFeedback();
   const groupId = course.group.id;
   const [mode, setMode] = useState<Mode>('paste');
   const [text, setText] = useState('');
   const [parsed, setParsed] = useState<ParsedStudents | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);  // the preview comes from this file, not the pasted text
   const [fromGroup, setFromGroup] = useState<string | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -64,18 +86,18 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
     setMode('paste'); setText(''); setParsed(null); setFileName(null); setFromGroup(null); setPicked(new Set()); setError(null);
   }, [open]);
 
-  // Live preview while pasting (debounced).
+  // Live preview while pasting (debounced). A chosen file fills the same preview until the teacher types again.
   const { mutate: runParse } = parse;
   useEffect(() => {
-    if (mode !== 'paste') return;
+    if (mode !== 'paste' || fileName) return;
     if (!text.trim()) { setParsed(null); return; }
     const t = setTimeout(() => runParse(text, { onSuccess: setParsed, onError: (e) => setError(e.message) }), 350);
     return () => clearTimeout(t);
-  }, [text, mode, runParse]);
+  }, [text, mode, fileName, runParse]);
 
   const changeMode = (m: Mode) => {
-    setMode(m); setParsed(null); setError(null); setFileName(null);
-    if (m === 'paste' && text.trim()) runParse(text, { onSuccess: setParsed });
+    setMode(m); setError(null);
+    if (m === 'paste' && text.trim() && !fileName) runParse(text, { onSuccess: setParsed });
   };
 
   const onFile = (f: File | undefined) => {
@@ -83,14 +105,14 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
     setFileName(f.name); setError(null); setParsed(null);
     importFile.mutate(f, { onSuccess: setParsed, onError: (e) => setError(e.message) });
   };
+  const onText = (value: string) => { setText(value); setFileName(null); };
 
   const enrolled = useMemo(() => new Set(roster.data?.map((s) => s.id)), [roster.data]);
   const candidates = (others.data ?? []).filter((s) => !enrolled.has(s.id));
   const otherGroups = (groups.data ?? []).filter((g) => g.id !== groupId && g.student_count > 0);
 
   const count = mode === 'group' ? picked.size : parsed?.students.length ?? 0;
-  const blocker = count > 0 ? null
-    : mode === 'paste' ? 'Pega al menos un nombre' : mode === 'csv' ? 'Elige un archivo' : 'Elige alumnos';
+  const blocker = count > 0 ? null : mode === 'paste' ? 'Pega al menos un nombre' : 'Elige alumnos';
 
   const submit = async () => {
     setError(null);
@@ -111,7 +133,7 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
     if (next.has(id)) next.delete(id); else next.add(id);
     setPicked(next);
   };
-  const removeParsed = (i: number) => parsed && setParsed({ ...parsed, students: parsed.students.filter((_, j) => j !== i) });
+  const editParsed = (students: Name[]) => parsed && setParsed({ ...parsed, students });
 
   return (
     <Sheet open={open} onClose={onClose} title="Añadir alumnos" subtitle={ordinals(course.group.name)} size="large"
@@ -119,28 +141,24 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
         {blocker ?? `Añadir ${plural(count, 'alumno', 'alumnos')}`}
       </Button>}>
       <div className="form">
-        <Segmented full label="Cómo añadir" value={mode} onChange={changeMode} options={[
-          { value: 'paste', label: 'Pegar lista' }, { value: 'csv', label: 'Importar CSV' },
-          ...(otherGroups.length ? [{ value: 'group' as const, label: 'De otro grupo' }] : []),
-        ]} />
+        {otherGroups.length > 0 && (
+          <Segmented full label="Cómo añadir" value={mode} onChange={changeMode} options={[
+            { value: 'paste', label: 'Pegar lista' }, { value: 'group', label: 'De otro grupo' },
+          ]} />
+        )}
 
         {mode === 'paste' && (
           <>
-            <TextArea label="Un alumno por línea" hint="Vale «Apellidos, Nombre» y «Nombre Apellidos». Los repetidos se añaden una vez."
-              placeholder={PLACEHOLDER} rows={7} value={text} onChange={(e) => setText(e.target.value)} />
-            {parsed && <Preview parsed={parsed} onRemove={removeParsed} />}
-          </>
-        )}
-
-        {mode === 'csv' && (
-          <>
-            <input ref={fileRef} type="file" accept=".csv,.txt,text/csv" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
-            <div className="list">
-              <Row lead={<FileArrowUp size={22} />} title={fileName ?? 'Elegir archivo CSV'} onClick={() => fileRef.current?.click()}
-                sub={fileName ? 'Toca para elegir otro' : 'Columnas «Nombre» y «Apellidos», o una sola columna «Alumno». Excel: guárdalo como CSV.'} wrapSub />
-            </div>
+            <TextArea label="Un alumno por línea" hint="Vale «Apellidos, Nombre» y «Nombre Apellidos», también copiado de Séneca, Raíces o un PDF. Los repetidos se añaden una vez."
+              placeholder={PLACEHOLDER} rows={7} value={text} onChange={(e) => onText(e.target.value)} />
+            <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
+            <p className="add-st__file">
+              <button type="button" className="add-st__link" onClick={() => fileRef.current?.click()}>o elige un archivo</button>
+              <span className="faint">{fileName ? ` · ${fileName}` : ' (CSV, TXT o Excel)'}</span>
+            </p>
             {importFile.isPending && <SkeletonList rows={3} />}
-            {parsed && <Preview parsed={parsed} onRemove={removeParsed} />}
+            {parsed && <Preview key={fileName ?? 'text'} parsed={parsed} onChange={editParsed} />}
           </>
         )}
 

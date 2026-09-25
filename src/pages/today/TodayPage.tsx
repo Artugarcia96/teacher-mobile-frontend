@@ -6,7 +6,8 @@ import { useCourses } from '../../api/core';
 import { useCalendar, useDay, type PendingItem, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
 import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
 import EventSheet from '../../features/events/EventSheet';
-import FamilyMessageSheet from '../../features/notes/FamilyMessageSheet';
+import FamilyMessageSheet from '../../features/students/FamilyMessageSheet';
+import WatchItemSheet from '../../features/students/WatchItemSheet';
 import QuickNoteSheet from '../../features/notes/QuickNoteSheet';
 import AbsenceSheet from '../../features/session/AbsenceSheet';
 import CloseSessionSheet from '../../features/session/CloseSessionSheet';
@@ -15,7 +16,7 @@ import { useToday } from '../../lib/auth';
 import { addDays, dayNumber, longDate, mondayOf, parseDate } from '../../lib/format';
 import { Button, EmptyState, IconButton, Menu, Page, Section, Skeleton, SkeletonList, WeekStrip } from '../../ui';
 import { Agenda, dayNeedsAttention, NowCard, PendingList, pickFocus, WatchRows } from './parts';
-import { MonthSheet, nextMonday, SessionSheet, WatchItemSheet, WatchSheet } from './sheets';
+import { MonthSheet, nextMonday, SessionSheet, WatchSheet } from './sheets';
 import './today.css';
 
 const WEEKDAY = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
