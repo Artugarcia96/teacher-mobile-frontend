@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Start Sepia locally (backend in demo mode with mock AI + frontend dev server) to try a change, take screenshots or run E2E. Use before any UI verification.
+description: Start Sepia locally (backend in demo mode with real AI through the Claude CLI + frontend dev server) to try a change, take screenshots or run E2E. Use before any UI verification.
 ---
 
 # Arrancar Sepia en local (modo demo, IA real vía Claude por terminal)
@@ -8,9 +8,9 @@ description: Start Sepia locally (backend in demo mode with mock AI + frontend d
 1. Backend (puerto 8000), resembrando el profesor demo y congelando "hoy" en jueves 19/11/2026 10:40:
    ```bash
    cd ../teacher-mobile-backend && scripts/dev.sh --demo      # en segundo plano (run_in_background)
-   curl -s localhost:8000/api/health    # → {"ok":true,"ai_provider":"mock"}
+   curl -s localhost:8000/api/health    # → {"ok":true,"ai_provider":"claude_cli"}
    ```
-   `ai_provider` debe ser `claude_cli` (prompts reales vía Claude por terminal). Si dice `openai`, PARA: alguien ha puesto `SEPIA_AI_PROVIDER=openai` (cuesta dinero). La siembra con IA real tarda unos minutos; `python -m app.seed --reset --mock` es rápida pero solo sirve para comprobar que no se rompe nada, no para evaluar la experiencia.
+   `ai_provider` debe ser `claude_cli` (prompts reales vía Claude por terminal). Si dice `mock`, algo lo ha forzado (el mock es solo para tests unitarios); si dice `openai`, PARA: alguien ha puesto `SEPIA_AI_PROVIDER=openai` (cuesta dinero). La siembra con IA real tarda unos minutos; `python -m app.seed --reset --mock` es rápida pero solo sirve para comprobar que no se rompe nada, no para evaluar la experiencia.
 2. Frontend (puerto 5173): `npm run dev` (en segundo plano). Proxy `/api` → 8000.
 3. Entrar: `demo@sepia.es` / `sepia1234`.
 

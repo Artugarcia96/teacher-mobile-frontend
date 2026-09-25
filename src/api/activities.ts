@@ -2,6 +2,7 @@
  * Keep these exported names and signatures stable: papers.ts and the activity pages import them. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { correctionKeys } from './papers';
 import type { CourseRef, Ok, StudentRef } from './types';
 
 export type ActivityKind = 'exam' | 'worksheet' | 'task' | 'oral' | 'notebook' | 'attitude' | 'other' | 'homework';
@@ -148,7 +149,10 @@ export function useMarkNotPresented(originalId: string, courseId: string) {
       return [...by.keys()];
     },
     onSettled: (ids) => {
-      for (const id of new Set([originalId, ...(ids ?? [])])) qc.invalidateQueries({ queryKey: activityKeys.one(id) });
+      for (const id of new Set([originalId, ...(ids ?? [])])) {
+        qc.invalidateQueries({ queryKey: activityKeys.one(id) });
+        qc.invalidateQueries({ queryKey: correctionKeys.one(id) });
+      }
       qc.invalidateQueries({ queryKey: ['course', courseId] });
       qc.invalidateQueries({ queryKey: ['inbox'] });
       qc.invalidateQueries({ queryKey: ['today'] });

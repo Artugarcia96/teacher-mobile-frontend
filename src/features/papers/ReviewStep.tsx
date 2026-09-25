@@ -11,14 +11,17 @@ interface Props {
   job: Job | undefined;
   running: boolean;
   onOpenCollect: () => void;
+  /** Marked absent on the exam day and nothing fills the slot yet (ActivityDetail `sheet[].pending_absent`). */
+  absent: ReadonlySet<string>;
 }
 
-function StatusChip({ s }: { s: CorrectionStudent }) {
+function StatusChip({ s, absent }: { s: CorrectionStudent; absent: boolean }) {
   const g = s.grade;
   if (g?.status === 'confirmed') return <Chip tone="ok">Revisado</Chip>;
   if (g?.status === 'absent') return <Chip tone="warn">NP</Chip>;
   if (g?.status === 'exempt') return <Chip>Exento</Chip>;
   if (g?.status === 'suggested') return <Chip tone="accent">IA lista</Chip>;
+  if (absent) return <Chip tone="warn">Faltó</Chip>;
   if (s.paper_id) return <Chip tone="outline">Pendiente</Chip>;
   return <Chip>Sin examen</Chip>;
 }
@@ -63,7 +66,7 @@ export function ReviewMenu({ correction }: { correction: Correction }) {
 }
 
 /** Step 3 — class list with AI suggestions and reviewed grades; entry to the focus review. */
-export function ReviewStep({ correction, job, running, onOpenCollect }: Props) {
+export function ReviewStep({ correction, job, running, onOpenCollect, absent }: Props) {
   const { activity, stats, students, unmatched } = correction;
   const base = `/clases/${activity.course.id}/actividades/${activity.id}`;
 
@@ -111,7 +114,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect }: Props) {
         <List inset={64}>
           {students.map((s) => (
             <Row key={s.student.id} lead={<Avatar initials={s.student.initials} />} title={s.student.sort_name}
-              sub={<StatusChip s={s} />} to={`${base}/revisar?alumno=${s.student.id}`}
+              sub={<StatusChip s={s} absent={absent.has(s.student.id)} />} to={`${base}/revisar?alumno=${s.student.id}`}
               trail={<Score s={s} max={activity.max_score} />} />
           ))}
         </List>

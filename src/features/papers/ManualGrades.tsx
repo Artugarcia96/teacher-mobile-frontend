@@ -2,13 +2,14 @@ import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { correctionKeys, useConfirmReview, type Correction, type CorrectionStudent } from '../../api/papers';
 import { formatGrade, parseGradeInput } from '../../lib/format';
-import { Avatar, List, Row, Section, useFeedback } from '../../ui';
+import { Avatar, Chip, List, Row, Section, useFeedback } from '../../ui';
 
 const shown = (s: CorrectionStudent) =>
   s.grade?.status === 'absent' ? 'NP' : s.grade?.status === 'confirmed' ? formatGrade(s.grade.score, 2) : '';
 
-/** Plain grading list: one numeric box per student, Enter jumps to the next one. Saves on blur. */
-export function ManualGrades({ correction }: { correction: Correction }) {
+/** Plain grading list: one numeric box per student, Enter jumps to the next one. Saves on blur. `absent`: marked absent
+ *  on the exam day and still without a grade ("Faltó"). */
+export function ManualGrades({ correction, absent }: { correction: Correction; absent: ReadonlySet<string> }) {
   const { activity, students } = correction;
   const save = useConfirmReview(activity.id, activity.course.id);
   const { toast } = useFeedback();
@@ -47,6 +48,7 @@ export function ManualGrades({ correction }: { correction: Correction }) {
       <List inset={64}>
         {students.map((s, i) => (
           <Row key={s.student.id} lead={<Avatar initials={s.student.initials} />} title={s.student.sort_name}
+            sub={absent.has(s.student.id) ? <Chip tone="warn">Faltó</Chip> : undefined}
             trail={
               <input ref={(el) => { refs.current[i] = el; }} className="input grade-input num" inputMode="decimal" enterKeyHint="next"
                 aria-label={`Nota de ${s.student.name}`} placeholder="—"

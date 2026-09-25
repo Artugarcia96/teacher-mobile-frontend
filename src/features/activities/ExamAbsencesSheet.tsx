@@ -1,10 +1,10 @@
 import { Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useActivity, useMarkNotPresented, useScheduleRepeat, type ActivityDetail } from '../../api/activities';
+import { useActivity, useMarkNotPresented, useScheduleRepeat, type ActivityDetail, type AttendanceConflict } from '../../api/activities';
 import type { CourseDetail } from '../../api/types';
 import { useToday } from '../../lib/auth';
 import { addDays, formatScore, longDate, plural, shortDate } from '../../lib/format';
-import { Button, Callout, Chip, List, Row, Sheet, SkeletonList, TextField, useFeedback } from '../../ui';
+import { Button, Callout, Chip, DateField, List, Row, Sheet, SkeletonList, useFeedback } from '../../ui';
 import './activities.css';
 
 /** Students who missed an exam (attendance list of the exam day): schedule a repeat ("repesca", its grades go to the
@@ -78,8 +78,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
       <div className="form">
         {activity.attendance_conflicts.length > 0 && (
           <Callout tone="warn" icon={<Warning size={20} />}>
-            <b>¿Hoja mal asignada o lista mal pasada?</b>{' '}
-            {activity.attendance_conflicts.map((c) => `${c.student.sort_name} figura como ausente y tiene ${conflictWhat(c)}`).join('; ')}.
+            <b>¿Hoja mal asignada o lista mal pasada?</b> {conflictsText(activity.attendance_conflicts)}
           </Callout>
         )}
         <List>
@@ -101,7 +100,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
               </div>
             </div>
             {chosen.length > 0 ? (
-              <TextField label="Fecha de la repesca" type="date" value={date} min={activity.date} onChange={(e) => e.target.value && setDate(e.target.value)}
+              <DateField label="Fecha de la repesca" value={date} min={activity.date} onChange={(v) => v && setDate(v)}
                 hint="La repesca es la misma prueba (misma rúbrica) solo para ellos; su nota ocupa el hueco de este examen." />
             ) : pending.every((a) => a.repeat_id) ? (
               <p className="muted">Repesca programada: su nota irá a la columna de este examen. Si no se presenta, elígelo para ponerle NP.</p>
@@ -117,8 +116,13 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
   );
 }
 
+/** "García López, Ana figura como ausente y tiene hoja y nota 8,25; …." */
+export function conflictsText(conflicts: AttendanceConflict[]): string {
+  return `${conflicts.map((c) => `${c.student.sort_name} figura como ausente y tiene ${conflictWhat(c)}`).join('; ')}.`;
+}
+
 /** "hoja y nota 8,25" · "nota 8,25" · "hoja" · "nota de la IA 6,5" */
-function conflictWhat(c: ActivityDetail['attendance_conflicts'][number]): string {
+function conflictWhat(c: AttendanceConflict): string {
   const score = c.score != null ? `${c.status === 'suggested' ? 'nota de la IA' : 'nota'} ${formatScore(c.score)}` : null;
   if (c.has_paper && score) return `hoja y ${score}`;
   return score ?? 'hoja';
