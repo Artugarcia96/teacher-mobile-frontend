@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// E2E teacher workflows against the demo backend (mock AI, frozen date 2026-11-19 10:40).
-// `npm run e2e` starts both servers if they are not running. `npm run shots` also saves screenshots.
+// E2E teacher workflows against the demo backend (real AI through the claude CLI, frozen date 2026-11-19 10:40).
+// `npm run e2e` starts both servers if they are not running: the backend's `scripts/dev.sh --demo` needs the `claude`
+// binary (without it the AI is off and the demo is not seeded). Only for a quick CI-style run, start the backend yourself
+// with SEPIA_AI_PROVIDER=mock set explicitly. `npm run shots` also saves screenshots.
 const APP = process.env.APP || 'http://127.0.0.1:5173';
 const API = process.env.API || 'http://127.0.0.1:8000';
 

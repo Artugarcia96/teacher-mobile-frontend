@@ -12,6 +12,7 @@ description: Start Sepia locally (backend in demo mode with real AI through the 
    ```
    `ai_provider` debe ser `claude_cli` (prompts reales vía Claude por terminal). Si dice `mock`, algo lo ha forzado con `SEPIA_AI_PROVIDER=mock` (el mock es solo para tests unitarios); si dice `openai`, PARA: alguien ha puesto `SEPIA_AI_PROVIDER=openai` (cuesta dinero). Si dice `none`, no encuentra el binario `claude` (`SEPIA_CLAUDE_BIN`): la IA queda desactivada (503) y `--demo` no siembra; el mock nunca entra solo. La siembra con IA real tarda unos minutos; `python -m app.seed --reset --mock` es rápida pero solo sirve para comprobar que no se rompe nada, no para evaluar la experiencia.
 2. Frontend (puerto 5173): `npm run dev` (en segundo plano). Proxy `/api` → 8000.
+   `npm run e2e` arranca los dos si no están: el backend con `scripts/dev.sh --demo`, que necesita el binario `claude`. Solo para una comprobación rápida tipo CI, arranca tú el backend con `SEPIA_AI_PROVIDER=mock` puesto explícitamente.
 3. Entrar: `demo@sepia.es` / `sepia1234`.
 
 Si otro agente ya usa los puertos, usa otros: `PORT=8011 scripts/dev.sh --demo` y `VITE_API_PROXY=http://127.0.0.1:8011 PORT=5184 npm run dev`
