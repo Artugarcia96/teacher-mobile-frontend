@@ -291,8 +291,8 @@ test.describe('examenes · revisar', () => {
     await accept(page).click();
     await expect(toast(page, `${r.total} de ${r.total} revisados`)).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/actividades/${exam.id}$`));
-    await expect(page.getByText('Todas las hojas están revisadas.')).toBeVisible();
     await expect(page.getByRole('link', { name: /^Revisar alumno a alumno/ })).toHaveCount(0);
+    await expect(page.locator('.review-stats')).toContainText(`${r.total} / ${r.total}Revisados`);
     await expect(page.getByText(/Provisional: incluye/)).toHaveCount(0);
     await shot(page, info, '53-all-reviewed');
     expect((await correction(demo, exam.id)).stats.pending).toBe(0);
@@ -426,6 +426,7 @@ test.describe('examenes · revisar', () => {
       await expect(page.locator('.ritem__answer').first()).toBeVisible();
       await expect(who(page)).toHaveText(one.student.name);
       await page.getByLabel('Comentario (opcional)').fill('Bien planteado.');
+      await expect(accept(page)).toBeEnabled(); // a moment on a student before Enter can confirm them (never unseen)
       await page.getByLabel('Comentario (opcional)').press('Enter');
       await expect(who(page)).not.toHaveText(one.student.name);
       await expect.poll(async () => (await state(demo, exam.id)).by(one.student.id).grade).toMatchObject({ status: 'confirmed', comment: 'Bien planteado.' });

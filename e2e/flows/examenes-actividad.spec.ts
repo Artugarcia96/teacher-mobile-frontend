@@ -20,7 +20,7 @@ test.describe('examenes · la página de la actividad', () => {
     },
   });
 
-  test('examenes-01 · the Cuaderno column opens the exam; its header names class, day, term and scale; «‹ Cuaderno» goes back', async ({ page, world }, info) => {
+  test('examenes-01 · the Cuaderno column opens the exam; its header names class, day, term and scale; «‹» goes back where it came from', async ({ page, world }, info) => {
     await page.goto(`/clases/${world.id}/cuaderno`);
     await page.getByTitle(`${EXAM} · mantén pulsado para editar`).click();
     await expect(page).toHaveURL(new RegExp(`/actividades/${world.act[EXAM]}$`));
@@ -35,6 +35,11 @@ test.describe('examenes · la página de la actividad', () => {
     await expect(stepRow(page, 2, 'Recoger')).toContainText('Primero prepara el examen');
     await expect(stepRow(page, 3, 'Revisar')).toContainText('Sin notas todavía');
     await shot(page, info, '01-exam-new');
+    // «‹» names where it came from (the class), and goes back there.
+    await page.getByRole('button', { name: '2.º ESO C', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/clases/${world.id}/cuaderno$`));
+    // Opened directly (a link, a reload), it goes to the class's Cuaderno.
+    await page.goto(`/clases/${world.id}/actividades/${world.act[EXAM]}`);
     await page.getByRole('button', { name: 'Cuaderno', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/clases/${world.id}/cuaderno$`));
   });

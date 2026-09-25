@@ -1,5 +1,5 @@
 import {
-  answer, correction, dialog, esc, expect, fileName, headerMenu, openActivity, opensPdf, patchResponse, pdfText, RUBRIC, shot, stepHead, stepRow, test, toast,
+  answer, bug, correction, dialog, esc, expect, fileName, headerMenu, openActivity, opensPdf, patchResponse, pdfText, RUBRIC, shot, stepHead, stepRow, test, toast,
   type Page,
 } from './examenes-helpers';
 
@@ -128,8 +128,10 @@ test.describe('examenes · preparar sin documento', () => {
 test.describe('examenes · rúbrica escrita por el profesor', () => {
   test.use({ worldSpec: { activities: [{ title: EXAM, date: LATER, rubric: RUBRIC }] } });
 
-  test('examenes-16 · the rubric table: edit a question in its sheet, points, add and remove; «Guardar rúbrica» or «Descartar cambios»', async ({ page, world }, info) => {
+  test('examenes-16 · the rubric table saves every change at once: a question with «Hecho», points after a pause, add and remove', async ({ page, world }, info) => {
     const id = world.act[EXAM];
+    const saved = async (): Promise<[string, string, number, number][]> => (await correction(world.api, id)).rubric.items
+      .map((i: { text: string; answer: string; points: number; steps: string[] }) => [i.text, i.answer, i.points, i.steps.length]);
     await openActivity(page, `/clases/${world.id}/actividades/${id}`, EXAM);
     await expect(stepHead(page, 1, 'Preparar')).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Rúbrica · 3 preguntas' })).toBeVisible();
@@ -137,10 +139,12 @@ test.describe('examenes · rúbrica escrita por el profesor', () => {
     await expect(row(page, 'Soluciones')).toBeVisible();
     await expect(row(page, 'Examen para imprimir')).toHaveCount(0);
     await expect(page.getByText('Total 10 / 10')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Guardar/ })).toHaveCount(0); // nothing to save by hand
 
+    // A question in its sheet: statement (with the formula's preview), solution and points; «Hecho» saves it.
     await page.getByRole('button', { name: 'Editar pregunta 1' }).click();
     let sheet = dialog(page, 'Pregunta 1');
-    await expect(sheet.getByLabel('Enunciado')).toHaveValue('Simplifica $\\frac{12}{18}$.');
+    await expect(sheet.getByLabel('Enunciado')).toHaveValue(RUBRIC[0].text);
     await expect(sheet.getByText('Las fórmulas van entre $…$, por ejemplo $\\frac{3}{4}$.')).toBeVisible();
     await sheet.getByLabel('Enunciado').fill('Simplifica $\\frac{18}{24}$ hasta la fracción irreducible.');
     await expect(sheet.locator('.rubric-preview .katex')).toBeVisible();
@@ -149,46 +153,79 @@ test.describe('examenes · rúbrica escrita por el profesor', () => {
     await expect(sheet.getByRole('group', { name: 'Puntos' }).getByRole('status')).toHaveText('3,25');
     await sheet.getByRole('button', { name: 'Hecho' }).click();
     await expect(sheet).toBeHidden();
+    await expect(toast(page, /^Pregunta 1 guardada$/)).toBeVisible();
+    // Edited, it loses the AI's steps (they solved the old statement).
+    await expect.poll(saved).toEqual([
+      ['Simplifica $\\frac{18}{24}$ hasta la fracción irreducible.', '$\\frac{3}{4}$', 3.25, 0],
+      [RUBRIC[1].text, RUBRIC[1].answer, 3, 0], [RUBRIC[2].text, RUBRIC[2].answer, 4, 0],
+    ]);
     await expect(points(page, '1').getByRole('status')).toHaveText('3,25');
     await expect(page.getByText('Total 10,25 / 10')).toBeVisible();
     await expect(page.getByText('La rúbrica suma 10,25 puntos y el examen es sobre 10. La nota se ajustará a esa escala.')).toBeVisible();
+
+    // Points in the table: a run of taps is one save, after a short pause.
+    const refetched = page.waitForResponse((r) => r.url().endsWith(`/api/activities/${id}/correction`) && r.request().method() === 'GET');
     await points(page, '1').getByRole('button', { name: 'Menos' }).click();
+    await points(page, '3').getByRole('button', { name: 'Menos' }).click();
+    await points(page, '2').getByRole('button', { name: 'Más' }).click();
     await expect(page.getByText('Total 10 / 10')).toBeVisible();
     await expect(page.getByText(/La rúbrica suma/)).toHaveCount(0);
+    await expect(toast(page, /^Pregunta 2 guardada$/)).toBeVisible();
+    await expect.poll(async () => (await saved()).map((x) => x[2])).toEqual([3, 3.25, 3.75]);
+    await refetched; // the exam as saved is back on the page (adding a question before that: EX-06, examenes-86)
 
-    // A fourth question, then taken away again (it asks first).
+    // A fourth question: «Hecho» adds it; «Quitar» takes it away again, asking first.
     await page.getByRole('button', { name: 'Añadir pregunta' }).click();
     sheet = dialog(page, 'Pregunta 4');
     await sheet.getByLabel('Enunciado').fill('Ordena de menor a mayor: $\\frac{1}{2}, \\frac{2}{5}, \\frac{3}{4}$.');
     await sheet.getByRole('button', { name: 'Hecho' }).click();
+    await expect(toast(page, /^Pregunta 4 añadida$/)).toBeVisible();
     await expect(page.getByText('Total 11 / 10')).toBeVisible();
+    await expect.poll(async () => (await saved()).length).toBe(4);
+    await shot(page, info, '16-rubric');
     await page.getByRole('button', { name: 'Editar pregunta 4' }).click();
     await dialog(page, 'Pregunta 4').getByRole('button', { name: 'Quitar' }).click();
+    const ask = dialog(page, 'Quitar esta pregunta');
+    await expect(ask.getByText('Deja de contar en la rúbrica.')).toBeVisible();
     await answer(page, 'Quitar esta pregunta', 'Quitar');
+    await expect(toast(page, /^Pregunta 4 quitada$/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Editar pregunta 4' })).toHaveCount(0);
-    await shot(page, info, '16-rubric-dirty');
+    await expect.poll(async () => (await saved()).length).toBe(3);
 
-    // Discard: back to what is saved.
-    await page.getByRole('button', { name: 'Descartar cambios' }).click();
-    await expect(page.getByRole('button', { name: 'Editar pregunta 1' })).toContainText('12');
-    await expect(page.getByRole('button', { name: 'Guardar rúbrica' })).toHaveCount(0);
-
-    // Edit again and save: the edited question loses the AI's steps (they solved the old one).
-    await page.getByRole('button', { name: 'Editar pregunta 1' }).click();
-    await expect(dialog(page, 'Pregunta 1').getByLabel('Enunciado')).toHaveValue(RUBRIC[0].text);
-    await dialog(page, 'Pregunta 1').getByLabel('Enunciado').fill('Simplifica $\\frac{18}{24}$.');
-    await dialog(page, 'Pregunta 1').getByRole('button', { name: 'Hecho' }).click();
-    await points(page, '3').getByRole('button', { name: 'Menos' }).click();
-    await points(page, '2').getByRole('button', { name: 'Más' }).click();
-    await page.getByRole('button', { name: 'Guardar rúbrica' }).click();
-    await expect(toast(page, /^Rúbrica guardada$/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Guardar rúbrica' })).toHaveCount(0);
-    const saved = (await correction(world.api, id)).rubric.items;
-    expect(saved.map((i: { text: string; points: number; steps: string[] }) => [i.text, i.points, i.steps])).toEqual([
-      ['Simplifica $\\frac{18}{24}$.', 3, []], [RUBRIC[1].text, 3.25, []], [RUBRIC[2].text, 3.75, []],
-    ]);
+    // A question added and never finished is not kept; nor what is typed in a sheet closed without «Hecho».
+    await page.getByRole('button', { name: 'Añadir pregunta' }).click();
+    await dialog(page, 'Pregunta 4').getByRole('button', { name: 'Quitar' }).click(); // nothing saved: no question
+    await expect(dialog(page, 'Quitar esta pregunta')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Editar pregunta 4' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Editar pregunta 2' }).click();
+    await expect(dialog(page, 'Pregunta 2').getByLabel('Solución')).toHaveValue(RUBRIC[1].answer);
+    await dialog(page, 'Pregunta 2').getByLabel('Solución').fill('3/4');
+    await dialog(page, 'Pregunta 2').getByRole('button', { name: 'Cerrar' }).click();
+    await answer(page, 'Descartar los cambios', 'Descartar');
+    expect((await saved())[1][1]).toBe(RUBRIC[1].answer);
     await page.reload();
     await expect(points(page, '3').getByRole('status')).toHaveText('3,75');
+    await expect(page.getByRole('button', { name: 'Editar pregunta 1' })).toContainText('hasta la fracción irreducible');
+  });
+
+  test('examenes-86 · a question being added right after a save is not lost when the saved rubric comes back', async ({ page, world }) => {
+    bug('EX-06', 'RubricTable follows the server whenever the saved rubric comes back: a question added (or a sheet opened) before that refetch lands is dropped, and its sheet closes with what was typed');
+    const id = world.act[EXAM];
+    await openActivity(page, `/clases/${world.id}/actividades/${id}`, EXAM);
+    // The school Wi-Fi: the exam takes a moment to come back after each save.
+    await page.route(`**/api/activities/${id}/correction`, async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.fallback();
+    });
+    await points(page, '3').getByRole('button', { name: 'Más' }).click();
+    await expect(toast(page, /^Pregunta 3 guardada$/)).toBeVisible();
+    await page.getByRole('button', { name: 'Añadir pregunta' }).click();
+    const sheet = dialog(page, 'Pregunta 4');
+    await sheet.getByLabel('Enunciado').fill('Calcula $\\frac{2}{3}$ de 90.');
+    await page.waitForResponse((r) => r.url().endsWith(`/api/activities/${id}/correction`));
+    await expect(sheet.getByLabel('Enunciado')).toHaveValue('Calcula $\\frac{2}{3}$ de 90.');
+    await sheet.getByRole('button', { name: 'Hecho' }).click();
+    await expect(toast(page, /^Pregunta 4 añadida$/)).toBeVisible();
   });
 
   test('examenes-17 · a typed rubric prints only its solutions: «Soluciones» from the step and from «···»', async ({ page, world }) => {
@@ -210,7 +247,7 @@ test.describe('examenes · rúbrica escrita por el profesor', () => {
     await expect(stepRow(page, 2, 'Recoger')).toContainText('Aún no has subido las hojas');
     await stepRow(page, 2, 'Recoger').click();
     await expect(stepHead(page, 2, 'Recoger')).toBeVisible();
-    await expect(page.getByText('Arrastra aquí el PDF del escáner o las fotos')).toBeVisible();
+    await expect(page.getByText('Sube el PDF del escáner o haz fotos del montón')).toBeVisible();
   });
 });
 
@@ -245,7 +282,7 @@ test.describe('examenes · examen generado (copia del demo)', () => {
     expect(printed.disposition).toMatch(/^inline;/);
   });
 
-  test('examenes-20 · a generated exam\'s rubric: «Guardar y actualizar el PDF» lays the exam out again with the new statement', async ({ page, cloneExam, demo }) => {
+  test('examenes-20 · a generated exam\'s question saved with «Hecho» lays the exam out again with the new statement', async ({ page, cloneExam, demo }) => {
     const exam = await cloneExam('global', { noVersions: true });
     await openActivity(page, exam.url, exam.title);
     await page.getByRole('button', { name: 'Editar pregunta 5' }).click();
@@ -254,8 +291,7 @@ test.describe('examenes · examen generado (copia del demo)', () => {
     await sheet.getByLabel('Enunciado').fill('En una clase de 30 alumnos, $\\frac{2}{5}$ van en bici al instituto. ¿Cuántos alumnos van en bici?');
     await sheet.getByLabel('Solución').fill('12 alumnos');
     await sheet.getByRole('button', { name: 'Hecho' }).click();
-    await page.getByRole('button', { name: 'Guardar y actualizar el PDF' }).click();
-    await expect(toast(page, 'Rúbrica guardada · examen para imprimir actualizado')).toBeVisible({ timeout: 60_000 });
+    await expect(toast(page, 'Pregunta 5 guardada · PDF actualizado')).toBeVisible({ timeout: 60_000 });
     const items = (await correction(demo, exam.id)).rubric.items;
     expect(items[4]).toMatchObject({ answer: '12 alumnos', steps: [] });
     const printed = await opensPdf(page, () => row(page, 'Examen para imprimir').click());

@@ -122,7 +122,8 @@ test.describe('examenes · recoger', () => {
     await expect(add.getByText('Por orden alfabético de apellidos. También se lee el nombre, para avisarte si el orden no cuadra.')).toBeVisible();
     await expect(add.getByText('Ordena el montón por apellidos y escanéalo a una o dos caras.', { exact: false })).toBeVisible();
     await expect(add.getByText('Añadir más hojas')).toBeVisible();
-    await expect(add.getByText('Se suman a las que ya has subido.')).toBeVisible();
+    // A computer can also drag the file onto it; a phone has nothing to drag.
+    await expect(add.getByText(isMobile(info) ? /^Se suman a las que ya has subido\.$/ : 'También puedes arrastrarlo aquí. Se suman a las que ya has subido.')).toBeVisible();
     const chooser = page.waitForEvent('filechooser');
     await add.getByRole('button', { name: 'Subir hojas' }).click();
     const fc = await chooser;
@@ -394,7 +395,6 @@ test.describe('examenes · recoger', () => {
     const p = await freshPile(demo, exam.id);
     const foreign = p.c.unplaced.find((x: { reason: string }) => x.reason === 'otro_examen');
     expect(foreign?.other_exam, 'the copied loose page is read as a page of another exam').toBeTruthy();
-    if (foreign.other_exam.course !== '2.º ESO B') bug('EX-05', `the other exam's group comes as «${foreign.other_exam.course}» (Group.name, not display_group): «Del examen … · 2º ESO B»`);
     await openCollect(page, exam.url, exam.title);
     const loose = section(page, /^Páginas por colocar/);
     await expect(loose).toContainText(`Del examen «${foreign.other_exam.title}» · 2.º ESO B`);

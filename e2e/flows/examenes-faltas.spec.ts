@@ -35,7 +35,7 @@ test.describe('examenes · faltaron al examen', () => {
     await expect(sheet.locator('.row').filter({ hasText: 'Castro León, Lucía' })).toContainText('Falta justificada · pendiente');
     for (const chip of ['Pablo Benítez', 'Lucía Castro']) await expect(sheet.getByRole('button', { name: chip })).toHaveAttribute('aria-pressed', 'true');
     await expect(sheet.getByLabel('Fecha de la repesca')).toHaveValue(course.next_session.date);
-    await expect(sheet.getByText('La repesca es la misma prueba (misma rúbrica) solo para ellos; su nota ocupa el hueco de este examen.')).toBeVisible();
+    await expect(sheet.getByText('Con las mismas preguntas de este examen. Sus notas ocupan el hueco de este examen.')).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Programar repesca (2)' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Poner NP (2)' })).toBeVisible();
     await shot(page, info, '62-absences');
@@ -185,7 +185,11 @@ test.describe('examenes · faltas en un examen escaneado (copia del demo)', () =
     await openActivity(page, exam.url, exam.title);
     await expect(page.getByRole('button', { name: /^Falt(ó|aron) \d/ })).toHaveCount(0); // only before scanning
     const row = page.getByRole('button', { name: new RegExp(`^${received} de ${c.students.length} hojas recibidas`) });
-    await expect(row).toContainText(`Faltan ${carmen.first_name} ${carmen.last_name.split(' ')[0]} y ${hugo.first_name} ${hugo.last_name.split(' ')[0]}`);
+    // Students by first name, with the surname's initial when two of the class share it («Carmen C.»).
+    const everyone = c.students.map((s: { student: { first_name: string } }) => s.student);
+    const first = (x: { first_name: string; last_name: string }) =>
+      everyone.filter((e: { first_name: string }) => e.first_name === x.first_name).length > 1 ? `${x.first_name} ${x.last_name[0]}.` : x.first_name;
+    await expect(row).toContainText(`${first(carmen)} y ${first(hugo)}: pendientes`);
     await expect(row).toContainText('NP o repesca');
 
     // Hugo's repesca is scheduled (examenes-63 schedules one from the sheet); Carmen gets NP from the sheet.
@@ -200,8 +204,8 @@ test.describe('examenes · faltas en un examen escaneado (copia del demo)', () =
     await expect(toast(page, 'NP puesto a 1 alumno')).toBeVisible();
 
     // Everyone settled: the row stays, saying what was done, without the action.
-    await expect(row).toContainText(`${carmen.first_name}: NP`);
-    await expect(row).toContainText(`${hugo.first_name}: repesca el 1 dic`);
+    await expect(row).toContainText(`${first(carmen)}: NP`);
+    await expect(row).toContainText(`${first(hugo)}: repesca el 1 dic`);
     await expect(row).not.toContainText('NP o repesca');
     const hugoRow = page.getByRole('link', { name: new RegExp(`^${esc(hugo.sort_name)} `) });
     await expect(hugoRow).toContainText('Repesca el 1 dic');
@@ -210,7 +214,7 @@ test.describe('examenes · faltas en un examen escaneado (copia del demo)', () =
     // Graded in the repesca: «repesca, 6,5», and the class list shows it.
     await demo.put(`/activities/${rep.id}/grades`, { grades: [{ student_id: hugo.id, score: 6.5 }] });
     await page.reload();
-    await expect(row).toContainText(`${hugo.first_name}: repesca, 6,5`);
+    await expect(row).toContainText(`${first(hugo)}: repesca, 6,5`);
     await expect(hugoRow).toContainText('Nota de la repesca');
     await hugoRow.click();
     await expect(page.getByRole('heading', { level: 1, name: `${exam.title} (repesca)` })).toBeVisible();

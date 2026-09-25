@@ -97,10 +97,10 @@ test.describe('examenes · con IA real @ai', () => {
       expect(c.rubric.items.map((i: { points: number }) => i.points)).toEqual([3, 3, 4]);
       expect(c.rubric.items[2].answer).toMatch(/450/);
       await shot(page, info, '71-uploaded');
-      // Its own questions are saved as the rubric (no PDF to lay out again).
+      // Its questions are saved as the rubric; the teacher's PDF is not laid out again.
       await page.getByRole('group', { name: 'Puntos de la pregunta 3' }).getByRole('button', { name: 'Más' }).click();
-      await page.getByRole('group', { name: 'Puntos de la pregunta 3' }).getByRole('button', { name: 'Menos' }).click();
-      await expect(page.getByRole('button', { name: /^Guardar y actualizar el PDF$/ })).toHaveCount(0);
+      await expect(toast(page, /^Pregunta 3 guardada$/)).toBeVisible();
+      await expect.poll(async () => (await correction(world.api, id)).rubric.items[2].points).toBe(4.25);
       // Printing it stamps «Sepia · CODE · Pág. 1/1» on a copy; the original is kept as it was.
       const printed = await opensPdf(page, () => page.getByRole('button', { name: /^Examen para imprimir/ }).click());
       expect(pdfText(printed.body)[0]).toMatch(new RegExp(`Sepia · ${esc(c.exam_code)} · Pág\\. 1/1`));
@@ -113,7 +113,8 @@ test.describe('examenes · con IA real @ai', () => {
     const exam = await cloneExam('global', { noVersions: true });
     await openActivity(page, exam.url, exam.title);
     await page.getByRole('button', { name: /^Añadir modelo B/ }).click();
-    await expect(jobLine(page)).toBeVisible();
+    // The row appears at once and says it is being written; the teacher can go on meanwhile.
+    await expect(page.getByRole('button', { name: /^Modelo B / })).toContainText('Escribiendo…');
     await shot(page, info, '72-writing-b');
     await expect(toast(page, 'Versiones preparadas. Revísalas antes de imprimir.')).toBeVisible({ timeout: AI_STEP });
     const row = page.getByRole('button', { name: /^Modelo B / });
@@ -135,7 +136,7 @@ test.describe('examenes · con IA real @ai', () => {
     await expect(ask.getByText('La IA vuelve a escribir esta versión a partir del modelo A. Se pierden los cambios que le hayas hecho.')).toBeVisible();
     await answer(page, 'Rehacer «Modelo B»', 'Rehacer');
     await expect(sheet).toBeHidden();
-    await expect(jobLine(page)).toBeVisible();
+    await expect(row).toContainText('Escribiendo…');
     await expect(toast(page, 'Versiones preparadas. Revísalas antes de imprimir.')).toBeVisible({ timeout: AI_STEP });
     const again = await demo.get(`/activities/${exam.id}/versions/B`);
     expect(again.rubric.items).toHaveLength(6);
@@ -149,7 +150,6 @@ test.describe('examenes · con IA real @ai', () => {
     await openActivity(page, exam.url, exam.title);
     await expect(page.getByText(/^Sofía y Nerea aún no tienen la versión que piden sus medidas\.$/)).toBeVisible();
     await page.getByRole('button', { name: 'Preparar versiones adaptadas' }).click();
-    await expect(jobLine(page)).toBeVisible();
     // Each version shows up at once as «Escribiendo…»; printing waits for them.
     await expect(page.getByText('Escribiendo…').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Imprimir para la clase' })).toBeDisabled();
@@ -170,7 +170,7 @@ test.describe('examenes · con IA real @ai', () => {
     const pile = scannedPile(exam.id, 5);
     await openActivity(page, exam.url, exam.title);
     await expect(stepHead(page, 2, 'Recoger')).toBeVisible(); // the exam day has come
-    await expect(page.getByText('Arrastra aquí el PDF del escáner o las fotos')).toBeVisible();
+    await expect(page.getByText('Sube el PDF del escáner o haz fotos del montón')).toBeVisible();
     const chooser = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: 'Subir hojas' }).click();
     await (await chooser).setFiles(pile);

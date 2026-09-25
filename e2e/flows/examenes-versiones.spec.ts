@@ -79,8 +79,7 @@ test.describe('examenes · versiones', () => {
     await expect(q.getByLabel('Solución')).not.toHaveValue('');
     await q.getByLabel('Solución').fill('Le quedan 45 páginas.');
     await q.getByRole('button', { name: 'Hecho' }).click();
-    await sheet.getByRole('button', { name: 'Guardar y actualizar el PDF' }).click();
-    await expect(toast(page, 'Rúbrica guardada · examen para imprimir actualizado')).toBeVisible({ timeout: 60_000 });
+    await expect(toast(page, 'Pregunta 6 guardada · PDF actualizado')).toBeVisible({ timeout: 60_000 });
     const b = await demo.get(`/activities/${exam.id}/versions/B`);
     expect(b.rubric.items[5].answer).toBe('Le quedan 45 páginas.');
     const key = await opensPdf(page, () => sheet.getByRole('button', { name: /^Soluciones/ }).click());
@@ -259,8 +258,7 @@ test.describe('examenes · versiones', () => {
     await expect(dialog(page, 'Pregunta 1').getByLabel('Solución')).not.toHaveValue('');
     await dialog(page, 'Pregunta 1').getByLabel('Solución').fill('$|-8|=8$; opuesto de $5$: $-5$; orden: $-8<-3<0<5<6$.');
     await dialog(page, 'Pregunta 1').getByRole('button', { name: 'Hecho' }).click();
-    await page.getByRole('button', { name: 'Guardar y actualizar el PDF' }).click();
-    await expect(toast(page, 'Rúbrica guardada · examen para imprimir actualizado')).toBeVisible({ timeout: 60_000 });
+    await expect(toast(page, 'Pregunta 1 guardada · PDF actualizado')).toBeVisible({ timeout: 60_000 });
     await expect(versionRow(page, 'Modelo B')).toContainText('Escrita para otro modelo A · rehazla');
     await versionRow(page, 'Modelo B').click();
     await expect(dialog(page, 'Modelo B').getByText('Se escribió a partir de un modelo A que ya ha cambiado. Rehazla para que coincida.')).toBeVisible();
