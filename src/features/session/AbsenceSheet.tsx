@@ -1,6 +1,7 @@
-/** «Voy a faltar»: elegir días y sesiones, el motivo y la tarea de cada sesión (por defecto lo que planeó el último cierre de
- *  clase —«Toca» y deberes— y, si hay, un material de la unidad). Resultado: las sesiones quedan como «Ausente» en la agenda
- *  y un PDF (hoja de guardia) para jefatura de estudios. */
+/** «Voy a faltar»: elegir días y sesiones (solo las que aún no han empezado) y, por sesión, la tarea (por defecto lo que
+ *  planeó el último cierre de clase), lo que se lleva a casa y, si hay, un material de la unidad que se imprime con la hoja.
+ *  Lo que traían hecho sale del cierre anterior y va aparte. Resultado: las sesiones quedan como «Ausente» en la agenda y un
+ *  PDF (hoja de guardia) para jefatura de estudios. El motivo de la ausencia no se pide: la hoja circula por el aula. */
 import { CalendarX, FilePdf } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAbsenceSessions, useCreateAbsence, type AbsenceSession } from '../../api/sessions';
@@ -17,7 +18,7 @@ export interface AbsenceSheetProps {
   date: string;
 }
 
-type Choice = { on: boolean; task: string; materials: string[] };
+type Choice = { on: boolean; task: string; homework: string; materials: string[] };
 const key = (s: AbsenceSession) => `${s.course.id}|${s.date}|${s.start}`;
 
 export default function AbsenceSheet(props: AbsenceSheetProps) {
@@ -30,7 +31,6 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
   const { toast } = useFeedback();
   const first = date < today ? today : date;
   const [range, setRange] = useState({ from: first, to: first });
-  const [reason, setReason] = useState('');
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [pdf, setPdf] = useState<{ url: string; count: number } | null>(null);
   const q = useAbsenceSessions(range.from, range.to, !pdf);
@@ -41,14 +41,15 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
     setChoices((cur) => {
       const next = { ...cur };
       for (const s of sessions) {
-        next[key(s)] ??= { on: true, task: s.task ?? '', materials: [] };
+        next[key(s)] ??= { on: true, task: s.task ?? '', homework: s.homework ?? '', materials: [] };
       }
       return next;
     });
   }, [sessions]);
 
   const set = (k: string, patch: Partial<Choice>) => setChoices((c) => ({ ...c, [k]: { ...c[k], ...patch } }));
-  const dirty = !!reason.trim() || sessions.some((s) => choices[key(s)] && choices[key(s)].task !== (s.task ?? ''));
+  const dirty = sessions.some((s) => choices[key(s)]
+    && (choices[key(s)].task !== (s.task ?? '') || choices[key(s)].homework !== (s.homework ?? '')));
   const chosen = sessions.filter((s) => choices[key(s)]?.on);
   const rangeError = range.from < today ? 'Elige un día a partir de hoy' : range.to < range.from ? 'La fecha final debe ser posterior' : null;
   const disabledReason = rangeError ?? (!chosen.length ? 'Elige al menos una sesión'
@@ -57,9 +58,8 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
   const submit = async () => {
     try {
       const r = await create.mutateAsync({
-        reason: reason.trim() || null,
         sessions: chosen.map((s) => ({ course_id: s.course.id, date: s.date, start: s.start, task: choices[key(s)].task.trim(),
-          material_ids: choices[key(s)].materials })),
+          homework: choices[key(s)].homework.trim() || null, material_ids: choices[key(s)].materials })),
       });
       setPdf({ url: r.pdf_url, count: r.count });
       toast(`${plural(r.count, 'sesión', 'sesiones')} con hoja de guardia`);
@@ -90,8 +90,6 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
           <DateField label="Hasta" short min={range.from} value={range.to} error={rangeError}
             onChange={(v) => setRange((r) => ({ ...r, to: v }))} />
         </div>
-        <TextField label="Motivo" placeholder="Formación, médico, asuntos propios…" value={reason} maxLength={200}
-          hint="Opcional. Aparece en la hoja de guardia." onChange={(e) => setReason(e.target.value)} />
         <Section title={sessions.length ? `Sesiones · ${chosen.length} de ${sessions.length}` : 'Sesiones'}>
           {rangeError ? null : q.isLoading ? <SkeletonList rows={3} /> : q.error ? (
             <p className="muted">{(q.error as Error).message}</p>
@@ -110,11 +108,14 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
                       trail={<Switch label={`Incluir ${s.course.label} ${s.start}`} checked={c.on} onChange={(on) => set(key(s), { on })} />} />
                     {c.on && (
                       <div className="row absence-task">
-                        <TextArea aria-label="Tarea" rows={2} value={c.task} maxLength={2000} placeholder="Qué deben hacer en esta sesión"
+                        {s.due && <p className="absence-task__due"><span className="field__label">Traían hecho</span> {s.due}</p>}
+                        <TextArea label="Tarea de la sesión" rows={2} value={c.task} maxLength={2000} placeholder="Qué deben hacer en esta sesión"
                           onChange={(e) => set(key(s), { task: e.target.value })} />
+                        <TextField label="Para casa" placeholder="Opcional" value={c.homework} maxLength={1000}
+                          onChange={(e) => set(key(s), { homework: e.target.value })} />
                         {s.materials.length > 0 && (
                           <div className="absence-task__mats">
-                            <span className="field__label">Material de «{s.unit?.title}»</span>
+                            <span className="field__label">Se imprime detrás · «{s.unit?.title}»</span>
                             <div className="chip-row">
                               {s.materials.map((m) => {
                                 const on = c.materials.includes(m.id);
