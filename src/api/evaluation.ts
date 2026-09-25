@@ -29,6 +29,9 @@ export interface EvalRow {
   comment_grade: number | null;
   /** The comment says another grade than the one that counts: «Escrito para un 6 · nota 4». Never printed. */
   comment_stale: boolean;
+  /** The comment's words name another grade than the one that counts, as written («un bien» with a 7): it cannot be
+   *  accepted and is never printed. Checked by the server without AI. */
+  comment_clash: string | null;
   /** The term's absences, justified ones included (as the student's file counts them). */
   absences: number;
   justified: number;
@@ -50,7 +53,7 @@ export interface Evaluation {
   comments_missing: number;
   /** AI drafts the teacher has not accepted yet. */
   comments_unreviewed: number;
-  /** The teacher's comments (written or accepted) that say another grade. */
+  /** Comments that say another grade: the teacher's, written or accepted for another one, or any with `comment_clash`. */
   comments_stale: number;
   /** What the proposals are still missing — same figures as the Evaluar inbox. AI drafts not counted yet: */
   to_review: ActivityCount[];
@@ -176,6 +179,21 @@ export function absencesText(r: Pick<EvalRow, 'absences' | 'justified'>): string
 /** «Escrito para un 6 · nota 4»: what a comment that no longer matches the grade says instead of its text. */
 export function staleText(commentGrade: number | null, grade: number | null): string {
   return `Escrito para un ${formatProposal(commentGrade)} · nota ${formatProposal(grade)}`;
+}
+
+/** «Dice «un bien» · nota 7»: what a comment whose words name another grade says instead of its text. */
+export function clashText(clash: string, grade: number | null): string {
+  return `Dice «${clash}» · nota ${formatProposal(grade)}`;
+}
+
+/** An AI draft the teacher has not accepted yet. */
+export function unreviewed(r: EvalRow): boolean {
+  return !!r.comment && r.comment_source === 'ai' && r.comment_status !== 'final';
+}
+
+/** A comment the acta, the CSV and «Copiar» carry: written or accepted by the teacher and matching the grade. */
+export function printable(r: EvalRow): boolean {
+  return !!r.comment && !unreviewed(r) && !r.comment_stale && !r.comment_clash;
 }
 
 /** Since LOMLOE only Bachillerato keeps the extraordinaria; elsewhere the last recovery is "final". */

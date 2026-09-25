@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { absencesText, staleText, useSaveEvalRow, type EvalRow, type EvalRowInput, type Evaluation } from '../../api/evaluation';
+import { absencesText, staleText, unreviewed, useSaveEvalRow, type EvalRow, type EvalRowInput, type Evaluation } from '../../api/evaluation';
 import { useGradebook } from '../../api/gradebook';
 import type { CourseDetail } from '../../api/types';
 import AverageBreakdown from '../../features/grades/AverageBreakdown';
@@ -8,8 +8,8 @@ import { AIBadge, Button, Callout, Sheet, SkeletonList, Stepper, TextArea, useFe
 
 /** One student's grade and report comment. «Aceptar y siguiente» accepts the comment (with or without edits) and
  *  walks the class list; it waits an instant on each student, so a double tap never accepts the next one unseen.
- *  A comment written for another grade cannot be accepted until it is rewritten or redrafted. ✕ closes; with edits
- *  it asks before discarding them. */
+ *  A comment written for another grade, or whose words name another one («un bien» with a 7), cannot be accepted
+ *  until it is rewritten or redrafted. ✕ closes; with edits it asks before discarding them. */
 export default function EvalStudentSheet({ course, data, index, onIndex, onRedraft }: {
   course: CourseDetail; data: Evaluation; index: number | null; onIndex: (i: number | null) => void;
   onRedraft: (studentId: string) => void;
@@ -34,7 +34,7 @@ function Editor({ course, data, row, index, onIndex, onRedraft }: {
   const grade = gradeEdit ? gradeEdit.v : row.final_grade ?? row.proposed;
   const comment = commentEdit ?? row.comment ?? '';
   const last = index >= data.rows.length - 1;
-  const aiDraft = commentEdit === null && !!row.comment && row.comment_source === 'ai' && row.comment_status !== 'final';
+  const aiDraft = commentEdit === null && unreviewed(row);
   const gradeChanged = !!gradeEdit && (grade === row.proposed ? null : grade) !== opened.final_grade;
   const commentChanged = commentEdit !== null && commentEdit.trim() !== (opened.comment ?? '');
   // An unreviewed AI draft whose grade changes here is redrafted on «Aceptar»; any other comment that says another
@@ -42,6 +42,8 @@ function Editor({ course, data, row, index, onIndex, onRedraft }: {
   const redo = gradeChanged && aiDraft;
   const staleComment = !!row.comment && !commentChanged && !redo
     && (gradeEdit ? row.comment_grade != null && grade != null && grade !== row.comment_grade : row.comment_stale);
+  // Its words name another grade than the saved one; with the grade changed here, the server checks on «Aceptar».
+  const clash = !staleComment && !commentChanged && !gradeEdit ? row.comment_clash : null;
 
   const fields = (): EvalRowInput => ({
     ...(gradeChanged ? { final_grade: grade === row.proposed ? null : grade } : {}),
@@ -103,7 +105,7 @@ function Editor({ course, data, row, index, onIndex, onRedraft }: {
   return (
     <Sheet open onClose={() => onIndex(null)} dirty={gradeChanged || commentChanged}
       title={row.student.name} subtitle={`${index + 1} de ${data.rows.length} · ${sub}`}
-      footer={staleComment ? <>
+      footer={staleComment || clash ? <>
         <Button variant="neutral" disabled>El comentario dice otra nota</Button>
         <Button onClick={redraftComment} loading={save.isPending}>Redactar de nuevo</Button>
       </> : (
@@ -149,6 +151,7 @@ function Editor({ course, data, row, index, onIndex, onRedraft }: {
           {breakdown && <Breakdown course={course} term={data.term} studentId={row.student.id} />}
         </div>
         {staleComment && <Callout tone="warn">{staleText(row.comment_grade, grade)}. Corrígelo o redáctalo de nuevo.</Callout>}
+        {clash && <Callout tone="warn">El comentario dice «{clash}» y la nota es un {formatProposal(grade)}. Corrígelo o redáctalo de nuevo.</Callout>}
         <TextArea label={<span className="ev-sheet__label">Comentario de boletín {aiDraft && <AIBadge />}</span>}
           value={comment} maxLength={2000} rows={5} grow onChange={(e) => setCommentEdit(e.target.value)}
           placeholder="Qué ha hecho bien, qué debe mejorar y una recomendación concreta." />

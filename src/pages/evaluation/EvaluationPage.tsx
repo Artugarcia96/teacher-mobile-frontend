@@ -4,8 +4,8 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCourse, useJob } from '../../api/core';
 import {
-  absencesText, distributionParts, evaluationKeys, finalRecoveryLabel, RECOVERY_RULES, staleText, useDraftComments,
-  useEvaluation, useSaveEvalRow, useSetRecoveryRule, type ActivityRef, type EvalRow, type Evaluation,
+  absencesText, clashText, distributionParts, evaluationKeys, finalRecoveryLabel, printable, RECOVERY_RULES, staleText, unreviewed,
+  useDraftComments, useEvaluation, useSaveEvalRow, useSetRecoveryRule, type ActivityRef, type EvalRow, type Evaluation,
 } from '../../api/evaluation';
 import type { CourseDetail } from '../../api/types';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
@@ -29,20 +29,22 @@ function opensOn(terms: { n: number; start: string }[] | undefined, t: number, t
   return start && start > today ? start : null;
 }
 
-/** An AI draft the teacher has not accepted yet. */
-export function unreviewed(r: EvalRow): boolean {
-  return !!r.comment && r.comment_source === 'ai' && r.comment_status !== 'final';
-}
-
 /** A comment to draft (the page's `comments_missing`): only with a grade that counts, and without a comment or with
  *  an unreviewed AI draft written for another grade. Without grades the AI would have nothing true to say. */
 function toDraft(r: EvalRow): boolean {
   return r.final != null && (!r.comment || (r.comment_stale && unreviewed(r)));
 }
 
-/** An AI draft to review: written for the grade that counts. */
+/** An AI draft to review: written for the grade that counts, and naming it. */
 function toReview(r: EvalRow): boolean {
-  return unreviewed(r) && !r.comment_stale;
+  return unreviewed(r) && !r.comment_stale && !r.comment_clash;
+}
+
+/** What an export leaves out, said after it: «Acta descargada. No lleva 3 comentarios: sin revisar o que no cuadran con
+ *  la nota.» Nothing when every comment goes. */
+function leftOut(rows: EvalRow[], verb: string): string {
+  const n = rows.filter((r) => r.comment && !printable(r)).length;
+  return n ? `. ${verb} ${plural(n, 'comentario', 'comentarios')}: sin revisar o que no cuadran con la nota.` : '';
 }
 
 /** Students with the evaluation failed (a stale adjustment is not a fail: its recovery is already there). */
@@ -190,11 +192,11 @@ function EvalMenu({ course, data, running, onJob, onRecovery }: {
   const drafts = data.rows.filter(toReview);
   const failing = failingRows(data);
   const copy = async () => {
-    const withText = data.rows.filter((r) => r.comment && !r.comment_stale);
-    if (!withText.length) { toast('Todavía no hay comentarios que copiar', { tone: 'error' }); return; }
+    const withText = data.rows.filter(printable);
+    if (!withText.length) { toast('Todavía no hay comentarios revisados que copiar', { tone: 'error' }); return; }
     try {
       await navigator.clipboard.writeText(withText.map((r) => `${r.student.sort_name}\n${r.comment}`).join('\n\n'));
-      toast(`${plural(withText.length, 'comentario copiado', 'comentarios copiados')}`);
+      toast(`${plural(withText.length, 'comentario copiado', 'comentarios copiados')}${leftOut(data.rows, 'Sin copiar')}`);
     } catch {
       toast('No se ha podido copiar. Exporta las notas en CSV.', { tone: 'error' });
     }
@@ -284,7 +286,7 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
   const get = (kind: 'pdf' | 'csv') => {
     setDownloading(kind);
     const p = kind === 'pdf' ? download(`${base}/acta.pdf`, `Acta ${fileLabel}.pdf`) : download(`${base}.csv`, `Notas ${fileLabel}.csv`);
-    p.then(() => toast(kind === 'pdf' ? 'Acta descargada' : 'Notas descargadas'))
+    p.then(() => toast(kind === 'pdf' ? `Acta descargada${leftOut(rows, 'No lleva')}` : `Notas descargadas${leftOut(rows, 'No llevan')}`))
       .catch((e: Error) => toast(e.message, { tone: 'error' }))
       .finally(() => setDownloading(null));
   };
@@ -436,6 +438,8 @@ function EvalRowItem({ row, onOpen }: { row: EvalRow; onOpen: () => void }) {
         )}
         {row.comment_stale ? (
           <span className="ev-row__comment ev-row__comment--stale">{staleText(row.comment_grade, row.final)}</span>
+        ) : row.comment_clash ? (
+          <span className="ev-row__comment ev-row__comment--stale">{clashText(row.comment_clash, row.final)}</span>
         ) : row.comment && (
           <span className="ev-row__comment">{unreviewed(row) && <><AIBadge />{' '}</>}{row.comment}</span>
         )}
