@@ -2,7 +2,10 @@ import { ArrowRight, Exam, FileCsv, PencilSimple, Plus, Scales, Student, UserMin
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActivityBrief, GradeInput } from '../../api/activities';
-import { useGradebook, useSaveCell, useUnsavedCells, type Gradebook, type GradebookActivity, type GradebookRow, type GradeCell } from '../../api/gradebook';
+import {
+  rejectedByServer, useGradebook, useSaveCell, useUnsavedCells, type CellSave, type Gradebook, type GradebookActivity, type GradebookRow,
+  type GradeCell,
+} from '../../api/gradebook';
 import type { CourseDetail } from '../../api/types';
 import { useCourseMenu } from '../../features/course/CourseMenu';
 import EditActivitySheet from '../../features/activities/EditActivitySheet';
@@ -185,7 +188,15 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   const navigate = useNavigate();
   const { toast } = useFeedback();
   const save = useSaveCell(course.id);
-  const unsaved = useUnsavedCells(course.id);
+  // A failure the connection explains stays as «Sin guardar» (the cell and the line above the grid say it); only a grade
+  // the server refuses is lost, and says why.
+  const send = (u: CellSave) => save.mutate(u, {
+    onError: (e) => {
+      const who = rows.find((r) => r.student.id === u.grade.student_id)?.student.first_name;
+      if (rejectedByServer(e)) toast(`No se ha guardado la nota${who ? ` de ${who}` : ''}. ${e.message}`, { tone: 'error' });
+    },
+  });
+  const unsaved = useUnsavedCells(course.id, send);
   const [editing, setEditingState] = useState<Pos | null>(null);
   const editingRef = useRef<Pos | null>(null);
   const [draft, setDraft] = useState('');
@@ -259,11 +270,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
       grade = { student_id: row.student.id, score: parsed };
       optimistic = { score: parsed, status: 'confirmed', ...via };
     }
-    if (grade && optimistic) {
-      save.mutate({ term: data.term, activityId: target, columnId: act.id, grade, optimistic }, {
-        onError: (e) => toast(`No se ha guardado la nota de ${row.student.first_name}. ${e.message}`, { tone: 'error' }),
-      });
-    }
+    if (grade && optimistic) send({ term: data.term, activityId: target, columnId: act.id, grade, optimistic });
     setEditing(next);
   };
 
@@ -291,7 +298,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   };
 
   const draftsNote = data.drafts > 0;
-  const retryAll = () => unsaved.forEach((u) => save.mutate(u));
+  const retryAll = () => unsaved.forEach(send);
   return (
     <>
       {unsaved.length > 0 && (
@@ -359,7 +366,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                             onQuick={(v) => commit({ r, c }, step(r, c, 1), v)}
                             label={label} />
                         ) : failed ? (
-                          <button type="button" className="gb-cell__btn gb-unsaved" onClick={() => save.mutate(failed)}
+                          <button type="button" className="gb-cell__btn gb-unsaved" onClick={() => send(failed)}
                             aria-label={`${label}: ${cellText(failed.optimistic) || 'borrar nota'}, sin guardar. Toca para reintentar`}>
                             <span>{cellText(failed.optimistic) || '—'}</span>
                             <small>Sin guardar</small>
@@ -451,7 +458,7 @@ function CellInput({ value, onChange, onKeyDown, onBlur, onQuick, label }: {
     <>
       <input ref={ref} className="gb-input num" inputMode="decimal" autoComplete="off" enterKeyHint="next" aria-label={label}
         value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} onBlur={onBlur} />
-      <div className="gb-quick glass">
+      <div className="gb-quick">
         <button type="button" onPointerDown={keep} onClick={() => onQuick('NP')} aria-label="No presentado">NP</button>
       </div>
     </>

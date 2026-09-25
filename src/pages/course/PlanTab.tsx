@@ -19,9 +19,9 @@ import './PlanTab.css';
 
 type SheetName = 'new' | 'import' | 'copy' | 'prepare' | null;
 
-/** Temario (URL slug "programacion"): units grouped by evaluación, with status (pendiente / en curso / impartida), and
- *  «Preparar el trimestre» (materials of several units in one go). Import and copy live in the class "···" menu
- *  (features/course/CourseMenu). */
+/** Temario (URL slug "programacion"): units grouped by evaluación; each row's mark says its status (pendiente / en curso /
+ *  impartida), once: no progress line or counts on top. «Preparar el trimestre» makes the materials of several units in
+ *  one go. Import and copy live in the class "···" menu (features/course/CourseMenu). */
 export default function PlanTab({ course }: { course: CourseDetail }) {
   const { data: units, isLoading, error } = useUnits(course.id);
   const [sheet, setSheet] = useState<SheetName>(null);
@@ -67,27 +67,17 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
   const groups = [1, 2, 3].map((t) => ({ term: t as number | null, label: TERM_LABEL[t], units: list.filter((u) => u.term === t) }));
   const loose = list.filter((u) => !u.term);
   if (loose.length) groups.push({ term: null, label: 'Sin evaluación', units: loose });
-  const done = list.filter((u) => u.status === 'done').length;
-  const current = list.find((u) => u.status === 'current');
-
   return (
     <div className="plan">
       <div className="plan-bar">
-        <span className="plan-bar__meta">
-          {done ? `${done} de ${plural(list.length, 'unidad impartida', 'unidades impartidas')}` : plural(list.length, 'unidad', 'unidades')}
-          {current && <> · En curso: <b>{current.title}</b></>}
-        </span>
-        <div className="plan-bar__actions">
-          <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => addUnit()}>Unidad</Button>
-        </div>
+        <Button size="sm" variant="tinted" icon={<Plus size={16} weight="bold" />} onClick={() => addUnit()}>Unidad</Button>
       </div>
 
       <PrepareRow courseId={course.id} onOpen={() => setSheet('prepare')} />
 
       <div className="plan-terms">
         {groups.map((g) => (
-          <Section key={g.label} title={g.label}
-            action={g.units.length ? <span className="plan-term__count">{plural(g.units.length, 'unidad', 'unidades')}</span> : undefined}>
+          <Section key={g.label} title={g.label}>
             {g.units.length ? (
               <List inset={56}>
                 {g.units.map((u, i) => (
@@ -228,7 +218,7 @@ function UnitRow({ unit, courseId, all, first, last }: { unit: Unit; courseId: s
               </span>
             )}
           </span>
-        ) : 'Sin materiales'}
+        ) : undefined}
         trail={<span className="plan-unit__gap" />}
       />
       <div className="plan-unit__menu">

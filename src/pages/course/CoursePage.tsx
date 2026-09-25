@@ -54,7 +54,8 @@ export default function CoursePage() {
 
   const next = course.next_session;
   const now = me?.now;
-  const canTake = isLive(next, today, now) && !next?.taken && course.student_count > 0;
+  // Faltas lists today's session with its own «Pasar lista»: the top bar does not repeat it there.
+  const canTake = isLive(next, today, now) && !next?.taken && course.student_count > 0 && current !== 'asistencia';
   const when = next ? sessionText(next, today, now) : course.schedule.length ? null : 'Sin horario';
   // The session may be in another room than the class's usual one ("Lab. 1").
   const room = next?.room ?? course.room;

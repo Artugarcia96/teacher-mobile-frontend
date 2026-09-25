@@ -9,7 +9,14 @@ export interface Teacher { id: string; email: string; name: string; school?: str
 export interface Region { code: string; name: string; short: string; platform?: string | null }
 export interface Term { n: number; start: string; end: string }
 export interface Holiday { start: string; end: string; label: string }
-export interface SchoolYear { id: string; label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[]; current_term: number }
+/** A period of the school's timetable: ["08:30", "09:25"]. */
+export type Period = [string, string];
+export interface SchoolYear {
+  id: string; label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[];
+  /** The school's periods: rows of the timetable grid (the usual 55-minute ones until she adds hers). */
+  periods: Period[];
+  current_term: number;
+}
 export interface Me { teacher: Teacher; school_year: SchoolYear; region?: Region | null; ai_provider: 'openai' | 'claude_cli' | 'mock' | 'none'; today: string; now: string }
 
 export type Measure = 'mas_tiempo' | 'letra_ampliada' | 'enunciados_por_pasos' | 'lectura_en_voz_alta' | 'examen_adaptado' | 'acs';

@@ -11,6 +11,14 @@ import './course-forms.css';
 
 interface Draft { subject: string; short: string; room: string; color: string; schedule: Slot[] }
 
+const draftOf = (course: CourseDetail): Draft => ({
+  subject: course.subject, short: course.short ?? '', room: course.room ?? '', color: course.color,
+  schedule: course.schedule.map((s) => ({ ...s })),
+});
+/** What saving would send, so «Guardar cambios» only wakes up when something would change. */
+const saved = (d: Draft) => JSON.stringify([d.subject.trim(), d.short.trim(), d.room.trim(), d.color,
+  d.schedule.map((s) => [s.weekday, s.start, s.end, s.room ?? null]).sort()]);
+
 /** Ajustes de la clase: datos y horario; archivar / eliminar al final. Las ponderaciones viven en el Cuaderno. */
 export default function CourseSettingsSheet({ open, onClose, course }: { open: boolean; onClose: () => void; course: CourseDetail }) {
   const navigate = useNavigate();
@@ -23,16 +31,14 @@ export default function CourseSettingsSheet({ open, onClose, course }: { open: b
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setD({
-      subject: course.subject, short: course.short ?? '', room: course.room ?? '', color: course.color,
-      schedule: course.schedule.map((s) => ({ ...s })),
-    });
+    setD(draftOf(course));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   if (!d) return null;
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD({ ...d, [k]: v });
-  const blocker = !d.subject.trim() ? 'Escribe la materia' : null;
+  const blocker = !d.subject.trim() ? 'Escribe la materia'
+    : saved(d) === saved(draftOf(course)) ? 'Sin cambios' : null;
 
   const save = async () => {
     setError(null);

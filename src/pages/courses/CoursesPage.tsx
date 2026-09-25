@@ -63,15 +63,17 @@ function usePending(today: string, enabled: boolean): Map<string, Pending> {
   }, [day.data]);
 }
 
-/** /clases — search (students and classes), the classes, archived ones last; or (?vista=materiales) all the teacher's
- * materials. ?nueva=1 opens the new-class sheet. */
+/** /clases — search (students and classes, ?q=), the classes, archived ones last; or (?vista=materiales) all the
+ * teacher's materials. ?nueva=1 opens the new-class sheet. */
 export default function CoursesPage() {
   const { data, isLoading, error, refetch } = useCourses();
   const { me } = useAuth();
   const today = useToday();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [q, setQ] = useState('');
+  // The search lives in the address (?q=): opening a result and coming back finds it again.
+  const q = params.get('q') ?? '';
+  const setQ = (v: string) => setParams((p) => { if (v) p.set('q', v); else p.delete('q'); return p; }, { replace: true });
   const search = useSearch(q);
   const creating = params.get('nueva') === '1';
   const pending = usePending(today, !!data?.length);
