@@ -42,7 +42,7 @@ src/lib/                 api.ts (fetch + auth + errores), auth.tsx, format.ts
 src/ui/                  kit de componentes + ui.css
 e2e/                     flujos Playwright + capturas
 landing/                 landing page estática con capturas reales
-deploy/                  nginx + script del VPS; un push despliega (.github/workflows/deploy.yml, ../teacher-mobile-backend/docs/DEPLOY.md)
+deploy/                  nginx + script del VPS; se publica a mano con Run workflow (.github/workflows/deploy.yml, ../teacher-mobile-backend/docs/DEPLOY.md)
 ```
 
 ## Flujo de trabajo para agentes

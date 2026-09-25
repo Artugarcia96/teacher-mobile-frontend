@@ -28,4 +28,4 @@ npm run shots    # lo mismo guardando capturas en e2e/screenshots/
 
 ## Desplegar
 
-Un push a la rama de despliegue compila la app en GitHub Actions y la publica con la landing en el VPS (nginx en el puerto 8200, `/api` hacia la API): [`deploy/`](deploy/) y [`../teacher-mobile-backend/docs/DEPLOY.md`](../teacher-mobile-backend/docs/DEPLOY.md).
+Al lanzarlo a mano (*Run workflow*; un push no despliega), GitHub Actions compila la app y la publica con la landing en el VPS (nginx en el puerto 8200, `/api` hacia la API): [`deploy/`](deploy/) y [`../teacher-mobile-backend/docs/DEPLOY.md`](../teacher-mobile-backend/docs/DEPLOY.md).
