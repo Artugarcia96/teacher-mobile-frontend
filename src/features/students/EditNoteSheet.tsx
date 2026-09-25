@@ -21,6 +21,8 @@ export default function EditNoteSheet({ note, onClose }: { note: Note | null; on
     setKind(note.kind); setDate(note.date); setText(note.text); setError(null);
   }, [note]);
 
+  const dirty = !!note && (kind !== note.kind || date !== note.date || text !== note.text);
+
   const save = async () => {
     if (!note) return;
     try {
@@ -33,7 +35,7 @@ export default function EditNoteSheet({ note, onClose }: { note: Note | null; on
   };
 
   return (
-    <Sheet open={!!note} onClose={onClose} title="Editar observación"
+    <Sheet open={!!note} onClose={onClose} title="Editar observación" dirty={dirty}
       footer={<Button full onClick={save} loading={update.isPending} disabled={!text.trim()}>{text.trim() ? 'Guardar' : 'Escribe la observación'}</Button>}>
       <div className="form">
         <TextArea label="Texto" rows={4} value={text} onChange={(e) => setText(e.target.value)} />

@@ -1,13 +1,11 @@
-/* Phone: "Anotar" on its own row, the two secondary actions below (text only). Tablet+: one row. */
+/* Phone: «Anotar» and «Preparar tutoría» side by side, full width. Tablet+: one row of their own size. */
 .st-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
-.st-actions > .btn:first-child { grid-column: 1 / -1; }
-.st-actions > .btn:not(:first-child) { padding: 0 10px; }
-.st-actions > .btn:not(:first-child) svg { display: none; }
+.st-actions > .btn { padding: 0 10px; }
 @media (min-width: 768px) {
   .st-actions { display: flex; }
-  .st-actions > .btn:not(:first-child) { padding: 0 18px; }
-  .st-actions > .btn:not(:first-child) svg { display: block; }
+  .st-actions > .btn { padding: 0 18px; }
 }
+.st-acked { display: block; margin-top: 2px; }
 
 .st-support { display: grid; gap: 6px; }
 .st-support__notes { color: var(--ink-2); font-size: var(--fs-sub); max-width: var(--reading-max); }

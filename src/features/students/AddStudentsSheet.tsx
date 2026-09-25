@@ -42,7 +42,7 @@ function Preview({ parsed, onChange }: { parsed: ParsedStudents; onChange: (stud
   const set = (i: number, n: Name) => onChange(parsed.students.map((x, j) => (j === i ? n : x)));
   return (
     <div className="add-st__preview">
-      {parsed.warnings.length > 0 && <Callout tone="warn"><div>{parsed.warnings.map((w) => <div key={w}>{w}</div>)}</div></Callout>}
+      {parsed.warnings.length > 0 && <Callout tone="warn"><div>{parsed.warnings.map((w, i) => <div key={i}>{w}</div>)}</div></Callout>}
       {parsed.students.length > 0 && (
         <>
           <div className="section__head">
@@ -112,6 +112,7 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
   const otherGroups = (groups.data ?? []).filter((g) => g.id !== groupId && g.student_count > 0);
 
   const count = mode === 'group' ? picked.size : parsed?.students.length ?? 0;
+  const dirty = open && (!!text.trim() || !!parsed || picked.size > 0);
   const blocker = count > 0 ? null : mode === 'paste' ? 'Pega al menos un nombre' : 'Elige alumnos';
 
   const submit = async () => {
@@ -136,7 +137,7 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
   const editParsed = (students: Name[]) => parsed && setParsed({ ...parsed, students });
 
   return (
-    <Sheet open={open} onClose={onClose} title="Añadir alumnos" subtitle={ordinals(course.group.name)} size="large"
+    <Sheet open={open} onClose={onClose} title="Añadir alumnos" subtitle={ordinals(course.group.name)} size="large" dirty={dirty}
       footer={<Button full onClick={submit} loading={add.isPending} disabled={!!blocker}>
         {blocker ?? `Añadir ${plural(count, 'alumno', 'alumnos')}`}
       </Button>}>
