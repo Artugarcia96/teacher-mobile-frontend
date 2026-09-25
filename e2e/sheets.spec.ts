@@ -31,6 +31,8 @@ test('Anotar: back closes the sheet and asks before discarding what was typed', 
   await expect(text).toHaveValue('Trae el cuaderno de laboratorio');
 
   // Back again, discard: the sheet closes and the page is still Hoy; one more back leaves nothing behind.
+  // (The sheet takes its history entry back on the next tick after «Cancelar»; wait for it, a thumb always does.)
+  await page.waitForFunction(() => Boolean((window.history.state as { sheet?: string } | null)?.sheet));
   await page.goBack();
   await ask.getByRole('button', { name: 'Descartar' }).click();
   await expect(sheet).toBeHidden();
