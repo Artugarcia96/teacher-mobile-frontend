@@ -6,7 +6,7 @@ import { useAbsenceSessions, useCreateAbsence, type AbsenceSession } from '../..
 import { fileUrl } from '../../lib/api';
 import { useToday } from '../../lib/auth';
 import { plural, shortDate, weekdayShort } from '../../lib/format';
-import { Button, Chip, Dot, EmptyState, List, Row, Section, Sheet, SkeletonList, Switch, TextArea, TextField, useFeedback } from '../../ui';
+import { Button, Chip, DateField, Dot, EmptyState, List, Row, Section, Sheet, SkeletonList, Switch, TextArea, TextField, useFeedback } from '../../ui';
 import './session.css';
 
 export interface AbsenceSheetProps {
@@ -83,10 +83,10 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
       </Button>}>
       <div className="form">
         <div className="form-row">
-          <TextField label="Desde" type="date" min={today} value={range.from}
-            onChange={(e) => setRange((r) => ({ from: e.target.value, to: r.to < e.target.value ? e.target.value : r.to }))} />
-          <TextField label="Hasta" type="date" min={range.from} value={range.to} error={rangeError}
-            onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} />
+          <DateField label="Desde" short min={today} value={range.from}
+            onChange={(v) => setRange((r) => ({ from: v, to: r.to < v ? v : r.to }))} />
+          <DateField label="Hasta" short min={range.from} value={range.to} error={rangeError}
+            onChange={(v) => setRange((r) => ({ ...r, to: v }))} />
         </div>
         <TextField label="Motivo" placeholder="Formación, médico, asuntos propios…" value={reason} maxLength={200}
           hint="Opcional. Aparece en la hoja de guardia." onChange={(e) => setReason(e.target.value)} />

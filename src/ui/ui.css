@@ -33,6 +33,14 @@
 .icon-btn--glass { background: var(--glass); }
 .icon-btn--sm { width: 32px; height: 32px; }
 
+/* Touch screens: every tap target reaches 44 px. Small controls keep their look and get an invisible hit area. */
+@media (pointer: coarse) {
+  .seg__btn { min-height: 44px; }
+  :where(.icon-btn, .section__action, .link-btn) { position: relative; }
+  .icon-btn::after, .btn--sm::after { content: ''; position: absolute; inset: -6px; }
+  .section__action::after, .link-btn::after { content: ''; position: absolute; inset: -12px -8px; }
+}
+
 /* ── Spinner / progress ─────────────────────────────────── */
 .spinner {
   width: 18px; height: 18px; border-radius: 50%;
@@ -61,7 +69,8 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   opacity: 0; transform: translateY(4px); transition: opacity var(--t-med), transform var(--t-med) var(--ease);
 }
-.topbar--scrolled .topbar__title { opacity: 1; transform: none; }
+.topbar--titled .topbar__title { opacity: 1; transform: none; }
+.page__top { position: absolute; top: 0; left: 0; height: 1px; width: 1px; pointer-events: none; }
 .topbar__side { display: flex; align-items: center; gap: 4px; min-width: 40px; }
 .topbar__side--end { justify-content: flex-end; }
 .back-btn { display: inline-flex; align-items: center; gap: 2px; height: 40px; padding: 0 8px 0 4px; border: 0; background: transparent;

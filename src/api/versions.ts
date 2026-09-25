@@ -93,7 +93,7 @@ export function useVersionDocUrl(activityId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ key, variant }: { key: string; variant: 'print' | 'key' }) =>
-      api.get<{ url: string; notice?: string | null }>(`/activities/${activityId}/versions/${key}/${variant}.pdf`),
+      api.get<{ url: string; notice?: string | null }>(`/activities/${activityId}/versions/${key}/${variant}.pdf`, { slow: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['versions', activityId] }),
   });
 }
@@ -102,7 +102,7 @@ export function useVersionDocUrl(activityId: string) {
 export function useClassPrintUrl(activityId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.get<{ url: string; notice?: string | null }>(`/activities/${activityId}/class-print.pdf`),
+    mutationFn: () => api.get<{ url: string; notice?: string | null }>(`/activities/${activityId}/class-print.pdf`, { slow: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['versions', activityId] }),
   });
 }

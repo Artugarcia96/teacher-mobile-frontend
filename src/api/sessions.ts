@@ -100,7 +100,7 @@ export function useAbsenceSessions(from: string, to: string, enabled = true) {
 export function useCreateAbsence() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: AbsenceInput) => api.post<{ pdf_url: string; count: number }>('/absences', body),
+    mutationFn: (body: AbsenceInput) => api.post<{ pdf_url: string; count: number }>('/absences', body, { slow: true }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today'] });
       qc.invalidateQueries({ queryKey: ['absences'] });

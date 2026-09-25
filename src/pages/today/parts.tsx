@@ -138,38 +138,34 @@ function TimeCol({ start, end, now }: { start?: string | null; end?: string | nu
   );
 }
 
-function sessionChips(s: TodaySession, onAttendance: (s: TodaySession) => void): ReactNode[] {
+function sessionChips(s: TodaySession): ReactNode[] {
   const chips: ReactNode[] = [];
   if (s.guardia) chips.push(<Chip key="c" tone="info">Guardia</Chip>);
   else if (s.cancelled) chips.push(<Chip key="c">Cancelada</Chip>);
   else if (s.attendance.taken) chips.push(<Chip key="a" tone="ok" icon={<Check size={12} weight="bold" />}>Lista pasada</Chip>);
-  else if (s.status === 'past' || s.status === 'now') chips.push(<Chip key="a" tone="warn" onClick={() => onAttendance(s)}>Lista sin pasar</Chip>);
+  else if (s.status === 'past' || s.status === 'now') chips.push(<Chip key="a" tone="warn">Lista sin pasar</Chip>);
   if (!s.cancelled && s.activities.some((a) => a.kind === 'exam')) chips.push(<Chip key="e" tone="info">Examen</Chip>);
   return chips;
 }
 
-export function Agenda({ day, onSession, onEvent, onAttendance }: {
-  day: Today; onSession: (s: TodaySession) => void; onEvent: (e: TodayEvent) => void; onAttendance: (s: TodaySession) => void;
+export function Agenda({ day, onSession, onEvent }: {
+  day: Today; onSession: (s: TodaySession) => void; onEvent: (e: TodayEvent) => void;
 }) {
   const entries = [
     ...day.sessions.map((s) => {
       const sub = [s.room && `Aula ${s.room}`, s.unit].filter(Boolean).join(' · ');
-      const chips = sessionChips(s, onAttendance);
+      const chips = sessionChips(s);
       return {
         key: `s-${s.course.id}-${s.start}`, start: s.start,
         node: (
-          // Stretched button: the whole row opens the session; the «Lista sin pasar» chip is its own button on top.
-          <div key={`s-${s.course.id}-${s.start}`} className={`row agenda-row${s.cancelled ? ' row--muted' : ''}`}>
-            <button type="button" className="agenda-row__hit" onClick={() => onSession(s)} aria-label={`${s.start} ${s.course.label}`} />
-            <div className="row__lead"><TimeCol start={s.start} end={s.end} now={s.status === 'now' && !s.cancelled} /></div>
-            <div className="row__main">
-              <div className="row__title"><Dot color={s.course.color} /><span>{s.course.label}</span></div>
-              <div className="row__sub agenda-sub">
-                <span className="agenda-sub__text">{sub}</span>
-                {chips.length > 0 && <span className="agenda-sub__chips">{chips}</span>}
-              </div>
-            </div>
-          </div>
+          // The chips only say the state; the row opens the session, where each action lives.
+          <Row key={`s-${s.course.id}-${s.start}`} onClick={() => onSession(s)} chevron={false} muted={s.cancelled}
+            lead={<TimeCol start={s.start} end={s.end} now={s.status === 'now' && !s.cancelled} />}
+            title={<><Dot color={s.course.color} /><span>{s.course.label}</span></>}
+            sub={<span className="agenda-sub">
+              <span className="agenda-sub__text">{sub}</span>
+              {chips.length > 0 && <span className="agenda-sub__chips">{chips}</span>}
+            </span>} />
         ),
       };
     }),

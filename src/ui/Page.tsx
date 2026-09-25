@@ -57,15 +57,20 @@ export function Page({ title, eyebrow, subtitle, back, backLabel = 'Atrás', bac
   const navigate = useNavigate();
   const origin = useOrigin(title);
   const fromOrigin = backToOrigin && origin !== undefined;
+  const top = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
+  // Glass from the first scrolled pixel (the back button never draws over the large title); the small title once
+  // the large one has gone under the bar.
   const [scrolled, setScrolled] = useState(false);
+  const [titled, setTitled] = useState(false);
 
   useEffect(() => {
-    const el = sentinel.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setScrolled(!e.isIntersecting), { rootMargin: '-54px 0px 0px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
+    if (!top.current || !sentinel.current) return;
+    const bar = new IntersectionObserver(([e]) => setScrolled(!e.isIntersecting));
+    const title = new IntersectionObserver(([e]) => setTitled(!e.isIntersecting), { rootMargin: '-54px 0px 0px 0px' });
+    bar.observe(top.current);
+    title.observe(sentinel.current);
+    return () => { bar.disconnect(); title.disconnect(); };
   }, []);
 
   useEffect(() => {
@@ -74,7 +79,8 @@ export function Page({ title, eyebrow, subtitle, back, backLabel = 'Atrás', bac
 
   return (
     <div className="page">
-      <header className={`topbar${scrolled ? ' topbar--scrolled' : ''}`}>
+      <div ref={top} className="page__top" />
+      <header className={`topbar${scrolled ? ' topbar--scrolled' : ''}${titled ? ' topbar--titled' : ''}`}>
         <div className="topbar__side">
           {(back || fromOrigin) && (
             <button className="back-btn" onClick={() => (fromOrigin || typeof back !== 'string' ? navigate(-1) : navigate(back))}>
@@ -83,7 +89,7 @@ export function Page({ title, eyebrow, subtitle, back, backLabel = 'Atrás', bac
             </button>
           )}
         </div>
-        <div className="topbar__title" aria-hidden={!scrolled}>{title}</div>
+        <div className="topbar__title" aria-hidden={!titled}>{title}</div>
         <div className="topbar__side topbar__side--end">{actions}</div>
       </header>
       <div className="page-head">

@@ -123,7 +123,7 @@ export function useOrderUnits(courseId: string) {
 
 export function useImportUnits(courseId: string) {
   return useMutation({
-    mutationFn: (text: string) => api.post<{ proposals: { title: string; term: number | null }[] }>(`/courses/${courseId}/units/import`, { text }),
+    mutationFn: (text: string) => api.post<{ proposals: { title: string; term: number | null }[] }>(`/courses/${courseId}/units/import`, { text }, { slow: true }),
   });
 }
 
@@ -297,7 +297,7 @@ export function usePatchMaterial(materialId: string) {
 export function useRewriteBlock(materialId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { block_id: string; instruction: string }) => api.post<MaterialDetail>(`/materials/${materialId}/rewrite`, body),
+    mutationFn: (body: { block_id: string; instruction: string }) => api.post<MaterialDetail>(`/materials/${materialId}/rewrite`, body, { slow: true }),
     onSuccess: (data) => qc.setQueryData(unitKeys.material(materialId), data),
   });
 }
@@ -317,7 +317,7 @@ export function useMaterialToActivity(materialId: string) {
 
 /** Ask for a signed download link and start the download (PDF, .pptx or solucionario). */
 export async function downloadMaterial(materialId: string, variant: 'pdf' | 'pptx' | 'key' = 'pdf') {
-  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?variant=${variant}`);
+  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?variant=${variant}`, { slow: true });
   const a = document.createElement('a');
   a.href = fileUrl(url)!;
   a.rel = 'noopener';

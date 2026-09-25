@@ -61,8 +61,15 @@ async function toError(r: Response): Promise<ApiError> {
 
 type Body = unknown;
 
-/** Authenticated fetch with token refresh; throws ApiError (Spanish message) on failure. */
-async function send(method: string, path: string, body?: Body, retry = true): Promise<Response> {
+/** A JSON request that gets no answer in this time fails instead of spinning forever (school Wi-Fi). */
+const TIMEOUT_MS = 20_000;
+
+/** `slow`: the server works while the teacher waits (AI answers, PDFs rendered on the fly), so no timeout. */
+export interface RequestOptions { slow?: boolean }
+
+/** Authenticated fetch with token refresh; throws ApiError (Spanish message) on failure.
+ *  `timeout` (ms) aborts a request that gets no answer. */
+async function send(method: string, path: string, body?: Body, timeout?: number, retry = true): Promise<Response> {
   const headers: Record<string, string> = {};
   const t = tokens.get();
   if (t) headers.Authorization = `Bearer ${t.access_token}`;
@@ -74,12 +81,13 @@ async function send(method: string, path: string, body?: Body, retry = true): Pr
   }
   let r: Response;
   try {
-    r = await fetch(`${BASE}/api${path}`, { method, headers, body: payload });
-  } catch {
+    r = await fetch(`${BASE}/api${path}`, { method, headers, body: payload, signal: timeout ? AbortSignal.timeout(timeout) : undefined });
+  } catch (e) {
+    if ((e as Error).name === 'TimeoutError') throw new ApiError(0, 'El servidor no responde. Revisa la conexión y vuelve a intentarlo.');
     throw new ApiError(0, 'Sin conexión con el servidor. Revisa tu conexión.');
   }
   if (r.status === 401 && retry && t && !path.startsWith('/auth/')) {
-    if (await refresh()) return send(method, path, body, false);
+    if (await refresh()) return send(method, path, body, timeout, false);
     tokens.set(null);
     onUnauthorized();
   }
@@ -87,16 +95,16 @@ async function send(method: string, path: string, body?: Body, retry = true): Pr
   return r;
 }
 
-async function request<T>(method: string, path: string, body?: Body): Promise<T> {
-  const r = await send(method, path, body);
+async function request<T>(method: string, path: string, body?: Body, opts?: RequestOptions): Promise<T> {
+  const r = await send(method, path, body, opts?.slow || body instanceof FormData ? undefined : TIMEOUT_MS);
   if (r.status === 204) return undefined as T;
   const ct = r.headers.get('content-type') || '';
   return (ct.includes('application/json') ? r.json() : r.blob()) as Promise<T>;
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: Body) => request<T>('POST', path, body ?? {}),
+  get: <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts),
+  post: <T>(path: string, body?: Body, opts?: RequestOptions) => request<T>('POST', path, body ?? {}, opts),
   put: <T>(path: string, body?: Body) => request<T>('PUT', path, body ?? {}),
   patch: <T>(path: string, body?: Body) => request<T>('PATCH', path, body ?? {}),
   delete: <T>(path: string) => request<T>('DELETE', path),

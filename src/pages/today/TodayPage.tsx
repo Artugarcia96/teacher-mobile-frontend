@@ -137,7 +137,7 @@ export default function TodayPage() {
         {empty && <div className="card">{empty}</div>}
         {(d.sessions.length > 0 || d.events.length > 0) && (
           <Section title="Agenda">
-            <Agenda day={d} onSession={setSession} onEvent={(e) => setEvent({ event: e })} onAttendance={openAttendance} />
+            <Agenda day={d} onSession={setSession} onEvent={(e) => setEvent({ event: e })} />
           </Section>
         )}
       </div>

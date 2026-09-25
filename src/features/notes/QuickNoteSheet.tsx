@@ -90,12 +90,13 @@ function NoteSheetBody({ onClose, courseId: fixedCourse, studentIds }: QuickNote
 
   const disabledReason = !text.trim() ? 'Escribe la observación' : null;
   return (
-    <Sheet open onClose={onClose} title="Anotar" subtitle={course && <span className="note-course"><Dot color={course.color} />{course.label}
+    <Sheet open onClose={onClose} dirty={!!text.trim()} title="Anotar" subtitle={course && <span className="note-course"><Dot color={course.color} />{course.label}
       {!fixedCourse && <button type="button" className="section__action" onClick={() => { setCourseId(undefined); setSelected(studentIds ?? []); }}>Cambiar</button>}</span>}
       footer={<Button full onClick={submit} loading={create.isPending} disabled={!!disabledReason} title={disabledReason ?? undefined}>Guardar</Button>}>
       <div className="form">
         <div className="note-seg"><Segmented full label="Tipo" value={kind} options={KINDS} onChange={setKind} /></div>
-        <TextArea aria-label="Texto" placeholder={PLACEHOLDER[kind]} value={text} rows={3} onChange={(e) => setText(e.target.value)} className="note-text" />
+        <TextArea aria-label="Texto" placeholder={PLACEHOLDER[kind]} value={text} rows={3} onChange={(e) => setText(e.target.value)} className="note-text"
+          data-autofocus="always" />
         <div className="note-students">
           <div className="note-students__head">
             <span className="field__label">{selected.length ? `${selected.length} ${selected.length === 1 ? 'alumno' : 'alumnos'}` : 'Alumnos (opcional)'}</span>

@@ -26,13 +26,18 @@ function CloseBody({ onClose, courseId, date, start, label }: CloseSessionSheetP
   const { toast, confirm } = useFeedback();
   const q = useSessionLog(courseId, date, start);
   const save = useSaveSessionLog(courseId);
-  const [f, setF] = useState<{ done: string; next: string; homework: string; finish: boolean } | null>(null);
+  type Form = { done: string; next: string; homework: string; finish: boolean };
+  const [f, setF] = useState<Form | null>(null);
+  const [loaded, setLoaded] = useState<Form | null>(null);
 
   useEffect(() => {
     if (f || !q.data) return;
     const d = q.data;
-    setF({ done: d.saved ? d.done ?? '' : d.unit?.title ?? '', next: d.next ?? '', homework: d.homework ?? '', finish: false });
+    const first = { done: d.saved ? d.done ?? '' : d.unit?.title ?? '', next: d.next ?? '', homework: d.homework ?? '', finish: false };
+    setF(first);
+    setLoaded(first);
   }, [q.data, f]);
+  const dirty = !!f && !!loaded && (Object.keys(f) as (keyof Form)[]).some((k) => f[k] !== loaded[k]);
 
   const empty = !!f && !f.done.trim() && !f.next.trim() && !f.homework.trim() && !f.finish;
   const submit = async () => {
@@ -52,7 +57,7 @@ function CloseBody({ onClose, courseId, date, start, label }: CloseSessionSheetP
   const d = q.data;
   const when = [date !== today && longDate(date), d?.end ? `${start}–${d.end}` : start].filter(Boolean).join(' · ');
   return (
-    <Sheet open side onClose={onClose} title={label ? `Cerrar clase · ${label}` : 'Cerrar clase'} subtitle={when}
+    <Sheet open side onClose={onClose} dirty={dirty} title={label ? `Cerrar clase · ${label}` : 'Cerrar clase'} subtitle={when}
       footer={<Button full variant={empty && d?.saved ? 'danger' : 'primary'} onClick={submit} loading={save.isPending} disabled={!f || (empty && !d?.saved)}
         title={empty && !d?.saved ? 'Escribe qué habéis hecho o qué toca la próxima vez' : undefined}>
         {empty && d?.saved ? 'Borrar el cierre' : 'Guardar'}

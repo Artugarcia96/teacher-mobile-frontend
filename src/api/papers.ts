@@ -164,7 +164,7 @@ export function useSaveRubric(activityId: string) {
  * `notice`: e.g. the marker could not be stamped on this PDF (it is served as it is). */
 export function useDocumentUrl(activityId: string) {
   return useMutation({
-    mutationFn: (variant: 'print' | 'key' | 'extra-sheet') => api.get<{ url: string; notice?: string | null }>(`/activities/${activityId}/${variant}.pdf`),
+    mutationFn: (variant: 'print' | 'key' | 'extra-sheet') => api.get<{ url: string; notice?: string | null }>(`/activities/${activityId}/${variant}.pdf`, { slow: true }),
   });
 }
 

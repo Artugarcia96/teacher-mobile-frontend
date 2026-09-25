@@ -1,5 +1,5 @@
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
-import { addDays, dayNumber, isoDate, parseDate, weekdayShort } from '../lib/format';
+import { addDays, dayNumber, isoDate, longDate, parseDate, weekdayShort } from '../lib/format';
 import { IconButton } from './Button';
 import './calendar.css';
 
@@ -25,7 +25,7 @@ export function WeekStrip({ monday, selected, today, marked, onSelect, onWeek }:
       <IconButton label="Semana anterior" size="sm" onClick={() => onWeek(-1)}><CaretLeft size={18} /></IconButton>
       <div className="weekstrip__days">
         {days.map((d) => (
-          <button key={d} type="button" aria-pressed={d === selected} aria-label={d}
+          <button key={d} type="button" aria-pressed={d === selected} aria-label={longDate(d)}
             className={`weekstrip__day${d === today ? ' weekstrip__day--today' : ''}`} onClick={() => onSelect(d)}>
             <span className="weekstrip__wd">{weekdayShort(d)}</span>
             <span className="weekstrip__n num">{dayNumber(d)}</span>
@@ -68,7 +68,7 @@ export function MonthGrid({ month, selected, today, muted, marked, onSelect, onM
       <div className="monthgrid__grid">
         {HEAD.map((h) => <span key={h} className="monthgrid__wd">{h}</span>)}
         {cells.map((d, i) => d ? (
-          <button key={d} type="button" aria-pressed={d === selected} aria-label={d}
+          <button key={d} type="button" aria-pressed={d === selected} aria-label={longDate(d)}
             className={['monthgrid__day num', d === today && 'monthgrid__day--today', muted?.has(d) && 'monthgrid__day--muted'].filter(Boolean).join(' ')}
             onClick={() => onSelect(d)}>
             {dayNumber(d)}

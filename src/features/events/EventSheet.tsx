@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useCourses } from '../../api/core';
 import { EVENT_KIND_LABEL, useCreateEvent, useDeleteEvent, useUpdateEvent, type EventKind, type TodayEvent } from '../../api/today';
-import { Button, Select, Sheet, TextField, useFeedback } from '../../ui';
+import { Button, DateField, Select, Sheet, TextField, TimeField, useFeedback } from '../../ui';
 
 export interface EventSheetProps {
   open: boolean;
@@ -67,10 +67,10 @@ function EventSheetBody({ onClose, date, event }: EventSheetProps) {
       </>}>
       <div className="form">
         <TextField label="Título" placeholder="Reunión de departamento" value={f.title} maxLength={200} onChange={(e) => set('title', e.target.value)} />
-        <TextField label="Fecha" type="date" value={f.date} onChange={(e) => set('date', e.target.value)} />
+        <DateField label="Fecha" value={f.date} onChange={(v) => set('date', v)} />
         <div className="form-row">
-          <TextField label="Inicio" type="time" value={f.start} onChange={(e) => set('start', e.target.value)} />
-          <TextField label="Fin" type="time" value={f.end} onChange={(e) => set('end', e.target.value)} error={timeError} />
+          <TimeField label="Inicio" clearable value={f.start} onChange={(v) => set('start', v)} />
+          <TimeField label="Fin" clearable value={f.end} onChange={(v) => set('end', v)} error={timeError} />
         </div>
         <div className="form-row">
           <Select label="Tipo" value={f.kind} onChange={(e) => set('kind', e.target.value as EventKind)}>

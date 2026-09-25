@@ -47,7 +47,7 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
   };
 
   return (
-    <Sheet open onClose={onClose} title={title ?? 'Nueva actividad'} subtitle={subtitle ?? course.label}
+    <Sheet open onClose={onClose} dirty={value.title.trim() !== (initial?.title ?? '').trim()} title={title ?? 'Nueva actividad'} subtitle={subtitle ?? course.label}
       footer={<Button full loading={create.isPending} disabled={!ready} onClick={submit}>
         {ready ? 'Crear actividad' : noStudents ? 'Elige algún alumno' : 'Escribe un título'}
       </Button>}>

@@ -144,7 +144,7 @@ export function useUnenroll() {
 
 /** IA: guion para una tutoría con la familia. */
 export function useStudentBrief(id: string) {
-  return useMutation({ mutationFn: () => api.post<{ bullets: string[] }>(`/students/${id}/brief`) });
+  return useMutation({ mutationFn: () => api.post<{ bullets: string[] }>(`/students/${id}/brief`, {}, { slow: true }) });
 }
 
 /** Comunidades autónomas with their grades platform (static list). */

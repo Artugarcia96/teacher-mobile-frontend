@@ -59,7 +59,7 @@ export default function GenerateExamSheet({ open, onClose, activityId, courseId,
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Generar examen con IA"
+    <Sheet open={open} onClose={onClose} dirty={!!instructions.trim()} title="Generar examen con IA"
       subtitle="La IA redacta un borrador con soluciones. Lo revisas antes de imprimir."
       footer={
         <Button onClick={submit} loading={generate.isPending} disabled={hasUnits && selected.length === 0}>
