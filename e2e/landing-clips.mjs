@@ -835,11 +835,12 @@ async function linkPreview() {
         gap: 56px; padding: 0 64px 0 88px; }
       .og__copy { align-self: center; }
       .og__copy h1 { font-size: 76px; margin-top: 14px; }
+      .og__copy .line { display: block; }
       .og__shot { align-self: start; margin-top: 64px; border-radius: 26px; overflow: hidden; box-shadow: var(--device-shadow); }
     </style></head><body>
     <div class="ambient"></div>
     <div class="og__copy"><p class="kicker">Sepia · El cuaderno del profesor</p>
-      <h1>Que el montón de exámenes <span class="tone">no se coma tu&nbsp;domingo.</span></h1></div>
+      <h1>Que el montón de exámenes <span class="line">no se coma tu&nbsp;domingo.</span></h1></div>
     <img class="og__shot" src="/landing/clips/corregir-phone.webp" width="372" alt="">
     </body></html>`);
   await page.waitForFunction(() => [...document.images].every((i) => i.complete));
