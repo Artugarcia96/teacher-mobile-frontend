@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0E0F11" media="(prefers-color-scheme: dark)">
   <link rel="icon" type="image/svg+xml" href="/landing/img/squid.svg">
+  <link rel="preload" href="/landing/fonts/inter-latin-opsz-wght.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/landing/landing.css">
 </head>
 <body>
@@ -17,35 +18,37 @@
 
   <header class="bar glass glass-strong">
     <a class="brand" href="/" aria-label="Sepia, inicio"><img src="/landing/img/squid.svg" alt="" width="26" height="26"><span>Sepia</span></a>
-    <a class="btn btn--tinted btn--sm" href="/entrar">Entrar</a>
+    <a class="btn btn--plain btn--sm" href="/entrar">Entrar</a>
+    <a class="btn btn--primary btn--sm" href="https://linktr.ee/sepiaeducation" rel="noopener">Apúntate al piloto</a>
   </header>
 
-  <main id="contenido" class="legal">
+  <main id="contenido" class="legal wrap">
     <h1>Aviso legal</h1>
     <p class="lead">Quién está detrás de Sepia y cómo contactar.</p>
 
-    <div class="legal__pending">
-      <p><b>Pendiente del titular antes de publicar</b> (Ley 34/2002, de servicios de la sociedad de la información, art. 10): nombre o razón social, NIF, domicilio, correo de contacto y, si es una sociedad, sus datos registrales.</p>
+    <div class="legal__sheet">
+      <div class="legal__pending">
+        <p><b>Pendiente del titular antes de publicar</b> (Ley 34/2002, de servicios de la sociedad de la información, art. 10): nombre o razón social, NIF, domicilio, correo de contacto y, si es una sociedad, sus datos registrales.</p>
+      </div>
+
+      <h2>Titular</h2>
+      <p>Sepia es un servicio de su titular, identificado arriba.</p>
+
+      <h2>Qué es Sepia</h2>
+      <p>Un cuaderno del profesor para ESO y Bachillerato: pasar lista, notas, exámenes corregidos en borrador con IA, materiales de cada unidad y evaluación. Lo que propone la IA es un borrador: la nota, el comentario o el material definitivo los decide el profesor.</p>
+
+      <h2>Datos personales</h2>
+      <p>Cómo se tratan tus datos y los de tus alumnos está en la <a href="/landing/privacidad.html">política de privacidad</a>.</p>
     </div>
-
-    <h2>Titular</h2>
-    <p>Sepia es un servicio de su titular, identificado arriba.</p>
-
-    <h2>Qué es Sepia</h2>
-    <p>Un cuaderno del profesor para Secundaria y Bachillerato: pasar lista, notas, exámenes corregidos en borrador con IA, materiales de cada unidad y evaluación. Lo que propone la IA es un borrador: la nota, el comentario o el material definitivo los decide el profesor.</p>
-
-    <h2>Datos personales</h2>
-    <p>Cómo se tratan tus datos y los de tus alumnos está en la <a href="/landing/privacidad.html">política de privacidad</a>.</p>
   </main>
 
   <footer class="foot">
     <a class="brand brand--small" href="/"><img src="/landing/img/squid.svg" alt="" width="20" height="20"><span>Sepia</span></a>
-    <span>El cuaderno del profesor de Secundaria y Bachillerato.</span>
+    <span>El cuaderno del profesor de ESO y Bachillerato.</span>
     <nav class="foot__legal" aria-label="Información legal">
       <a href="/landing/privacidad.html">Privacidad</a>
       <a href="/landing/aviso-legal.html" aria-current="page">Aviso legal</a>
     </nav>
-    <a class="foot__link" href="/entrar">Entrar</a>
   </footer>
 </body>
 </html>

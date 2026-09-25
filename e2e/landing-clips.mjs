@@ -167,9 +167,9 @@ async function prepareVersions(r, d) {
   await sheet.getByText(/^Preguntas · \d+/).waitFor();
   await r.settle();
   await r.hold(900);
+  r.poster(); // the version's sheet at rest, before it scrolls to its questions
   await r.scrollIn(sheet.getByText(/^Preguntas · \d+/), 'top', 1400);
   await r.hold(2600);
-  r.poster();
 }
 
 /** Revisar › Errores frecuentes → «Crear ficha de refuerzo» (AI, in the unit while the teacher waits) → the worksheet
@@ -186,6 +186,7 @@ async function remedialWorksheet(r, d) {
     await r.settle();
   });
   await r.hold(900);
+  r.poster(); // the «Crear con IA» sheet at rest, with the worksheet chosen
   await r.scrollIn(dialog.getByLabel('Indicaciones (opcional)'), 'reveal', 1100); // the questions the class got wrong
   await r.hold(1600);
   await r.tap(createButton);
@@ -210,7 +211,6 @@ async function remedialWorksheet(r, d) {
   await r.hold(800);
   await r.scrollBy(460, 1600);
   await r.hold(2200);
-  r.poster();
 }
 
 /** Hoy › A vigilar: the student who has just missed class again → «Avisar a la familia» → «Copiar y guardar». */
@@ -834,12 +834,13 @@ async function linkPreview() {
       body { width: 1200px; height: 630px; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 372px;
         gap: 56px; padding: 0 64px 0 88px; }
       .og__copy { align-self: center; }
-      .og__copy h1 { font-size: 84px; margin-bottom: 0; }
-      .og__shot { align-self: start; margin-top: 64px; border-radius: 26px; overflow: hidden; box-shadow: var(--e3); }
+      .og__copy h1 { font-size: 76px; margin-top: 14px; }
+      .og__copy .line { display: block; }
+      .og__shot { align-self: start; margin-top: 64px; border-radius: 26px; overflow: hidden; box-shadow: var(--device-shadow); }
     </style></head><body>
     <div class="ambient"></div>
     <div class="og__copy"><p class="kicker">Sepia · El cuaderno del profesor</p>
-      <h1>Que el montón de exámenes <em>no se coma tu&nbsp;domingo.</em></h1></div>
+      <h1>Que el montón de exámenes <span class="line">no se coma tu&nbsp;domingo.</span></h1></div>
     <img class="og__shot" src="/landing/clips/corregir-phone.webp" width="372" alt="">
     </body></html>`);
   await page.waitForFunction(() => [...document.images].every((i) => i.complete));

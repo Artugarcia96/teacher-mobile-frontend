@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0E0F11" media="(prefers-color-scheme: dark)">
   <link rel="icon" type="image/svg+xml" href="/landing/img/squid.svg">
+  <link rel="preload" href="/landing/fonts/inter-latin-opsz-wght.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/landing/landing.css">
 </head>
 <body>
@@ -17,58 +18,60 @@
 
   <header class="bar glass glass-strong">
     <a class="brand" href="/" aria-label="Sepia, inicio"><img src="/landing/img/squid.svg" alt="" width="26" height="26"><span>Sepia</span></a>
-    <a class="btn btn--tinted btn--sm" href="/entrar">Entrar</a>
+    <a class="btn btn--plain btn--sm" href="/entrar">Entrar</a>
+    <a class="btn btn--primary btn--sm" href="https://linktr.ee/sepiaeducation" rel="noopener">Apúntate al piloto</a>
   </header>
 
-  <main id="contenido" class="legal">
+  <main id="contenido" class="legal wrap">
     <h1>Privacidad</h1>
     <p class="lead">Qué datos guarda Sepia, para qué, qué ve la IA y cómo ejercer tus derechos.</p>
 
-    <div class="legal__pending">
-      <p><b>Pendiente del titular antes de publicar:</b> proveedor de IA y país de sus servidores, identidad y contacto del responsable (en el <a href="/landing/aviso-legal.html">aviso legal</a>), proveedor de alojamiento y país, base jurídica, plazos de conservación y copias de seguridad, y el modelo de contrato de encargo del tratamiento para los centros.</p>
+    <div class="legal__sheet">
+      <div class="legal__pending">
+        <p><b>Pendiente del titular antes de publicar:</b> proveedor de IA y país de sus servidores, identidad y contacto del responsable (en el <a href="/landing/aviso-legal.html">aviso legal</a>), proveedor de alojamiento y país, base jurídica, plazos de conservación y copias de seguridad, y el modelo de contrato de encargo del tratamiento para los centros.</p>
+      </div>
+
+      <h2>Qué datos guarda</h2>
+      <ul>
+        <li><b>De tu cuenta:</b> nombre, correo, centro y comunidad autónoma. La contraseña no se guarda: solo una huella cifrada para comprobarla.</li>
+        <li><b>De tus clases, lo que tú introduces:</b> nombre y apellidos de tus alumnos, sus notas, faltas y retrasos, tus observaciones, sus medidas de apoyo (con la marca NEAE o ACNEE y su tipo, si la pones) y las hojas de examen que escaneas o fotografías; también tus unidades, materiales y documentos.</li>
+      </ul>
+
+      <h2>Para qué</h2>
+      <p>Para que funcione tu cuaderno: mostrártelo en el móvil y en el ordenador, calcular medias y notas propuestas, preparar tus documentos (actas, listas, materiales) y, cuando lo pides, los borradores de la IA.</p>
+
+      <h2>Los datos de tus alumnos</h2>
+      <p>Los introduces tú como docente, para tu trabajo en el centro. Del tratamiento de los datos del alumnado suele responder el centro o la administración educativa; antes de usar Sepia con datos reales, consúltalo con tu equipo directivo o con el delegado de protección de datos del centro.</p>
+
+      <h2>Qué ve la IA</h2>
+      <p>La IA la pone un proveedor externo (<b>pendiente del titular:</b> nombre del proveedor y país de sus servidores). Solo recibe datos cuando pides algo que la usa:</p>
+      <ul>
+        <li><b>Leer de quién es cada examen:</b> el recorte de la cabecera de la hoja con el nombre escrito. Tu lista de clase no se envía: el nombre leído se busca en ella en Sepia.</li>
+        <li><b>Corregir:</b> las hojas escaneadas del alumno (hasta ocho páginas) y la rúbrica.</li>
+        <li><b>Comentarios de boletín:</b> el nombre de pila, nunca los apellidos, sus notas y actividades de la evaluación, faltas y retrasos, si tiene ACS y hasta tres observaciones tuyas.</li>
+        <li><b>Preparar tutoría:</b> sus notas, faltas, observaciones y medidas de apoyo, sin el nombre del alumno ni su diagnóstico.</li>
+        <li><b>Exámenes, fichas y materiales:</b> la materia, el curso, las unidades y el texto de los documentos que has subido a ellas; al subir tu examen, sus páginas; al importar un temario, el índice que pegas.</li>
+      </ul>
+      <p>Pasar lista, el cuaderno, las medias y «A vigilar» no usan IA.</p>
+
+      <h2>Dónde se guardan</h2>
+      <p>En el servidor de Sepia. Los archivos (hojas escaneadas, documentos, materiales) solo se abren con enlaces firmados que caducan a las pocas horas. Sepia no envía nada a las familias ni a la plataforma de notas de tu comunidad: el mensaje lo copias tú y las notas las descargas.</p>
+
+      <h2>Cuánto tiempo</h2>
+      <p>Mientras tengas la cuenta. Si pides borrarla, se borran contigo tus clases, alumnos, notas, observaciones y archivos.</p>
+
+      <h2>Tus derechos</h2>
+      <p>Puedes pedir el acceso, la rectificación, la supresión, la portabilidad, la limitación u oponerte al tratamiento de tus datos escribiendo al contacto del <a href="/landing/aviso-legal.html">aviso legal</a>. Si no te atendemos bien, puedes reclamar ante la <a href="https://www.aepd.es">Agencia Española de Protección de Datos</a>.</p>
     </div>
-
-    <h2>Qué datos guarda</h2>
-    <ul>
-      <li><b>De tu cuenta:</b> nombre, correo, centro y comunidad autónoma. La contraseña no se guarda: solo una huella cifrada para comprobarla.</li>
-      <li><b>De tus clases, lo que tú introduces:</b> nombre y apellidos de tus alumnos, sus notas, faltas y retrasos, tus observaciones, sus medidas de apoyo (con la marca NEAE o ACNEE y su tipo, si la pones) y las hojas de examen que escaneas o fotografías; también tus unidades, materiales y documentos.</li>
-    </ul>
-
-    <h2>Para qué</h2>
-    <p>Para que funcione tu cuaderno: mostrártelo en el móvil y en el ordenador, calcular medias y notas propuestas, preparar tus documentos (actas, listas, materiales) y, cuando lo pides, los borradores de la IA.</p>
-
-    <h2>Los datos de tus alumnos</h2>
-    <p>Los introduces tú como docente, para tu trabajo en el centro. Del tratamiento de los datos del alumnado suele responder el centro o la administración educativa; antes de usar Sepia con datos reales, consúltalo con tu equipo directivo o con el delegado de protección de datos del centro.</p>
-
-    <h2>Qué ve la IA</h2>
-    <p>La IA la pone un proveedor externo (<b>pendiente del titular:</b> nombre del proveedor y país de sus servidores). Solo recibe datos cuando pides algo que la usa:</p>
-    <ul>
-      <li><b>Leer de quién es cada examen:</b> el recorte de la cabecera de la hoja con el nombre escrito. Tu lista de clase no se envía: el nombre leído se busca en ella en Sepia.</li>
-      <li><b>Corregir:</b> las hojas escaneadas del alumno (hasta ocho páginas) y la rúbrica.</li>
-      <li><b>Comentarios de boletín:</b> el nombre de pila, nunca los apellidos, sus notas y actividades de la evaluación, faltas y retrasos, si tiene ACS y hasta tres observaciones tuyas.</li>
-      <li><b>Preparar tutoría:</b> sus notas, faltas, observaciones y medidas de apoyo, sin el nombre del alumno ni su diagnóstico.</li>
-      <li><b>Exámenes, fichas y materiales:</b> la materia, el curso, las unidades y el texto de los documentos que has subido a ellas; al subir tu examen, sus páginas; al importar un temario, el índice que pegas.</li>
-    </ul>
-    <p>Pasar lista, el cuaderno, las medias y «A vigilar» no usan IA.</p>
-
-    <h2>Dónde se guardan</h2>
-    <p>En el servidor de Sepia. Los archivos (hojas escaneadas, documentos, materiales) solo se abren con enlaces firmados que caducan a las pocas horas. Sepia no envía nada a las familias ni a la plataforma de notas de tu comunidad: el mensaje lo copias tú y las notas las descargas.</p>
-
-    <h2>Cuánto tiempo</h2>
-    <p>Mientras tengas la cuenta. Si pides borrarla, se borran contigo tus clases, alumnos, notas, observaciones y archivos.</p>
-
-    <h2>Tus derechos</h2>
-    <p>Puedes pedir el acceso, la rectificación, la supresión, la portabilidad, la limitación u oponerte al tratamiento de tus datos escribiendo al contacto del <a href="/landing/aviso-legal.html">aviso legal</a>. Si no te atendemos bien, puedes reclamar ante la <a href="https://www.aepd.es">Agencia Española de Protección de Datos</a>.</p>
   </main>
 
   <footer class="foot">
     <a class="brand brand--small" href="/"><img src="/landing/img/squid.svg" alt="" width="20" height="20"><span>Sepia</span></a>
-    <span>El cuaderno del profesor de Secundaria y Bachillerato.</span>
+    <span>El cuaderno del profesor de ESO y Bachillerato.</span>
     <nav class="foot__legal" aria-label="Información legal">
       <a href="/landing/privacidad.html" aria-current="page">Privacidad</a>
       <a href="/landing/aviso-legal.html">Aviso legal</a>
     </nav>
-    <a class="foot__link" href="/entrar">Entrar</a>
   </footer>
 </body>
 </html>

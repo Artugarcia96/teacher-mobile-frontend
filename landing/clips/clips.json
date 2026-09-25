@@ -62,7 +62,7 @@
     ],
     "webm": 756804,
     "mp4": 734103,
-    "poster": 66354
+    "poster": 50140
   },
   "ficha-phone-dark": {
     "seconds": 20.2,
@@ -71,7 +71,7 @@
     ],
     "webm": 706732,
     "mp4": 659910,
-    "poster": 66510
+    "poster": 47056
   },
   "historia-desktop": {
     "seconds": 10.3,
@@ -128,7 +128,7 @@
     ],
     "webm": 677833,
     "mp4": 798206,
-    "poster": 58010
+    "poster": 60238
   },
   "versiones-phone-dark": {
     "seconds": 18.9,
@@ -138,6 +138,6 @@
     ],
     "webm": 628285,
     "mp4": 810378,
-    "poster": 56626
+    "poster": 57344
   }
 }
