@@ -7,7 +7,7 @@ import { JobWatcher } from '../features/materials/watch';
 import { SearchSheet } from '../features/students/StudentSearch';
 import { useAuth } from '../lib/auth';
 import { courseLabel, courseShortLabel } from '../lib/format';
-import { Avatar, Dot } from '../ui';
+import { Avatar, Dot, Logo } from '../ui';
 import './shell.css';
 
 const NAV = [
@@ -61,7 +61,7 @@ export function Shell() {
       <JobWatcher />
       <aside className="sidebar glass" aria-label="Navegación">
         <div className="brand">
-          <img src="/squid.svg" alt="" width={28} height={28} />
+          <Logo size={28} />
           <span className="display">Sepia</span>
         </div>
         <nav className="sidebar__nav">

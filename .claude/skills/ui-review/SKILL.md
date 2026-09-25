@@ -18,7 +18,7 @@ description: Screenshot Sepia screens on phone and desktop and review them again
    - ¿Un profesor con 30 segundos entre clases entiende la pantalla y encuentra la acción principal sin buscar?
    - ¿Hay información repetida, decorativa o que no sirve para una decisión? Quítala.
    - Cabecera = `Page` (título serif grande). Contenido en `List`/`Row` o `card`. Nada de tarjetas o cabeceras inventadas.
-   - Cristal solo en marco (barra superior al hacer scroll, cápsula, barra lateral, hojas, menús, avisos). Contenido = papel.
+   - Cristal solo en marco (barra superior al hacer scroll, cápsula, barra lateral, menús, avisos). Contenido y hojas = papel.
    - Textos: español de España, sin emojis ni exclamaciones; decimales con coma; fechas "jueves, 19 de noviembre".
    - Estados: cargando (skeleton), vacío (icono + frase + acción), error (mensaje útil), IA pendiente (progreso).
    - Móvil 390 px: nada se corta ni hace scroll horizontal (salvo tablas del cuaderno); la cápsula no tapa acciones.

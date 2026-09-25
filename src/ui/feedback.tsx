@@ -25,7 +25,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const toast = useCallback<Ctx['toast']>((text, opts) => {
     const id = ++seq.current;
     const tone = opts?.tone ?? 'ok';
-    setToasts((t) => [...t.slice(-2), { id, text, tone, action: opts?.action }]);
+    // The same words again (justifying several absences in a row) replace the visible toast and restart its time.
+    setToasts((t) => [...t.filter((x) => x.text !== text).slice(-2), { id, text, tone, action: opts?.action }]);
     // Errors stay until dismissed: the teacher may be looking at the class when a save fails.
     if (tone !== 'error') setTimeout(() => dismiss(id), opts?.action ? 6000 : 3200);
   }, [dismiss]);

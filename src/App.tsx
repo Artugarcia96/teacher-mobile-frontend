@@ -24,7 +24,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 15_000,
-      retry: (count, err) => !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2,
+      // One quiet retry for a dropped connection or a server error. A request that already waited the whole timeout
+      // is not repeated: the teacher sees «Reintentar» after 20 s, not after a minute of skeletons.
+      retry: (count, err) => count < 1 && err instanceof ApiError && err.code !== 'timeout' && (err.status === 0 || err.status >= 500),
       refetchOnWindowFocus: true,
     },
     // Offline, a save fails at once with «Sin conexión» instead of waiting silently for the network.

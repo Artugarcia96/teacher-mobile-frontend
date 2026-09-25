@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bare } from '../../app/Shell';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { Button, Segmented, TextField } from '../../ui';
+import { Button, Logo, Segmented, TextField } from '../../ui';
 import './login.css';
 
 type Mode = 'login' | 'register';
@@ -61,7 +61,7 @@ export default function LoginPage() {
     <Bare>
       <main className="login glass">
         <div className="login__brand">
-          <img src="/squid.svg" alt="" width={52} height={52} />
+          <Logo size={52} />
           <h1 className="display login__name">Sepia</h1>
           <p className="muted">El cuaderno del profesor.</p>
         </div>
