@@ -64,6 +64,8 @@ export type JobStatus = 'queued' | 'running' | 'done' | 'failed';
 export interface Job {
   id: string; kind: string; status: JobStatus; progress: number; total: number; message?: string | null;
   result?: Record<string, unknown> | null; error?: string | null; ref_type?: string | null; ref_id?: string | null;
+  /** What it was started with (a failed exam generation is retried with them). */
+  params?: Record<string, unknown> | null;
 }
 export interface JobRef { job: Job }
 export interface Ok { ok: boolean }

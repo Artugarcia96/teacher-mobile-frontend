@@ -34,7 +34,7 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
   const ready = value.title.trim().length > 0 && !noStudents;
 
   const submit = () => {
-    if (!ready) return;
+    if (!ready || create.isPending) return; // Enter in a field submits too: never twice
     create.mutate(toInput(value), {
       onSuccess: (a) => {
         toast(`«${a.title}» añadida al cuaderno`);

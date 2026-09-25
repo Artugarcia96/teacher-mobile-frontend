@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Capture screenshots of app routes as the demo teacher, phone (390×844 @2x, touch, mobile viewport) and desktop
-// (1440×900). Exits with an error when a page is wider than the screen (it would scroll sideways on a phone).
+// (1440×900). Exits with an error when a page is wider than the screen (it would scroll sideways on a phone); a page
+// with a rubric is checked again with unsaved changes in it.
 // Usage: node e2e/shoot.mjs <outDir> /hoy /clases "/clases/<id>/cuaderno" …
 //   env: APP=http://127.0.0.1:5173  API=http://127.0.0.1:8000  ONLY=mobile|desktop  WAIT=1200
 //   A route can include actions after "::", e.g. "/hoy::click=text=Pasar lista" (Playwright selector);
@@ -21,6 +22,14 @@ const res = await fetch(`${API}/api/auth/login`, {
 });
 if (!res.ok) { console.error('Login failed — is the backend running with the demo seed? (scripts/dev.sh --demo)'); process.exit(1); }
 const tok = await res.json();
+
+async function checkOverflow(page, name, spec) {
+  const wide = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, screen: window.innerWidth }));
+  if (wide.scroll > wide.screen) {
+    console.error(`[${name}] OVERFLOW ${spec}: the page is ${wide.scroll} px wide on a ${wide.screen} px screen`);
+    process.exitCode = 1;
+  }
+}
 
 const viewports = [['mobile', { width: 390, height: 844 }, 2, true], ['desktop', { width: 1440, height: 900 }, 1, false]]
   .filter(([n]) => !process.env.ONLY || process.env.ONLY === n);
@@ -48,10 +57,15 @@ for (const [name, viewport, dpr, phone] of viewports) {
     const file = `${out}/${name}-${String(i++).padStart(2, '0')}-${path.replace(/[^a-z0-9]+/gi, '_').slice(1, 50) || 'root'}.png`;
     await page.screenshot({ path: file, fullPage: process.env.FULL === '1' });
     console.log(file);
-    const wide = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, screen: window.innerWidth }));
-    if (wide.scroll > wide.screen) {
-      console.error(`[${name}] OVERFLOW ${spec}: the page is ${wide.scroll} px wide on a ${wide.screen} px screen`);
-      process.exitCode = 1;
+    await checkOverflow(page, name, spec);
+    // A rubric on screen: also with unsaved changes (its «Guardar» buttons appear under long formulas)
+    const dialog = page.locator('[role="dialog"]').last();
+    const scope = (await dialog.count()) ? dialog : page; // the rubric of an open sheet, else the page's
+    const more = scope.locator('.rubric .stepper button[aria-label="Más"]:not([disabled])').first();
+    if (await more.isVisible().catch(() => false)) {
+      await more.click({ timeout: 5000 });
+      await page.waitForTimeout(300);
+      await checkOverflow(page, name, `${spec} (rúbrica con cambios)`);
     }
   }
   await ctx.close();

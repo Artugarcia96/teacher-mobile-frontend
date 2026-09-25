@@ -5,7 +5,7 @@ import type { Job } from '../../api/types';
 import { plural } from '../../lib/format';
 import { DropZone, List, Row, Section, Segmented, useFeedback } from '../../ui';
 import { JobLine } from './JobLine';
-import { MissingPapersRow, missingStudents } from './MissingPapers';
+import { MissingPapersRow, missingText } from './MissingPapers';
 import { ScanPages } from './ScanPages';
 
 interface Props {
@@ -18,47 +18,47 @@ interface Props {
   onJob: (job: Job) => void;
   /** Who is missing from the pile: NP or a repeat exam (ExamAbsencesSheet). */
   onOpenMissing: () => void;
-  /** Students with a repeat exam scheduled (not missing from this pile). */
-  covered: ReadonlySet<string>;
 }
 
 type Mode = 'names' | 'list_order';
 
 /** Step 2 — upload the scanned pile; pages are sorted by their printed marker and names matched with the class list. */
-export function CollectStep({ correction, job, running, grading, onJob, onOpenMissing, covered }: Props) {
+export function CollectStep({ correction, job, running, grading, onJob, onOpenMissing }: Props) {
   const upload = useUploadPapers(correction.activity.id);
   const noAI = useAIUnavailable();  // reading the pile needs the AI: do not let a teacher upload 80 MB for a 503
   const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
+  const [sent, setSent] = useState(0);
 
   const { stats, students } = correction;
   const busy = running || upload.isPending;
   const pages = students.reduce((n, s) => n + s.pages.length, 0) + correction.unmatched.reduce((n, u) => n + u.pages, 0);
   const blocked = busy ? `Espera a que termine: ${(running && job?.message) || 'subiendo las hojas…'}` : null;
 
-  const onFiles = (files: File[]) => upload.mutate({ files, mode }, {
+  const onFiles = (files: File[]) => { setSent(0); upload.mutate({ files, mode, onProgress: setSent }, {
     onSuccess: ({ job: j }) => onJob(j),
     onError: (e) => toast(e.message, { tone: 'error' }),
-  });
+  }); };
 
   const uploader = (
     <>
       <p className="muted step-lead">
-        {mode === 'names'
+        {correction.named_print
+          ? 'Escanea el montón a una o dos caras, o haz fotos, en cualquier orden. Cada copia lleva impreso el nombre del alumno y vuelve sola a su hoja. Los reversos en blanco se descartan.'
+          : mode === 'names'
           ? 'Escanea el montón a una o dos caras, o haz fotos. Si lo imprimiste desde Sepia, cada página lleva una marca y el montón se ordena solo, aunque venga desordenado. Los reversos en blanco se descartan.'
           : 'Ordena el montón por apellidos y escanéalo a una o dos caras. Si lo imprimiste desde Sepia, cada página lleva una marca que separa un alumno del siguiente. Los reversos en blanco se descartan.'}
       </p>
-      <List>
-        <Row className="collect-mode" title="Emparejar" wrapSub
-          sub={<>
-            {mode === 'names'
+      {!correction.named_print && ( // named copies go back to their student by the number printed on them
+        <List>
+          <Row className="collect-mode" title="Emparejar" wrapSub
+            sub={mode === 'names'
               ? 'Se lee el nombre de la cabecera y se compara con tu lista, que no sale de Sepia.'
               : 'Por orden alfabético de apellidos. También se lee el nombre, para avisarte si el orden no cuadra.'}
-            {correction.named_print && ' Las copias con nombre vuelven solas a su alumno: esto solo cuenta para las copias sin nombre.'}
-          </>}
-          trail={<Segmented label="Cómo emparejar" value={mode} onChange={setMode}
-            options={[{ value: 'names', label: 'Leer nombres' }, { value: 'list_order', label: 'En orden de lista' }]} />} />
-      </List>
+            trail={<Segmented label="Cómo emparejar" value={mode} onChange={setMode}
+              options={[{ value: 'names', label: 'Leer nombres' }, { value: 'list_order', label: 'En orden de lista' }]} />} />
+        </List>
+      )}
       {!busy && (
         <DropZone onFiles={onFiles} multiple accept="application/pdf,image/*" disabled={!!noAI}
           title={stats.papers ? 'Añadir más hojas' : 'Arrastra aquí el PDF del escáner o las fotos'}
@@ -70,7 +70,8 @@ export function CollectStep({ correction, job, running, grading, onJob, onOpenMi
 
   return (
     <>
-      {busy && <JobLine job={running ? job : undefined} fallback={upload.isPending ? 'Subiendo las hojas…' : 'Procesando…'} />}
+      {busy && <JobLine job={running ? job : undefined} fallback={upload.isPending ? 'Subiendo las hojas' : 'Procesando…'}
+        sent={upload.isPending ? sent : undefined} />}
       {grading && !busy && (
         <>
           <JobLine job={job} fallback="Corrigiendo…" />
@@ -78,12 +79,12 @@ export function CollectStep({ correction, job, running, grading, onJob, onOpenMi
         </>
       )}
       {stats.papers === 0 && !busy && correction.unplaced.length === 0 && uploader}
-      {stats.papers > 0 && !missingStudents(correction, covered).length && (
+      {stats.papers > 0 && !missingText(correction) && (
         <p className="collect-count">
           <b className="num">{stats.matched} de {students.length}</b> emparejados · {plural(pages, 'página', 'páginas')}
         </p>
       )}
-      <MissingPapersRow correction={correction} covered={covered} onOpen={onOpenMissing} />
+      <MissingPapersRow correction={correction} onOpen={onOpenMissing} />
       <ScanPages correction={correction} blocked={blocked} busy={busy || grading} onJob={onJob} />
       {(stats.papers > 0 || correction.unplaced.length > 0) && !busy && <Section title="Añadir hojas">{uploader}</Section>}
     </>

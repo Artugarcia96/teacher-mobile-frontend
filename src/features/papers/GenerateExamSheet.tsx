@@ -91,7 +91,7 @@ export default function GenerateExamSheet({ open, onClose, activityId, courseId,
           <Segmented label="Dificultad" full value={difficulty} options={DIFFICULTY} onChange={setDifficulty} />
         </div>
         <TextArea label="Indicaciones (opcional)" rows={3} maxLength={600} value={instructions}
-          onChange={(e) => setInstructions(e.target.value)} placeholder="Por ejemplo: sin calculadora, incluye un problema con recetas." />
+          onChange={(e) => setInstructions(e.target.value)} placeholder="Por ejemplo: sin calculadora; incluye un problema de la vida diaria." />
       </div>
     </Sheet>
   );

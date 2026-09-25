@@ -13,9 +13,9 @@ import { CollectStep } from '../../features/papers/CollectStep';
 import { ExamSteps } from '../../features/papers/ExamSteps';
 import GenerateExamSheet from '../../features/papers/GenerateExamSheet';
 import { ManualGrades } from '../../features/papers/ManualGrades';
-import { missingStudents, repeatCovered } from '../../features/papers/MissingPapers';
+import { missingStudents } from '../../features/papers/MissingPapers';
 import { openSigned } from '../../features/papers/openDoc';
-import { useClassPrint } from '../../features/papers/useClassPrint';
+import { firstNames, useClassPrint } from '../../features/papers/useClassPrint';
 import { VERSION_PARAM } from '../../features/papers/VersionsSection';
 import { needsLook } from '../../features/papers/pageLabels';
 import { PrepareStep } from '../../features/papers/PrepareStep';
@@ -53,6 +53,7 @@ function pagesToast(j: Job): string {
   }
   if (Number(r.unplaced)) parts.push(plural(Number(r.unplaced), 'página por colocar', 'páginas por colocar'));
   if (Number(r.discarded)) parts.push(plural(Number(r.discarded), 'reverso en blanco descartado', 'reversos en blanco descartados'));
+  if (Number(r.unread)) parts.push(`${plural(Number(r.unread), 'página sin leer', 'páginas sin leer')}: pulsa «Volver a leer»`);
   if (!parts.length) parts.push('No había páginas nuevas');
   const text = parts.join(' · ');
   return graded.length ? `${text}. ${graded.map((g) => g.name).join(' y ')} ya ${graded.length > 1 ? 'tenían' : 'tenía'} nota confirmada: revísala.` : text;
@@ -79,26 +80,25 @@ const DONE_TOAST: Record<string, (job: Job) => string> = {
 /** Step 1, collapsed: "Preparado · 6 preguntas · 3 versiones más" (or, before scanning, who still lacks the adapted
  * version their measures ask for). */
 function prepareSummary(c: Correction, manual: boolean) {
-  const versions = c.pending_adapted && !c.stats.papers
-    ? ` · ${plural(c.pending_adapted, 'alumno sin su versión adaptada', 'alumnos sin su versión adaptada')}`
+  const missing = c.pending_adapted;
+  const versions = missing.length && !c.stats.papers
+    ? <> · <span className="version-warn">{firstNames(missing)} sin su versión adaptada</span></>
     : c.versions.length ? ` · ${plural(c.versions.length, 'versión más', 'versiones más')}` : '';
-  if (c.rubric) return `Preparado · ${plural(c.rubric.items.length, 'pregunta', 'preguntas')}${versions}`;
+  if (c.rubric) return <>Preparado · {plural(c.rubric.items.length, 'pregunta', 'preguntas')}{versions}</>;
   if (c.document_url) return 'Examen subido, sin preguntas';
   return manual || c.step !== 'prepare' ? 'Sin documento (solo nota)' : 'Subir, generar o solo nota';
 }
 
-/** Step 2, collapsed: "Recogido · 24 de 26 hojas", or what needs the teacher first. */
+/** Step 2, collapsed: "Recogido", or what needs the teacher first (how many papers arrived is said in Revisar). */
 function collectSummary(c: Correction) {
   if (!c.stats.papers && !c.unplaced.length) return c.rubric || c.document_url ? 'Aún no has subido las hojas' : 'Primero prepara el examen';
-  const received = c.students.filter((s) => s.paper_id).length;
-  const hojas = `${received} de ${c.students.length} hojas`;
   const flagged = c.students.filter((s) => needsLook(s.flags)).length;
   const todo = [
     c.unmatched.length && `${c.unmatched.length} sin identificar`,
     c.unplaced.length && plural(c.unplaced.length, 'página por colocar', 'páginas por colocar'),
     flagged && `${flagged} por ordenar`,
   ].filter(Boolean);
-  return todo.length ? `${hojas} · ${todo.join(' · ')}` : `Recogido · ${hojas}`;
+  return todo.length ? todo.join(' · ') : 'Recogido';
 }
 
 /** Step 3, collapsed: "18 por revisar · 6 revisados". */
@@ -121,22 +121,24 @@ export default function ActivityPage() {
   const detail = useActivity(activityId).data; // attendance of the exam day, units of the exam
   const course = useCourse(courseId).data;
   const docUrl = useDocumentUrl(activityId!);
-  const versions = useVersions(activityId!, !!c?.versions.length).data;
+  // «Imprimir para la clase» asks about missing adapted versions and unreviewed ones
+  const versions = useVersions(activityId!, !!c?.versions.length || !!c?.pending_adapted.length).data;
   const [open, setOpen] = useState<number | null>(() => (params.get('paso') === 'recoger' ? 2 : null)); // "Ordenar páginas"
+  const [jobId, setJobId] = useState<string | null>(null);
   const classPrint = useClassPrint(activityId!, versions, (key) => { // «Revisar»: that version's sheet, in Preparar
     setParams((p) => { p.set(VERSION_PARAM, key); return p; }, { replace: true });
     setOpen(1);
-  });
+  }, (j) => { setJobId(j.id); setOpen(1); });
   const [absences, setAbsences] = useState(false);
   const absent = useMemo(() => new Set(detail?.sheet.filter((r) => r.pending_absent).map((r) => r.student.id)), [detail]);
-  const [jobId, setJobId] = useState<string | null>(null);
   const pinned = useRef<number | null>(null);
   const lastStep = useRef<string | undefined>(undefined);
   const [manual, setManual] = useState(false);
   const [editing, setEditing] = useState(false);
   const generateOpen = params.get('generar') === '1';
 
-  const activeJobId = jobId ?? c?.job?.id ?? null;
+  const shownJob = c?.job && (c.job.status === 'queued' || c.job.status === 'running') ? c.job : null; // not a failed generation
+  const activeJobId = jobId ?? shownJob?.id ?? null;
   const job = useActivityJob(activityId!, activeJobId, {
     onDone: (j) => {
       toast(DONE_TOAST[j.kind]?.(j) ?? 'Hecho');
@@ -148,10 +150,13 @@ export default function ActivityPage() {
         : COLLECT_JOBS.includes(j.kind) && Number(j.result?.attention) > 0 ? 2 : null;
       setOpen(pinned.current);
     },
-    onFail: (j) => { toast(j.error || 'No se ha podido completar. Inténtalo de nuevo.', { tone: 'error' }); setJobId(null); },
+    onFail: (j) => { // a failed generation stays in Preparar with its reason and «Volver a intentar»
+      if (j.kind !== 'generate_exam') toast(j.error || 'No se ha podido completar. Inténtalo de nuevo.', { tone: 'error' });
+      setJobId(null);
+    },
   });
   const running = !!activeJobId && (!job || job.status === 'queued' || job.status === 'running');
-  const runningKind = running ? job?.kind ?? c?.job?.kind ?? null : null;
+  const runningKind = running ? job?.kind ?? shownJob?.kind ?? null : null;
 
   useEffect(() => { // when the step changes (not on first load), open the new one unless a step was pinned
     if (!c?.step) return;
@@ -210,8 +215,7 @@ export default function ActivityPage() {
     openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }), (m) => toast(m));
 
   const missed = detail?.absent_students.length ?? 0;
-  const missing = missingStudents(c); // the sheet shows them all, those with a repeat exam included
-  const covered = repeatCovered(detail);
+  const missing = missingStudents(c, true); // the sheet shows them all, those with a repeat exam included
   const received = c.students.filter((s) => s.paper_id).length;
   const pending = c.stats.pending;
 
@@ -238,11 +242,8 @@ export default function ActivityPage() {
       backLabel="Cuaderno"
       compactTitle={a.title.length > 22}
       eyebrow={<><Dot color={a.course.color} large /><span className="eyebrow activity-eyebrow">{a.course.label}</span></>}
-      subtitle={<>
-        <span>{longDate(a.date)}</span>
-        <span>{TERM_LABEL[a.term]}</span>
-        <span>{isExam ? '' : `${KIND_LABEL[a.kind]} · `}sobre {formatGrade(a.max_score)}</span>
-      </>}
+      subtitle={[longDate(a.date), TERM_LABEL[a.term], isExam ? null : KIND_LABEL[a.kind], `sobre ${formatGrade(a.max_score)}`]
+        .filter(Boolean).join(' · ')}
       actions={<>
         {!!missed && !c.stats.papers && (
           <Button size="sm" variant="plain" icon={<UserMinus size={16} />} onClick={() => setAbsences(true)}
@@ -280,7 +281,7 @@ export default function ActivityPage() {
               id: 2, n: 2, title: 'Recoger', summary: collectSummary(c),
               content: (
                 <CollectStep correction={c} job={job} running={!!runningKind && COLLECT_JOBS.includes(runningKind)}
-                  grading={runningKind === 'suggest_grades'} onJob={onJob} onOpenMissing={() => setAbsences(true)} covered={covered} />
+                  grading={runningKind === 'suggest_grades'} onJob={onJob} onOpenMissing={() => setAbsences(true)} />
               ),
             }]),
             {
@@ -289,7 +290,7 @@ export default function ActivityPage() {
               content: noDocument
                 ? <ManualGrades correction={c} absent={absent} />
                 : <ReviewStep correction={c} job={job} running={runningKind === 'suggest_grades'} onOpenCollect={() => setOpen(2)}
-                  onOpenMissing={() => setAbsences(true)} absent={absent} unitIds={detail?.unit_ids ?? []} covered={covered} />,
+                  onOpenMissing={() => setAbsences(true)} unitIds={detail?.unit_ids ?? []} />,
             },
           ]} />
         </div>

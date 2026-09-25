@@ -2,7 +2,7 @@
  * Everything the correction UI needs comes from GET /activities/{id}/correction; grades are confirmed with
  * POST /activities/{id}/review/{student_id}. Long work (AI, scans) returns {job} → poll with useActivityJob. */
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
+import { api, uploadWithProgress } from '../lib/api';
 import { activityKeys, type ActivityKind, type GradeStatus } from './activities';
 import { useJob } from './core';
 import type { CourseRef, Job, JobRef, StudentRef } from './types';
@@ -45,20 +45,25 @@ export type LooseReason = 'otro' | 'otro_examen' | 'sin_examen' | 'extra_sin_exa
 export interface LoosePage extends ScanPage { reason: LooseReason; candidates: StudentRef[]; other_exam: ExamRef | null }
 export type Tray = 'unplaced' | 'discarded';
 
+/** No paper and missed the exam: marked absent that day (`absent`) and/or with a repeat exam scheduled (its date and,
+ * once corrected there, its grade). Only NP can be given in this exam; they are left out of the review sequence. */
+export interface Missed { absent: boolean; repeat_id: string | null; repeat_date: string | null; repeat_grade: CorrectionGrade | null }
+
 /** `version`: the version of their paper (or the one they take); null when the exam has no versions. */
 export interface CorrectionStudent {
   student: StudentRef; paper_id: string | null; match_status: MatchStatus | null; match_confidence: number | null; detected_name: string | null;
   thumb_url: string | null; grade: CorrectionGrade | null; pages: ScanPage[]; flags: PaperFlag[]; extra_count: number;
-  version: VersionRef | null;
+  version: VersionRef | null; missed: Missed | null;
 }
 export interface UnmatchedPaper {
   paper_id: string; detected_name: string | null; confidence: number | null; thumb_url: string | null; pages: number; candidates: StudentRef[];
   page_list: ScanPage[]; flags: PaperFlag[];
 }
 /** A question the class got wrong: "P5 · Operaciones combinadas" · "0,9 de 1,5 de media · 11 por debajo de la mitad".
- * `title` is short and never cuts a formula. */
+ * `title` is short and never cuts a formula; `below_half_ids`: who, in list order. */
 export interface FrequentError {
-  item_id: string; label: string; title: string; avg_points: number; points: number; below_half: number; graded: number; avg_ratio: number;
+  item_id: string; label: string; title: string; avg_points: number; points: number; below_half: number; below_half_ids: string[];
+  graded: number; avg_ratio: number;
 }
 /** `average`/`pass_rate` include the AI's unreviewed suggestions while there are any (`provisional` of them).
  * `frequent_errors` only add up versions with Modelo A's questions: `excluded_adapted` / `excluded_modelo` papers are
@@ -71,11 +76,13 @@ export interface CorrectionStats {
 export interface Correction {
   activity: ActivityHead; document_url: string | null; key_url: string | null; generated: boolean; rubric: Rubric | null;
   pages_per_paper: number | null; step: CorrectionStep; students: CorrectionStudent[]; unmatched: UnmatchedPaper[];
-  stats: CorrectionStats; next_pending_id: string | null; job: Job | null;
+  stats: CorrectionStats; next_pending_id: string | null;
+  /** The job working on this exam or, until another one starts, an exam generation that failed (`params`: retry). */
+  job: Job | null;
   exam_code: string | null; unplaced: LoosePage[]; discarded: ScanPage[]; printed_from: ExamRef | null;
   /** Other versions of the exam (Modelo B, adapted ones); `pending_adapted`: students whose measures ask for an adapted
    * version they do not take yet; `named_print`: the class print was made (named copies go back to their student). */
-  versions: VersionRef[]; pending_adapted: number; named_print: boolean;
+  versions: VersionRef[]; pending_adapted: StudentRef[]; named_print: boolean;
 }
 
 export interface Paper {
@@ -105,6 +112,8 @@ export interface Review {
   crops: Record<string, Crop[]>; page_hints: Record<string, number>;
   /** The paper's version («Modelo B», «Adaptado · letra ampliada»): its questions are the ones in `items`. */
   version: VersionRef | null;
+  /** Missed the exam: only NP here (or wait for the repeat). */
+  missed: Missed | null;
 }
 export interface ReviewInput { item_scores?: Record<string, number>; score?: number | null; comment?: string | null; absent?: boolean }
 /** `reviewed` of `total` students of the sequence have a final grade after this one. */
@@ -148,8 +157,10 @@ function filesForm(files: File[], extra?: Record<string, string>) {
   return form;
 }
 
+/** `onProgress`: the fraction sent (0-1), for «Subiendo el examen · 34 %». */
 export function useUploadDocument(activityId: string) {
-  return useCorrectionMutation(activityId, (files: File[]) => api.upload<JobRef>(`/activities/${activityId}/document`, filesForm(files)));
+  return useCorrectionMutation(activityId, ({ files, onProgress }: { files: File[]; onProgress: (fraction: number) => void }) =>
+    uploadWithProgress<JobRef>(`/activities/${activityId}/document`, filesForm(files), onProgress));
 }
 
 export function useGenerateExam(activityId: string) {
@@ -168,10 +179,12 @@ export function useDocumentUrl(activityId: string) {
   });
 }
 
-/** The scanned pile: pages are sorted into papers by their printed marker and written name (no page count needed). */
+/** The scanned pile: pages are sorted into papers by their printed marker and written name (no page count needed).
+ * `onProgress`: the fraction sent (0-1). */
 export function useUploadPapers(activityId: string) {
-  return useCorrectionMutation(activityId, ({ files, mode }: { files: File[]; mode: 'names' | 'list_order' }) =>
-    api.upload<JobRef>(`/activities/${activityId}/papers`, filesForm(files, { mode })));
+  return useCorrectionMutation(activityId, ({ files, mode, onProgress }: {
+    files: File[]; mode: 'names' | 'list_order'; onProgress: (fraction: number) => void;
+  }) => uploadWithProgress<JobRef>(`/activities/${activityId}/papers`, filesForm(files, { mode }), onProgress));
 }
 
 /** Pages are identified by their stable id: a stale screen gets 409 «La página ha cambiado», never the wrong page. */
