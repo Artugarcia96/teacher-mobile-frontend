@@ -1,6 +1,6 @@
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { memo, useMemo } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 const MATH = /\$\$([\s\S]+?)\$\$|\$([^$]+?)\$/g;
 
@@ -21,9 +21,25 @@ function renderRich(text: string): string {
   return out + esc(text.slice(last)).replace(/\n/g, '<br/>');
 }
 
-/** Text with inline LaTeX math ($…$), as produced by the AI and stored in materials/rubrics. */
-export const RichText = memo(function RichText({ text, as = 'span', className }: { text: string; as?: 'span' | 'div' | 'p'; className?: string }) {
+/** Text with inline LaTeX math ($…$), as produced by the AI and stored in materials/rubrics. `oneLine`: a single line
+ * that fades out at the right edge only when it is cut. */
+export const RichText = memo(function RichText({ text, as = 'span', className, oneLine = false }: {
+  text: string; as?: 'span' | 'div' | 'p'; className?: string; oneLine?: boolean;
+}) {
   const html = useMemo(() => renderRich(text || ''), [text]);
+  const ref = useRef<HTMLElement>(null);
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!oneLine || !el) return undefined;
+    const measure = () => setCut(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    document.fonts?.ready.then(measure); // KaTeX fonts change the width once loaded
+    return () => ro.disconnect();
+  }, [oneLine, html]);
   const Tag = as;
-  return <Tag className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+  const cls = [className, oneLine && 'rich-line', oneLine && cut && 'rich-line--cut'].filter(Boolean).join(' ') || undefined;
+  return <Tag ref={ref as RefObject<never>} className={cls} dangerouslySetInnerHTML={{ __html: html }} />;
 });

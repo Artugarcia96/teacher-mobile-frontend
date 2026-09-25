@@ -15,8 +15,10 @@ export type Difficulty = 'facil' | 'medio' | 'dificil';
 export interface RubricItem { id: string; label: string; title?: string; text: string; points: number; answer: string; steps: string[] }
 export interface Rubric { title: string; items: RubricItem[]; total: number }
 
+/** `repeat_of`: the original exam when this one is its repeat ("repesca"). */
 export interface ActivityHead {
   id: string; title: string; kind: ActivityKind; category: string; date: string; term: number; max_score: number; course: CourseRef;
+  repeat_of: string | null;
 }
 export interface CorrectionGrade {
   score: number | null; status: GradeStatus; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null;
@@ -78,14 +80,15 @@ export interface AIItem { id: string; points: number; feedback: string; confiden
 /** Where one question's answer is: `index` into Review.pages, the band as fractions of the image. */
 export interface Crop { page_id: string; index: number; x0: number; y0: number; x1: number; y1: number }
 /** `pending`: students of the sequence still without a final grade (this one included). `match_status` "suggested":
- * the name read on the paper must be confirmed before its grade can be accepted. `crops`: per rubric item. */
+ * the name read on the paper must be confirmed before its grade can be accepted. `crops`: per rubric item;
+ * `page_hints`: for an item without crops, the index into `pages` where it most likely is. */
 export interface Review {
   student: StudentRef; activity: ActivityHead; position: number; total: number; pending: number;
   prev_student_id: string | null; next_student_id: string | null; next_pending_id: string | null;
   paper_id: string | null; match_status: MatchStatus | null; detected_name: string | null;
   pages_urls: string[]; pages: ScanPage[]; flags: PaperFlag[]; items: RubricItem[]; rubric_total: number;
   grade: CorrectionGrade | null; ai: { items: AIItem[]; summary: string; suggested_score: number | null } | null;
-  crops: Record<string, Crop[]>;
+  crops: Record<string, Crop[]>; page_hints: Record<string, number>;
 }
 export interface ReviewInput { item_scores?: Record<string, number>; score?: number | null; comment?: string | null; absent?: boolean }
 /** `reviewed` of `total` students of the sequence have a final grade after this one. */
@@ -196,9 +199,10 @@ export function usePapers(activityId: string | undefined) {
   return useQuery({ queryKey: correctionKeys.papers(activityId!), queryFn: () => api.get<Paper[]>(`/activities/${activityId}/papers`), enabled: !!activityId });
 }
 
+/** Assign a paper: its AI grading goes along; joined to pages the student already had, it is graded again (`job`). */
 export function useAssignPaper(activityId: string) {
   return useCorrectionMutation(activityId, ({ paperId, studentId }: { paperId: string; studentId: string | null }) =>
-    api.patch<Paper>(`/papers/${paperId}`, { student_id: studentId }));
+    api.patch<Paper & { job: Job | null }>(`/papers/${paperId}`, { student_id: studentId }));
 }
 
 /** «Descartar hoja»: its pages go to the discarded tray (recoverable). */

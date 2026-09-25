@@ -13,8 +13,9 @@ describe('missingNames', () => {
   it('lists first surnames with commas (never "y": it reads as a double surname)', () => {
     expect(missingNames([everyone[0], everyone[1]], everyone)).toBe('Pérez, Ruiz');
   });
-  it('adds the first name when two students share the surname', () => {
-    expect(missingNames([everyone[3], everyone[0]], everyone)).toBe('Carmen Cortés, Pérez');
+  it('names everyone with first name and surname when two students share a surname', () => {
+    expect(missingNames([everyone[3], everyone[0]], everyone)).toBe('Carmen Cortés y Ana Pérez');
+    expect(missingNames([everyone[3]], everyone)).toBe('Carmen Cortés');
   });
   it('cuts a long list', () => {
     const many = ['A', 'B', 'C', 'D', 'E', 'F'].map((x) => st('X', `${x}z`));

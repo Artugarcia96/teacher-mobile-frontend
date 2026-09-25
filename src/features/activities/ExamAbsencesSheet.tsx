@@ -34,10 +34,12 @@ function Absences({ activity, onClose, course, missing, received }: {
   const { toast, confirm } = useFeedback();
   const repeat = useScheduleRepeat(activity.id, course.id);
   const np = useMarkNotPresented(activity.id, course.id);
-  // Without a paper but present on the list: as pending as those who missed it.
+  // Without a paper but present on the list: as pending as those who missed it (with their repeat exam, if any).
   const listed = new Set(activity.absent_students.map((a) => a.student.id));
-  const noPaper: Absent[] = missing.filter((s) => !listed.has(s.id))
-    .map((s) => ({ student: s, justified: false, pending: true, repeat_id: null }));
+  const noPaper: Absent[] = missing.filter((s) => !listed.has(s.id)).map((s) => ({
+    student: s, justified: false, pending: true,
+    repeat_id: activity.repeats.find((r) => r.student_ids?.includes(s.id))?.id ?? null,
+  }));
   const everyone = [...activity.absent_students, ...noPaper];
   const pending = everyone.filter((a) => a.pending);
   const [picked, setPicked] = useState<string[]>(() => pending.filter((a) => !a.repeat_id).map((a) => a.student.id));
@@ -68,9 +70,9 @@ function Absences({ activity, onClose, course, missing, received }: {
   };
 
   const status = (a: Absent) => {
-    if (!listed.has(a.student.id)) return 'Sin hoja · no consta falta en la lista';
-    const kind = a.justified ? 'Falta justificada' : 'Falta sin justificar';
     const rep = repeatOf(a.repeat_id);
+    if (!listed.has(a.student.id)) return rep ? `Sin hoja · repesca el ${shortDate(rep.date)}` : 'Sin hoja · no consta falta en la lista';
+    const kind = a.justified ? 'Falta justificada' : 'Falta sin justificar';
     if (rep && a.pending) return `${kind} · repesca el ${shortDate(rep.date)}`;
     if (a.pending) return `${kind} · pendiente`;
     const row = activity.sheet.find((s) => s.student.id === a.student.id);

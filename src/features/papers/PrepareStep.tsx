@@ -63,6 +63,8 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
     );
   }
 
+  // A repeat of a generated exam has the rubric, not the file: it is laid out on first print.
+  const printable = !!correction.document_url || (correction.generated && !!correction.rubric);
   const rubric = correction.rubric ?? {
     title: '', total: correction.activity.max_score,
     items: [{ id: '1', label: '1', text: '', points: correction.activity.max_score, answer: '', steps: [] }],
@@ -71,13 +73,13 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
     <>
       {fileInput}
       <List>
-        {correction.document_url && (
+        {printable && (
           <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Examen para imprimir" wrapSub
             sub={[correction.pages_per_paper && `${plural(correction.pages_per_paper, 'página', 'páginas')} por alumno`,
               correction.exam_code && `cada página lleva la marca ${correction.exam_code}`].filter(Boolean).join(' · ') || 'PDF'}
             trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('print')} />
         )}
-        {correction.document_url && (
+        {printable && (
           <Row lead={<RowIcon><Rows size={20} /></RowIcon>} title="Hoja extra" wrapSub
             sub="Folio pautado para quien necesite más espacio, con nombre y número de ejercicio"
             trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('extra-sheet')} />

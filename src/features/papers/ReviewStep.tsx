@@ -1,11 +1,14 @@
 import { CheckCircle, DotsThree, ListChecks, Warning } from '@phosphor-icons/react';
 import { useAcceptAll, type Correction, type CorrectionStudent, type FrequentError } from '../../api/papers';
+import { useUnits } from '../../api/units';
 import type { Job } from '../../api/types';
 import { formatNumber, formatPercent, formatScore, plural } from '../../lib/format';
 import { AIBadge, Avatar, Button, Callout, Chip, Grade, GradePill, IconButton, List, Menu, RichText, Row, Section, Stats, useFeedback } from '../../ui';
+import { unitFor } from '../units/unitFor';
 import { JobLine } from './JobLine';
 import { MissingPapersRow } from './MissingPapers';
 import { needsLook } from './pageLabels';
+import { FROM_ACTIVITY } from './reviewLink';
 
 interface Props {
   correction: Correction;
@@ -16,8 +19,10 @@ interface Props {
   onOpenMissing: () => void;
   /** Marked absent on the exam day and nothing fills the slot yet (ActivityDetail `sheet[].pending_absent`). */
   absent: ReadonlySet<string>;
-  /** Unit of the exam: «Crear ficha de refuerzo» creates it there. */
-  unitId: string | null;
+  /** Units the exam is linked to: «Crear ficha de refuerzo» creates it in the first (else the one its title names). */
+  unitIds: string[];
+  /** Students with a repeat exam scheduled (not missing from this pile). */
+  covered: ReadonlySet<string>;
 }
 
 const toConfirm = (s: CorrectionStudent) => !!s.paper_id && s.match_status === 'suggested';
@@ -91,10 +96,12 @@ export function ReviewMenu({ correction }: { correction: Correction }) {
 }
 
 /** Step 3 — figures, frequent errors and the class list (AI drafts vs validated grades); each row opens the focus review. */
-export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMissing, absent, unitId }: Props) {
+export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMissing, absent, unitIds, covered }: Props) {
   const { activity, stats, students, unmatched } = correction;
+  const units = useUnits(activity.course.id).data;
   const base = `/clases/${activity.course.id}/actividades/${activity.id}`;
   const errors = stats.frequent_errors;
+  const unitId = units ? unitFor(units, activity.title, unitIds) : unitIds[0] ?? null;
   const worksheet = errors.length
     ? (unitId
       ? `/clases/${activity.course.id}/unidades/${unitId}?crear=ficha&indicaciones=${encodeURIComponent(
@@ -108,7 +115,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
       {stats.papers > 0 && stats.pending === 0 && !unmatched.length && (
         <div className="review-done"><CheckCircle size={20} weight="fill" /><span>Todas las hojas están revisadas.</span></div>
       )}
-      <MissingPapersRow correction={correction} onOpen={onOpenMissing} />
+      <MissingPapersRow correction={correction} covered={covered} onOpen={onOpenMissing} />
       {unmatched.length > 0 && (
         <Callout tone="warn" icon={<Warning size={18} />}>
           <span>{unmatched.length === 1 ? 'Hay 1 hoja sin identificar.' : `Hay ${unmatched.length} hojas sin identificar.`} </span>
@@ -145,7 +152,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
         <List inset={64}>
           {students.map((s) => (
             <Row key={s.student.id} lead={<Avatar initials={s.student.initials} />} title={s.student.sort_name} wrapSub
-              sub={<Status s={s} absent={absent.has(s.student.id)} />} to={`${base}/revisar?alumno=${s.student.id}`}
+              sub={<Status s={s} absent={absent.has(s.student.id)} />} to={`${base}/revisar?alumno=${s.student.id}`} state={FROM_ACTIVITY}
               trail={<Score s={s} max={activity.max_score} />} />
           ))}
         </List>

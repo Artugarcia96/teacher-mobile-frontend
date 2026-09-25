@@ -1,7 +1,7 @@
 import { DotsThree, Exam, FileX, Key, PencilSimple, Rows, Trash, UserMinus, Warning } from '@phosphor-icons/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router-dom';
 import { useActivity } from '../../api/activities';
 import { useCourse } from '../../api/core';
 import { useActivityJob, useCorrection, useDocumentUrl, type Correction } from '../../api/papers';
@@ -12,11 +12,12 @@ import { CollectStep } from '../../features/papers/CollectStep';
 import { ExamSteps } from '../../features/papers/ExamSteps';
 import GenerateExamSheet from '../../features/papers/GenerateExamSheet';
 import { ManualGrades } from '../../features/papers/ManualGrades';
-import { missingStudents } from '../../features/papers/MissingPapers';
+import { missingStudents, repeatCovered } from '../../features/papers/MissingPapers';
 import { openSigned } from '../../features/papers/openDoc';
 import { needsLook } from '../../features/papers/pageLabels';
 import { PrepareStep } from '../../features/papers/PrepareStep';
 import { ReviewMenu, ReviewStep } from '../../features/papers/ReviewStep';
+import { FROM_ACTIVITY } from '../../features/papers/reviewLink';
 import '../../features/papers/papers.css';
 import { api } from '../../lib/api';
 import { formatGrade, KIND_LABEL, longDate, plural, TERM_LABEL } from '../../lib/format';
@@ -99,6 +100,7 @@ export default function ActivityPage() {
   const { courseId, activityId } = useParams();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
+  const navigationType = useNavigationType();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { toast, confirm } = useFeedback();
@@ -141,8 +143,9 @@ export default function ActivityPage() {
     lastStep.current = c.step;
   }, [c?.step]);
 
-  // Back from the focus review: the same scroll position; the position is kept while the page is open.
-  const restore = !!(location.state as { restoreScroll?: boolean } | null)?.restoreScroll;
+  // Back from the focus review (history back, or a link that asks for it): the same scroll position; the position is
+  // kept while the page is open.
+  const restore = navigationType === 'POP' || !!(location.state as { restoreScroll?: boolean } | null)?.restoreScroll;
   const loaded = !!c;
   useEffect(() => {
     if (!loaded || !activityId) return;
@@ -187,7 +190,8 @@ export default function ActivityPage() {
     openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }), (m) => toast(m));
 
   const missed = detail?.absent_students.length ?? 0;
-  const missing = missingStudents(c);
+  const missing = missingStudents(c); // the sheet shows them all, those with a repeat exam included
+  const covered = repeatCovered(detail);
   const received = c.students.filter((s) => s.paper_id).length;
   const pending = c.stats.pending;
 
@@ -198,7 +202,7 @@ export default function ActivityPage() {
   };
 
   const menu: MenuItem[] = [];
-  if (c.document_url) {
+  if (c.document_url || (c.generated && c.rubric)) { // a repeat of a generated exam is laid out on first print
     menu.push({ label: 'Examen para imprimir', icon: <Exam size={18} />, onSelect: () => openDoc('print') });
     menu.push({ label: 'Hoja extra', icon: <Rows size={18} />, onSelect: () => openDoc('extra-sheet') });
   }
@@ -231,7 +235,7 @@ export default function ActivityPage() {
       {isExam ? (
         <div className="exam-steps">
           {c.stats.papers > 0 && pending > 0 && (
-            <Button to={`/clases/${courseId}/actividades/${activityId}/revisar`} className="review-main">
+            <Button to={`/clases/${courseId}/actividades/${activityId}/revisar`} state={FROM_ACTIVITY} className="review-main">
               Revisar alumno a alumno · faltan {pending}
             </Button>
           )}
@@ -254,7 +258,7 @@ export default function ActivityPage() {
               id: 2, n: 2, title: 'Recoger', summary: collectSummary(c),
               content: (
                 <CollectStep correction={c} job={job} running={!!runningKind && COLLECT_JOBS.includes(runningKind)}
-                  grading={runningKind === 'suggest_grades'} onJob={onJob} onOpenMissing={() => setAbsences(true)} />
+                  grading={runningKind === 'suggest_grades'} onJob={onJob} onOpenMissing={() => setAbsences(true)} covered={covered} />
               ),
             }]),
             {
@@ -263,7 +267,7 @@ export default function ActivityPage() {
               content: noDocument
                 ? <ManualGrades correction={c} absent={absent} />
                 : <ReviewStep correction={c} job={job} running={runningKind === 'suggest_grades'} onOpenCollect={() => setOpen(2)}
-                  onOpenMissing={() => setAbsences(true)} absent={absent} unitId={detail?.unit_ids[0] ?? null} />,
+                  onOpenMissing={() => setAbsences(true)} absent={absent} unitIds={detail?.unit_ids ?? []} covered={covered} />,
             },
           ]} />
         </div>

@@ -17,12 +17,14 @@ interface Props {
   onJob: (job: Job) => void;
   /** Who is missing from the pile: NP or a repeat exam (ExamAbsencesSheet). */
   onOpenMissing: () => void;
+  /** Students with a repeat exam scheduled (not missing from this pile). */
+  covered: ReadonlySet<string>;
 }
 
 type Mode = 'names' | 'list_order';
 
 /** Step 2 — upload the scanned pile; pages are sorted by their printed marker and names matched with the class list. */
-export function CollectStep({ correction, job, running, grading, onJob, onOpenMissing }: Props) {
+export function CollectStep({ correction, job, running, grading, onJob, onOpenMissing, covered }: Props) {
   const upload = useUploadPapers(correction.activity.id);
   const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
@@ -71,12 +73,12 @@ export function CollectStep({ correction, job, running, grading, onJob, onOpenMi
         </>
       )}
       {stats.papers === 0 && !busy && correction.unplaced.length === 0 && uploader}
-      {stats.papers > 0 && !missingStudents(correction).length && (
+      {stats.papers > 0 && !missingStudents(correction, covered).length && (
         <p className="collect-count">
           <b className="num">{stats.matched} de {students.length}</b> emparejados · {plural(pages, 'página', 'páginas')}
         </p>
       )}
-      <MissingPapersRow correction={correction} onOpen={onOpenMissing} />
+      <MissingPapersRow correction={correction} covered={covered} onOpen={onOpenMissing} />
       <ScanPages correction={correction} blocked={blocked} busy={busy || grading} onJob={onJob} />
       {(stats.papers > 0 || correction.unplaced.length > 0) && !busy && <Section title="Añadir hojas">{uploader}</Section>}
     </>

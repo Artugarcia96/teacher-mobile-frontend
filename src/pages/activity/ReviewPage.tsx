@@ -1,12 +1,15 @@
 import { CaretLeft, CaretRight, DotsThree, FileX, Images, Rows, UserMinus, Warning } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  prefetchReview, useAssignPaper, useConfirmReview, useCorrection, useReview, type Crop, type Review, type ReviewResult,
+  prefetchReview, useActivityJob, useAssignPaper, useConfirmReview, useCorrection, useReview, type Crop, type Review, type ReviewResult,
 } from '../../api/papers';
+import type { Job } from '../../api/types';
+import { JobLine } from '../../features/papers/JobLine';
 import StudentPickerSheet from '../../features/papers/StudentPickerSheet';
 import { flagLabel, isAttention, pageCaption, pageTag } from '../../features/papers/pageLabels';
+import { cameFromActivity } from '../../features/papers/reviewLink';
 import { fileUrl } from '../../lib/api';
 import { formatGrade, formatNumber, formatScore, gradeTone, parseGradeInput } from '../../lib/format';
 import {
@@ -30,6 +33,7 @@ function progress(r: Review): string {
 export default function ReviewPage() {
   const { courseId, activityId } = useParams();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const desktop = useMediaQuery(DESKTOP);
@@ -46,10 +50,16 @@ export default function ReviewPage() {
   const exit = `/clases/${courseId}/actividades/${activityId}`;
   const r = review.data;
   const title = r?.activity.title ?? c?.activity.title ?? 'Examen';
+  const head = r?.activity ?? c?.activity;
+  const fromActivity = cameFromActivity(location.state);
+  // A grading job the teacher started from here (a paper joined to another student's pages): its end refreshes this.
+  const gradingJob = c?.job?.kind === 'suggest_grades' ? c.job : null;
+  const live = useActivityJob(activityId!, gradingJob?.id);
+  const grading = gradingJob && (!live || live.status === 'queued' || live.status === 'running') ? live ?? gradingJob : null;
 
   useEffect(() => {
-    if (!requested && studentId) setParams({ alumno: studentId }, { replace: true });
-  }, [requested, studentId, setParams]);
+    if (!requested && studentId) setParams({ alumno: studentId }, { replace: true, state: location.state });
+  }, [requested, studentId, setParams, location.state]);
 
   useEffect(() => {
     if (!r) return;
@@ -59,10 +69,12 @@ export default function ReviewPage() {
   }, [r, qc, activityId]);
 
   const go = useCallback((id: string | null | undefined) => {
-    if (id) setParams({ alumno: id }, { replace: true });
-  }, [setParams]);
+    if (id) setParams({ alumno: id }, { replace: true, state: location.state });
+  }, [setParams, location.state]);
 
-  const back = () => navigate(exit, { state: { restoreScroll: true } });
+  // Back where the teacher came from: the activity (history back, so the phone's back gesture never reopens the
+  // review) or, opened from a link, the activity in place of the review.
+  const back = () => (fromActivity ? navigate(-1) : navigate(exit, { replace: true, state: { restoreScroll: true } }));
   const leave = () => {
     const done = r ? r.total - r.pending : 0;
     if (r && done > 0) toast(`Revisión guardada · ${done} de ${r.total}`);
@@ -89,13 +101,16 @@ export default function ReviewPage() {
 
   const menu: MenuItem[] = [];
   if (r?.paper_id) menu.push({ label: 'Ordenar páginas', icon: <Rows size={18} />, onSelect: () => navigate(`${exit}?paso=recoger`) });
-  if (r && r.grade?.status !== 'absent') menu.push({ label: 'Marcar NP', icon: <UserMinus size={18} />, onSelect: markAbsent, separatorBefore: menu.length > 0 });
+  if (r && r.grade?.status !== 'absent') {
+    menu.push({ label: 'Marcar NP', icon: <UserMinus size={18} />, onSelect: markAbsent, separatorBefore: menu.length > 0,
+      disabledReason: r.match_status === 'suggested' ? 'Confirma antes el nombre' : undefined });
+  }
 
   return (
     <div className="review">
       <header className="review-bar glass">
-        <button className="back-btn review-bar__back" onClick={leave} aria-label={`Volver a ${title}`}>
-          <CaretLeft size={20} weight="bold" /><span>{title}</span>
+        <button className="back-btn review-bar__back" onClick={leave} aria-label={`Volver a ${title}`} title={title}>
+          <CaretLeft size={20} weight="bold" /><span>{desktop ? title : head?.repeat_of ? 'Repesca' : 'Examen'}</span>
         </button>
         <div className="review-bar__title">
           {r ? <><strong>{r.student.name}</strong><span className="num">{progress(r)}</span></> : <Skeleton h={16} w={160} />}
@@ -119,24 +134,26 @@ export default function ReviewPage() {
         <div className="review-body"><div className="review-pages"><Skeleton h={480} r={14} /></div><div className="review-panel"><Skeleton h={300} r={20} /></div></div>
       ) : (
         <ReviewStudent key={r.student.id} review={r} activityId={activityId!} courseId={courseId!} desktop={desktop}
-          onGo={go} onDone={after} busy={setNp.isPending} exit={exit} />
+          onGo={go} onDone={after} busy={setNp.isPending} exit={exit} grading={grading} />
       )}
     </div>
   );
 }
 
-function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone, busy, exit }: {
+function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone, busy, exit, grading }: {
   review: Review; activityId: string; courseId: string; desktop: boolean; onGo: (id: string) => void;
-  onDone: (res: ReviewResult) => void; busy: boolean; exit: string;
+  onDone: (res: ReviewResult) => void; busy: boolean; exit: string; grading: Job | null;
 }) {
   const { toast } = useFeedback();
   const confirmReview = useConfirmReview(activityId, courseId);
   const assign = useAssignPaper(activityId);
   const correction = useCorrection(activityId);
   const aiById = useMemo(() => new Map((r.ai?.items ?? []).map((i) => [i.id, i])), [r.ai]);
-  const [scores, setScores] = useState<Record<string, number>>(() => Object.fromEntries(
+  const initialScores = () => Object.fromEntries(
     r.items.map((it) => [it.id, r.grade?.status === 'confirmed' && r.grade.item_scores ? r.grade.item_scores[it.id] ?? 0 : aiById.get(it.id)?.points ?? 0]),
-  ));
+  );
+  const [scores, setScores] = useState<Record<string, number>>(initialScores);
+  const [touched, setTouched] = useState(false);
   const [manual, setManual] = useState(() => (r.grade?.score != null ? formatScore(r.grade.score) : r.ai?.suggested_score != null ? formatScore(r.ai.suggested_score) : ''));
   const [comment, setComment] = useState(r.grade?.comment ?? '');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -160,6 +177,15 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const manualValue = parseGradeInput(manual);
   const toConfirm = r.match_status === 'suggested';
   const last = !r.next_pending_id;
+  // Nothing to accept yet: no AI grading, no grade and no score touched: accepting records a 0, say so.
+  const zero = hasItems && !r.ai && r.grade?.status !== 'confirmed' && !touched;
+
+  // The AI's grading arrives while the page is open (a paper just assigned here): its points, unless the teacher
+  // already started scoring.
+  useEffect(() => {
+    if (r.ai && !touched && r.grade?.status !== 'confirmed') setScores(initialScores());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r.ai]);
 
   useEffect(() => { if (!desktop) window.scrollTo(0, 0); }, [desktop]);
 
@@ -174,13 +200,14 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
     return () => ro.disconnect();
   }, []);
 
-  // Desktop: the sheet follows the question in focus.
+  // Desktop: the sheet follows the question in focus (its crop, else the top of the page where it most likely is).
   const focusCrop: Crop | undefined = focus ? r.crops[focus]?.[0] : undefined;
+  const focusPage = focusCrop?.index ?? (focus ? r.page_hints[focus] : undefined);
   useEffect(() => {
-    const page = focusCrop ? pageRefs.current[focusCrop.index] : null;
-    if (!desktop || !page || !scroller.current || !focusCrop) return;
-    scroller.current.scrollTo({ top: Math.max(0, page.offsetTop + focusCrop.y0 * page.offsetHeight - 24), behavior: 'smooth' });
-  }, [desktop, focusCrop]);
+    const page = focusPage !== undefined ? pageRefs.current[focusPage] : null;
+    if (!desktop || !page || !scroller.current) return;
+    scroller.current.scrollTo({ top: Math.max(0, page.offsetTop + (focusCrop?.y0 ?? 0) * page.offsetHeight - 24), behavior: 'smooth' });
+  }, [desktop, focusCrop, focusPage]);
 
   const accept = () => {
     let payload: { item_scores?: Record<string, number>; score?: number } = {};
@@ -198,9 +225,12 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
     onError: (e) => toast(e.message, { tone: 'error' }),
   });
   const reassign = (studentId: string) => assign.mutate({ paperId: r.paper_id!, studentId }, {
-    onSuccess: () => {
+    onSuccess: (paper) => {
       const s = correction.data?.students.find((x) => x.student.id === studentId);
-      toast(`Hoja asignada a ${s?.student.name ?? 'otro alumno'}`);
+      const who = s?.student.name ?? 'otro alumno';
+      const joined = paper.id !== r.paper_id; // that student already had pages: one paper now
+      toast(!joined ? `Hoja asignada a ${who}`
+        : paper.job ? `Hoja unida a la de ${who}. La IA vuelve a corregirla entera.` : `Hoja unida a la de ${who}. Ordena sus páginas.`);
       onGo(studentId);
     },
     onError: (e) => toast(e.message, { tone: 'error' }),
@@ -208,15 +238,23 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
 
   const acceptRef = useRef(accept);
   acceptRef.current = accept;
+  // Keyboard (desktop): Enter accepts from a text field (the grade just typed) or from nowhere in particular, never
+  // from a control (Enter there is that control's own action); arrows move to the neighbour outside text fields.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (viewer !== null || document.querySelector('[role="dialog"]')) return;
-      const typing = t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && e.key !== 'Enter');
-      if (typing) return;
-      if (e.key === 'Enter' && !t.closest('.review-foot') && !e.isComposing && !toConfirm) { e.preventDefault(); acceptRef.current(); }
-      if (e.key === 'ArrowRight' && r.next_student_id && t.tagName !== 'INPUT') onGo(r.next_student_id);
-      if (e.key === 'ArrowLeft' && r.prev_student_id && t.tagName !== 'INPUT') onGo(r.prev_student_id);
+      const field = !!t.closest('input, textarea, select, [contenteditable]');
+      if (e.key === 'Enter') {
+        const control = t.closest('textarea, select, button, a, [role="button"], [role="menuitem"], [contenteditable], .review-foot');
+        if (control || e.isComposing || toConfirm) return;
+        e.preventDefault();
+        acceptRef.current();
+        return;
+      }
+      if (field) return;
+      if (e.key === 'ArrowRight' && r.next_student_id) onGo(r.next_student_id);
+      if (e.key === 'ArrowLeft' && r.prev_student_id) onGo(r.prev_student_id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -227,7 +265,8 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   // Before confirming: is the paper complete and only this student's? (after confirming, the grade is never touched)
   const warnings = r.flags.filter((f) => isAttention(f) || f.code === 'pagina_nueva_tras_nota');
   const tone = gradeTone(r.rubric_total ? (sum / r.rubric_total) * 10 : null);
-  const acceptLabel = toConfirm ? 'Confirma el nombre' : last ? 'Aceptar y terminar' : 'Aceptar y siguiente';
+  const then = last ? 'terminar' : 'siguiente';
+  const acceptLabel = toConfirm ? 'Confirma el nombre' : zero ? `Poner 0 y ${then}` : `Aceptar y ${then}`;
 
   return (
     <div ref={body} className="review-body">
@@ -285,9 +324,10 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
             <Link className="link-btn" to={`${exit}?paso=recoger`}>Ordenar páginas</Link>
           </Callout>
         )}
+        {grading && r.paper_id && !r.ai && <JobLine job={grading} fallback="La IA está corrigiendo esta hoja…" />}
         {(r.ai?.summary || (!desktop && pages.length > 0)) && (
           <div className="review-summary">
-            {r.ai?.summary && <><AIBadge label={r.grade?.status === 'suggested' ? 'Borrador IA' : 'IA'} /><span>{r.ai.summary}</span></>}
+            {r.ai?.summary && <><AIBadge label={r.grade?.status === 'suggested' ? 'Borrador IA' : 'IA'} /><RichText text={r.ai.summary} /></>}
             {!desktop && pages.length > 0 && (
               <Button variant="tinted" size="sm" icon={<Images size={16} />} className="review-summary__sheet" onClick={() => setViewer(0)}>Ver hoja</Button>
             )}
@@ -310,17 +350,21 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
                     <span className="ritem__n num">{it.label || it.id}</span>
                     <button type="button" className="ritem__text" aria-expanded={!!expanded[it.id]}
                       onClick={() => setExpanded((o) => ({ ...o, [it.id]: !o[it.id] }))}>
-                      <RichText className={expanded[it.id] ? '' : 'one-line'} text={it.text || `Pregunta ${it.label || it.id}`} />
+                      <RichText oneLine={!expanded[it.id]} text={it.text || `Pregunta ${it.label || it.id}`} />
                     </button>
                   </div>
                   {!desktop && crops.map((c) => (
                     <CropImage key={`${c.page_id}-${c.y0}`} src={pages[c.index]} x0={c.x0} y0={c.y0} x1={c.x1} y1={c.y1}
                       alt={`Respuesta a la pregunta ${it.label || it.id} · ${caption(c.index)}`} onClick={() => setViewer(c.index)} />
                   ))}
+                  {!desktop && !crops.length && pages.length > 0 && (
+                    <Button variant="tinted" size="sm" icon={<Images size={16} />} className="ritem__sheet"
+                      onClick={() => setViewer(r.page_hints[it.id] ?? 0)}>Ver hoja</Button>
+                  )}
                   {ai?.feedback && (
                     <div className="ritem__ai">
                       {low && <Warning size={16} weight="fill" className="ritem__warn" aria-label="Revisa esta pregunta" />}
-                      <span>{ai.feedback}</span>
+                      <RichText text={ai.feedback} />
                     </div>
                   )}
                   <div className="ritem__controls">
@@ -330,7 +374,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
                     <div className="ritem__score">
                       {changed && <span className="ritem__was num" title="Puntos que propuso la IA">IA: {pts(ai!.points)}</span>}
                       <Stepper label={`Puntos de la pregunta ${it.label || it.id}`} value={scores[it.id] ?? 0} min={0} max={it.points} step={0.25}
-                        format={pts} onChange={(v) => setScores((s) => ({ ...s, [it.id]: v }))} />
+                        format={pts} onChange={(v) => { setTouched(true); setScores((s) => ({ ...s, [it.id]: v })); }} />
                       <span className="ritem__max num">/ {pts(it.points)}</span>
                     </div>
                   </div>
@@ -362,10 +406,14 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
           )}
           <div className="review-foot__buttons">
             {!desktop && (
-              <Button variant="neutral" icon={<CaretLeft size={16} weight="bold" />} disabled={!r.prev_student_id}
-                onClick={() => r.prev_student_id && onGo(r.prev_student_id)}>Anterior</Button>
+              <Button variant="neutral" icon={<CaretLeft size={18} weight="bold" />} aria-label="Alumno anterior" className="review-foot__nav"
+                disabled={!r.prev_student_id} onClick={() => r.prev_student_id && onGo(r.prev_student_id)} />
             )}
             <Button onClick={accept} loading={confirmReview.isPending} disabled={toConfirm || busy} className="review-accept">{acceptLabel}</Button>
+            {!desktop && (
+              <Button variant="neutral" icon={<CaretRight size={18} weight="bold" />} aria-label="Alumno siguiente, sin aceptar" className="review-foot__nav"
+                disabled={!r.next_student_id} onClick={() => r.next_student_id && onGo(r.next_student_id)} />
+            )}
           </div>
         </div>
       </section>
