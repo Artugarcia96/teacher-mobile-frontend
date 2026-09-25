@@ -81,7 +81,7 @@ export function ScanPages({ correction, blocked, busy, onJob }: Props) {
     assign.mutate({ paperId, studentId }, {
       onSuccess: () => {
         toast(final ? `Hoja asignada a ${target?.student.name}. Ya tenía nota confirmada: revísala.` : `Hoja asignada a ${target?.student.name ?? 'el alumno'}`);
-        if (correction.rubric && !final && !target?.grade) suggest.mutate([studentId], { onSuccess: ({ job }) => onJob(job) });
+        if (correction.rubric && !final && !target?.grade) suggest.mutate([studentId], { onSuccess: ({ job }) => onJob(job), onError });
       },
       onError,
     });

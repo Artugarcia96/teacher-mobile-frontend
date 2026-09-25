@@ -1,5 +1,6 @@
 import { ArrowSquareOut, DotsThree, Exam, Key, NotePencil, PencilLine, Rows, UploadSimple } from '@phosphor-icons/react';
 import { useRef } from 'react';
+import { useAIUnavailable } from '../../api/core';
 import { useDocumentUrl, useUploadDocument, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
 import { plural } from '../../lib/format';
@@ -21,6 +22,7 @@ interface Props {
 export function PrepareStep({ correction, job, running, onJob, onGenerate, onManual }: Props) {
   const id = correction.activity.id;
   const upload = useUploadDocument(id);
+  const noAI = useAIUnavailable();  // reading or writing the exam needs the AI
   const docUrl = useDocumentUrl(id);
   const { toast } = useFeedback();
   const input = useRef<HTMLInputElement>(null);
@@ -34,6 +36,7 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
       onError: (e) => toast(e.message, { tone: 'error' }),
     });
   };
+  const pick = () => (noAI ? toast(noAI) : input.current?.click());
   const open = (variant: 'print' | 'key' | 'extra-sheet') =>
     openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }), (m) => toast(m));
 
@@ -51,11 +54,11 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
       <>
         {fileInput}
         <List className="choice-list">
-          <Row lead={<RowIcon tone="accent"><UploadSimple size={20} /></RowIcon>} title="Subir mi examen"
-            sub="PDF o fotos de cada página. Se leen las preguntas, los puntos y las soluciones." wrapSub
-            onClick={() => input.current?.click()} />
-          <Row lead={<RowIcon tone="accent"><PencilLine size={20} /></RowIcon>} title="Generar con IA"
-            sub="Un borrador a partir de las unidades de la programación." wrapSub onClick={onGenerate} />
+          <Row lead={<RowIcon tone="accent"><UploadSimple size={20} /></RowIcon>} title="Subir mi examen" wrapSub muted={!!noAI}
+            sub={noAI ?? 'PDF o fotos de cada página. Se leen las preguntas, los puntos y las soluciones.'}
+            onClick={noAI ? undefined : pick} />
+          <Row lead={<RowIcon tone="accent"><PencilLine size={20} /></RowIcon>} title="Generar con IA" wrapSub muted={!!noAI}
+            sub={noAI ?? 'Un borrador a partir de las unidades de la programación.'} onClick={noAI ? undefined : onGenerate} />
           <Row lead={<RowIcon><NotePencil size={20} /></RowIcon>} title="Sin documento (solo nota)"
             sub="Pones la nota de cada alumno a mano." wrapSub onClick={onManual} />
         </List>
@@ -90,8 +93,8 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
         action={
           <Menu trigger={(o) => <IconButton label="Cambiar el examen" size="sm" onClick={o}><DotsThree size={20} weight="bold" /></IconButton>}
             items={[
-              { label: 'Subir otro examen', icon: <UploadSimple size={18} />, onSelect: () => input.current?.click() },
-              { label: 'Generar otro con IA', icon: <PencilLine size={18} />, onSelect: onGenerate },
+              { label: 'Subir otro examen', icon: <UploadSimple size={18} />, onSelect: pick },
+              { label: 'Generar otro con IA', icon: <PencilLine size={18} />, onSelect: () => (noAI ? toast(noAI) : onGenerate()) },
             ]} />
         }
         footer={correction.generated ? 'Al guardar se actualiza también el PDF para imprimir.' : undefined}

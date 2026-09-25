@@ -2,6 +2,7 @@
 # which proxies /api to sepia-cuaderno-api. See ../teacher-mobile-backend/docs/DEPLOY.md.
 # Repository settings → Secrets and variables → Actions:
 #   VPS_HOST, VPS_USER (variables or secrets) · VPS_PASSWORD or VPS_SSH_KEY (secret)
+# workflow_dispatch: choose "Use workflow from" = this branch; the repo's default branch deploys the old coteacher app.
 name: Deploy web
 
 on:
@@ -44,6 +45,10 @@ jobs:
 
       - name: Package the site, the nginx template and the deploy script
         run: |
+          # every image the landing cites must be in the release (a missing one would be a broken picture at /)
+          grep -oE '/landing/img/[A-Za-z0-9._-]+' landing/index.html | sed 's|^/||' | sort -u | while read -r f; do
+            test -f "$f" || { echo "::error::Falta $f (la landing lo cita)"; exit 1; }
+          done
           mkdir -p release/site
           cp -R dist/. release/site/
           cp -R landing release/site/landing
@@ -59,7 +64,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: web.tar.gz
-          target: /tmp/sepia-cuaderno-web-deploy
+          target: sepia-cuaderno/.incoming/web   # relative = under the user's home (private, unlike /tmp)
           rm: true
 
       - name: Publish on the VPS
@@ -72,8 +77,8 @@ jobs:
           command_timeout: 10m
           script: |
             set -e
-            trap 'rm -rf /tmp/sepia-cuaderno-web-deploy' EXIT
-            cd /tmp/sepia-cuaderno-web-deploy
+            trap 'rm -rf "$HOME/sepia-cuaderno/.incoming/web"' EXIT
+            cd "$HOME/sepia-cuaderno/.incoming/web"
             mkdir release
             tar -xzf web.tar.gz -C release
             bash release/deploy.sh release

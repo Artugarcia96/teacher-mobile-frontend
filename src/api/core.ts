@@ -28,6 +28,12 @@ export function useMe(enabled = true) {
   return useQuery({ queryKey: keys.me, queryFn: () => api.get<Me>('/me'), enabled, staleTime: 60_000 });
 }
 
+/** Why AI actions are off on this server (`/me` says ai_provider "none"), or null when the AI works. */
+export function useAIUnavailable(): string | null {
+  const { data } = useMe();
+  return data?.ai_provider === 'none' ? 'La IA no está configurada en este servidor.' : null;
+}
+
 export function usePatchMe() {
   const qc = useQueryClient();
   return useMutation({

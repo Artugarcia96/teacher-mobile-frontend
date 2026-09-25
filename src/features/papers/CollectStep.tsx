@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAIUnavailable } from '../../api/core';
 import { useUploadPapers, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
 import { plural } from '../../lib/format';
@@ -21,6 +22,7 @@ type Mode = 'names' | 'list_order';
 /** Step 2 — upload the scanned pile; pages are sorted by their printed marker and names matched with the class list. */
 export function CollectStep({ correction, job, running, grading, onJob }: Props) {
   const upload = useUploadPapers(correction.activity.id);
+  const noAI = useAIUnavailable();  // reading the pile needs the AI: do not let a teacher upload 80 MB for a 503
   const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
 
@@ -51,9 +53,9 @@ export function CollectStep({ correction, job, running, grading, onJob }: Props)
             options={[{ value: 'names', label: 'Leer nombres' }, { value: 'list_order', label: 'En orden de lista' }]} />} />
       </List>
       {!busy && (
-        <DropZone onFiles={onFiles} multiple accept="application/pdf,image/*"
+        <DropZone onFiles={onFiles} multiple accept="application/pdf,image/*" disabled={!!noAI}
           title={stats.papers ? 'Añadir más hojas' : 'Arrastra aquí el PDF del escáner o las fotos'}
-          hint={stats.papers ? 'Se suman a las que ya has subido.' : 'PDF, JPG o PNG. Puedes subirlas en varias tandas.'}
+          hint={noAI ?? (stats.papers ? 'Se suman a las que ya has subido.' : 'PDF, JPG o PNG. Puedes subirlas en varias tandas.')}
           buttonLabel="Subir hojas" cameraLabel="Hacer fotos" />
       )}
     </>
