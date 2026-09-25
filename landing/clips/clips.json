@@ -1,138 +1,143 @@
 {
   "corregir-desktop": {
-    "seconds": 12.6,
+    "seconds": 12.7,
     "ai_seconds": [],
-    "webm": 162346,
-    "mp4": 170297,
-    "poster": 40932
+    "webm": 242295,
+    "mp4": 241401,
+    "poster": 59178
   },
   "corregir-desktop-dark": {
-    "seconds": 12.3,
+    "seconds": 12.5,
     "ai_seconds": [],
-    "webm": 160455,
-    "mp4": 164693,
-    "poster": 40572
+    "webm": 246490,
+    "mp4": 243064,
+    "poster": 59684
   },
   "corregir-phone": {
-    "seconds": 9.8,
+    "seconds": 10.2,
     "ai_seconds": [],
-    "webm": 70031,
-    "mp4": 91777,
-    "poster": 23192
+    "webm": 227846,
+    "mp4": 232892,
+    "poster": 49882
   },
   "corregir-phone-dark": {
-    "seconds": 9.9,
+    "seconds": 10.4,
     "ai_seconds": [],
-    "webm": 73365,
-    "mp4": 97738,
-    "poster": 23398
+    "webm": 229102,
+    "mp4": 221022,
+    "poster": 49608
   },
   "evaluacion-phone": {
-    "seconds": 12.9,
+    "seconds": 16.5,
     "ai_seconds": [],
-    "webm": 238399,
-    "mp4": 252674,
-    "poster": 27048
+    "webm": 524734,
+    "mp4": 501469,
+    "poster": 65466
   },
   "evaluacion-phone-dark": {
-    "seconds": 12.4,
+    "seconds": 15.7,
     "ai_seconds": [],
-    "webm": 250644,
-    "mp4": 280656,
-    "poster": 26038
+    "webm": 542201,
+    "mp4": 506686,
+    "poster": 63014
   },
   "familia-phone": {
-    "seconds": 9,
+    "seconds": 9.9,
     "ai_seconds": [],
-    "webm": 149790,
-    "mp4": 167053,
-    "poster": 23276
+    "webm": 277973,
+    "mp4": 372482,
+    "poster": 53972
   },
   "familia-phone-dark": {
-    "seconds": 8.5,
+    "seconds": 9.5,
     "ai_seconds": [],
-    "webm": 126501,
-    "mp4": 171244,
-    "poster": 22208
+    "webm": 290224,
+    "mp4": 369177,
+    "poster": 49744
   },
   "ficha-phone": {
-    "seconds": 18.9,
+    "seconds": 20.5,
     "ai_seconds": [
-      36
+      185
     ],
-    "webm": 287525,
-    "mp4": 303767,
-    "poster": 25212
+    "webm": 756804,
+    "mp4": 734103,
+    "poster": 66354
   },
   "ficha-phone-dark": {
-    "seconds": 18.4,
+    "seconds": 20.2,
     "ai_seconds": [
-      52
+      154
     ],
-    "webm": 278045,
-    "mp4": 301412,
-    "poster": 26322
+    "webm": 706732,
+    "mp4": 659910,
+    "poster": 66510
   },
   "historia-desktop": {
-    "seconds": 9.1,
+    "seconds": 10.3,
     "ai_seconds": [],
-    "webm": 128222,
-    "mp4": 141449,
-    "poster": 51646
+    "webm": 323653,
+    "mp4": 330031,
+    "poster": 71744
   },
   "historia-desktop-dark": {
-    "seconds": 9.1,
+    "seconds": 10.2,
     "ai_seconds": [],
-    "webm": 126582,
-    "mp4": 143172,
-    "poster": 51964
+    "webm": 313507,
+    "mp4": 275084,
+    "poster": 71490
   },
   "historia-phone": {
-    "seconds": 7.8,
+    "seconds": 9.4,
     "ai_seconds": [],
-    "webm": 78066,
-    "mp4": 102439,
-    "poster": 25600
+    "webm": 207464,
+    "mp4": 295690,
+    "poster": 57668
   },
   "historia-phone-dark": {
-    "seconds": 7.8,
+    "seconds": 9.5,
     "ai_seconds": [],
-    "webm": 87315,
-    "mp4": 124518,
-    "poster": 25562
+    "webm": 198006,
+    "mp4": 309576,
+    "poster": 57140
   },
   "lista-phone": {
-    "seconds": 8.8,
+    "seconds": 12.7,
     "ai_seconds": [],
-    "webm": 118109,
-    "mp4": 126440,
-    "poster": 23140
+    "webm": 306792,
+    "mp4": 220849,
+    "poster": 50034
   },
   "lista-phone-dark": {
-    "seconds": 9.8,
+    "seconds": 13.1,
     "ai_seconds": [],
-    "webm": 109156,
-    "mp4": 133495,
-    "poster": 23002
+    "webm": 373866,
+    "mp4": 282945,
+    "poster": 50228
+  },
+  "pile:historia": {
+    "papers": 8,
+    "pages": 29,
+    "seconds": 208
   },
   "versiones-phone": {
-    "seconds": 18.4,
+    "seconds": 19.1,
     "ai_seconds": [
-      53,
-      86
+      30,
+      74
     ],
-    "webm": 310168,
-    "mp4": 326290,
-    "poster": 24194
+    "webm": 677833,
+    "mp4": 798206,
+    "poster": 58010
   },
   "versiones-phone-dark": {
-    "seconds": 18.4,
+    "seconds": 18.9,
     "ai_seconds": [
-      53,
-      70
+      32,
+      68
     ],
-    "webm": 314502,
-    "mp4": 353744,
-    "poster": 25350
+    "webm": 628285,
+    "mp4": 810378,
+    "poster": 56626
   }
 }

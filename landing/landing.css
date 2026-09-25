@@ -35,10 +35,11 @@
   --serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --gutter: 16px;
   --max: 1180px;
-  --phone: min(260px, 72vw); /* a phone recording's frame */
+  --wide: min(1320px, 100vw - 2 * var(--gutter)); /* the hero: its recording as big as the screen allows */
+  --phone: min(350px, 90vw); /* a phone recording's frame: its text close to the app's size */
 }
 @media (min-width: 768px) { :root { --gutter: 24px; } }
-@media (min-width: 1024px) { :root { --gutter: 40px; --phone: 300px; } }
+@media (min-width: 1024px) { :root { --gutter: 40px; --phone: 340px; } }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -91,7 +92,7 @@ h1, h2, h3, p, ol, ul, figure { margin: 0; }
 @media (prefers-reduced-transparency: reduce) { .glass { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 
 /* ── Bar: both ways in, always one tap away ──────────── */
-.bar { position: sticky; top: 10px; z-index: 10; width: min(calc(var(--max) + 16px), calc(100% - 2 * var(--gutter) + 16px));
+.bar { position: sticky; top: 10px; z-index: 10; width: min(calc(1320px + 16px), calc(100% - 2 * var(--gutter) + 16px)); /* as wide as the hero */
   margin: 10px auto 0; display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 16px; border-radius: 999px; }
 .brand { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; min-height: 44px;
   font-family: var(--serif); font-size: 26px; line-height: 1; text-decoration: none; }
@@ -121,7 +122,7 @@ h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 8.2vw, 
   letter-spacing: -0.015em; margin: 10px 0 14px; text-wrap: balance; }
 h3 { font-size: 17px; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
 .lead { font-size: 19px; line-height: 1.5; color: var(--ink-2); max-width: 32em; text-wrap: pretty; }
-.moment__copy p:not(.eyebrow), .ai__head p:not(.eyebrow), .ai__list p, .closing p { color: var(--ink-2); text-wrap: pretty; }
+.moment__copy p:not(.eyebrow), .ai__head p:not(.eyebrow), .cards p, .closing p { color: var(--ink-2); text-wrap: pretty; }
 .ai__head a { color: var(--accent); }
 
 /* ── Layout ──────────────────────────────────────────── */
@@ -130,18 +131,22 @@ main { width: min(var(--max), calc(100% - 2 * var(--gutter))); margin: 0 auto; }
 .actions--center { justify-content: center; }
 @media (max-width: 479px) { .hero .actions .btn { flex: 1 1 auto; } }
 
-/* Hero: the pain, then the recording that answers it (right under the headline on a phone, beside it on a desktop). */
+/* Hero: the pain, then the recording that answers it (right under the headline on a phone, beside it on a desktop,
+   wider than the rest of the page so the app reads at close to its own size). */
 .hero { display: grid; gap: 20px; padding-top: 28px; grid-template-areas: 'head' 'clip' 'body'; }
 .hero__head { grid-area: head; }
 .hero .clip { grid-area: clip; }
 .hero__body { grid-area: body; }
-@media (min-width: 1024px) {
-  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); grid-template-areas: 'head clip' 'body clip';
-    grid-template-rows: auto 1fr; column-gap: 48px; row-gap: 22px; align-items: start; padding-top: 64px;
-    min-height: min(calc(100svh - 96px), 760px); }
+.assure { margin-top: 14px; max-width: 30em; font-size: 15px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+@media (min-width: 1024px) { h1 { font-size: 76px; } }
+@media (min-width: 1200px) {
+  .hero { margin-inline: calc((min(var(--max), 100vw - 2 * var(--gutter)) - var(--wide)) / 2);
+    grid-template-columns: minmax(340px, 0.8fr) minmax(0, 2fr); grid-template-areas: 'head clip' 'body clip';
+    grid-template-rows: auto 1fr; column-gap: 48px; row-gap: 22px; align-items: start; padding-top: 56px;
+    min-height: min(calc(100svh - 96px), 780px); }
   .hero__head { align-self: end; }
   .hero .clip { align-self: center; }
-  h1 { font-size: clamp(56px, 5.4vw, 80px); }
+  h1 { font-size: clamp(56px, 4.7vw, 72px); }
 }
 
 /* Del examen a la nota: three short steps under the hero. */
@@ -158,11 +163,28 @@ main { width: min(var(--max), calc(100% - 2 * var(--gutter))); margin: 0 auto; }
 .moment { display: grid; gap: 24px; padding-top: 64px; }
 .moment__copy { max-width: 30em; }
 .moment__copy p:not(.eyebrow) { max-width: 26em; }
+.moment__copy .fact { margin-top: 12px; font-size: 15px; }
+.fact:has(span:empty) { display: none; }
+
+/* What an NEAE coordinator checks first, one line each. */
+.facts { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; max-width: 30em; }
+.facts li { position: relative; padding-left: 20px; font-size: 16px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+.facts li::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); }
 @media (min-width: 1024px) {
   .moment { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 96px; padding-top: 120px;
     max-width: 1000px; margin: 0 auto; }
   .moment--flip .moment__copy { order: 2; }
   .moment--wide { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 48px; max-width: none; }
+}
+
+/* Two short moments side by side on a desktop, each with its copy above its recording (one after the other on a phone). */
+@media (min-width: 1024px) {
+  .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 64px; max-width: 1000px;
+    margin: 0 auto; padding-top: 120px; }
+  .duo .moment { grid-template-columns: none; grid-template-rows: 1fr auto; align-items: start; row-gap: 28px;
+    padding-top: 0; max-width: none; }
+  .duo h2 { font-size: 44px; }
 }
 
 .week { padding-top: 80px; max-width: 30em; }
@@ -185,32 +207,34 @@ main { width: min(var(--max), calc(100% - 2 * var(--gutter))); margin: 0 auto; }
   .clip--hero .clip__frame, .clip--wide .clip__frame { max-width: none; padding: 6px; border-radius: 20px; }
   .clip--hero .clip__screen, .clip--wide .clip__screen { aspect-ratio: 1024 / 640; border-radius: 14px; }
 }
-.clip figcaption { display: flex; align-items: center; gap: 10px; max-width: 30em; font-size: 13px; line-height: 1.4;
+.clip figcaption { display: flex; align-items: center; gap: 12px; max-width: 30em; font-size: 14px; line-height: 1.45;
   color: var(--ink-2); text-wrap: pretty; }
 .clip--hero figcaption, .clip--wide figcaption { justify-self: start; }
-.clip__toggle { position: relative; flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+.clip:not(.clip--hero):not(.clip--wide) figcaption { max-width: var(--phone); }
+.clip__toggle { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
   border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); cursor: pointer;
   transition: background-color 160ms var(--ease); }
-.clip__toggle::before { content: ''; position: absolute; inset: -4px; }
 .clip__toggle:hover { background: var(--accent-soft); color: var(--accent); }
 .clip__toggle[hidden] { display: none; }
-.clip__toggle svg { width: 14px; height: 14px; fill: currentColor; }
+.clip__toggle svg { width: 16px; height: 16px; fill: currentColor; }
 @media (prefers-reduced-motion: reduce) { .clip__screen video, .clip__toggle { transition: none; } }
 
-/* ── IA ──────────────────────────────────────────────── */
+/* ── IA, and coming from paper: a heading beside four short cards ── */
 .ai { padding-top: 96px; display: grid; gap: 24px; }
 .ai__head { max-width: 30em; }
 .ai__head h2 { margin-bottom: 10px; }
-.ai__list { list-style: none; padding: 0; display: grid; gap: 1px; background: var(--line); border-radius: 20px;
+.cards { list-style: none; padding: 0; display: grid; gap: 1px; background: var(--line); border-radius: 20px;
   overflow: hidden; box-shadow: var(--e1); }
-.ai__list li { background: var(--paper); padding: 20px 20px 22px; }
-.ai__list p { font-size: 16px; }
-@media (min-width: 768px) { .ai__list { grid-template-columns: 1fr 1fr; } .ai__list li { padding: 26px 28px 28px; } }
+.cards li { background: var(--paper); padding: 20px 20px 22px; }
+.cards p { font-size: 16px; }
+@media (min-width: 768px) { .cards { grid-template-columns: 1fr 1fr; } .cards li { padding: 26px 28px 28px; } }
 @media (min-width: 1024px) { .ai { padding-top: 144px; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 64px; align-items: start; } }
 
 /* ── Closing ─────────────────────────────────────────── */
 .closing { margin: 96px auto 0; max-width: 34em; text-align: center; }
 .closing h2 { margin-top: 0; }
+.assure--list { list-style: none; padding: 0; margin: 22px auto 0; display: grid; gap: 6px; }
+@media (min-width: 768px) { .assure--list { max-width: none; } }
 @media (min-width: 1024px) { .closing { margin-top: 144px; } }
 
 /* ── Footer ──────────────────────────────────────────── */

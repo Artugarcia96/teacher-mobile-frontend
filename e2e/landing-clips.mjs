@@ -45,18 +45,19 @@ const running = new Set(); // API processes to stop if the run fails or is inter
 
 const FPS = 30;
 const LAPSE = 2.2; // seconds of video for each wait for the AI, whatever it really took
-const LAG = 0.2; // at most, for a wait for the app itself (the next paper's images): the recording machine is slower than a phone
+const LAG = 0.2; // at most, for a wait for the app itself (the next paper's images): the recording machine is slower than a
+// phone. The clip holds the frame from before the wait, so a half-loaded screen never shows.
 // Screen content: mostly still frames with sharp text. A keyframe every 10 s (the clips loop from the start).
 const VP9 = ['-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-crf', '38', '-b:v', '0', '-deadline', 'good', '-cpu-used', '2',
   '-row-mt', '1', '-tile-columns', '1', '-g', '300'];
 const H264 = ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level:v', '4.0', '-crf', '28', '-preset', 'slow', '-tune', 'animation',
   '-movflags', '+faststart', '-g', '300'];
 
-// `scale`: pixels of the clip per CSS pixel. The phone at 1.5x is sharp in the landing's frames (at most 358 px wide);
+// `scale`: pixels of the clip per CSS pixel. The phone at 2x stays sharp in the landing's frames on a 3x phone screen;
 // the desktop is a 1024 px window (the smallest with the desktop layout, so the app reads at the landing's ~700 px),
 // recorded 1440 px wide.
 const DEVICES = {
-  phone: { slow: 4, scale: 1.5, context: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
+  phone: { slow: 4, scale: 2, context: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
   desktop: { slow: 6, scale: 1.40625, context: { viewport: { width: 1024, height: 640 } } },
 };
 
@@ -73,13 +74,13 @@ const CLIPS = [
     start: (d) => `/clases/${d.history.course}/actividades/${d.history.exam}/revisar?alumno=${d.history.paper}`, run: reviewAnEssay },
   { name: 'lista', devices: { phone: 844 }, start: () => '/hoy', run: passTheList },
   { name: 'versiones', devices: { phone: 844 }, prelude: withoutVersions, start: (d) => `/clases/${d.course}/actividades/${d.upcoming}`,
-    before: (r) => r.scrollTo({ section: 'Versiones' }, 0), run: prepareVersions },
+    before: (r) => r.scrollTo(r.page.getByText('Añadir modelo B'), 0), run: prepareVersions },
   { name: 'ficha', devices: { phone: 844 }, prelude: withoutRemedialWorksheet, start: (d) => `/clases/${d.course}/actividades/${d.exam}?paso=revisar`,
     before: (r) => r.scrollTo({ section: 'Errores frecuentes' }, 0), run: remedialWorksheet },
   { name: 'familia', devices: { phone: 844 }, prelude: listPassed, start: () => '/hoy',
     before: (r) => r.scrollTo({ section: 'A vigilar' }, 0), run: tellTheFamily },
   { name: 'evaluacion', devices: { phone: 844 }, start: (d) => `/clases/${d.course}/evaluacion/1`,
-    before: (r) => r.scrollTo(r.page.locator('.section__title', { hasText: /alumnos$/ }).first(), 0), run: explainTheGrade },
+    before: (r, d) => r.scrollTo(r.page.locator('.row', { hasText: d.graded.sort_name }).first(), 0, 8), run: explainTheGrade },
 ].filter((c) => !ONLY || ONLY.includes(c.name));
 
 /** The pile of fraction exams, in focus mode: a question the AI marked down, a quarter point back, «Aceptar y siguiente». */
@@ -171,31 +172,44 @@ async function prepareVersions(r, d) {
   r.poster();
 }
 
-/** Revisar › Errores frecuentes → «Crear ficha de refuerzo» (AI) → the worksheet with its answer key. */
-async function remedialWorksheet(r) {
+/** Revisar › Errores frecuentes → «Crear ficha de refuerzo» (AI, in the unit while the teacher waits) → the worksheet
+ *  with its answer key. */
+async function remedialWorksheet(r, d) {
   const { page } = r;
   const create = page.getByRole('link', { name: /Crear ficha de refuerzo/ }).or(page.getByRole('button', { name: /Crear ficha de refuerzo/ })).first();
-  await r.hold(2200);
+  await r.hold(1800);
   await r.tap(create);
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Crear', exact: true }).waitFor();
-  await r.settle();
-  await r.hold(1200);
-  await r.scrollIn(dialog.getByLabel('Indicaciones (opcional)'), 'reveal', 1200); // the questions the class got wrong
-  await r.hold(1800);
-  await r.tap(dialog.getByRole('button', { name: 'Crear', exact: true }));
-  await page.getByText(/Creando ficha/).first().waitFor();
+  const createButton = dialog.getByRole('button', { name: 'Crear ficha', exact: true });
+  await r.lag(async () => {
+    await createButton.waitFor();
+    await r.settle();
+  });
   await r.hold(900);
-  await r.ai(() => page.waitForFunction(() => !/Creando ficha/.test(document.body.innerText), null, { timeout: 600_000, polling: 1000 }));
+  await r.scrollIn(dialog.getByLabel('Indicaciones (opcional)'), 'reveal', 1100); // the questions the class got wrong
+  await r.hold(1600);
+  await r.tap(createButton);
+  await dialog.waitFor({ state: 'hidden' });
+  await r.hold(1400); // the toast, and the worksheet's row with its progress
+  const [unitId] = (await d.api.get(`/activities/${d.exam}`)).unit_ids;
+  const row = page.locator('.row', { hasText: /Ficha de refuerzo/ }).first();
+  await r.ai(async () => {
+    const done = await until('the worksheet', async () => (await d.api.get(`/units/${unitId}`)).materials
+      .find((m) => m.kind === 'worksheet' && /refuerzo/i.test(m.title) && m.status !== 'generating'));
+    if (done.status !== 'ready') fail(`The worksheet ended ${done.status}.`);
+    await row.locator('.spinner').waitFor({ state: 'detached', timeout: 120_000 });
+  });
   await r.hold(1200);
-  await r.tap(page.locator('.row', { hasText: /Ficha de refuerzo/ }).first());
-  await page.getByRole('button', { name: 'Con soluciones' }).waitFor();
-  await r.settle();
-  await r.hold(1200);
+  await r.tap(row);
+  await r.lag(async () => {
+    await page.getByRole('button', { name: 'Con soluciones' }).waitFor();
+    await r.settle();
+  });
+  await r.hold(1000);
   await r.tap(page.getByRole('button', { name: 'Con soluciones' }));
-  await r.hold(900);
-  await r.scrollBy(460, 1800);
-  await r.hold(1800);
+  await r.hold(800);
+  await r.scrollBy(460, 1600);
+  await r.hold(2200);
   r.poster();
 }
 
@@ -214,21 +228,25 @@ async function tellTheFamily(r, d) {
   await r.hold(1900);
 }
 
-/** Primera evaluación: a student's proposed grade → «Cómo se calcula» → the report comment the AI drafted. */
+/** Primera evaluación: a student's proposed grade → «Cómo se calcula» → the report comment the AI drafted →
+ *  «Aceptar y siguiente», and the next student's own comment. */
 async function explainTheGrade(r, d) {
   const { page } = r;
-  await r.hold(1500);
-  const row = page.locator('.row', { hasText: d.graded.sort_name }).first();
-  await r.scrollTo(row, 1500, 140);
-  await r.hold(800);
-  await r.tap(row);
+  await r.hold(1200);
+  await r.tap(page.locator('.row', { hasText: d.graded.sort_name }).first());
   const sheet = page.getByRole('dialog');
   await sheet.getByRole('button', { name: 'Cómo se calcula' }).waitFor();
-  await r.hold(1400);
+  await r.hold(1300);
   await r.tap(sheet.getByRole('button', { name: 'Cómo se calcula' }));
   await r.hold(2400);
   r.poster();
   await r.scrollIn(sheet.getByText('Comentario de boletín'), 'reveal', 1300);
+  await r.hold(2800);
+  const title = await sheet.locator('.sheet__title').textContent();
+  await r.tap(sheet.getByRole('button', { name: 'Aceptar y siguiente' }));
+  await r.lag(() => page.waitForFunction((t) => document.querySelector('[role="dialog"] .sheet__title')?.textContent !== t, title));
+  await r.hold(600);
+  await r.scrollIn(sheet.getByText('Comentario de boletín'), 'reveal', 1100);
   await r.hold(2600);
 }
 
@@ -256,16 +274,20 @@ async function demoIds(api) {
 }
 
 /** The first paper still to review that has the AI's points, the name confirmed and nothing to fix first, where the
- *  AI took points off question 2 and whose next paper is just as clean (the clip ends on it). */
+ *  AI took part of the points of question 2 (raising them is the teacher's call on a real attempt), where the student
+ *  wrote no asides to the teacher (the AI's remarks would quote them), and whose next paper is just as clean (the
+ *  clip ends on it). */
 async function cleanPaper(api, exam) {
   const c = await api.get(`/activities/${exam}/correction`);
   const clean = (s) => s?.paper_id && s.match_status === 'confirmed' && s.grade?.status === 'suggested' && !s.flags.length;
+  const aside = /\banota\b|\bapunta\b|escribe que|dice que|reconoce/i;
   const pending = c.students.filter(clean);
   for (const [k, s] of pending.entries()) {
     const review = await api.get(`/activities/${exam}/review/${s.student.id}`);
     const second = review.ai?.items?.[1];
     const max = review.items?.[1]?.points;
-    if (second && max && second.points < max && clean(pending[k + 1]) && review.next_pending_id === pending[k + 1].student.id) return s.student.id;
+    if (second && max && second.points > 0 && second.points < max && !review.ai.items.some((i) => aside.test(i.feedback ?? ''))
+      && clean(pending[k + 1]) && review.next_pending_id === pending[k + 1].student.id) return s.student.id;
   }
   return pending[0]?.student.id ?? fail('No paper with the AI\'s points left to review.');
 }
@@ -297,7 +319,8 @@ async function listPassed(api, d) {
 }
 
 /** A second subject with written answers: a history class of 1.º Bach B with an exam generated from its unit, a pile
- *  of scanned papers written by a real model imitating students (the backend's handwriting tool) and graded by the AI. */
+ *  of scanned papers written by a real model imitating students (the backend's handwriting tool) and graded by the AI.
+ *  → how long the AI took from the uploaded pile to every student's proposed points (the page says it). */
 async function historyExam(api) {
   const group = (await api.get('/groups')).find((g) => g.stage === 'bachillerato') ?? fail('No Bachillerato group in the demo.');
   const course = await api.post('/courses', { subject: 'Historia del Mundo Contemporáneo', short: 'HMC', color: 'clay', room: '301',
@@ -310,15 +333,17 @@ async function historyExam(api) {
     instructions: 'Preguntas de desarrollo con respuesta escrita: definir conceptos, explicar causas y consecuencias y relacionar hechos. Sin preguntas tipo test.' });
   await jobDone(api, job.id);
   const dir = mkdtempSync(join(tmpdir(), 'sepia-pile-'));
-  execFileSync(PYTHON, ['-m', 'app.services.handwriting', '--activity', exam.id, '--students', '5', '--seed', '3', '--out', join(dir, 'pila.pdf')],
+  execFileSync(PYTHON, ['-m', 'app.services.handwriting', '--activity', exam.id, '--students', '8', '--seed', '3', '--out', join(dir, 'pila.pdf')],
     { cwd: BACKEND, env: api.env, stdio: 'inherit' });
   const form = new FormData();
   form.append('files', new Blob([readFileSync(join(dir, 'pila.pdf'))], { type: 'application/pdf' }), 'escaneo.pdf');
   rmSync(dir, { recursive: true, force: true });
   form.append('mode', 'names');
+  const t0 = Date.now();
   const upload = await api.upload(`/activities/${exam.id}/papers`, form);
   const ingest = await jobDone(api, upload.job.id);
   if (ingest.result?.suggest_job) await jobDone(api, ingest.result.suggest_job);
+  return { pile: { papers: ingest.result.papers, pages: ingest.result.pages, seconds: Math.round((Date.now() - t0) / 1000) } };
 }
 
 async function jobDone(api, id) {
@@ -350,10 +375,10 @@ class Recorder {
     });
   }
 
-  async start(size) {
+  async start() {
     await this.cdp.send('Animation.enable');
     await this.cdp.send('Animation.setPlaybackRate', { playbackRate: 1 / this.k });
-    await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 90, maxWidth: size[0], maxHeight: size[1], everyNthFrame: 1 });
+    await this.cdp.send('Page.startScreencast', { format: 'jpeg', quality: 90, everyNthFrame: 1 });
     // A still page sends no frames: repaint a speck of it until the first frame of what it shows now arrives.
     const asked = Date.now() / 1000;
     for (let i = 0; i < 200 && !this.frames.some((f) => f.at > asked + 0.05); i++) {
@@ -383,18 +408,21 @@ class Recorder {
     this.aiSeconds.push(Math.round(to - from));
   }
 
-  /** Waits for the app: in the clip it lasts at most LAG seconds. */
+  /** Waits for the app: in the clip it lasts at most LAG seconds, on the frame from before the wait. */
   async lag(until) {
     const from = Date.now() / 1000;
     await until();
     const to = Date.now() / 1000;
-    if ((to - from) / this.k > LAG) this.lapses.push([from, to, LAG]);
+    this.lapses.push([from, to, Math.max(1 / FPS, Math.min(LAG, (to - from) / this.k)), true]);
   }
 
+  /** Until the page shows everything it loads: no skeletons, every image loaded, decoded and painted. */
   async settle() {
     await this.page.waitForLoadState('networkidle');
     await this.page.waitForFunction(() => !document.querySelector('.skel, [aria-busy="true"]')
       && [...document.images].every((i) => i.complete && i.naturalWidth), null, { timeout: 60_000 });
+    await this.page.evaluate(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {})))
+      .then(() => new Promise((painted) => requestAnimationFrame(() => requestAnimationFrame(painted)))));
   }
 
   /** A tap (phone) or a click with the pointer gliding to it (desktop); both drawn by the page overlay. */
@@ -472,10 +500,11 @@ class Recorder {
     return this.frames.map((f) => ({ data: f.data, t: f.t + shift })).sort((a, b) => a.t - b.t);
   }
 
-  /** Constant-frame-rate JPEG sequence of the recording (slow motion undone, each lapse squeezed into its seconds)
-   *  and the index of its poster frame. */
+  /** Constant-frame-rate JPEG sequence of the recording (slow motion undone, each lapse squeezed into its seconds;
+   *  a frozen one shows the frame from its start) and the index of its poster frame. */
   sequence() {
     const frames = this.aligned();
+    const before = (time) => Math.max(0, frames.findLastIndex((f) => f.t <= time));
     const out = [];
     let j = 0;
     let poster = 0;
@@ -483,7 +512,7 @@ class Recorder {
       const lapse = this.lapses.find(([a, b]) => t >= a && t < b);
       while (j + 1 < frames.length && frames[j + 1].t <= t) j++;
       if (this.posterAt && t <= this.posterAt) poster = out.length;
-      out.push(frames[j].data);
+      out.push(frames[lapse?.[3] ? before(lapse[0]) : j].data);
       t += lapse ? (lapse[1] - lapse[0]) / (lapse[2] * FPS) : this.k / FPS;
     }
     return { frames: out, poster: this.posterAt ? poster : Math.floor(out.length / 2) };
@@ -498,6 +527,7 @@ function overlay() {
   const style = document.createElement('style');
   style.textContent = `
     html { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }
+    * { -webkit-tap-highlight-color: transparent; } /* the emulator's blue tap flash: the clip draws the finger itself */
     .clip-touch { position: fixed; z-index: 2147483647; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
       pointer-events: none; background: rgba(28, 28, 30, 0.16); box-shadow: 0 0 0 1.5px rgba(28, 28, 30, 0.28);
       animation: clip-touch 620ms cubic-bezier(.2,.8,.2,1) forwards; }
@@ -607,7 +637,7 @@ async function startApi(seed, logFile) {
       if (health.ai_provider !== 'claude_cli') fail(`The API answers with AI "${health.ai_provider}", not claude_cli.`);
       break;
     } catch (e) {
-      if (i > 150 || proc.exitCode !== null) fail(`The API did not start (see ${logFile}): ${e.message}`);
+      if (i > 600 || proc.exitCode !== null) fail(`The API did not start (see ${logFile}): ${e.message}`);
       await new Promise((r) => setTimeout(r, 200));
     }
   }
@@ -694,8 +724,17 @@ if (!existsSync(join(SEED, 'sepia.db'))) fail(`SEED: ${SEED} has no sepia.db. Se
 mkdirSync(OUT, { recursive: true });
 const LOG = join(tmpdir(), 'sepia-landing-clips-api.log');
 const manifestFile = join(OUT, 'clips.json');
-// Software GL: without it headless Chromium skips backdrop-filter and the app's glass shows the content unblurred.
-const browser = await chromium.launch({ args: ['--enable-gpu', '--use-angle=swiftshader'], handleSIGINT: false, handleSIGTERM: false });
+// Software GL: without it headless Chromium skips backdrop-filter and the app's glass shows the content unblurred. One
+// browser per pixel density, forced at launch: headless Chromium draws (and screencasts) at the density it was started
+// with, whatever the page emulates, so without it every clip would have one pixel per CSS pixel.
+const browsers = new Map();
+const browserAt = async (scale) => {
+  if (!browsers.has(scale)) {
+    browsers.set(scale, await chromium.launch({ args: ['--enable-gpu', '--use-angle=swiftshader', `--force-device-scale-factor=${scale}`],
+      handleSIGINT: false, handleSIGTERM: false }));
+  }
+  return browsers.get(scale);
+};
 let failed = false;
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { for (const s of running) await s.stop(); process.exit(1); });
 
@@ -706,7 +745,13 @@ for (const clip of CLIPS) {
     console.log(`${clip.name}: preparing the demo (real AI, several minutes)…`);
     prepared = await startApi(SEED, LOG);
     running.add(prepared);
-    await clip.prepare(prepared.api);
+    const measured = await clip.prepare(prepared.api);
+    if (measured?.pile) {
+      const saved = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : {};
+      saved[`pile:${clip.name}`] = measured.pile;
+      writeFileSync(manifestFile, `${JSON.stringify(Object.fromEntries(Object.entries(saved).sort()), null, 2)}\n`);
+      console.log(`${clip.name}: the AI read and graded ${measured.pile.papers} papers (${measured.pile.pages} pages) in ${measured.pile.seconds} s`);
+    }
     await prepared.stop(true);
     running.delete(prepared);
     seed = prepared.dir;
@@ -722,7 +767,7 @@ for (const clip of CLIPS) {
         if (clip.prelude) await clip.prelude(server.api, ids);
         const { slow, scale, context } = DEVICES[device];
         const viewport = { ...context.viewport, height };
-        const ctx = await browser.newContext({ ...context, viewport, deviceScaleFactor: scale, colorScheme: scheme,
+        const ctx = await (await browserAt(scale)).newContext({ ...context, viewport, deviceScaleFactor: scale, colorScheme: scheme,
           locale: 'es-ES', timezoneId: 'Europe/Madrid' });
         await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(APP).origin });
         await ctx.route((url) => url.origin === new URL(APP).origin && url.pathname.startsWith('/api/'), async (route) => {
@@ -745,8 +790,8 @@ for (const clip of CLIPS) {
         await r.settle();
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(600 * slow);
-        if (clip.before) await clip.before(r);
-        await r.start([Math.round(viewport.width * scale), Math.round(height * scale)]);
+        if (clip.before) await clip.before(r, ids);
+        await r.start();
         await clip.run(r, ids);
         await r.stop();
         const { frames, poster } = r.sequence();
@@ -772,7 +817,7 @@ for (const clip of CLIPS) {
   if (prepared) rmSync(prepared.dir, { recursive: true, force: true });
 }
 if (!ONLY || ONLY.includes('og')) await linkPreview();
-await browser.close();
+for (const b of browsers.values()) await b.close();
 stamp();
 if (failed) fail('Some clips failed (see above).');
 
@@ -780,7 +825,7 @@ if (failed) fail('Some clips failed (see above).');
 async function linkPreview() {
   const poster = join(OUT, 'corregir-phone.webp');
   if (!existsSync(poster)) return;
-  const ctx = await browser.newContext({ viewport: { width: 1200, height: 630 }, colorScheme: 'light', locale: 'es-ES' });
+  const ctx = await (await browserAt(1)).newContext({ viewport: { width: 1200, height: 630 }, colorScheme: 'light', locale: 'es-ES' });
   const page = await ctx.newPage();
   await page.goto(`${APP}/landing/index.html`); // same origin as the landing's fonts and styles
   await page.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8">
@@ -805,8 +850,9 @@ async function linkPreview() {
   await ctx.close();
 }
 
-/** index.html ← the recordings: data-v (a hash of the clip's videos) on each clip, ?v= on posters and images, and in
- *  each <span data-wait="clip">, how long the AI took (the mean of its recordings, rounded: each video shows its own). */
+/** index.html ← the recordings: data-v (a hash of the clip's videos) on each clip, ?v= on posters and images, in
+ *  each <span data-wait="clip">, how long the AI took (the mean of its recordings, rounded: each video shows its own),
+ *  and in each <span data-pile="clip">, the pile its demo was prepared with and how long the AI took to grade it. */
 function stamp() {
   const files = readdirSync(OUT);
   const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
@@ -827,9 +873,13 @@ function stamp() {
     .replace(/\/landing\/((?:clips|img)\/[\w.-]+\.(?:webp|jpg))(?:\?v=\w+)?/g, (m, file) =>
       (existsSync(join(ROOT, 'landing', file)) ? `/landing/${file}?v=${sha([join(ROOT, 'landing', file)])}` : m))
     .replace(/(<span data-wait="([\w-]+)">)[^<]*(<\/span>)/g, (m, open, name, close) => {
-      const waits = Object.entries(manifest).filter(([k]) => k.startsWith(`${name}-`))
+      const waits = Object.entries(manifest).filter(([k]) => k.startsWith(`${name}-`) && !k.includes(':'))
         .map(([, v]) => v.ai_seconds.reduce((a, b) => a + b, 0)).filter(Boolean);
       return waits.length ? open + about(waits.reduce((a, b) => a + b, 0) / waits.length) + close : m;
+    })
+    .replace(/(<span data-pile="([\w-]+)">)[^<]*(<\/span>)/g, (m, open, name, close) => {
+      const pile = manifest[`pile:${name}`];
+      return pile ? `${open}${pile.papers} exámenes (${pile.pages} páginas escaneadas): la IA tardó ${about(pile.seconds)} en ordenarlos por alumno y proponer los puntos${close}` : m;
     });
   writeFileSync(INDEX, html);
 }
