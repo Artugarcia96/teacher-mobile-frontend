@@ -14,10 +14,12 @@ import { useCoarsePointer } from '../../features/materials/pointer';
 import ShareSheet from '../../features/materials/ShareSheet';
 import CreateMaterialSheet from '../../features/units/CreateMaterialSheet';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
+import { ApiError } from '../../lib/api';
 import { useToday } from '../../lib/auth';
 import { addDays, ordinals, plural, TERM_LABEL } from '../../lib/format';
 import {
-  Button, Chip, Dot, DropZone, EmptyState, IconButton, List, Menu, Page, Row, RowIcon, Section, SkeletonList, Spinner, useFeedback,
+  Button, Callout, Chip, Dot, DropTarget, EmptyState, IconButton, List, Menu, Page, Progress, Row, RowIcon, Section, SkeletonList,
+  Spinner, useFeedback,
 } from '../../ui';
 import './UnitPage.css';
 
@@ -32,15 +34,15 @@ const IMAGE = /\.(png|jpe?g|webp)$/i;
 type Sheet = 'create' | 'edit' | 'link' | 'photos' | null;
 type Target = { m: Material; kind: 'edit' | 'share' } | { m: Material; kind: 'place'; mode: PlaceMode } | null;
 
-/** Unidad: its materials ("Para alumnos" / "Solo para ti"), uploads, photos of the book, links, "Crear con IA"
- *  and the shortcut to an exam of the unit. */
+/** Unidad: its materials ("Para alumnos" / "Solo para ti"), uploads (also dropped anywhere on the page on a
+ *  computer), photos of the book, links, "Crear con IA" and the shortcut to an exam of the unit. */
 export default function UnitPage() {
   const { courseId = '', unitId = '' } = useParams();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const today = useToday();
   const { toast, confirm } = useFeedback();
-  const { data, isLoading, error } = useUnit(unitId);
+  const { data, isLoading, error, refetch } = useUnit(unitId);
   const patch = usePatchUnit(courseId);
   const delUnit = useDeleteUnit(courseId);
   const upload = useUploadMaterials(unitId);
@@ -55,10 +57,14 @@ export default function UnitPage() {
   const planPath = `/clases/${courseId}/programacion`;
 
   if (error) {
+    const missing = error instanceof ApiError && error.status === 404;
     return (
       <Page title="Unidad" back={planPath} backLabel="Temario">
-        <EmptyState icon={<WarningCircle size={24} />} title="No se ha encontrado la unidad" text={(error as Error).message}
-          action={<Button variant="neutral" to={planPath}>Volver al temario</Button>} />
+        <EmptyState icon={<WarningCircle size={24} />} title={missing ? 'No se ha encontrado la unidad' : 'No se ha podido cargar la unidad'}
+          text={(error as Error).message}
+          action={missing
+            ? <Button variant="neutral" to={planPath}>Volver al temario</Button>
+            : <Button variant="tinted" onClick={() => refetch()}>Reintentar</Button>} />
       </Page>
     );
   }
@@ -68,7 +74,6 @@ export default function UnitPage() {
 
   const { unit, course, materials } = data;
   const status = STATUS[unit.status];
-  const notes = materials.find((m) => m.kind === 'notes' && m.status === 'ready');
   const forStudents = materials.filter((m) => m.audience === 'alumnos');
   const forMe = materials.filter((m) => m.audience !== 'alumnos');
 
@@ -129,7 +134,9 @@ export default function UnitPage() {
   };
   const group = (list: Material[]) => (
     <List inset={64}>
-      {list.map((m) => <MaterialRow key={m.id} m={m} courseId={courseId} group={list} all={materials} today={today} actions={actions} />)}
+      {list.map((m) => (
+        <MaterialRow key={m.id} m={m} courseId={courseId} unitTitle={unit.title} group={list} all={materials} today={today} actions={actions} />
+      ))}
     </List>
   );
 
@@ -156,7 +163,7 @@ export default function UnitPage() {
         />
       }
     >
-      <div className="unit-body">
+      <DropTarget className="unit-body" onFiles={onFiles} disabled={upload.isPending} label="Suelta los archivos para subirlos a la unidad">
         <div className="unit-actions">
           <Button icon={<Plus size={18} weight="bold" />} onClick={() => setSheet('create')}>Crear con IA</Button>
           <Button className="unit-actions__wide" variant="neutral" icon={<UploadSimple size={18} />} loading={upload.isPending}
@@ -179,10 +186,13 @@ export default function UnitPage() {
             onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; if (files.length) void onFiles(files); }} />
         </div>
 
+        {uploading && (
+          <Callout tone="accent"><div className="unit-upload"><span>{uploading}</span><Progress value={sent ?? 0} total={1} /></div></Callout>
+        )}
         {materials.length === 0 ? (
           <div className="paper">
             <EmptyState icon={<FolderOpen size={24} />} title="Aún no hay materiales en esta unidad"
-              text="Añade lo que ya usas en clase: el tema del libro, tus apuntes, presentaciones o fotos de las páginas. La IA usa tus archivos y fotos (no los enlaces) como base para crear apuntes, fichas y exámenes de esta unidad." />
+              text="Sube lo que ya usas en clase (el tema del libro, tus apuntes, fotos de las páginas) o crea apuntes, fichas y presentaciones con IA a partir de ello." />
           </div>
         ) : (
           <>
@@ -195,11 +205,6 @@ export default function UnitPage() {
           </>
         )}
 
-        <DropZone onFiles={onFiles} multiple accept={ACCEPT} disabled={upload.isPending}
-          title={uploading ?? 'Sube lo que ya tienes'}
-          hint="PDF, Word, PowerPoint, texto o imágenes; puedes elegir o arrastrar varios. La IA usa tus archivos y fotos (no los enlaces) al crear apuntes, fichas y exámenes."
-          buttonLabel="Subir archivos" />
-
         <Section title="Evaluar">
           <List inset={64}>
             <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Crear un examen de esta unidad"
@@ -207,10 +212,10 @@ export default function UnitPage() {
               trail={createActivity.isPending ? <Spinner /> : undefined} />
           </List>
         </Section>
-      </div>
+      </DropTarget>
 
-      <CreateMaterialSheet open={sheet === 'create'} unitId={unit.id} notesId={notes?.id}
-        initial={params.get('crear') === 'ficha' ? { kind: 'worksheet', worksheetKind: 'refuerzo', instructions: params.get('indicaciones') ?? '' } : undefined}
+      <CreateMaterialSheet open={sheet === 'create'} unit={unit} materials={materials} courseId={courseId}
+        initial={params.get('crear') === 'ficha' ? { kind: 'worksheet', level: 'refuerzo', instructions: params.get('indicaciones') ?? '' } : undefined}
         onClose={() => { setSheet(null); if (params.has('crear')) setParams({}, { replace: true }); }} />
       <UnitFormSheet open={sheet === 'edit'} onClose={() => setSheet(null)} courseId={courseId} unit={unit} />
       <AddLinkSheet open={sheet === 'link'} onClose={() => setSheet(null)} unitId={unit.id} />

@@ -1,6 +1,6 @@
-import { CaretDown, X } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { useBulkUnits, useImportUnits } from '../../api/units';
+import { CaretDown, FileArrowUp, X } from '@phosphor-icons/react';
+import { useRef, useState } from 'react';
+import { useBulkUnits, useImportUnits, useImportUnitsFile } from '../../api/units';
 import { plural } from '../../lib/format';
 import { Button, Callout, IconButton, Sheet, TextArea, useFeedback } from '../../ui';
 import './units.css';
@@ -12,7 +12,7 @@ Tema 2. Fracciones
 Tema 3. Potencias y raíces
 …`;
 
-/** Paste a book index / programación → AI proposes units with evaluación → edit → create. */
+/** Paste a book index / programación, or choose its file → AI proposes units with evaluación → edit → create. */
 export default function ImportUnitsSheet({ open, onClose, courseId }: { open: boolean; onClose: () => void; courseId: string }) {
   if (!open) return null;
   return <ImportUnits onClose={onClose} courseId={courseId} />;
@@ -21,16 +21,29 @@ export default function ImportUnitsSheet({ open, onClose, courseId }: { open: bo
 function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: string }) {
   const { toast } = useFeedback();
   const parse = useImportUnits(courseId);
+  const parseFile = useImportUnitsFile(courseId);
   const bulk = useBulkUnits(courseId);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [items, setItems] = useState<Proposal[] | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
+  const reading = parse.isPending || parseFile.isPending;
+  const show = ({ proposals, warning }: { proposals: { title: string; term: number | null }[]; warning: string | null }) => {
+    setItems(proposals.map((p, i) => ({ key: i, ...p })));
+    setWarning(warning);
+  };
   const propose = async () => {
+    if (reading) return;
     try {
-      const { proposals, warning } = await parse.mutateAsync(text);
-      setItems(proposals.map((p, i) => ({ key: i, ...p })));
-      setWarning(warning);
+      show(await parse.mutateAsync(text));
+    } catch (e) {
+      toast((e as Error).message, { tone: 'error' });
+    }
+  };
+  const fromFile = async (file: File) => {
+    try {
+      show(await parseFile.mutateAsync(file));
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
     }
@@ -54,11 +67,17 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
     return (
       <Sheet open onClose={onClose} title="Importar temario" size="large"
         subtitle="Sepia propone las unidades y reparte las evaluaciones. Podrás revisarlas antes de crearlas."
-        footer={<Button full onClick={propose} loading={parse.isPending} disabled={text.trim().length < 3}>
-          {text.trim().length < 3 ? 'Pega el índice para continuar' : 'Proponer unidades'}
+        footer={<Button full onClick={propose} loading={reading} disabled={text.trim().length < 3 || reading}>
+          {reading ? 'Leyendo el temario…' : text.trim().length < 3 ? 'Pega el índice o elige el archivo' : 'Proponer unidades'}
         </Button>}>
-        <TextArea label="Pega el índice del libro o de tu programación" value={text} onChange={(e) => setText(e.target.value)}
-          placeholder={PLACEHOLDER} className="import-text" />
+        <div className="form">
+          <Button variant="neutral" icon={<FileArrowUp size={18} />} loading={parseFile.isPending} disabled={reading}
+            onClick={() => fileInput.current?.click()}>Elegir el archivo de la programación</Button>
+          <input ref={fileInput} type="file" hidden accept=".pdf,.docx,.pptx,.txt,.md"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void fromFile(f); }} />
+          <TextArea label="O pega el índice del libro o de tu programación" value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={PLACEHOLDER} className="import-text" />
+        </div>
       </Sheet>
     );
   }

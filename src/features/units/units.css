@@ -18,3 +18,10 @@
 .kind-row__radio { color: var(--ink-3); }
 
 .option-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 500; }
+
+/* Crear con IA: the other sources the AI reads */
+.create-sources { margin: -6px 0 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: var(--fs-sub); color: var(--ink-2); }
+.create-sources b { color: var(--ink); font-weight: 600; }
+
+/* Preparar el trimestre */
+.prepare-progress { display: grid; gap: 8px; font-weight: 500; }

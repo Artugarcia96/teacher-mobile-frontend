@@ -1,20 +1,27 @@
-import { ArrowDown, ArrowUp, CheckCircle, Circle, Copy, DotsThree, ListBullets, Plus, ShareNetwork, Trash, UploadSimple, WarningCircle } from '@phosphor-icons/react';
+import {
+  ArrowDown, ArrowUp, CheckCircle, Circle, Copy, DotsThree, Files, ListBullets, Plus, ShareNetwork, Trash, UploadSimple, WarningCircle,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
-import { useCourses } from '../../api/core';
+import { useAIUnavailable, useCourses, useJob } from '../../api/core';
 import type { CourseDetail } from '../../api/types';
 import { useCopyUnits, useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
 import { useCourseMenu } from '../../features/course/CourseMenu';
 import CopyUnitsSheet from '../../features/units/CopyUnitsSheet';
+import { useWatched } from '../../features/materials/watch';
 import ImportUnitsSheet from '../../features/units/ImportUnitsSheet';
+import PrepareTermSheet, { batchText } from '../../features/units/PrepareTermSheet';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
 import { ordinals, plural, TERM_LABEL } from '../../lib/format';
-import { Button, Chip, EmptyState, IconButton, List, Menu, Row, Section, SkeletonList, useFeedback, type MenuItem } from '../../ui';
+import {
+  Button, Chip, EmptyState, IconButton, List, Menu, Progress, Row, RowIcon, Section, SkeletonList, useFeedback, type MenuItem,
+} from '../../ui';
 import './PlanTab.css';
 
-type SheetName = 'new' | 'import' | 'copy' | null;
+type SheetName = 'new' | 'import' | 'copy' | 'prepare' | null;
 
-/** Temario (URL slug "programacion"): units grouped by evaluación, with status (pendiente / en curso / impartida).
- *  Import and copy live in the class "···" menu (features/course/CourseMenu). */
+/** Temario (URL slug "programacion"): units grouped by evaluación, with status (pendiente / en curso / impartida), and
+ *  «Preparar el trimestre» (materials of several units in one go). Import and copy live in the class "···" menu
+ *  (features/course/CourseMenu). */
 export default function PlanTab({ course }: { course: CourseDetail }) {
   const { data: units, isLoading, error } = useUnits(course.id);
   const [sheet, setSheet] = useState<SheetName>(null);
@@ -30,6 +37,7 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
       <UnitFormSheet open={sheet === 'new'} onClose={close} courseId={course.id} term={newTerm} />
       <ImportUnitsSheet open={sheet === 'import'} onClose={close} courseId={course.id} />
       <CopyUnitsSheet open={sheet === 'copy'} onClose={close} courseId={course.id} />
+      <PrepareTermSheet open={sheet === 'prepare'} onClose={close} course={course} units={units ?? []} />
     </>
   );
 
@@ -74,6 +82,8 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
         </div>
       </div>
 
+      <PrepareRow courseId={course.id} onOpen={() => setSheet('prepare')} />
+
       <div className="plan-terms">
         {groups.map((g) => (
           <Section key={g.label} title={g.label}
@@ -95,6 +105,22 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
       </div>
       {sheets}
     </div>
+  );
+}
+
+/** «Preparar el trimestre»: opens the sheet; while a batch of this class runs, its progress. */
+function PrepareRow({ courseId, onOpen }: { courseId: string; onOpen: () => void }) {
+  const noAI = useAIUnavailable();
+  const batch = useWatched().find((w) => w.kind === 'batch' && w.courseId === courseId);
+  const job = useJob(batch?.job);
+  const sub = batch
+    ? <span className="plan-prepare"><span>{job ? batchText(job) : 'En cola…'}</span><Progress value={job?.progress ?? 0} total={job?.total || 1} /></span>
+    : noAI ?? 'Apuntes, fichas y presentaciones de varias unidades a la vez, con IA';
+  return (
+    <List inset={64}>
+      <Row lead={<RowIcon tone="accent"><Files size={20} /></RowIcon>} title={batch ? 'Preparando el trimestre' : 'Preparar el trimestre'}
+        sub={sub} wrapSub onClick={noAI && !batch ? undefined : onOpen} muted={!!noAI && !batch} />
+    </List>
   );
 }
 

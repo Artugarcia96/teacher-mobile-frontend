@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCourses } from '../api/core';
 import { useInboxCount } from '../api/inbox';
+import { JobWatcher } from '../features/materials/watch';
 import { SearchSheet } from '../features/students/StudentSearch';
 import { useAuth } from '../lib/auth';
 import { courseLabel, courseShortLabel } from '../lib/format';
@@ -57,6 +58,7 @@ export function Shell() {
   return (
     <div className={`shell${focusMode ? ' shell--focus' : ''}`}>
       <div className="ambient" />
+      <JobWatcher />
       <aside className="sidebar glass" aria-label="Navegación">
         <div className="brand">
           <img src="/squid.svg" alt="" width={28} height={28} />

@@ -13,11 +13,14 @@ function usage(s: GroundingSource): string | null {
 }
 
 /** "Crear con IA" / "Generar examen": which of the teacher's materials the AI will read (own ones first), which only
- *  in part, and a warning while files are still being read. Backend: GET /grounding. */
-export function GroundingList({ unitIds, what }: { unitIds: string[]; what: string }) {
-  const g = useGrounding(unitIds);
+ *  in part, and a warning while files are still being read. Backend: GET /grounding (`ownOnly`: a material reads
+ *  only the teacher's own files). */
+export function GroundingList({ unitIds, what, ownOnly = false, label = 'Material que usará la IA' }: {
+  unitIds: string[]; what: string; ownOnly?: boolean; label?: string;
+}) {
+  const g = useGrounding(unitIds, ownOnly);
   if (!unitIds.length) return null;
-  if (g.isLoading) return <div className="field"><span className="field__label">Material que usará la IA</span><Skeleton h={18} w="60%" /></div>;
+  if (g.isLoading) return <div className="field"><span className="field__label">{label}</span><Skeleton h={18} w="60%" /></div>;
   if (!g.data) return null;
   const { sources, reading } = g.data;
   const partial = sources.some((s) => s.used < s.chars);
@@ -25,10 +28,11 @@ export function GroundingList({ unitIds, what }: { unitIds: string[]; what: stri
 
   return (
     <div className="field grounding">
-      <span className="field__label">Material que usará la IA</span>
+      <span className="field__label">{label}</span>
       {sources.length === 0 ? (
         <p className="field__hint">
-          {one ? 'Esta unidad aún no tiene' : 'Estas unidades aún no tienen'} archivos ni fotos con texto: la IA partirá del título.
+          {one ? 'Esta unidad aún no tiene' : 'Estas unidades aún no tienen'} archivos ni fotos con texto: la IA partirá del
+          {ownOnly ? ' temario y del título. ' : ' título. '}
           Sube el tema del libro o tus apuntes para que {what} se base en ellos.
         </p>
       ) : (

@@ -37,7 +37,7 @@ function UnitForm({ open, onClose, courseId, unit, term }: UnitFormSheetProps) {
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
-    if (!clean) return;
+    if (!clean || busy) return;
     try {
       if (unit) {
         await patch.mutateAsync({ id: unit.id, title: clean, term: t });
