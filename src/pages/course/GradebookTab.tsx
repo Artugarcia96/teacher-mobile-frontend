@@ -10,9 +10,10 @@ import EditActivitySheet from '../../features/activities/EditActivitySheet';
 import ExamAbsencesSheet from '../../features/activities/ExamAbsencesSheet';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
 import { KindIcon } from '../../features/activities/kinds';
+import AverageBreakdown from '../../features/grades/AverageBreakdown';
 import { download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { exportCsvLabel, formatAverage, formatNumber, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { formatAverage, formatNumber, formatScore, parseGradeInput, plural, shortDate, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, EmptyState, Grade, GradePill, IconButton, List, Row, RowIcon, Segmented, Sheet, SkeletonList, useFeedback,
 } from '../../ui';
@@ -43,7 +44,7 @@ export default function GradebookTab({ course }: { course: CourseDetail }) {
       .catch((e: Error) => toast(e.message, { tone: 'error' }));
 
   useCourseMenu([
-    { label: exportCsvLabel(me?.region), icon: <FileCsv size={18} />, onSelect: exportCsv },
+    { label: 'Exportar cuaderno (CSV)', icon: <FileCsv size={18} />, onSelect: exportCsv },
     { label: 'Ponderaciones', icon: <Scales size={18} />, onSelect: () => setWeights(true) },
   ]);
 
@@ -169,7 +170,7 @@ function cellText(cell: GradeCell | undefined): string {
   return formatScore(cell.score);
 }
 
-function cellLabel(cell: GradeCell | undefined, calculated: boolean): string {
+function cellLabel(cell: GradeCell | undefined): string {
   if (!cell || cell.status === 'empty') return 'sin nota';
   if (cell.status === 'pending_absent') {
     return `faltó al examen${cell.absence === 'justified' ? ' (falta justificada)' : ''}, ${cell.activity_id ? 'repesca programada' : 'pendiente'}`;
@@ -177,7 +178,7 @@ function cellLabel(cell: GradeCell | undefined, calculated: boolean): string {
   if (cell.status === 'absent') return 'no presentado';
   if (cell.status === 'exempt') return 'exento';
   const n = formatScore(cell.score);
-  if (cell.status === 'suggested') return calculated ? `${n}, calculada con los deberes, sin confirmar` : `${n}, borrador de la IA sin revisar`;
+  if (cell.status === 'suggested') return `${n}, borrador de la IA sin revisar`;
   return cell.repeat ? `${n}, nota de la repesca` : n;
 }
 
@@ -351,9 +352,9 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                             label={label} />
                         ) : (
                           <button type="button" className="gb-cell__btn" onClick={() => setEditing({ r, c })}
-                            aria-label={`${label}: ${cellLabel(cell, a.kind === 'homework')}`}
+                            aria-label={`${label}: ${cellLabel(cell)}`}
                             title={cell?.repeat ? 'Nota de la repesca' : cell?.status === 'pending_absent' && cell.activity_id ? 'Faltó: repesca programada' : undefined}>
-                            <CellValue cell={cell} max={a.max_score} calculated={a.kind === 'homework'} />
+                            <CellValue cell={cell} max={a.max_score} />
                           </button>
                         )}
                       </td>
@@ -396,26 +397,19 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
           : <>Toca una celda para poner nota. <span className="gb-hint__keys">Enter baja al siguiente alumno, Tab pasa a la siguiente actividad. </span>Escribe NP si no se presentó.</>}
         {draftsNote && <> Las medias no cuentan {plural(data.drafts, 'borrador', 'borradores')} de la IA hasta que los revises.</>}
       </p>
-      <AverageSheet row={avgRow} onClose={() => setAvgRow(null)} data={data} categories={data.categories} />
+      <AverageSheet row={avgRow} onClose={() => setAvgRow(null)} data={data} />
     </>
   );
 }
 
-/** `calculated`: the «Deberes» column, suggested by a formula (not by the AI). */
-function CellValue({ cell, max, calculated }: { cell: GradeCell | undefined; max: number; calculated?: boolean }) {
+function CellValue({ cell, max }: { cell: GradeCell | undefined; max: number }) {
   if (!cell || cell.status === 'empty') return <span className="gb-empty" aria-hidden>—</span>;
   if (cell.status === 'pending_absent') {
     return cell.activity_id ? <span className="gb-np" aria-hidden>Pendiente</span> : <span className="gb-missed" aria-hidden>Faltó</span>;
   }
   if (cell.status === 'absent') return <span className="gb-np">NP</span>;
   if (cell.status === 'exempt') return <span className="gb-np">Ex.</span>;
-  if (cell.status === 'suggested') {
-    return (
-      <span className="gb-sug" title={calculated ? 'Calculada: 10 × (hechos + 0,5 · incompletos) / revisiones · toca para confirmar' : undefined}>
-        {formatScore(cell.score)}
-      </span>
-    );
-  }
+  if (cell.status === 'suggested') return <span className="gb-sug">{formatScore(cell.score)}</span>;
   return <Grade value={cell.score} max={max} className={cell.repeat ? 'gb-repeat' : undefined} />;
 }
 
@@ -485,16 +479,8 @@ function ActivityHeader({ a, today, flash, onOpen, onEdit }: {
 }
 
 // ── Sheets ───────────────────────────────────────────────────────────────────
-function AverageSheet({ row, onClose, data, categories }: {
-  row: GradebookRow | null; onClose: () => void; data: Gradebook; categories: Gradebook['categories'];
-}) {
+function AverageSheet({ row, onClose, data }: { row: GradebookRow | null; onClose: () => void; data: Gradebook }) {
   const final = data.term === 4;
-  const used = row ? categories.filter((c) => row.categories[c.key] != null && (final || c.weight > 0)) : [];
-  const totalW = used.reduce((a, c) => a + c.weight, 0);
-  const base = row?.recovery ? row.recovery.before : row?.average;
-  const formula = final
-    ? `(${used.map((c) => formatAverage(row?.categories[c.key])).join(' + ')}) / ${used.length}`
-    : `(${used.map((c) => `${formatAverage(row?.categories[c.key])} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
   return (
     <Sheet open={!!row} onClose={onClose} title={row?.student.name ?? ''} subtitle={`Media de la ${final ? 'evaluación final' : data.term_label}`}>
       {row && (
@@ -503,38 +489,13 @@ function AverageSheet({ row, onClose, data, categories }: {
             <span className="gb-avg-sheet__num display"><Grade value={row.average} /></span>
             {row.proposed != null && <span className="muted">Propuesta <GradePill value={row.proposed} label={row.qualitative} proposal /></span>}
           </div>
-          <List>
-            {categories.map((c) => (
-              <Row key={c.key} title={c.label} sub={final ? undefined : `Pesa un ${formatNumber(c.weight, 0)} %`}
-                muted={row.categories[c.key] == null}
-                trail={row.categories[c.key] == null ? <span className="faint">Sin notas</span> : <Grade value={row.categories[c.key]} />} />
-            ))}
-          </List>
-          {used.length > 0 ? (
-            <p className="gb-formula">
-              <span className="num">{formula} = {formatAverage(base)}</span>
-              {!final && used.length < categories.length && <> · Las categorías sin notas no cuentan: su peso se reparte entre las demás.</>}
-              {final && <> · Media de las evaluaciones con nota.</>}
-            </p>
-          ) : <p className="muted">Todavía no hay notas confirmadas.</p>}
-          {row.recovery && (
-            <p className="gb-formula">
-              Recuperación: {formatAverage(row.recovery.score)} → la media pasa de {formatAverage(row.recovery.before)} a {formatAverage(row.average)} ({RULE_TEXT[data.recovery_rule]}).
-            </p>
-          )}
-          {row.drafts > 0 && <p className="gb-formula">No cuenta {plural(row.drafts, 'borrador', 'borradores')} de la IA sin revisar.</p>}
+          <AverageBreakdown row={row} data={data} />
           <Button variant="plain" to={`/alumnos/${row.student.id}`}>Ver ficha del alumno</Button>
         </div>
       )}
     </Sheet>
   );
 }
-
-const RULE_TEXT: Record<Gradebook['recovery_rule'], string> = {
-  replace_if_higher: 'la recuperación sustituye si es mayor',
-  cap_5: 'la recuperación deja como máximo un 5',
-  average: 'media de la evaluación y la recuperación',
-};
 
 function WeightsSheet({ open, onClose, course, onEdit }: { open: boolean; onClose: () => void; course: CourseDetail; onEdit: () => void }) {
   const total = course.categories.reduce((a, c) => a + c.weight, 0);
@@ -549,9 +510,8 @@ function WeightsSheet({ open, onClose, course, onEdit }: { open: boolean; onClos
         </List>
         <p className="muted">
           La media de cada categoría es la media de sus actividades (según su peso). La media de la evaluación combina las
-          categorías con estos porcentajes; si una categoría aún no tiene notas, no cuenta. Las notas sugeridas (por la IA o
-          calculadas con los deberes) no cuentan hasta que las confirmas, y las actividades marcadas «No cuenta» (evaluación
-          inicial) nunca cuentan.
+          categorías con estos porcentajes; si una categoría aún no tiene notas, no cuenta. Los borradores de la IA no cuentan
+          hasta que los confirmas, y las actividades marcadas «No cuenta» (evaluación inicial) nunca cuentan.
         </p>
       </div>
     </Sheet>

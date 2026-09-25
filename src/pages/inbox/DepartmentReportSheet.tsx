@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { distributionParts, useDepartmentReport, useSaveDepartmentNote, type DepartmentRow } from '../../api/evaluation';
 import { download } from '../../lib/api';
 import { formatAverage, formatPercent, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
-import { Button, Callout, Dot, Segmented, Sheet, SkeletonList, TextArea, useFeedback } from '../../ui';
+import { Button, Callout, Dot, Section, Segmented, Sheet, SkeletonList, TextArea, useFeedback } from '../../ui';
 import './InboxPage.css';
 
 const TERMS = [1, 2, 3, 4].map((t) => ({ value: t, label: TERM_SHORT[t] }));
@@ -26,7 +26,7 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
   const [busy, setBusy] = useState<'pdf' | 'csv' | null>(null);
   const label = term === 4 ? 'final' : TERM_LABEL[term];
 
-  const unsaved = (): DepartmentRow[] => (q.data?.term === term ? q.data.rows : [])
+  const unsaved = (): DepartmentRow[] => (q.data?.term === term ? q.data.subjects.flatMap((x) => x.rows) : [])
     .filter((r) => texts[r.course.id] !== undefined && texts[r.course.id].trim() !== r.notes);
 
   /** Save every changed line; resolves when all are stored. */
@@ -72,7 +72,7 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
 
   return (
     <Sheet open onClose={onClose} title="Informe del departamento" size="large" wide
-      subtitle="Una fila por clase: resultados, unidades previstas e impartidas, causas y propuestas."
+      subtitle="Una tabla por materia y una fila por clase: resultados, unidades previstas e impartidas, causas y propuestas."
       footer={<>
         <Button variant="neutral" icon={<FileCsv size={18} />} loading={busy === 'csv'} disabled={!!busy} onClick={() => get('csv')}>Descargar CSV</Button>
         <Button icon={<FilePdf size={18} />} loading={busy === 'pdf'} disabled={!!busy} onClick={() => get('pdf')}>Descargar PDF</Button>
@@ -83,16 +83,18 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
           <Callout tone="warn"><b>No se ha podido cargar el informe.</b> {q.error.message}</Callout>
         ) : !q.data || q.data.term !== term ? (
           <SkeletonList rows={3} />
-        ) : !q.data.rows.length ? (
+        ) : !q.data.subjects.length ? (
           <p className="muted">No tienes clases activas.</p>
-        ) : (
-          <div className="dept-rows">
-            {q.data.rows.map((r) => (
-              <ReportRow key={`${term}-${r.course.id}`} row={r} text={texts[r.course.id] ?? r.notes}
-                onText={(text) => setTexts((t) => ({ ...t, [r.course.id]: text }))} onCommit={() => commit(r)} />
-            ))}
-          </div>
-        )}
+        ) : q.data.subjects.map((x) => (
+          <Section key={x.subject} title={x.subject}>
+            <div className="dept-rows">
+              {x.rows.map((r) => (
+                <ReportRow key={`${term}-${r.course.id}`} row={r} text={texts[r.course.id] ?? r.notes}
+                  onText={(text) => setTexts((t) => ({ ...t, [r.course.id]: text }))} onCommit={() => commit(r)} />
+              ))}
+            </div>
+          </Section>
+        ))}
       </div>
     </Sheet>
   );

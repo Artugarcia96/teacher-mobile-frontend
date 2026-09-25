@@ -3,8 +3,8 @@
 
 /** `region` = código de comunidad autónoma ("MD"). */
 export interface Teacher { id: string; email: string; name: string; school?: string | null; region?: string | null }
-/** Comunidad autónoma y plataforma de notas: `export_label` "Raíces (Madrid)" = destino de los CSV. */
-export interface Region { code: string; name: string; short: string; platform?: string | null; export_label?: string | null }
+/** Comunidad autónoma y su plataforma de notas. */
+export interface Region { code: string; name: string; short: string; platform?: string | null }
 export interface Term { n: number; start: string; end: string }
 export interface Holiday { start: string; end: string; label: string }
 export interface SchoolYear { id: string; label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[]; current_term: number }
