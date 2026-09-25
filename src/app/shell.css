@@ -29,7 +29,7 @@
   margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; display: inline-grid; place-items: center;
   font-size: 11.5px; font-weight: 700; background: var(--accent); color: var(--on-accent);
 }
-.sidebar__classes { margin-top: 18px; display: grid; gap: 1px; overflow-y: auto; min-height: 0; flex: 1; align-content: start; }
+.sidebar__classes { margin-top: 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; overflow-y: auto; min-height: 0; flex: 1; align-content: start; }
 .sidebar__label { font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; padding: 4px 12px 6px; }
 .side-class {
   display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 10px; color: var(--ink-2); font-size: var(--fs-sub);

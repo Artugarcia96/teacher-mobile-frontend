@@ -1,4 +1,4 @@
-import { CalendarBlank, CaretDown, MagnifyingGlass, Minus, Plus, X } from '@phosphor-icons/react';
+import { CalendarBlank, CaretDown, Clock, MagnifyingGlass, Minus, Plus, X } from '@phosphor-icons/react';
 import {
   forwardRef, useId, useRef, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -92,11 +92,46 @@ export function DateField({ label, hint, error, value, onChange, min, max, place
   );
 }
 
+interface TimeFieldProps extends Wrap {
+  /** 'HH:MM' (24 h), or '' when empty. */
+  value: string;
+  onChange: (hhmm: string) => void;
+  placeholder?: string;
+  /** Optional times: shows a button to empty the field. */
+  clearable?: boolean;
+  disabled?: boolean;
+  'aria-label'?: string;
+}
+
+/** Time input that always reads 24 h ("16:00") whatever the browser locale; same pattern as DateField. */
+export function TimeField({ label, hint, error, value, onChange, placeholder = 'Sin hora', clearable, disabled, ...aria }: TimeFieldProps) {
+  const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const openPicker = () => {
+    try { input.current?.showPicker(); } catch { /* not supported or already open: the native input handles the tap */ }
+  };
+  const cls = ['datefield', clearable && value && 'datefield--clearable', disabled && 'datefield--disabled'].filter(Boolean).join(' ');
+  return (
+    <FieldWrap id={id} label={label} hint={hint} error={error}>
+      <div className={cls}>
+        <input ref={input} id={id} type="time" className="datefield__native" value={value} disabled={disabled}
+          aria-label={aria['aria-label']} onClick={openPicker} onChange={(e) => onChange(e.target.value)} />
+        <span className={`input datefield__text num${value ? '' : ' datefield__text--empty'}`} aria-hidden>{value || placeholder}</span>
+        <Clock size={18} className="datefield__icon" aria-hidden />
+        {clearable && value && !disabled && (
+          <button type="button" className="datefield__clear" aria-label="Quitar la hora" onClick={() => onChange('')}><X size={14} weight="bold" /></button>
+        )}
+      </div>
+    </FieldWrap>
+  );
+}
+
 interface SearchFieldProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   label?: string;
+  /** Focus it when its sheet opens, on phones too (typing is the task). */
   autoFocus?: boolean;
   onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
 }
@@ -108,7 +143,7 @@ export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(functi
   return (
     <div className="search-field" role="search">
       <MagnifyingGlass size={18} aria-hidden />
-      <input ref={ref} type="search" className="input" value={value} placeholder={placeholder} aria-label={label} autoFocus={autoFocus}
+      <input ref={ref} type="search" className="input" value={value} placeholder={placeholder} aria-label={label} data-autofocus={autoFocus ? 'always' : undefined}
         autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="search" onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape' && value) { e.stopPropagation(); onChange(''); } onKeyDown?.(e); }} />
       {value && (

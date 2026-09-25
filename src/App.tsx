@@ -27,6 +27,8 @@ const queryClient = new QueryClient({
       retry: (count, err) => !(err instanceof ApiError && err.status >= 400 && err.status < 500) && count < 2,
       refetchOnWindowFocus: true,
     },
+    // Offline, a save fails at once with «Sin conexión» instead of waiting silently for the network.
+    mutations: { networkMode: 'always' },
   },
 });
 

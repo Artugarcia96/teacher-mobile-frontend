@@ -1,7 +1,7 @@
-import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
+import { CheckCircle, WarningCircle, X } from '@phosphor-icons/react';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from './Button';
+import { Button, IconButton } from './Button';
 import { Sheet } from './Sheet';
 
 // ── Toasts ───────────────────────────────────────────────────────────────────
@@ -20,12 +20,15 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [pending, setPending] = useState<(ConfirmOpts & { resolve: (v: boolean) => void }) | null>(null);
   const seq = useRef(0);
+  const dismiss = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   const toast = useCallback<Ctx['toast']>((text, opts) => {
     const id = ++seq.current;
-    setToasts((t) => [...t.slice(-2), { id, text, tone: opts?.tone ?? 'ok', action: opts?.action }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), opts?.action ? 6000 : 3200);
-  }, []);
+    const tone = opts?.tone ?? 'ok';
+    setToasts((t) => [...t.slice(-2), { id, text, tone, action: opts?.action }]);
+    // Errors stay until dismissed: the teacher may be looking at the class when a save fails.
+    if (tone !== 'error') setTimeout(() => dismiss(id), opts?.action ? 6000 : 3200);
+  }, [dismiss]);
 
   const confirm = useCallback<Ctx['confirm']>((opts) => new Promise((resolve) => setPending({ ...opts, resolve })), []);
 
@@ -44,9 +47,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
               {t.tone === 'error' ? <WarningCircle size={20} /> : <CheckCircle size={20} weight="fill" color="var(--ok)" />}
               <span>{t.text}</span>
               {t.action && (
-                <Button className="toast__action" size="sm" variant="plain" onClick={() => { t.action!.run(); setToasts((x) => x.filter((y) => y.id !== t.id)); }}>
+                <Button className="toast__action" size="sm" variant="plain" onClick={() => { t.action!.run(); dismiss(t.id); }}>
                   {t.action.label}
                 </Button>
+              )}
+              {t.tone === 'error' && (
+                <IconButton className="toast__action" label="Cerrar el aviso" size="sm" onClick={() => dismiss(t.id)}><X size={16} /></IconButton>
               )}
             </div>
           ))}
