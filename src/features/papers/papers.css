@@ -74,7 +74,6 @@
 .review-main { width: 100%; }
 @media (min-width: 768px) { .review-main { width: auto; justify-self: start; } }
 .error-text { font-weight: 500; white-space: normal; }
-.link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; }
 .rubric__actions { gap: var(--s-2); }
 .collect-mode { flex-wrap: wrap; }
 .collect-mode .row__main { flex: 1 1 240px; }

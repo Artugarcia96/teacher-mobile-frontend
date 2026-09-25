@@ -54,6 +54,9 @@ Regla: si es contenido que se lee o se edita, es papel. Si flota sobre el conten
 - Nunca se abren dos hojas a la vez: los atajos globales ("/", Ctrl/⌘+K) no hacen nada con una hoja abierta (un solo Esc las cerraría las dos).
 - **`DateField`** / **`TimeField`**: nunca `<input type="date">` ni `type="time"` a la vista. Muestra la fecha en español ("martes, 8 sept 2026"; `short` → "8 sept 2026" para rangos) con el selector nativo (calendario / rueda de iOS) invisible encima, sea cual sea el idioma del navegador. `clearable` para fechas opcionales. `TimeField` igual, con la hora en 24 h ("16:00") y "Sin hora" si está vacía.
 - **`useDraft(server)`**: borrador local de un formulario de ajustes. Sigue al servidor por valor (no por objeto: las consultas se recargan al volver a la pestaña) y solo mientras no se edita, así que una recarga nunca borra cambios sin guardar; tras guardar, `setDraft(lo guardado)`. Con `ActionBar` es el patrón de guardado explícito.
+- **`useSettled(key)`**: verdadero cuando `key` lleva un instante (700 ms) sin cambiar. Una acción que pasa al siguiente elemento («Aceptar y siguiente») queda desactivada mientras tanto: un segundo toque o un Enter pensado para el anterior nunca actúa sobre uno que no se ha visto.
+- **`TextArea grow`**: la caja crece con su texto (sin barra interior) desde `rows` líneas: un comentario de boletín se lee entero mientras se revisa.
+- **`.link-btn`**: enlace o botón dentro de una frase (un aviso, una línea de estado): color de acento, sin relleno ni fondo, así la línea no se descoloca; en táctil conserva un área de toque invisible.
 - **`SearchField`**: lupa, borrar y Esc. `useMediaQuery(DESKTOP)` para lo que cambia entre móvil y escritorio (p. ej. notas desplegadas en la ficha).
 
 Reglas:

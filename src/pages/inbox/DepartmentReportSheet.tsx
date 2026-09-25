@@ -2,7 +2,7 @@ import { FileCsv, FilePdf } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { distributionParts, useDepartmentReport, useSaveDepartmentNote, type DepartmentRow } from '../../api/evaluation';
 import { download } from '../../lib/api';
-import { formatAverage, formatPercent, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
+import { formatAverage, formatPercent, ordinals, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import { Button, Callout, Dot, Section, Segmented, Sheet, SkeletonList, TextArea, useFeedback } from '../../ui';
 import './InboxPage.css';
 
@@ -107,7 +107,7 @@ function ReportRow({ row, text, onText, onCommit }: { row: DepartmentRow; text: 
   const students = plural(row.students, 'alumno', 'alumnos') + (row.graded < row.students ? ` (${row.graded} con nota)` : '');
   return (
     <section className="dept-row">
-      <div className="dept-row__head"><Dot color={row.course.color} large /><b>{row.course.label}</b></div>
+      <div className="dept-row__head"><Dot color={row.course.color} large /><b>{ordinals(row.course.group.name)}</b></div>
       <div className="dept-row__stats num">
         {[students, `${formatPercent(row.pass_rate)} aprobados`, `media ${formatAverage(row.average)}`,
           ...distributionParts(row.distribution, row.stage)].map((p, i) => <span key={i}>{i > 0 && ' · '}<span>{p}</span></span>)}

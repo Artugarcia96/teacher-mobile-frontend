@@ -1,11 +1,11 @@
 import { ArrowCounterClockwise, CalendarBlank, ChatCenteredText, Copy, DotsThree, FileCsv, FilePdf, ListChecks, Scales, Student, Table, Warning } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Fragment, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCourse, useJob } from '../../api/core';
 import {
-  distributionParts, evaluationKeys, finalRecoveryLabel, RECOVERY_RULES, useDraftComments, useEvaluation,
-  useSaveEvalRow, useSetRecoveryRule, type EvalRow, type Evaluation,
+  absencesText, distributionParts, evaluationKeys, finalRecoveryLabel, RECOVERY_RULES, staleText, useDraftComments,
+  useEvaluation, useSaveEvalRow, useSetRecoveryRule, type ActivityRef, type EvalRow, type Evaluation,
 } from '../../api/evaluation';
 import type { CourseDetail } from '../../api/types';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
@@ -34,6 +34,17 @@ export function unreviewed(r: EvalRow): boolean {
   return !!r.comment && r.comment_source === 'ai' && r.comment_status !== 'final';
 }
 
+/** A comment to draft (the page's `comments_missing`): only with a grade that counts, and without a comment or with
+ *  an unreviewed AI draft written for another grade. Without grades the AI would have nothing true to say. */
+function toDraft(r: EvalRow): boolean {
+  return r.final != null && (!r.comment || (r.comment_stale && unreviewed(r)));
+}
+
+/** An AI draft to review: written for the grade that counts. */
+function toReview(r: EvalRow): boolean {
+  return unreviewed(r) && !r.comment_stale;
+}
+
 /** Students with the evaluation failed (a stale adjustment is not a fail: its recovery is already there). */
 function failingRows(data: Evaluation): EvalRow[] {
   return data.rows.filter((r) => r.final != null && r.final < 5 && !r.stale_adjustment);
@@ -47,7 +58,7 @@ function useRunComments(courseId: string, term: number, onJob: (id: string) => v
     const incomplete = targets.filter((r) => r.missing_grades.length || r.pending_exams.length).length;
     const ok = await confirm({
       title: replacing ? 'Redactar de nuevo los borradores' : `Redactar ${plural(targets.length, 'comentario', 'comentarios')} con IA`,
-      text: (incomplete ? `${incomplete === 1 ? '1 alumno tiene' : `${incomplete} alumnos tienen`} notas incompletas: la IA no dará su evaluación por cerrada. ` : '')
+      text: (incomplete ? `${incomplete === 1 ? '1 alumno tiene' : `${incomplete} alumnos tienen`} notas incompletas: la IA solo valora lo que ya tiene nota. ` : '')
         + `La IA redacta un borrador para ${plural(targets.length, 'alumno', 'alumnos')} con la nota que irá al boletín, las actividades de la evaluación, `
         + 'lo que peor les ha salido, la asistencia y tus observaciones. Solo recibe el nombre de pila.'
         + (replacing ? ' Se sustituirán los borradores de la IA sin revisar; los que has escrito o aceptado no se tocan.' : ''),
@@ -176,10 +187,10 @@ function EvalMenu({ course, data, running, onJob, onRecovery }: {
   const [rule, setRule] = useState(false);
   const [report, setReport] = useState(false);
   const comments = useRunComments(course.id, data.term, onJob);
-  const drafts = data.rows.filter(unreviewed);
+  const drafts = data.rows.filter(toReview);
   const failing = failingRows(data);
   const copy = async () => {
-    const withText = data.rows.filter((r) => r.comment);
+    const withText = data.rows.filter((r) => r.comment && !r.comment_stale);
     if (!withText.length) { toast('Todavía no hay comentarios que copiar', { tone: 'error' }); return; }
     try {
       await navigator.clipboard.writeText(withText.map((r) => `${r.student.sort_name}\n${r.comment}`).join('\n\n'));
@@ -239,7 +250,10 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
   const { toast } = useFeedback();
   const today = useToday();
   const qc = useQueryClient();
-  const comments = useRunComments(course.id, data.term, setJobId);
+  // Students the last job could not draft (the AI left them out twice): said until the next job starts.
+  const [undrafted, setUndrafted] = useState(0);
+  const startJob = (id: string | null) => { setUndrafted(0); setJobId(id); };
+  const comments = useRunComments(course.id, data.term, startJob);
   const [open, setOpen] = useState<number | null>(null);
   const [downloading, setDownloading] = useState<'pdf' | 'csv' | null>(null);
   const refresh = () => {
@@ -250,6 +264,7 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
     onDone: (j) => {
       setJobId(null);
       refresh();
+      setUndrafted(Number(j.result?.missing ?? 0));
       const skipped = Number(j.result?.skipped ?? 0);
       if (skipped) toast(`${skipped === 1 ? '1 comentario no se ha tocado porque lo editaste' : `${skipped} comentarios no se han tocado porque los editaste`} mientras tanto.`);
     },
@@ -257,8 +272,8 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
   });
 
   const { stats, rows } = data;
-  const missing = rows.filter((r) => !r.comment);
-  const drafts = rows.filter(unreviewed);
+  const missing = rows.filter(toDraft);
+  const drafts = rows.filter(toReview);
   const stale = rows.filter((r) => r.stale_adjustment);
   const failing = failingRows(data);
   const running = !!jobId;
@@ -286,7 +301,7 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
         {kpis.map((k, i) => <span key={i}>{i > 0 && ' · '}<span>{k}</span></span>)}
       </p>
 
-      <IncompleteGrades course={course} data={data} />
+      <IncompleteGrades course={course} data={data} onOpen={setOpen} />
 
       {stale.length > 0 && <StaleAdjustments course={course} term={data.term} rows={stale} />}
 
@@ -298,18 +313,20 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
             <span className="ev-job__hint">Van apareciendo en la lista según se terminan. Puedes seguir trabajando.</span>
           </div>
         </Callout>
-      ) : failed ? (
+      ) : failed || (undrafted > 0 && missing.length > 0) ? (
         <Callout tone="warn" icon={<Warning size={20} />}>
-          <b>No se han podido redactar los comentarios.</b> {failed.error}{' '}
-          <Button size="sm" variant="plain" loading={comments.pending}
-            onClick={() => comments.run(missing.length ? missing : drafts, !missing.length)}>Volver a intentar</Button>
+          {failed
+            ? <><b>No se han podido redactar los comentarios.</b> {failed.error}</>
+            : <b>{undrafted === 1 ? '1 comentario no se ha podido redactar.' : `${undrafted} comentarios no se han podido redactar.`}</b>}{' '}
+          <button type="button" className="link-btn" disabled={comments.pending}
+            onClick={() => comments.run(missing.length ? missing : drafts, !missing.length)}>Volver a intentar</button>
         </Callout>
       ) : missing.length > 0 ? (
         <Button full icon={<ChatCenteredText size={18} />} onClick={() => comments.run(missing, false)} loading={comments.pending}>
           Redactar {plural(missing.length, 'comentario', 'comentarios')} con IA
         </Button>
       ) : drafts.length > 0 ? (
-        <Button full icon={<ChatCenteredText size={18} />} onClick={() => setOpen(rows.findIndex(unreviewed))}>
+        <Button full icon={<ChatCenteredText size={18} />} onClick={() => setOpen(rows.findIndex(toReview))}>
           Revisar {plural(drafts.length, 'comentario', 'comentarios')}
         </Button>
       ) : null}
@@ -326,7 +343,7 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
 
       <Section title={plural(rows.length, 'alumno', 'alumnos')}
         action={<span className="ev-count">{commentsLine(data)}</span>}>
-        <div className="ev-cols" aria-hidden><span>Alumno</span><span>Comentario de boletín</span><span>Propuesta</span></div>
+        <div className="ev-cols" aria-hidden><span>Alumno</span><span>Comentario de boletín</span><span>Nota</span></div>
         <List className="ev-list">
           {rows.map((r, i) => <EvalRowItem key={r.student.id} row={r} onOpen={() => setOpen(i)} />)}
         </List>
@@ -338,20 +355,29 @@ function EvaluationBody({ course, data, jobId, setJobId, onRecovery }: {
 }
 
 /** What the proposals do not count yet, in one line with links: AI drafts to review, activities without grades and
- *  missed exams (the same figures as the Evaluar inbox). Comments written now would sound final without them. */
-function IncompleteGrades({ course, data }: { course: CourseDetail; data: Evaluation }) {
+ *  missed exams (the same figures as the Evaluar inbox). Comments written now would sound final without them.
+ *  One student with a missed exam opens their sheet; several, the exam's column in the Cuaderno. */
+function IncompleteGrades({ course, data, onOpen }: { course: CourseDetail; data: Evaluation; onOpen: (i: number) => void }) {
+  const column = (id: string) => `/clases/${course.id}/cuaderno?term=${data.term}&a=${id}`;
   const parts = [
     ...data.to_review.map((x) => ({ key: x.activity_id, to: `/clases/${course.id}/actividades/${x.activity_id}`, text: `${x.title}: ${x.count} por revisar` })),
-    ...data.to_grade.map((x) => ({ key: x.activity_id, to: `/clases/${course.id}/cuaderno?term=${data.term}&a=${x.activity_id}`, text: `${x.title}: ${x.count} sin nota` })),
+    ...data.to_grade.map((x) => ({ key: x.activity_id, to: column(x.activity_id), text: `${x.title}: ${x.count} sin nota` })),
   ];
   if (!parts.length && !data.pending_absent) return null;
+  const absent = data.rows.flatMap((r, i) => (r.pending_exams.length ? [i] : []));
+  const pending = plural(data.pending_absent, 'alumno con un examen pendiente', 'alumnos con un examen pendiente');
   return (
     <Callout tone="warn" icon={<Warning size={20} />}>
       <b>Notas incompletas.</b>{' '}
       {parts.map((p, i) => (
-        <span key={p.key}>{i > 0 && ' · '}<Button size="sm" variant="plain" to={p.to}>{p.text}</Button></span>
+        <span key={p.key}>{i > 0 && ' · '}<Link className="link-btn" to={p.to}>{p.text}</Link></span>
       ))}
-      {data.pending_absent > 0 && <span>{parts.length > 0 && ' · '}{plural(data.pending_absent, 'alumno con un examen pendiente', 'alumnos con un examen pendiente')}</span>}
+      {data.pending_absent > 0 && <span>{parts.length > 0 && ' · '}
+        {absent.length === 1
+          ? <button type="button" className="link-btn" onClick={() => onOpen(absent[0])}>{pending}</button>
+          : absent.length > 1 ? <Link className="link-btn" to={column(data.rows[absent[0]].pending_exams[0].id)}>{pending}</Link>
+            : pending}
+      </span>}
     </Callout>
   );
 }
@@ -371,42 +397,48 @@ function StaleAdjustments({ course, term, rows }: { course: CourseDetail; term: 
       {rows.map((r, i) => (
         <span key={r.student.id}>{i > 0 && ' · '}
           {r.student.sort_name}: ajustada {formatProposal(r.final_grade)}, con la recuperación {formatProposal(r.proposed)}{' '}
-          <Button size="sm" variant="plain" disabled={save.isPending} onClick={() => apply(r)}>Usar {formatProposal(r.proposed)}</Button>
+          <button type="button" className="link-btn" disabled={save.isPending} onClick={() => apply(r)}>Usar {formatProposal(r.proposed)}</button>
         </span>
       ))}
     </Callout>
   );
 }
 
-function commentsLine(data: Evaluation): string {
-  if (!data.comments_missing && !data.comments_unreviewed) return 'Comentarios revisados';
+/** «22 comentarios de la IA sin revisar · 3 por redactar · 1 no cuadra con la nota»; nothing while nobody has a grade. */
+function commentsLine(data: Evaluation): string | null {
   const parts = [];
   if (data.comments_unreviewed) parts.push(plural(data.comments_unreviewed, 'comentario de la IA sin revisar', 'comentarios de la IA sin revisar'));
-  if (data.comments_missing) parts.push(`${data.comments_missing} sin comentario`);
-  return parts.join(' · ');
+  if (data.comments_missing) parts.push(`${data.comments_missing} por redactar`);
+  if (data.comments_stale) parts.push(data.comments_stale === 1 ? '1 no cuadra con la nota' : `${data.comments_stale} no cuadran con la nota`);
+  if (parts.length) return parts.join(' · ');
+  return data.rows.some((r) => r.final != null) ? 'Comentarios revisados' : null;
 }
 
 function EvalRowItem({ row, onOpen }: { row: EvalRow; onOpen: () => void }) {
   const adjusted = row.final_grade != null && row.final_grade !== row.proposed;
   const rec = row.recovery && row.recovery.before_proposed !== row.proposed ? row.recovery : null;
   return (
-    <Row onClick={onOpen} chevron={false} className="ev-row" aria-label={`${row.student.name}: editar nota final y comentario`}
+    <Row onClick={onOpen} chevron={false} className="ev-row" aria-label={`${row.student.name}: editar nota y comentario`}
       title={<>
         <span>{row.student.sort_name}</span>
         {row.adapted && <Chip tone="info">ACS</Chip>}
-        {unreviewed(row) && <AIBadge />}
       </>}
       sub={<>
         <span className="ev-row__meta">
           Media <Grade value={row.average} />
           {rec && <> · <span className="ev-row__rec">{formatProposal(rec.before_proposed)} → {formatProposal(row.proposed)} (rec.)</span></>}
-          {row.absences > 0 && <> · {plural(row.absences, 'falta', 'faltas')}</>}
-          {row.pending_exams.length > 0 && <> · <span className="ev-row__pending">Pendiente: {row.pending_exams.map((p) => p.title).join(', ')}</span></>}
+          {row.absences > 0 && <> · {absencesText(row)}</>}
+          {row.pending_exams.length > 0 && <> · <span className="ev-row__warn">Pendiente: <Titles acts={row.pending_exams} /></span></>}
+          {row.missing_grades.length > 0 && <> · <span className="ev-row__warn">Sin nota: <Titles acts={row.missing_grades} /></span></>}
         </span>
         {row.stale_adjustment && (
           <span className="ev-row__stale">La nota ajustada ({formatProposal(row.final_grade)}) no incluye la recuperación ({formatProposal(row.proposed)})</span>
         )}
-        {row.comment && <span className="ev-row__comment">{row.comment}</span>}
+        {row.comment_stale ? (
+          <span className="ev-row__comment ev-row__comment--stale">{staleText(row.comment_grade, row.final)}</span>
+        ) : row.comment && (
+          <span className="ev-row__comment">{unreviewed(row) && <><AIBadge />{' '}</>}{row.comment}</span>
+        )}
       </>}
       wrapSub
       trail={<div className="ev-row__final">
@@ -415,4 +447,9 @@ function EvalRowItem({ row, onOpen }: { row: EvalRow; onOpen: () => void }) {
       </div>}
     />
   );
+}
+
+/** «Examen U2 · Fracciones, Ficha 3»: short titles that never break inside. */
+function Titles({ acts }: { acts: ActivityRef[] }) {
+  return <>{acts.map((a, i) => <Fragment key={a.id}>{i > 0 && ', '}<span className="ev-row__title">{a.short_title}</span></Fragment>)}</>;
 }

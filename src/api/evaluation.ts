@@ -2,11 +2,13 @@
  * Backend: app/api/evaluation.py. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { formatProposal, plural } from '../lib/format';
 import type { RecoveryRule } from './gradebook';
 import type { CourseRef, Job, JobRef, StudentRef } from './types';
 
 export type Band = 'IN' | 'SU' | 'BI' | 'NT' | 'SB';
-export interface ActivityRef { id: string; title: string; date: string; term: number }
+/** `short_title`: "Examen U2" for a long "Examen U2 · Divisibilidad". */
+export interface ActivityRef { id: string; title: string; short_title: string; date: string; term: number }
 export interface ActivityCount { activity_id: string; title: string; count: number }
 export interface EvalRow {
   student: StudentRef;
@@ -23,9 +25,13 @@ export interface EvalRow {
   comment: string | null;
   comment_status: 'draft' | 'final' | null;
   comment_source: 'ai' | 'manual' | null;
-  /** Grade that counted when the comment was written or accepted: if it is no longer `final`, «Escrito con la nota anterior». */
+  /** Grade that counted when the comment was written (or accepted, if it had none). */
   comment_grade: number | null;
+  /** The comment says another grade than the one that counts: «Escrito para un 6 · nota 4». Never printed. */
+  comment_stale: boolean;
+  /** The term's absences, justified ones included (as the student's file counts them). */
   absences: number;
+  justified: number;
   /** "4 → 6 (rec.)": proposal before the recovery → proposed. */
   recovery: { before: number | null; before_proposed: number | null; score: number; activity_id: string } | null;
   /** Exams missed (attendance) still without a grade. */
@@ -40,9 +46,12 @@ export interface Evaluation {
   stats: { average: number | null; pass_rate: number | null; failing: number; distribution: Record<Band, number> };
   rows: EvalRow[];
   recovery_rule: RecoveryRule;
+  /** To draft: students with a grade and no comment, or an unreviewed AI draft written for another grade. */
   comments_missing: number;
   /** AI drafts the teacher has not accepted yet. */
   comments_unreviewed: number;
+  /** The teacher's comments (written or accepted) that say another grade. */
+  comments_stale: number;
   /** What the proposals are still missing — same figures as the Evaluar inbox. AI drafts not counted yet: */
   to_review: ActivityCount[];
   /** Past activities with students without a grade. */
@@ -157,6 +166,16 @@ const BANDS: { key: Band; numeric: string }[] = [
 export function distributionParts(distribution: Record<Band, number>, stage: string): string[] {
   const qualitative = stage === 'eso' || stage === 'primaria';
   return BANDS.map((b) => `${qualitative ? b.key : `${b.numeric}:`} ${distribution[b.key] ?? 0}`);
+}
+
+/** «2 faltas (1 just.)»: all the term's absences, as the student's file counts them. */
+export function absencesText(r: Pick<EvalRow, 'absences' | 'justified'>): string {
+  return plural(r.absences, 'falta', 'faltas') + (r.justified ? ` (${r.justified} just.)` : '');
+}
+
+/** «Escrito para un 6 · nota 4»: what a comment that no longer matches the grade says instead of its text. */
+export function staleText(commentGrade: number | null, grade: number | null): string {
+  return `Escrito para un ${formatProposal(commentGrade)} · nota ${formatProposal(grade)}`;
 }
 
 /** Since LOMLOE only Bachillerato keeps the extraordinaria; elsewhere the last recovery is "final". */
