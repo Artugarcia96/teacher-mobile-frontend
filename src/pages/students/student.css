@@ -30,3 +30,5 @@
 .st-note__text { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .st-private { white-space: pre-wrap; }
 .st-att { display: grid; }
+.st-anchor { scroll-margin-top: 72px; }
+.st-mark__action { color: var(--accent); font-weight: 500; font-size: var(--fs-sub); white-space: nowrap; }

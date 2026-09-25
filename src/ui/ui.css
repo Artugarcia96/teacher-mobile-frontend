@@ -309,6 +309,9 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .callout b { color: var(--ink); font-weight: 600; }
 .callout--warn { background: var(--warn-soft); color: var(--warn); }
 .callout--accent { background: var(--accent-softer); color: var(--ink); }
+.callout--button { width: 100%; min-height: 44px; text-align: left; font: inherit; font-size: var(--fs-sub); border: 0; cursor: pointer; align-items: center; }
+.callout__body { flex: 1; min-width: 0; }
+.callout__chev { flex: none; opacity: 0.7; }
 
 /* ── Stat line ──────────────────────────────────────────── */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 1px; background: var(--line); border-radius: var(--r-card); overflow: hidden; box-shadow: var(--e1); }

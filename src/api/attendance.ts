@@ -43,6 +43,17 @@ export function useSaveAttendance(courseId: string) {
   });
 }
 
+/** One student's mark in one session (the student file justifies an absence in place). Only that student changes. */
+export function useSetMark() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ courseId, date, start, studentId, status, note }: {
+      courseId: string; date: string; start: string; studentId: string; status: MarkStatus; note?: string | null;
+    }) => api.put<Attendance>(`/courses/${courseId}/attendance`, { date, start, marks: [{ student_id: studentId, status, note }] }),
+    onSuccess: (_data, v) => invalidateAttendance(qc, v.courseId),
+  });
+}
+
 /** Call after the sheet closes: refresh everything that shows attendance. */
 export function invalidateAttendance(qc: ReturnType<typeof useQueryClient>, courseId: string) {
   qc.invalidateQueries({ queryKey: ['today'] });

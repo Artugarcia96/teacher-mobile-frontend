@@ -27,7 +27,7 @@ function StudentLine({ s }: { s: StudentRow }) {
       {absences && <span className="students-roster__abs">{plural(s.absences, 'falta', 'faltas')}</span>}
     </span>
   ) : undefined;
-  return <Row to={`/alumnos/${s.id}`} title={s.sort_name} sub={sub} trail={<GradePill value={s.term_average} />} />;
+  return <Row to={`/alumnos/${s.id}`} title={s.sort_name} sub={sub} wrapSub trail={<GradePill value={s.term_average} />} />;
 }
 
 /** Clase › Alumnos: roster sorted by surname. ?anadir=1 opens "Añadir alumnos" (also in the class "···" menu). */

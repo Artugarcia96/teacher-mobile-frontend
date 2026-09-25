@@ -1,19 +1,23 @@
 import { CaretDown, ChatCircleText, Copy, DotsThree, NotePencil, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useMe, useStudentFile, useUnenroll } from '../../api/core';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useSetMark } from '../../api/attendance';
+import { useStudentFile, useUnenroll } from '../../api/core';
 import { useDeleteNote } from '../../api/notes';
-import type { GradeLine, GroupRef, Note, StudentCourse, TermCell } from '../../api/types';
+import type { WatchItem } from '../../api/today';
+import type { AttendanceEntry, GradeLine, GroupRef, Note, StudentCourse, TermCell } from '../../api/types';
 import QuickNoteSheet from '../../features/notes/QuickNoteSheet';
 import BriefSheet from '../../features/students/BriefSheet';
 import EditNoteSheet from '../../features/students/EditNoteSheet';
 import EditStudentSheet from '../../features/students/EditStudentSheet';
+import FamilyMessageSheet from '../../features/students/FamilyMessageSheet';
+import WatchItemSheet from '../../features/students/WatchItemSheet';
 import { measureChips, supportLabel } from '../../features/students/support';
-import { studentSummary } from '../../features/students/summary';
+import { attendanceText, homeworkText, studentSummary } from '../../features/students/summary';
 import { ApiError } from '../../lib/api';
-import { courseLabel, formatScore, NOTE_KIND_LABEL, ordinals, plural, shortDate, TERM_SHORT } from '../../lib/format';
+import { courseLabel, formatScore, NOTE_KIND_LABEL, ordinals, plural, shortDate, TERM_LABEL, TERM_SHORT, weekdayShort } from '../../lib/format';
 import {
-  Button, Callout, Chip, DESKTOP, Dot, EmptyState, Grade, GradePill, IconButton, List, Menu, Page, Row, Section, SkeletonList,
+  AIBadge, Button, Callout, Chip, DESKTOP, Dot, EmptyState, Grade, GradePill, IconButton, List, Menu, Page, Row, Section, SkeletonList,
   useFeedback, useMediaQuery, type MenuItem,
 } from '../../ui';
 import './student.css';
@@ -28,14 +32,23 @@ function termValue(t: TermCell, terms: TermCell[]): number | null {
 }
 
 function GradeRow({ g }: { g: GradeLine }) {
+  const suggested = g.status === 'suggested';
   const score = g.status === 'absent' ? <span className="faint">NP</span> : g.status === 'exempt' ? <span className="faint">Exento</span>
-    : g.status === 'suggested' ? <span className="faint num" title="Borrador de la IA sin revisar">{formatScore(g.score)}</span>
+    : suggested ? <span className="faint num">{formatScore(g.score)}{g.max_score !== 10 && `/${formatScore(g.max_score)}`}</span>
       : <span className="num"><Grade value={g.score} max={g.max_score} />{g.max_score !== 10 && <span className="faint">/{formatScore(g.max_score)}</span>}</span>;
+  const aiDraft = suggested && g.kind !== 'homework';
+  const chips = aiDraft || g.adapted || g.counts_for === 'none';
   return (
     <Row title={g.title} wrapSub trail={score}
       sub={<>
         <span>{shortDate(g.date)} · {g.category_label}</span>
-        {g.adapted && <span className="st-adapted"><Chip tone={g.adapted.acs ? 'warn' : undefined}>{g.adapted.label}</Chip></span>}
+        {chips && (
+          <span className="st-adapted chip-row">
+            {aiDraft && <AIBadge />}
+            {g.counts_for === 'none' && <Chip>No cuenta</Chip>}
+            {g.adapted && <Chip tone={g.adapted.acs ? 'warn' : undefined}>{g.adapted.label}</Chip>}
+          </span>
+        )}
         {g.comment && <span className="st-comment">«{g.comment}»</span>}
       </>} />
   );
@@ -97,19 +110,48 @@ function NoteRow({ note, onEdit, showCourse }: { note: Note; onEdit: (n: Note) =
   );
 }
 
-function attendanceText(sc: StudentCourse): string {
-  const total = sc.absences + sc.justified;
-  const parts = [
-    total && `${plural(total, 'falta', 'faltas')}${sc.justified ? ` (${plural(sc.justified, 'justificada', 'justificadas')})` : ''}`,
-    sc.lates && plural(sc.lates, 'retraso', 'retrasos'),
-  ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : 'Sin faltas ni retrasos';
+const MARK_TEXT: Record<AttendanceEntry['status'], string> = { absent: 'Falta sin justificar', justified: 'Falta justificada', late: 'Retraso' };
+
+/** One absence of the term: tapping it justifies it or takes the justification away (the list keeps its note). */
+function MarkRow({ sc, m, studentId }: { sc: StudentCourse; m: AttendanceEntry; studentId: string }) {
+  const { toast } = useFeedback();
+  const set = useSetMark();
+  const title = `${weekdayShort(m.date).toLowerCase()} ${shortDate(m.date)} · ${m.start}`;
+  const sub = [MARK_TEXT[m.status], m.note].filter(Boolean).join(' · ');
+  if (m.status === 'late') return <Row title={title} sub={sub} />;
+  const current: 'absent' | 'justified' = m.status;
+  const next = current === 'absent' ? 'justified' : 'absent';
+  const save = (status: typeof next, done: string, undo?: typeof next) => set.mutate(
+    { courseId: sc.course.id, date: m.date, start: m.start, studentId, status, note: m.note },
+    {
+      onSuccess: () => toast(done, undo ? { action: { label: 'Deshacer', run: () => save(undo, 'Deshecho') } } : undefined),
+      onError: (e) => toast(e.message, { tone: 'error' }),
+    },
+  );
+  return (
+    <Row title={title} sub={sub} chevron={false} aria-label={`${title}, ${sub}: ${current === 'absent' ? 'justificar' : 'quitar justificación'}`}
+      trail={<span className="st-mark__action">{current === 'absent' ? 'Justificar' : 'Quitar justificación'}</span>}
+      onClick={() => { if (!set.isPending) save(next, next === 'justified' ? 'Falta justificada' : 'Justificación quitada', current); }} />
+  );
 }
 
-function homeworkText(sc: StudentCourse): string | null {
-  const h = sc.homework;
-  if (!h) return null;
-  return `Deberes: no hizo ${h.not_done} de ${h.checks}${h.partial ? ` · ${plural(h.partial, 'incompleto', 'incompletos')}` : ''}`;
+/** Asistencia of one class in the current term: the counts, and tapping them opens the dated list. */
+function CourseAttendance({ sc, single, term, studentId, open, onToggle }: {
+  sc: StudentCourse; single: boolean; term: number; studentId: string; open: boolean; onToggle: () => void;
+}) {
+  const marks = sc.attendance ?? [];
+  const hw = homeworkText(sc.homework);
+  const summary = `${attendanceText(sc)} en la ${TERM_LABEL[term]}`;
+  return (
+    <List>
+      <Row lead={single ? undefined : <Dot color={sc.course.color} large />} title={single ? summary : courseLabel(sc.course)} wrapSub
+        sub={single ? hw : <span className="st-att"><span>{summary}</span>{hw && <span>{hw}</span>}</span>}
+        onClick={marks.length ? onToggle : undefined} aria-expanded={marks.length ? open : undefined}
+        trail={marks.length ? <CaretDown size={14} className={open ? 'st-more__caret st-more__caret--up' : 'st-more__caret'} /> : undefined}
+        chevron={false} />
+      {open && marks.map((m) => <MarkRow key={`${m.date}|${m.start}`} sc={sc} m={m} studentId={studentId} />)}
+    </List>
+  );
 }
 
 /** /alumnos/:id — ficha del alumno: notas por clase (mismos números que el cuaderno), asistencia y observaciones. */
@@ -118,13 +160,22 @@ export default function StudentPage() {
   const navigate = useNavigate();
   const { confirm, toast } = useFeedback();
   const { data: f, isLoading, error, refetch } = useStudentFile(studentId);
-  const me = useMe();
   const desktop = useMediaQuery(DESKTOP);
   const unenroll = useUnenroll();
   const [noting, setNoting] = useState(false);
   const [briefing, setBriefing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState<Note | null>(null);
+  const [watchItem, setWatchItem] = useState<WatchItem | null>(null);
+  const [family, setFamily] = useState<WatchItem | null>(null);
+  const { hash } = useLocation();
+  const [openAtt, setOpenAtt] = useState<Set<string>>(new Set());
+  const fromFaltas = hash === '#asistencia';
+  useEffect(() => {
+    if (!fromFaltas || !f) return;
+    setOpenAtt(new Set(f.courses.map((c) => c.course.id)));
+    requestAnimationFrame(() => document.getElementById('asistencia')?.scrollIntoView({ block: 'start' }));
+  }, [fromFaltas, f]);
 
   const home = f?.courses.length === 1
     ? { back: `/clases/${f.courses[0].course.id}/alumnos`, backLabel: ordinals(f.courses[0].course.group.name) }
@@ -161,7 +212,7 @@ export default function StudentPage() {
 
   const copySummary = async () => {
     try {
-      await navigator.clipboard.writeText(studentSummary(f, me.data?.school_year.current_term ?? 1));
+      await navigator.clipboard.writeText(studentSummary(f));
       toast('Resumen copiado');
     } catch {
       toast('No se ha podido copiar. Tu navegador no deja usar el portapapeles.', { tone: 'error' });
@@ -197,9 +248,11 @@ export default function StudentPage() {
         </div>
       }
     >
-      {f.watch.length > 0 && (
-        <Callout tone="warn" icon={<Warning size={18} />}><b>A vigilar:</b> {f.watch.join(' · ')}</Callout>
-      )}
+      {f.watch.map((w) => (
+        <Callout key={w.course.id} tone="warn" icon={<Warning size={18} />} onClick={() => setWatchItem(w)} label={`A vigilar: ${w.reasons.join(', ')}`}>
+          <b>A vigilar{single ? '' : ` en ${w.course.subject}`}:</b> {w.reasons.join(' · ')}
+        </Callout>
+      ))}
       <div className="st-grid">
         <div className="st-col">
           <Section title="Notas">
@@ -208,15 +261,18 @@ export default function StudentPage() {
             ) : f.courses.map((sc) => <CourseGrades key={sc.course.id} sc={sc} single={single} expanded={desktop} />)}
           </Section>
           {f.courses.length > 0 && (
-            <Section title="Asistencia">
-              <List>
-                {f.courses.map((sc) => single
-                  ? <Row key={sc.course.id} title={attendanceText(sc)} sub={homeworkText(sc)} to={`/clases/${sc.course.id}/asistencia`} />
-                  : <Row key={sc.course.id} lead={<Dot color={sc.course.color} large />} title={courseLabel(sc.course)} wrapSub
-                      sub={<span className="st-att"><span>{attendanceText(sc)}</span>{homeworkText(sc) && <span>{homeworkText(sc)}</span>}</span>}
-                      to={`/clases/${sc.course.id}/asistencia`} />)}
-              </List>
-            </Section>
+            <div id="asistencia" className="st-anchor"><Section title="Asistencia">
+              <div className="st-col">
+                {f.courses.map((sc) => (
+                  <CourseAttendance key={sc.course.id} sc={sc} single={single} term={f.term} studentId={s.id} open={openAtt.has(sc.course.id)}
+                    onToggle={() => setOpenAtt((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(sc.course.id)) next.delete(sc.course.id); else next.add(sc.course.id);
+                      return next;
+                    })} />
+                ))}
+              </div>
+            </Section></div>
           )}
           {f.notes_text && (
             <Section title="Notas privadas" action={<button type="button" className="section__action" onClick={() => setEditing(true)}>Editar</button>}>
@@ -244,6 +300,8 @@ export default function StudentPage() {
       <EditStudentSheet open={editing} onClose={() => setEditing(false)} student={s} notesText={f.notes_text}
         acsAllowed={!f.groups.length || f.groups.some((g) => g.stage === 'primaria' || g.stage === 'eso')} />
       <EditNoteSheet note={editNote} onClose={() => setEditNote(null)} />
+      <WatchItemSheet item={watchItem} onClose={() => setWatchItem(null)} onFamily={setFamily} fromFile />
+      {family && <FamilyMessageSheet open onClose={() => setFamily(null)} student={family.student} course={family.course} />}
     </Page>
   );
 }

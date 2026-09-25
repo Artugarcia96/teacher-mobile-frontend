@@ -1,3 +1,4 @@
+import { CaretRight } from '@phosphor-icons/react';
 import type { CSSProperties, ReactNode } from 'react';
 import { formatAverage, formatProposal, formatScore, gradeTone } from '../lib/format';
 
@@ -89,8 +90,19 @@ export function Progress({ value, total }: { value: number; total: number }) {
   return <div className="progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>;
 }
 
-export function Callout({ children, tone, icon }: { children: ReactNode; tone?: 'warn' | 'accent'; icon?: ReactNode }) {
-  return <div className={`callout${tone ? ` callout--${tone}` : ''}`}>{icon}<div>{children}</div></div>;
+/** A note above the content. With `onClick` the whole callout is a button (with a chevron) that opens its detail. */
+export function Callout({ children, tone, icon, onClick, label }: {
+  children: ReactNode; tone?: 'warn' | 'accent'; icon?: ReactNode; onClick?: () => void; label?: string;
+}) {
+  const cls = `callout${tone ? ` callout--${tone}` : ''}`;
+  if (onClick) {
+    return (
+      <button type="button" className={`${cls} callout--button`} onClick={onClick} aria-label={label}>
+        {icon}<div className="callout__body">{children}</div><CaretRight size={16} className="callout__chev" />
+      </button>
+    );
+  }
+  return <div className={cls}>{icon}<div>{children}</div></div>;
 }
 
 export function Stats({ items }: { items: { label: string; value: ReactNode }[] }) {
