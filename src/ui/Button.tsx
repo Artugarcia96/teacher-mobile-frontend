@@ -10,9 +10,11 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
   full?: boolean;
   to?: string;
+  /** History state of the `to` link. */
+  state?: unknown;
 }
 
-export function Button({ variant = 'primary', size = 'md', icon, loading, full, to, className, children, disabled, ...rest }: Props) {
+export function Button({ variant = 'primary', size = 'md', icon, loading, full, to, state, className, children, disabled, ...rest }: Props) {
   const cls = [
     'btn', `btn--${variant}`, size === 'sm' && 'btn--sm', full && 'btn--full', loading && 'btn--loading',
     variant === 'glass' && 'glass', className,
@@ -24,7 +26,7 @@ export function Button({ variant = 'primary', size = 'md', icon, loading, full, 
       {children && <span>{children}</span>}
     </>
   );
-  if (to) return <Link to={to} className={cls}>{content}</Link>;
+  if (to) return <Link to={to} state={state} className={cls}>{content}</Link>;
   return (
     <button className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
       {content}

@@ -6,7 +6,8 @@ import { Sheet } from './Sheet';
 
 // ── Toasts ───────────────────────────────────────────────────────────────────
 interface Toast { id: number; text: string; tone: 'ok' | 'error'; action?: { label: string; run: () => void } }
-interface ConfirmOpts { title: string; text?: ReactNode; confirm: string; danger?: boolean }
+/** `other`: a third way out (the confirm resolves false and it runs): «Revisar» instead of printing anyway. */
+interface ConfirmOpts { title: string; text?: ReactNode; confirm: string; danger?: boolean; other?: { label: string; run: () => void } }
 
 interface Ctx {
   toast: (text: string, opts?: { tone?: 'ok' | 'error'; action?: Toast['action'] }) => void;
@@ -54,7 +55,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       )}
       <Sheet open={!!pending} onClose={() => close(false)} title={pending?.title ?? ''}
         footer={<>
-          <Button variant="neutral" onClick={() => close(false)}>Cancelar</Button>
+          {pending?.other
+            ? <Button variant="neutral" onClick={() => { const run = pending.other!.run; close(false); run(); }}>{pending.other.label}</Button>
+            : <Button variant="neutral" onClick={() => close(false)}>Cancelar</Button>}
           <Button variant={pending?.danger ? 'danger' : 'primary'} onClick={() => close(true)} data-autofocus>{pending?.confirm}</Button>
         </>}>
         {pending?.text && <p className="muted">{pending.text}</p>}
@@ -70,7 +73,8 @@ export function useFeedback(): Ctx {
 }
 
 // ── Menu (overflow actions) ──────────────────────────────────────────────────
-export interface MenuItem { label: string; icon?: ReactNode; onSelect: () => void; danger?: boolean; separatorBefore?: boolean }
+/** `disabledReason`: the item cannot be used now; says why under its label. */
+export interface MenuItem { label: string; icon?: ReactNode; onSelect: () => void; danger?: boolean; separatorBefore?: boolean; disabledReason?: string }
 
 export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactNode; items: MenuItem[] }) {
   const [pos, setPos] = useState<{ top: number; right: number; above: number } | null>(null);
@@ -111,9 +115,10 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
             {items.map((it) => (
               <div key={it.label}>
                 {it.separatorBefore && <div className="menu__sep" />}
-                <button role="menuitem" className={`menu__item${it.danger ? ' menu__item--danger' : ''}`}
+                <button role="menuitem" className={`menu__item${it.danger ? ' menu__item--danger' : ''}`} disabled={!!it.disabledReason}
                   onClick={() => { setPos(null); it.onSelect(); }}>
-                  {it.icon}{it.label}
+                  {it.icon}
+                  <span className="menu__label">{it.label}{it.disabledReason && <small className="menu__reason">{it.disabledReason}</small>}</span>
                 </button>
               </div>
             ))}

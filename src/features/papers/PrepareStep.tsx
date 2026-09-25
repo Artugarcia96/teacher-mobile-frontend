@@ -8,18 +8,22 @@ import { IconButton, List, Menu, Row, RowIcon, Section, useFeedback } from '../.
 import { JobLine } from './JobLine';
 import { openSigned } from './openDoc';
 import { RubricTable } from './RubricTable';
+import { VersionsSection } from './VersionsSection';
 
 interface Props {
   correction: Correction;
   job: Job | undefined;
+  /** Uploading or generating the exam: the step shows its progress only. */
   running: boolean;
+  /** Writing versions of the exam: the step stays usable, the «Versiones» section shows the progress. */
+  versionsRunning: boolean;
   onJob: (job: Job) => void;
   onGenerate: () => void;
   onManual: () => void;
 }
 
-/** Step 1 — the exam document and its rubric. */
-export function PrepareStep({ correction, job, running, onJob, onGenerate, onManual }: Props) {
+/** Step 1 — the exam document, its rubric and its versions (Modelo B, adapted ones, printing for the class). */
+export function PrepareStep({ correction, job, running, versionsRunning, onJob, onGenerate, onManual }: Props) {
   const id = correction.activity.id;
   const upload = useUploadDocument(id);
   const noAI = useAIUnavailable();  // reading or writing the exam needs the AI
@@ -66,6 +70,8 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
     );
   }
 
+  // A repeat of a generated exam has the rubric, not the file: it is laid out on first print.
+  const printable = !!correction.document_url || (correction.generated && !!correction.rubric);
   const rubric = correction.rubric ?? {
     title: '', total: correction.activity.max_score,
     items: [{ id: '1', label: '1', text: '', points: correction.activity.max_score, answer: '', steps: [] }],
@@ -74,13 +80,13 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
     <>
       {fileInput}
       <List>
-        {correction.document_url && (
+        {printable && (
           <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Examen para imprimir" wrapSub
             sub={[correction.pages_per_paper && `${plural(correction.pages_per_paper, 'página', 'páginas')} por alumno`,
               correction.exam_code && `cada página lleva la marca ${correction.exam_code}`].filter(Boolean).join(' · ') || 'PDF'}
             trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('print')} />
         )}
-        {correction.document_url && (
+        {printable && (
           <Row lead={<RowIcon><Rows size={20} /></RowIcon>} title="Hoja extra" wrapSub
             sub="Folio pautado para quien necesite más espacio, con nombre y número de ejercicio"
             trail={<ArrowSquareOut size={18} />} chevron={false} onClick={() => open('extra-sheet')} />
@@ -97,11 +103,13 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
               { label: 'Generar otro con IA', icon: <PencilLine size={18} />, onSelect: () => (noAI ? toast(noAI) : onGenerate()) },
             ]} />
         }
-        footer={correction.generated ? 'Al guardar se actualiza también el PDF para imprimir.' : undefined}
       >
         {!correction.rubric && <p className="muted">No se han podido leer las preguntas. Escríbelas aquí para que la IA pueda sugerir notas.</p>}
-        <RubricTable activityId={id} rubric={rubric} maxScore={correction.activity.max_score} />
+        <RubricTable activityId={id} rubric={rubric} maxScore={correction.activity.max_score} generated={correction.generated} />
       </Section>
+      {correction.rubric && printable && (
+        <VersionsSection correction={correction} job={versionsRunning ? job : undefined} running={versionsRunning} onJob={onJob} />
+      )}
     </>
   );
 }

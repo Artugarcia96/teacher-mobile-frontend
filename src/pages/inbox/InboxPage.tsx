@@ -37,10 +37,10 @@ function sessionName(ev: NonNullable<Inbox['next_evaluation_event']>): string {
   return /^sesi[oó]n de evaluaci[oó]n/i.test(ev.title.trim()) ? `Sesión de la ${TERM_LABEL[ev.term]}` : ev.title;
 }
 
-/** What is missing before the evaluation session, in words: "Falta revisar Examen U2 (18) · faltan 26 comentarios". */
+/** What is missing before the evaluation session, in words: "Examen U2: 18 por revisar · faltan 26 comentarios". */
 function evaluationLine(e: InboxEvaluation): string | null {
   const parts = [
-    ...e.to_review.map((x) => `falta revisar ${x.title} (${x.count})`),
+    ...e.to_review.map((x) => `${x.title}: ${x.count} por revisar`),
     ...e.to_grade.map((x) => `faltan notas de ${x.title} (${x.count})`),
   ];
   if (e.pending_absent) parts.push(`${plural(e.pending_absent, 'alumno con examen pendiente', 'alumnos con examen pendiente')} por falta`);

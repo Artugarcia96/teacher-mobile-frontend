@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CorrectionStudent } from '../../api/papers';
 import { fileUrl } from '../../lib/api';
+import { fold } from '../../lib/format';
 import { Avatar, List, Row, Section, Sheet, TextField } from '../../ui';
 
 interface Props {
@@ -14,13 +15,11 @@ interface Props {
   page?: string | null;
 }
 
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
 /** "¿De quién es esta hoja?" — students without a paper first; picking one who has a paper merges the pages. */
 export default function StudentPickerSheet({ open, onClose, students, thumbUrl, detected, onPick, page }: Props) {
   const [q, setQ] = useState('');
   const [free, taken] = useMemo(() => {
-    const list = students.filter((s) => !q || norm(s.student.name).includes(norm(q)));
+    const list = students.filter((s) => !q || fold(s.student.name).includes(fold(q)));
     return [list.filter((s) => !s.paper_id), list.filter((s) => s.paper_id)];
   }, [students, q]);
 
