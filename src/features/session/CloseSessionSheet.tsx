@@ -31,7 +31,7 @@ function CloseBody({ onClose, courseId, date, start, label }: CloseSessionSheetP
   useEffect(() => {
     if (f || !q.data) return;
     const d = q.data;
-    setF({ done: d.saved ? d.done ?? '' : d.unit?.title ?? '', next: d.next ?? '', homework: d.homework ?? '', finish: false });
+    setF({ done: d.saved ? d.done ?? '' : d.previous?.next ?? '', next: d.next ?? '', homework: d.homework ?? '', finish: false });
   }, [q.data, f]);
 
   const empty = !!f && !f.done.trim() && !f.next.trim() && !f.homework.trim() && !f.finish;
@@ -54,8 +54,8 @@ function CloseBody({ onClose, courseId, date, start, label }: CloseSessionSheetP
   return (
     <Sheet open side onClose={onClose} title={label ? `Cerrar clase · ${label}` : 'Cerrar clase'} subtitle={when}
       footer={<Button full variant={empty && d?.saved ? 'danger' : 'primary'} onClick={submit} loading={save.isPending} disabled={!f || (empty && !d?.saved)}
-        title={empty && !d?.saved ? 'Escribe qué habéis hecho o qué toca la próxima vez' : undefined}>
-        {empty && d?.saved ? 'Borrar el cierre' : 'Guardar'}
+        title={empty && !d?.saved ? 'Escribe qué habéis hecho' : undefined}>
+        {empty && d?.saved ? 'Borrar el cierre' : empty ? 'Escribe qué habéis hecho' : 'Guardar'}
       </Button>}>
       {q.error ? <p className="muted">{(q.error as Error).message}</p> : !f || !d ? <SkeletonList rows={3} /> : (
         <div className="form">

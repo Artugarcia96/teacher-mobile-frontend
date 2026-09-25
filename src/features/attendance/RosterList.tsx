@@ -96,42 +96,71 @@ function RosterLine({ n, row, label, tone, onTap, items }: {
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-/** Debounced autosave: `schedule` the latest payload, `flush` before closing. Keeps taps even if a save fails. */
-export function useAutosave<T>(save: (payload: T) => Promise<unknown>) {
+/** Debounced autosave of the latest state. One save at a time: when it resolves, the state scheduled meanwhile goes
+ *  next, so an older save never lands after a newer one. `flush` resolves once the server has everything (false if a
+ *  save failed; the taps are kept for the next try). Leaving mid-save (unmount, closing the tab) sends what is left
+ *  with `keepalive` instead of dropping it. */
+export function useAutosave<T>(save: (payload: T) => Promise<unknown>, keepalive: (payload: T) => void) {
   const [state, setState] = useState<SaveState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef<T | null>(null);
-  const dirty = useRef(false);
+  const pending = useRef<T | null>(null);
+  const inflight = useRef<Promise<boolean> | null>(null);
   const saveRef = useRef(save);
-  useEffect(() => { saveRef.current = save; }, [save]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const keepaliveRef = useRef(keepalive);
+  useEffect(() => { saveRef.current = save; keepaliveRef.current = keepalive; }, [save, keepalive]);
 
-  /** Saves now (the given payload, or the last scheduled one). Resolves to false if it failed. */
-  const flush = useCallback(async (payload?: T): Promise<boolean> => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
-    if (payload !== undefined) latest.current = payload;
-    if (latest.current === null) return true;
-    dirty.current = false;
-    setState('saving');
-    try {
-      await saveRef.current(latest.current);
+  const drain = useCallback((): Promise<boolean> => {
+    if (inflight.current) return inflight.current;
+    if (pending.current === null) return Promise.resolve(true);
+    const run = (async () => {
+      setState('saving');
+      while (pending.current !== null) {
+        const payload = pending.current;
+        pending.current = null;
+        try {
+          await saveRef.current(payload);
+        } catch {
+          pending.current ??= payload;
+          setState('error');
+          return false;
+        }
+      }
       setState('saved');
       return true;
-    } catch {
-      dirty.current = true;
-      setState('error');
-      return false;
-    }
+    })().finally(() => { inflight.current = null; });
+    inflight.current = run;
+    return run;
   }, []);
 
-  const schedule = useCallback((payload: T, delay = 600) => {
-    latest.current = payload;
-    dirty.current = true;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void flush(); }, delay);
-  }, [flush]);
+  /** Saves now (the given payload, or what is left) and resolves when the server has confirmed it all. */
+  const flush = useCallback(async (payload?: T): Promise<boolean> => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    if (payload !== undefined) pending.current = payload;
+    return drain();
+  }, [drain]);
 
-  return { state, schedule, flush, isDirty: () => dirty.current };
+  const schedule = useCallback((payload: T, delay = 600) => {
+    pending.current = payload;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { timer.current = null; void drain(); }, delay);
+  }, [drain]);
+
+  useEffect(() => {
+    const leave = (now: boolean) => {
+      if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+      const payload = pending.current;
+      if (payload === null) return;
+      pending.current = null;
+      // After the save in flight (unless the page is going away): it may carry older values of the same students.
+      if (inflight.current && !now) void inflight.current.then(() => keepaliveRef.current(payload));
+      else keepaliveRef.current(payload);
+    };
+    const onPageHide = () => leave(true);
+    window.addEventListener('pagehide', onPageHide);
+    return () => { window.removeEventListener('pagehide', onPageHide); leave(false); };
+  }, []);
+
+  return { state, schedule, flush, isDirty: () => timer.current !== null || pending.current !== null || inflight.current !== null };
 }
 
 export const SAVE_LABEL: Record<SaveState, string> = {

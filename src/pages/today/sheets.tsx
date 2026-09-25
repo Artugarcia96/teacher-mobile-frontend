@@ -1,68 +1,103 @@
-/** Small sheets used only by Hoy: session actions, month picker, «A vigilar» (all, and one student). */
-import { ArrowCounterClockwise, BookOpen, ChatCircleText, CheckCircle, FlagCheckered, ListChecks, NotePencil, Student, Backpack } from '@phosphor-icons/react';
+/** Small sheets used only by Hoy: one session (plan, materials and actions), month picker, «A vigilar» (all, and one student). */
+import { ArrowCounterClockwise, BookOpen, CalendarX, ChatCircleText, CheckCircle, FilePdf, FlagCheckered, ListChecks, NotePencil, Student } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useAckWatch, useCalendar, useCancelSession, useWatch, type TodaySession, type WatchItem } from '../../api/today';
 import { addDays, isoDate, longDate, parseDate, shortDate } from '../../lib/format';
-import { Button, Callout, List, MonthGrid, Row, RowIcon, Sheet, SkeletonList, useFeedback } from '../../ui';
-import { attendanceLabel, homeworkLabel, WatchRows } from './parts';
+import { MaterialChips } from '../../features/materials/MaterialChips';
+import { fileUrl } from '../../lib/api';
+import { Button, Callout, List, MonthGrid, Row, RowIcon, Sheet, SkeletonList, TextField, useFeedback } from '../../ui';
+import { attendanceLabel, SessionActivities, SessionPlan, WatchRows } from './parts';
 
 export function SessionSheet({ session, today, onClose, onAttendance, onNote, onHomework, onCloseClass }: {
   session: TodaySession | null; today: string; onClose: () => void;
   onAttendance: (s: TodaySession) => void; onNote: (s: TodaySession) => void;
   onHomework: (s: TodaySession) => void; onCloseClass: (s: TodaySession) => void;
 }) {
+  if (!session) return null;
+  return <SessionBody key={`${session.course.id}|${session.date}|${session.start}`} s={session} today={today} onClose={onClose}
+    onAttendance={onAttendance} onNote={onNote} onHomework={onHomework} onCloseClass={onCloseClass} />;
+}
+
+function SessionBody({ s, today, onClose, onAttendance, onNote, onHomework, onCloseClass }: {
+  s: TodaySession; today: string; onClose: () => void;
+  onAttendance: (s: TodaySession) => void; onNote: (s: TodaySession) => void;
+  onHomework: (s: TodaySession) => void; onCloseClass: (s: TodaySession) => void;
+}) {
   const { toast, confirm } = useFeedback();
   const cancel = useCancelSession();
-  if (!session) return null;
-  const s = session;
+  const [noClass, setNoClass] = useState<string | null>(null);
   const started = s.status === 'past' || s.status === 'now';
-  const toggle = async () => {
-    if (!s.cancelled && !(await confirm({
-      title: 'Cancelar sesión', confirm: 'Cancelar sesión', danger: true,
-      text: `${s.course.label} no tendrá clase el ${longDate(s.date)} a las ${s.start}. No contará como lista sin pasar.`,
-    }))) return;
-    if (s.guardia && !(await confirm({
-      title: 'Quitar la guardia', confirm: 'Quitar guardia', danger: true,
-      text: 'La sesión vuelve a ser una clase normal. Si ya entregaste la hoja en jefatura, avisa de que no hace falta.',
-    }))) return;
+  const when = [longDate(s.date), `${s.start}–${s.end}`, s.room && `Aula ${s.room}`].filter(Boolean).join(' · ');
+
+  const run = async (restore: boolean, note?: string) => {
     try {
-      await cancel.mutateAsync({ courseId: s.course.id, date: s.date, start: s.start, restore: s.cancelled });
-      toast(s.guardia ? 'Guardia quitada' : s.cancelled ? 'Sesión restaurada' : 'Sesión cancelada');
+      await cancel.mutateAsync({ courseId: s.course.id, date: s.date, start: s.start, restore, note: note?.trim() || undefined });
+      toast(s.guardia ? 'Vuelves a tener esta clase' : restore ? 'Sesión restaurada' : 'Sin clase');
       onClose();
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
     }
   };
+  const restore = async () => {
+    if (s.guardia && !(await confirm({
+      title: 'Ya no faltas', confirm: 'Ya no falto',
+      text: 'La sesión vuelve a ser una clase normal. Si ya entregaste la hoja de guardia en jefatura, avisa de que no hace falta.',
+    }))) return;
+    await run(true);
+  };
+
+  if (noClass !== null) {
+    return (
+      <Sheet open onClose={() => setNoClass(null)} title="No hay clase" subtitle={`${s.course.label} · ${when}`}
+        footer={<>
+          <Button variant="neutral" onClick={() => setNoClass(null)}>Volver</Button>
+          <Button onClick={() => void run(false, noClass)} loading={cancel.isPending}>No hay clase</Button>
+        </>}>
+        <div className="form">
+          <p className="muted">No contará como lista sin pasar. Se puede deshacer desde la agenda.</p>
+          <TextField label="Motivo" placeholder="Excursión, huelga, actividad del centro…" value={noClass} maxLength={500}
+            hint="Opcional." onChange={(e) => setNoClass(e.target.value)} />
+        </div>
+      </Sheet>
+    );
+  }
+
   const go = (fn: (s: TodaySession) => void) => () => { onClose(); fn(s); };
   return (
-    <Sheet open onClose={onClose} title={s.course.label}
-      subtitle={[longDate(s.date), `${s.start}–${s.end}`, s.room && `Aula ${s.room}`].filter(Boolean).join(' · ')}>
+    <Sheet open onClose={onClose} title={s.course.label} subtitle={when}>
       <div className="form">
-        {s.guardia ? <Callout tone="accent"><b>Guardia:</b> {s.cancel_note}</Callout>
-          : s.cancelled && <Callout tone="warn">Sesión cancelada{s.cancel_note ? `: ${s.cancel_note}` : '.'}</Callout>}
+        {s.guardia ? <Callout tone="accent"><b>Faltas · tarea:</b> {s.cancel_note}</Callout>
+          : s.cancelled ? <Callout tone="warn">Sin clase{s.cancel_note ? ` · ${s.cancel_note}` : ''}</Callout>
+            : (
+              <>
+                <SessionActivities session={s} />
+                <MaterialChips session={s} />
+                <SessionPlan s={s} canCheck={s.date <= today} onHomework={go(onHomework)} />
+              </>
+            )}
         <List inset={64}>
           {(!s.cancelled || s.guardia) && s.date <= today && (
             <Row lead={<RowIcon tone="accent"><ListChecks size={20} /></RowIcon>} title={s.attendance.taken ? 'Editar lista' : 'Pasar lista'}
               sub={s.attendance.taken ? attendanceLabel(s.attendance) : s.guardia ? 'Con la hoja de la guardia' : 'Todos presentes por defecto'}
               onClick={go(onAttendance)} />
           )}
-          {!s.cancelled && s.date <= today && (s.homework?.text || s.homework?.checked) && (
-            <Row lead={<RowIcon tone="accent"><Backpack size={20} /></RowIcon>} title={s.homework.checked ? 'Deberes revisados' : 'Revisar deberes'}
-              sub={s.homework.checked ? homeworkLabel(s.homework) : s.homework.text} onClick={go(onHomework)} />
-          )}
           {!s.cancelled && started && (
             <Row lead={<RowIcon tone="accent"><FlagCheckered size={20} /></RowIcon>} title={s.log ? 'Clase cerrada' : 'Cerrar clase'}
               sub={s.log ? s.log.next ? `Para la próxima: ${s.log.next}` : s.log.done : 'Qué habéis hecho, qué toca y deberes'} onClick={go(onCloseClass)} />
           )}
+          {s.guardia_pdf && (
+            <Row lead={<RowIcon tone="accent"><FilePdf size={20} /></RowIcon>} title="Hoja de guardia (PDF)" sub="La que dejaste para jefatura de estudios"
+              onClick={() => window.open(fileUrl(s.guardia_pdf), '_blank', 'noopener')} />
+          )}
           <Row lead={<RowIcon tone="accent"><NotePencil size={20} /></RowIcon>} title="Anotar" sub="Observación, incidencia, positivo o familia"
             onClick={go(onNote)} />
-          <Row lead={<RowIcon><BookOpen size={20} /></RowIcon>} title="Abrir clase" sub={s.unit ?? 'Cuaderno, alumnos y programación'} to={`/clases/${s.course.id}`} />
+          <Row lead={<RowIcon><BookOpen size={20} /></RowIcon>} title="Abrir clase" to={`/clases/${s.course.id}`} />
         </List>
         {s.cancelled
-          ? <Button variant="neutral" full icon={<ArrowCounterClockwise size={18} />} onClick={toggle} loading={cancel.isPending}>
-            {s.guardia ? 'Quitar guardia' : 'Restaurar sesión'}
+          ? <Button variant="neutral" full icon={<ArrowCounterClockwise size={18} />} onClick={restore} loading={cancel.isPending}>
+            {s.guardia ? 'Ya no falto' : 'Restaurar sesión'}
           </Button>
-          : <Button variant="danger" full onClick={toggle} loading={cancel.isPending}>Cancelar sesión</Button>}
+          : <Button variant="neutral" full icon={<CalendarX size={18} />} onClick={() => setNoClass('')}>No hay clase</Button>}
       </div>
     </Sheet>
   );

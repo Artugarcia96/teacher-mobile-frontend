@@ -151,7 +151,7 @@ export default function TodayPage() {
   const teaching = d?.sessions.filter((s) => !s.cancelled) ?? [];
   const others = watchTotal > 0 ? `Hay ${watchTotal} en otras clases.` : undefined;
   const watchEmpty = !d?.sessions.length ? { title: 'Este día no tienes clases', sub: watchTotal > 0 ? `Hay ${watchTotal} en tus clases.` : undefined }
-    : !teaching.length ? { title: d.sessions.some((s) => s.guardia) ? 'Este día tienes guardias' : 'Este día no tienes clases', sub: others }
+    : !teaching.length ? { title: d.sessions.some((s) => s.guardia) ? 'Este día faltas' : 'Este día no tienes clases', sub: others }
       : others ? { title: 'Nadie en las clases de este día', sub: others }
         : { title: 'Nadie a vigilar', sub: 'Nada reciente en tus clases.' };
   const right = day.isLoading ? (

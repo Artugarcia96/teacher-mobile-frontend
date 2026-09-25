@@ -7,7 +7,9 @@ export interface UnitRef { id: string; title: string }
 export interface SessionLog {
   date: string; start: string; end?: string | null; saved: boolean;
   done?: string | null; next?: string | null; homework?: string | null;
-  /** Unit in progress (prefills «Hecho hoy») and the one «empezar la siguiente» would start. */
+  /** Latest log before this session: what it planned («next») prefills «Hecho hoy». */
+  previous?: { date: string; start: string; done?: string | null; next?: string | null; homework?: string | null } | null;
+  /** Unit in progress and the one «empezar la siguiente» would start. */
   unit?: UnitRef | null; next_unit?: UnitRef | null;
 }
 export interface SessionLogInput {

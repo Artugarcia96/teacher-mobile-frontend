@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { WarningCircle } from '@phosphor-icons/react';
 import { Fragment, useEffect, useState } from 'react';
 import { HOMEWORK_LABEL, invalidateHomework, useHomeworkCheck, useSaveHomeworkCheck, type HomeworkStatus } from '../../api/sessions';
+import { api } from '../../lib/api';
 import { plural } from '../../lib/format';
 import { Button, Sheet, SkeletonList, useFeedback } from '../../ui';
 import { RosterList, SAVE_LABEL, useAutosave } from '../attendance/RosterList';
@@ -34,9 +35,10 @@ function HomeworkBody({ onClose, courseId, date, start, label }: HomeworkCheckSh
   const q = useHomeworkCheck(courseId, date, start);
   const save = useSaveHomeworkCheck(courseId);
   const [marks, setMarks] = useState<Marks | null>(null);
-  const autosave = useAutosave((m: Marks) => save.mutateAsync({
+  const body = (m: Marks) => ({
     date, start, marks: Object.entries(m).filter(([, st]) => st !== 'done').map(([student_id, status]) => ({ student_id, status })),
-  }));
+  });
+  const autosave = useAutosave((m: Marks) => save.mutateAsync(body(m)), (m: Marks) => api.keepalive('PUT', `/courses/${courseId}/homework`, body(m)));
 
   useEffect(() => {
     if (marks || !q.data) return;

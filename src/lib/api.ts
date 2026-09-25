@@ -101,6 +101,14 @@ export const api = {
   patch: <T>(path: string, body?: Body) => request<T>('PATCH', path, body ?? {}),
   delete: <T>(path: string) => request<T>('DELETE', path),
   upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
+  /** Fire-and-forget JSON request that outlives the page (leaving a sheet or the tab mid-save): no refresh, no errors. */
+  keepalive: (method: 'PUT' | 'POST', path: string, body: Body) => {
+    const t = tokens.get();
+    void fetch(`${BASE}/api${path}`, {
+      method, keepalive: true, body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t.access_token}` } : {}) },
+    }).catch(() => {});
+  },
 };
 
 /** POST a FormData reporting upload progress (0-1). fetch cannot report it, so this one uses XMLHttpRequest;

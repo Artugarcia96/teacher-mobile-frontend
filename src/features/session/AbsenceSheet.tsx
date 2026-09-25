@@ -1,5 +1,6 @@
-/** «Voy a faltar»: elegir días y sesiones, el motivo y la tarea de cada sesión (por defecto «Continuar con <unidad>» y,
- *  si hay, un material de la unidad). Resultado: las sesiones quedan como «Guardia» y un PDF para jefatura de estudios. */
+/** «Voy a faltar»: elegir días y sesiones, el motivo y la tarea de cada sesión (por defecto lo que planeó el último cierre de
+ *  clase —«Toca» y deberes— y, si hay, un material de la unidad). Resultado: las sesiones quedan como «Faltas» en la agenda
+ *  y un PDF (hoja de guardia) para jefatura de estudios. */
 import { CalendarX, FilePdf } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAbsenceSessions, useCreateAbsence, type AbsenceSession } from '../../api/sessions';
@@ -40,7 +41,7 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
     setChoices((cur) => {
       const next = { ...cur };
       for (const s of sessions) {
-        next[key(s)] ??= { on: true, task: s.task ?? (s.unit ? `Continuar con ${s.unit.title}.` : ''), materials: [] };
+        next[key(s)] ??= { on: true, task: s.task ?? '', materials: [] };
       }
       return next;
     });
@@ -60,7 +61,7 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
           material_ids: choices[key(s)].materials })),
       });
       setPdf({ url: r.pdf_url, count: r.count });
-      toast(`${plural(r.count, 'sesión marcada', 'sesiones marcadas')} como guardia`);
+      toast(`${plural(r.count, 'sesión', 'sesiones')} con hoja de guardia`);
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
     }
@@ -69,8 +70,8 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
   if (pdf) {
     return (
       <Sheet open side onClose={onClose} title="Voy a faltar">
-        <EmptyState icon={<FilePdf size={24} />} title={`${plural(pdf.count, 'sesión', 'sesiones')} como guardia`}
-          text="Imprime el PDF y déjalo en jefatura de estudios. En tu agenda esas sesiones aparecen como «Guardia»."
+        <EmptyState icon={<FilePdf size={24} />} title={`${plural(pdf.count, 'sesión', 'sesiones')} con hoja de guardia`}
+          text="Imprime el PDF y déjalo en jefatura de estudios. En tu agenda esas sesiones aparecen como «Faltas» y desde ellas puedes volver a descargarlo."
           action={<a className="btn btn--primary" href={fileUrl(pdf.url)} target="_blank" rel="noreferrer"><span>Descargar PDF</span></a>} />
       </Sheet>
     );
@@ -103,7 +104,7 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
                 return (
                   <List key={key(s)}>
                     <Row lead={<Dot color={s.course.color} large />} title={s.course.label} wrapSub
-                      sub={[`${weekdayShort(s.date)} ${shortDate(s.date)}, ${s.start}–${s.end}`, s.room && `Aula ${s.room}`, s.guardia && 'ya en guardia']
+                      sub={[`${weekdayShort(s.date)} ${shortDate(s.date)}, ${s.start}–${s.end}`, s.room && `Aula ${s.room}`, s.guardia && 'ya con hoja de guardia']
                         .filter(Boolean).join(' · ')}
                       trail={<Switch label={`Incluir ${s.course.label} ${s.start}`} checked={c.on} onChange={(on) => set(key(s), { on })} />} />
                     {c.on && (
