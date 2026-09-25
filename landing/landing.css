@@ -1,19 +1,25 @@
 /* Sepia landing: the app's colours (docs/DESIGN.md). Every token it shares with src/styles/tokens.css has the same
    value (npm run check:tokens compares them). "Cristal para el marco, papel para el contenido": glass only for the bar;
    the recordings sit in solid device frames so nothing blurs behind them.
-   Type, upright only (fonts/OFL.txt): Inter with its optical-size axis for the headlines (30 px and up), Instrument
-   Sans, the app's own face, for everything else, so the words around a recording match the words inside it. Only the
-   latin subsets load for Spanish (about 82 KB, both preloaded). Inter is optional: if it is not there in the first
-   moments the headlines stay in the metric-matched fallback instead of reflowing mid-read. */
-@font-face { font-family: 'Inter'; src: url(fonts/inter-latin-opsz-wght.woff2) format('woff2-variations'); font-weight: 400 700; font-display: optional; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Inter'; src: url(fonts/inter-latin-ext-opsz-wght.woff2) format('woff2-variations'); font-weight: 400 700; font-display: optional; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-@font-face { font-family: 'Instrument Sans'; src: url(fonts/instrument-sans-latin-wght-normal.woff2) format('woff2-variations'); font-weight: 400 700; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Instrument Sans'; src: url(fonts/instrument-sans-latin-ext-wght-normal.woff2) format('woff2-variations'); font-weight: 400 700; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-/* Where Inter is not in use (Windows, Android, a slow first visit), a local sans scaled to Inter semibold, the only
-   weight it is set in. A medium where the system has one (Helvetica Neue, Roboto), as is; else a bold (Arial,
-   Liberation), scaled down because it runs wider. local() names a single face and font-synthesis is off. */
-@font-face { font-family: 'Inter Fallback Medium'; font-weight: 600 800; src: local('Helvetica Neue Medium'), local('HelveticaNeue-Medium'), local('Roboto Medium'), local('Roboto-Medium'); ascent-override: 90%; descent-override: 22.5%; line-gap-override: 0%; }
-@font-face { font-family: 'Inter Fallback'; font-weight: 600 800; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'); size-adjust: 95%; ascent-override: 90%; descent-override: 22.5%; line-gap-override: 0%; }
+   Type, upright only (fonts/OFL.txt): one face, Inter, with its optical-size axis, so the text tightens by itself
+   from 17 px body to 76 px headlines. Only the latin subset loads for Spanish (about 53 KB, preloaded). */
+@font-face { font-family: 'Inter'; src: url(fonts/inter-latin-opsz-wght.woff2) format('woff2-variations'); font-weight: 400 700; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Inter'; src: url(fonts/inter-latin-ext-opsz-wght.woff2) format('woff2-variations'); font-weight: 400 700; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+/* Until Inter arrives (or where it cannot), a local sans scaled to Inter's width so the swap does not reflow: Segoe UI
+   on Windows, Roboto on Android, Arial or Liberation Sans elsewhere; Apple's own system face for text and Helvetica
+   Neue for headlines. Inter's optical size makes it narrower at headline sizes, so headlines (600 only) and text get
+   their own scale. The metric overrides are Inter's ascent and descent divided by that scale. local() names a single
+   face and font-synthesis is off. */
+@font-face { font-family: 'Inter Display Apple'; font-weight: 600 800; src: local('Helvetica Neue Medium'), local('HelveticaNeue-Medium'); ascent-override: 96.9%; descent-override: 24.1%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Display Segoe'; font-weight: 600 800; src: local('Segoe UI Semibold'), local('SegoeUI-Semibold'); size-adjust: 100%; ascent-override: 96.9%; descent-override: 24.1%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Display Roboto'; font-weight: 600 800; src: local('Roboto Medium'), local('Roboto-Medium'); size-adjust: 100%; ascent-override: 96.9%; descent-override: 24.1%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Display Arial'; font-weight: 600 800; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'); size-adjust: 94%; ascent-override: 103.1%; descent-override: 25.7%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Text Segoe'; font-weight: 400 500; src: local('Segoe UI'), local('SegoeUI'); size-adjust: 106%; ascent-override: 91.4%; descent-override: 22.8%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Text Segoe'; font-weight: 600 800; src: local('Segoe UI Semibold'), local('SegoeUI-Semibold'); size-adjust: 105%; ascent-override: 92.3%; descent-override: 23%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Text Roboto'; font-weight: 400 500; src: local('Roboto'), local('Roboto-Regular'); size-adjust: 106%; ascent-override: 91.4%; descent-override: 22.8%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Text Roboto'; font-weight: 600 800; src: local('Roboto Medium'), local('Roboto-Medium'); size-adjust: 106%; ascent-override: 91.4%; descent-override: 22.8%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Text Arial'; font-weight: 400 500; src: local('Arial'), local('ArialMT'), local('Liberation Sans'); size-adjust: 105%; ascent-override: 92.3%; descent-override: 23%; line-gap-override: 0%; }
+@font-face { font-family: 'Inter Text Arial'; font-weight: 600 800; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'); size-adjust: 99%; ascent-override: 97.9%; descent-override: 24.4%; line-gap-override: 0%; }
 
 :root {
   color-scheme: light;
@@ -43,8 +49,9 @@
   --bezel: #1D1D1F;                     /* the device frame around a recording */
   --bezel-edge: rgba(255, 255, 255, 0.10);
   --device-shadow: 0 2px 4px rgba(40, 30, 20, 0.08), 0 30px 60px -12px rgba(40, 30, 20, 0.28), 0 18px 36px -18px rgba(40, 30, 20, 0.30);
-  --display: 'Inter', 'Inter Fallback Medium', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --text: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ink-tone: #5A5956;                  /* a headline's quieter second clause: softer than ink, firmer than --ink-2 */
+  --display: 'Inter', 'Inter Display Apple', 'Inter Display Segoe', 'Inter Display Roboto', 'Inter Display Arial', sans-serif;
+  --text: 'Inter', -apple-system, BlinkMacSystemFont, 'Inter Text Segoe', 'Inter Text Roboto', 'Inter Text Arial', sans-serif;
   --margin: 20px;
   --max: 1180px;
   --section: 88px;          /* the space that opens a section or a band */
@@ -74,6 +81,7 @@
     --ambient-2: rgba(214, 170, 110, 0.07);
     --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --e2: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --ink-tone: #A09E99;
     --btn-edge: rgba(255, 255, 255, 0.40);
     --bezel: #34353A;
     --bezel-edge: rgba(255, 255, 255, 0.22);
@@ -85,9 +93,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 88px; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
-/* Instrument Sans as the app sets it: ss01, and a little more word space (its own is narrow). */
 body { margin: 0; min-width: 320px; overflow-x: hidden; background: var(--canvas); color: var(--ink);
-  font: 17px/1.55 var(--text); font-feature-settings: 'ss01' on; word-spacing: 0.05em;
+  font: 17px/1.55 var(--text); font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; font-synthesis: none; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; }
@@ -112,18 +119,18 @@ b, strong { font-weight: 600; }
 .band { margin-top: var(--section); padding: var(--section) 0; background: var(--paper); }
 
 /* ── Type ────────────────────────────────────────────────
-   Inter semibold for headlines only: display 40→76, title 32→48 (chapter and closing 56). Its optical size already
-   tightens it at display sizes, so the tracking is light and follows the size alone: -0.015em on a phone (32-36 px),
-   -0.02em from 38 to 48, -0.022em from 56 up. Instrument Sans for the rest: label 16→17 in the accent, lead 18→21,
-   body 17, card title 19, small 15, caption 14. A section headline's second clause is --ink-2 on its own line; the hero
-   and the closing are all ink. Numbers are tabular, in the accent. */
-h1, h2 { font-family: var(--display); font-optical-sizing: auto; font-weight: 600; word-spacing: normal; text-wrap: balance; }
+   Every heading in Inter semibold: display 40→76, title 32→48 (chapter and closing 56), card title 19. Its optical
+   size already tightens it at display sizes, so the tracking is light and follows the size alone: -0.015em on a phone
+   (32-36 px), -0.02em from 38 to 48, -0.022em from 56 up. The rest in Inter regular and medium: label 16→17 in the
+   accent, lead 18→21, body 17, small 15, caption 14 (13 on a phone). A section headline's second clause is --ink-tone
+   on its own line; the hero and the closing are all ink. Numbers are tabular, in the accent. */
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; }
 h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.02em; }
 h2 { font-size: 32px; line-height: 1.08; letter-spacing: -0.015em; }
 h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
 @media (min-width: 480px) { h2 { font-size: 38px; letter-spacing: -0.02em; } }
 @media (min-width: 1024px) { h2 { font-size: 48px; } }
-.tone { display: block; color: var(--ink-2); }
+.tone { display: block; color: var(--ink-tone); }
 .eyebrow { font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--accent); }
 .eyebrow + h2 { margin-top: 10px; }
 .num { font-weight: 600; font-size: 15px; line-height: 1; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; color: var(--accent); }
@@ -134,7 +141,7 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 .bar { position: sticky; top: 10px; z-index: 10; width: min(calc(var(--max) + 24px), calc(100% - 2 * var(--margin) + 24px));
   margin: 10px auto 0; display: flex; align-items: center; gap: 2px; padding: 5px 5px 5px 14px; border-radius: 999px; }
 .brand { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; min-height: 44px; padding-right: 8px;
-  font: 600 19px/1 var(--display); letter-spacing: -0.02em; word-spacing: normal; text-decoration: none; color: var(--ink); }
+  font: 600 19px/1 var(--display); letter-spacing: -0.02em; text-decoration: none; color: var(--ink); }
 .brand img { width: 24px; height: 24px; }
 .brand--small { font-size: 17px; margin: 0; }
 .brand--small img { width: 20px; height: 20px; }
@@ -142,7 +149,7 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 
 /* ── Buttons: pills, verb first ──────────────────────── */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 50px; padding: 0 26px;
-  border-radius: 999px; font: 600 17px/1 var(--text); word-spacing: 0.06em; text-decoration: none; white-space: nowrap;
+  border-radius: 999px; font: 600 17px/1 var(--text); text-decoration: none; white-space: nowrap;
   transition: transform 160ms var(--ease), background-color 160ms var(--ease); }
 .btn:active { transform: scale(0.97); }
 .btn--sm { min-height: 44px; padding: 0 16px; font-size: 16px; }
@@ -190,7 +197,7 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 /* ── Del examen a la nota: one ruled sheet of the notebook, three steps, the number in its own column ── */
 .sheet-wrap { margin-top: 56px; }
 .sheet { background: var(--paper); border-radius: 24px; box-shadow: var(--e1), 0 0 0 0.5px var(--line); padding: 22px 20px 4px; }
-.sheet__title { font-family: var(--text); letter-spacing: normal; word-spacing: 0.05em; line-height: 1.35; padding-bottom: 14px; }
+.sheet__title { font-family: var(--text); letter-spacing: normal; line-height: 1.35; padding-bottom: 14px; }
 .steps { list-style: none; padding: 0; }
 .steps li { display: grid; grid-template-columns: 36px minmax(0, 1fr); padding: 16px 0 18px; border-top: 1px solid var(--line); }
 .steps .num { padding-top: 5px; }
@@ -238,16 +245,19 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 }
 
 /* ── A moment: when it hurts, one line on what Sepia does, and the recording of it.
-   On a desktop the words sit beside the phone, centred on it, the pair centred on the page. ── */
+   On a desktop the words sit beside the phone, level with its top, the pair centred on the page; while the phone
+   scrolls past, the words stay in view beside it. ── */
 .moment { display: grid; gap: 36px; padding-top: var(--section); }
 .chapter + .wrap > .moment:first-child { padding-top: 64px; }
 .moment__copy > p:not(.eyebrow) { margin-top: 16px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
 @media (min-width: 1024px) {
-  :root { --pair: calc(500px + 96px + var(--phone)); } /* a moment's words, its gap and its phone */
-  .moment { grid-template-columns: minmax(0, 500px) auto; justify-content: center; align-items: center; column-gap: 96px; }
+  :root { --words: 600px; --pair: calc(var(--words) + 80px + var(--phone)); } /* a moment's words, its gap and its phone */
+  .moment { grid-template-columns: minmax(0, var(--words)) auto; justify-content: center; align-items: start; column-gap: 80px; }
+  .moment h2 { font-size: 44px; }
+  .moment__copy { position: sticky; top: 30vh; padding-top: 48px; }
   .chapter + .wrap > .moment:first-child { padding-top: 96px; }
   .moment__copy > p:not(.eyebrow) { font-size: 19px; line-height: 1.5; }
-  .moment--flip { grid-template-columns: auto minmax(0, 500px); }
+  .moment--flip { grid-template-columns: auto minmax(0, var(--words)); }
   .moment--flip .moment__copy { order: 2; }
 }
 
@@ -263,7 +273,7 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
   .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto auto; column-gap: 64px; max-width: var(--pair); }
   .duo .moment { grid-row: span 2; grid-template-rows: subgrid; grid-template-columns: none; justify-content: stretch;
     align-items: start; row-gap: 44px; padding-top: 0; }
-  .duo .moment__copy { max-width: 26em; }
+  .duo .moment__copy { position: static; padding-top: 0; max-width: 26em; }
   .duo h2 { font-size: 40px; }
   .duo .clip { justify-items: start; }
 }
@@ -291,6 +301,7 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 .clip figcaption { display: flex; align-items: center; gap: 12px; width: 100%; max-width: var(--phone); font-size: 14px; line-height: 1.45;
   color: var(--ink-2); text-align: left; text-wrap: pretty; }
 .clip--hero figcaption, .clip--wide figcaption { max-width: 440px; }
+@media (max-width: 479px) { .clip figcaption { font-size: 13px; } }
 @media (min-width: 1024px) { .clip--hero figcaption, .clip--wide figcaption { max-width: 40em; } }
 .clip__toggle { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
   border: 0; border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 1px var(--btn-edge); color: var(--ink); cursor: pointer;
