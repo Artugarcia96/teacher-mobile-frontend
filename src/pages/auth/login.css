@@ -5,3 +5,4 @@
 .login__brand { display: grid; justify-items: center; gap: var(--s-1); text-align: center; }
 .login__brand img { margin-bottom: var(--s-1); }
 .login__name { font-size: var(--fs-display); line-height: 1; }
+.login__legal { font-size: var(--fs-footnote); text-align: center; text-wrap: pretty; }

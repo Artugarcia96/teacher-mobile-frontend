@@ -1,25 +1,30 @@
 #!/usr/bin/env node
-// Real screenshots of the demo app for the landing page → landing/img/<shot>-<phone|desktop>[-dark].webp
+// Real screenshots of the demo app for the landing page → landing/img/<shot>-<phone|desktop>[-dark].webp, plus the
+// link preview (og.jpg). Then every image reference in landing/index.html gets ?v=<content hash>, so the week of
+// cache nginx gives /landing/ never shows new copy with old images.
 //
 // Run against the demo exactly as `scripts/dev.sh --demo` leaves it (freshly seeded, "today" = 19/11/2026 10:40):
 //   ../teacher-mobile-backend/scripts/dev.sh --demo     # API on :8000
 //   npm run dev                                         # app on :5173
-//   npm run landing:shots                               # env: APP, API, ONLY=hoy,lista…, CHROMIUM
+//   npm run landing:shots                               # env: APP, API, ONLY=hoy,lista,…,og, CHROMIUM
 // Every id comes from the API: the class in progress, the exam with AI drafts to review, the presentation of the unit
 // in progress and a student with support measures. The list of the class in progress is passed by tapping, as a
 // teacher would (one absence, one late arrival, saved in the demo), so "hoy" is captured before "lista".
 import { chromium } from '@playwright/test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const APP = process.env.APP || 'http://127.0.0.1:5173';
 const API = process.env.API || 'http://127.0.0.1:8000';
 const ONLY = process.env.ONLY?.split(',');
 const OUT = new URL('../landing/img/', import.meta.url).pathname;
+const INDEX = new URL('../landing/index.html', import.meta.url).pathname;
 
-// `width`: pixels of the saved image (phone at 2x; desktop fits the landing's widest frame at 2x).
+// `width`: pixels of the saved image (phone at 2x; desktop at 2x the landing's widest frame, 1168 px, so a 1280 px
+// window shows the app at 91 %).
 const DEVICES = {
   phone: { width: 780, context: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } },
-  desktop: { width: 2200, context: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 } },
+  desktop: { width: 2336, context: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 } },
 };
 
 const login = await fetch(`${API}/api/auth/login`, {
@@ -42,8 +47,12 @@ function fail(msg) {
 
 // ── What to show, found through the API ──────────────────────────────────────
 const today = await api('/today');
+if (today.date !== '2026-11-19') fail('Not the frozen demo day: start the API with scripts/dev.sh --demo.');
 const now = today.sessions.find((s) => s.status === 'now' && !s.cancelled)
   ?? fail('No class in progress: freeze "today" as the demo does (SEPIA_TODAY=2026-11-19 SEPIA_NOW=10:40).');
+if ((!ONLY || ONLY.includes('hoy')) && now.attendance?.taken) {
+  fail('The list of the class in progress is already taken: reseed the demo (scripts/dev.sh --demo) before capturing.');
+}
 const course = now.course.id;
 const roster = await api(`/courses/${course}/students`);
 const absentee = roster.find((r) => r.watch.some((w) => /faltas/.test(w))) ?? roster[0];
@@ -66,12 +75,16 @@ const material = materials.find((m) => m.kind === 'slides' && m.status === 'read
   ?? materials.find((m) => m.status === 'ready' && m.kind !== 'upload')
   ?? fail('The unit in progress has no generated material.');
 
+// The phone shows the evaluation session instead of the gradebook: on 390 px the gradebook fits two activity columns
+// next to an average of all of them.
 const SHOTS = [
   { name: 'hoy', devices: ['phone'], path: '/hoy' },
   { name: 'lista', devices: ['phone'], path: '/hoy', act: passList },
-  { name: 'cuaderno', devices: ['phone', 'desktop'], path: `/clases/${course}/cuaderno` },
+  { name: 'cuaderno', devices: ['desktop'], path: `/clases/${course}/cuaderno` },
+  { name: 'evaluacion', devices: ['phone'], path: `/clases/${course}/evaluacion/1` },
   { name: 'revisar', devices: ['phone', 'desktop'],
-    path: `/clases/${toReview.course.id}/actividades/${toReview.activity.id}/revisar?alumno=${reviewed}` },
+    path: `/clases/${toReview.course.id}/actividades/${toReview.activity.id}/revisar?alumno=${reviewed}`,
+    act: (page, device) => device === 'phone' && showFirstQuestion(page) },
   { name: 'material', devices: ['phone', 'desktop'], path: `/clases/${course}/unidades/${unit.id}/materiales/${material.id}` },
   { name: 'alumnos', devices: ['phone'], path: `/clases/${course}/alumnos`, act: (page) => scrollTo(page, supported.sort_name) },
 ].filter((s) => !ONLY || ONLY.includes(s.name));
@@ -93,10 +106,23 @@ async function passList(page) {
   if (taps) await page.getByText('Guardado', { exact: true }).waitFor(); // autosave
 }
 
-/** Scrolls the page so the row with this text sits just above the tab capsule. */
+/** Scrolls the list so a whole row starts right under the top bar and the row with this text ends in the top 630 px
+ *  (on phones the landing shows the top 1300 px of the 2x image). */
 async function scrollTo(page, text) {
   await page.getByText(text, { exact: true }).first().evaluate((el) => {
-    window.scrollBy(0, el.getBoundingClientRect().bottom - (window.innerHeight - 140));
+    const bar = document.querySelector('.topbar').getBoundingClientRect().bottom;
+    const least = el.closest('.row').getBoundingClientRect().bottom - 630;
+    const snaps = [...el.closest('.list').querySelectorAll('.row')].map((r) => r.getBoundingClientRect().top - bar)
+      .filter((d) => d >= least);
+    window.scrollBy(0, snaps.length ? Math.min(...snaps) : least);
+  });
+}
+
+/** Phone review: the first question with the points the AI proposes, right under the review bar. */
+async function showFirstQuestion(page) {
+  await page.locator('.review-items .ritem').first().evaluate((el) => {
+    const bar = document.querySelector('.review-bar').getBoundingClientRect().bottom;
+    window.scrollBy(0, el.getBoundingClientRect().top - bar - 12);
   });
 }
 
@@ -111,7 +137,10 @@ async function settle(page) {
 
 // ── Capture ──────────────────────────────────────────────────────────────────
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
+// Software GL: without it headless Chromium skips backdrop-filter, and the app's glass bars and sheets show the
+// content behind them unblurred.
+const browser = await chromium.launch({ args: ['--enable-gpu', '--use-angle=swiftshader'],
+  ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}) });
 const encoder = await browser.newPage();
 
 /** PNG → WebP with Chromium's own encoder, scaled to `width` px. */
@@ -156,7 +185,7 @@ for (const shot of SHOTS) {
       await page.goto(APP + shot.path);
       await settle(page);
       if (shot.act) {
-        await shot.act(page);
+        await shot.act(page, device);
         await settle(page);
       }
       const file = `${shot.name}-${device}${scheme === 'dark' ? '-dark' : ''}.webp`;
@@ -166,5 +195,38 @@ for (const shot of SHOTS) {
     }
   }
 }
+if (!ONLY || ONLY.includes('og')) await linkPreview();
 await browser.close();
+stampVersions();
 if (failed) fail('The app threw errors while capturing (see above).');
+
+/** og.jpg, 1200×630 for WhatsApp and other link previews: the hero title beside the top of «Hoy» on the phone. */
+async function linkPreview() {
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 630 }, colorScheme: 'light', locale: 'es-ES' });
+  const page = await ctx.newPage();
+  await page.goto(`${APP}/landing/index.html`); // same origin as the landing's fonts
+  await page.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+    <link rel="stylesheet" href="/landing/landing.css">
+    <style>
+      body { width: 1200px; height: 630px; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 64px; padding: 0 80px 0 88px; }
+      .og__copy { align-self: center; padding-bottom: 12px; }
+      .og__copy h1 { font-size: 80px; margin-bottom: 0; }
+      .og__shot { width: 360px; margin-top: 72px; }
+    </style></head><body>
+    <div class="ambient"></div>
+    <div class="og__copy"><p class="kicker">Sepia · Para Secundaria y Bachillerato</p>
+      <h1>Lista, notas y <em>exámenes corregidos en&nbsp;borrador.</em></h1></div>
+    <figure class="shot shot--phone og__shot"><img src="/landing/img/hoy-phone.webp" alt=""></figure>
+    </body></html>`);
+  await settle(page);
+  writeFileSync(OUT + 'og.jpg', await page.screenshot({ type: 'jpeg', quality: 86 }));
+  console.log('landing/img/og.jpg');
+}
+
+/** Every /landing/img/<file> in index.html → ?v=<first 8 hex of its SHA-1>. */
+function stampVersions() {
+  const html = readFileSync(INDEX, 'utf8').replace(/\/landing\/img\/([\w.-]+\.(?:webp|jpg))(?:\?v=\w+)?/g, (_, file) =>
+    `/landing/img/${file}?v=${createHash('sha1').update(readFileSync(OUT + file)).digest('hex').slice(0, 8)}`);
+  writeFileSync(INDEX, html);
+}

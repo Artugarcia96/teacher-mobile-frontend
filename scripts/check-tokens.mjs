@@ -1,4 +1,5 @@
-// Fails if any CSS/TSX outside src/styles/tokens.css uses raw colors or !important (docs/DESIGN.md).
+// Fails if any CSS/TSX outside src/styles/tokens.css uses raw colors or !important (docs/DESIGN.md), or if the
+// landing's copy of a token drifts from src/styles/tokens.css.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -24,6 +25,22 @@ function check(file) {
     if (COLOR.test(code) && !/url\(|data:|katex/.test(code)) problems.push(`${rel}:${i + 1}  raw color → use a token: ${line.trim().slice(0, 90)}`);
     if (/!important/.test(code) && !ALLOW_IMPORTANT.has(rel)) problems.push(`${rel}:${i + 1}  !important is not allowed`);
   });
+}
+
+// The landing (landing/landing.css) has no build step, so it repeats the tokens it uses: same values as the app.
+const TOKENS = readFileSync(join(ROOT, 'styles/tokens.css'), 'utf8');
+const LANDING = readFileSync(new URL('../landing/landing.css', import.meta.url), 'utf8');
+function rootTokens(css, dark) {
+  const block = dark ? css.match(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root[^{]*\{([^}]*)\}/) : css.match(/^:root\s*\{([^}]*)\}/m);
+  return new Map([...(block?.[1] ?? '').matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].replace(/\s+/g, ' ').trim()]));
+}
+for (const dark of [false, true]) {
+  const app = rootTokens(TOKENS, dark);
+  for (const [name, value] of rootTokens(LANDING, dark)) {
+    if (app.has(name) && app.get(name) !== value) {
+      problems.push(`landing/landing.css  ${name} (${dark ? 'dark' : 'light'}) is ${value}, tokens.css says ${app.get(name)}`);
+    }
+  }
 }
 
 walk(ROOT);

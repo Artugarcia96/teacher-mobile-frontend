@@ -1,6 +1,6 @@
-.roster { max-width: 880px; }
-.roster__sub { display: flex; align-items: center; gap: 4px; margin-top: 3px; min-width: 0; overflow: hidden; }
-.roster__sub .chip { height: 22px; padding: 0 8px; font-size: 12px; flex: none; }
-.roster__sub .chip:first-child { display: block; line-height: 22px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.roster__abs { font-size: var(--fs-footnote); color: var(--ink-2); white-space: nowrap; margin-left: 2px; }
-.roster__add { color: var(--accent); font-weight: 500; }
+.students { max-width: 880px; }
+.students__sub { display: flex; align-items: center; gap: 4px; margin-top: 3px; min-width: 0; overflow: hidden; }
+.students__sub .chip { height: 22px; padding: 0 8px; font-size: 12px; flex: none; }
+.students__sub .chip:first-child { display: block; line-height: 22px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.students__abs { font-size: var(--fs-footnote); color: var(--ink-2); white-space: nowrap; margin-left: 2px; }
+.students__add { color: var(--accent); font-weight: 500; }
