@@ -1,9 +1,8 @@
 import { CheckCircle, Circle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import type { Level } from '../../api/content';
+import { LEVEL_LABEL, type Level } from '../../api/content';
 import { useAIUnavailable } from '../../api/core';
-import { useLibrary } from '../../api/library';
-import { useGenerateMaterial, type GenKind, type Material, type Unit } from '../../api/units';
+import { useGenerateMaterial, type GenKind, type Material, type Unit, type UnitDetail } from '../../api/units';
 import { List, Row, RowIcon, Segmented, Select, Sheet, Stepper, Switch, TextArea, Button, useFeedback } from '../../ui';
 import { GroundingList } from '../materials/GroundingList';
 import { watchJob } from '../materials/watch';
@@ -15,13 +14,13 @@ export const KINDS: { kind: GenKind; title: string; sub: string; verb: string }[
   { kind: 'worksheet', title: 'Ficha', sub: 'Ejercicios por niveles con solucionario', verb: 'Crear ficha' },
   { kind: 'slides', title: 'Presentación', sub: 'Diapositivas para proyectar y PowerPoint editable', verb: 'Crear presentación' },
   { kind: 'summary', title: 'Resumen', sub: 'Una página para repasar', verb: 'Crear resumen' },
-  { kind: 'adapted', title: 'Lectura fácil', sub: 'Los apuntes con lenguaje sencillo (NEAE)', verb: 'Crear lectura fácil' },
+  { kind: 'adapted', title: 'Lectura sencilla', sub: 'Los apuntes adaptados según pautas de lectura fácil (NEAE)', verb: 'Crear lectura sencilla' },
 ];
 
 type LevelChoice = Level | 'todos';
 const LEVELS: { value: LevelChoice; label: string }[] = [
-  { value: 'todos', label: 'Todos' }, { value: 'refuerzo', label: 'Refuerzo' }, { value: 'basico', label: 'Básica' },
-  { value: 'avanzado', label: 'Ampliación' },
+  { value: 'todos', label: 'Todos' },
+  ...(['refuerzo', 'basico', 'avanzado'] as const).map((l) => ({ value: l, label: LEVEL_LABEL[l] })),
 ];
 
 const PLACEHOLDER: Record<GenKind, string> = {
@@ -36,8 +35,11 @@ export interface CreateMaterialSheetProps {
   open: boolean;
   onClose: () => void;
   unit: Unit;
-  /** The unit's materials: its apuntes are a source of the ficha, the presentación and the lectura fácil. */
+  /** The unit's materials: its apuntes are a source of the ficha, the presentación and the lectura sencilla. */
   materials: Material[];
+  /** Files the AI can follow as a guide for this unit (UnitDetail.guides): the programación, when this unit's own section
+   *  is found in it (only that section is read), and the unit's own files. */
+  guides: UnitDetail['guides'];
   courseId: string;
   /** Prefilled choice (a ficha de refuerzo with what an exam showed). */
   initial?: { kind: GenKind; level?: Level; instructions?: string };
@@ -50,7 +52,7 @@ export default function CreateMaterialSheet(props: CreateMaterialSheetProps) {
   return <CreateMaterial {...props} />;
 }
 
-function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateMaterialSheetProps) {
+function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }: CreateMaterialSheetProps) {
   const { toast } = useFeedback();
   const generate = useGenerateMaterial(unit.id);
   const noAI = useAIUnavailable();
@@ -63,9 +65,7 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
   const [instructions, setInstructions] = useState(initial?.instructions ?? '');
   const notes = materials.find((m) => m.kind === 'notes' && m.status === 'ready');
   const notesBusy = materials.some((m) => m.kind === 'notes' && m.status === 'generating');
-  const uploads = useLibrary({ courseId, kinds: ['upload'] });
-  const guides = (uploads.data ?? []).filter((m) => m.text_status !== 'reading' && m.text_status !== 'failed');
-  const programacion = guides.find((m) => !m.unit && m.title === 'Programación');
+  const programacion = guides.find((g) => g.title === 'Programación');
   useEffect(() => {  // the imported programación is the guide unless the teacher chooses otherwise
     if (guide === null && programacion) setGuide(programacion.id);
   }, [guide, programacion]);
@@ -119,7 +119,7 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
               <span className="field__label">Nivel</span>
               <Segmented full label="Nivel de la ficha" value={level} onChange={setLevel} options={LEVELS} />
               <span className="field__hint">
-                {level === 'todos' ? 'Refuerzo, básico y ampliación en la misma ficha, de menos a más.' : 'Todos los ejercicios de ese nivel.'}
+                {level === 'todos' ? 'Refuerzo, básica y ampliación en la misma ficha, de menos a más.' : 'Todos los ejercicios de ese nivel.'}
               </span>
             </div>
             <div className="field">
@@ -160,9 +160,9 @@ function CreateMaterial({ onClose, unit, materials, courseId, initial }: CreateM
 
         {guides.length > 0 && (
           <Select label="Seguir una guía (opcional)" value={guide ?? ''} onChange={(e) => setGuide(e.target.value)}
-            hint="Tu programación o una guía docente subida a la clase: la IA sigue sus indicaciones.">
+            hint={`La IA sigue sus indicaciones. De la programación lee solo la parte de «${unit.title}».`}>
             <option value="">Ninguna</option>
-            {guides.map((m) => <option key={m.id} value={m.id}>{m.title}{m.unit ? ` (${m.unit.title})` : ' (de la clase)'}</option>)}
+            {guides.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
           </Select>
         )}
 

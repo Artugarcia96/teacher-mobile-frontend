@@ -214,7 +214,7 @@ export default function UnitPage() {
         </Section>
       </DropTarget>
 
-      <CreateMaterialSheet open={sheet === 'create'} unit={unit} materials={materials} courseId={courseId}
+      <CreateMaterialSheet open={sheet === 'create'} unit={unit} materials={materials} guides={data.guides} courseId={courseId}
         initial={params.get('crear') === 'ficha' ? { kind: 'worksheet', level: 'refuerzo', instructions: params.get('indicaciones') ?? '' } : undefined}
         onClose={() => { setSheet(null); if (params.has('crear')) setParams({}, { replace: true }); }} />
       <UnitFormSheet open={sheet === 'edit'} onClose={() => setSheet(null)} courseId={courseId} unit={unit} />

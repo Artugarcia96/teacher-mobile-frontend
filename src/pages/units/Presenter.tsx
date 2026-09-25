@@ -1,9 +1,9 @@
-import { CaretLeft, CaretRight, CornersIn, CornersOut, Notepad, X } from '@phosphor-icons/react';
+import { CaretLeft, CaretRight, CornersIn, CornersOut, X } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ContentDoc } from '../../api/content';
-import { IconButton, RichText } from '../../ui';
-import { CoverSlide, SlideFace, slideKey } from './SlideFace';
+import { IconButton } from '../../ui';
+import { CoverSlide, SlideFace } from './SlideFace';
 import './Presenter.css';
 
 interface Props {
@@ -13,12 +13,13 @@ interface Props {
   onClose: () => void;
 }
 
-/** «Proyectar»: the browser's full screen, one slide at a time. Keys: → / Espacio / AvPág next, ← / RePág back,
- *  Inicio / Fin, N speaker notes, F full screen, Esc leaves. Swipe or tap the sides on touch screens. */
+/** «Proyectar»: the browser's full screen, one slide at a time, and only the slide: what the class sees never carries the
+ *  speaker notes, the answers or the teacher's reminders (those stay on the material page, «Notas del orador», and in the
+ *  PowerPoint). Keys: → / Espacio / AvPág next, ← / RePág back, Inicio / Fin, F full screen, Esc leaves. Swipe or tap
+ *  the sides on touch screens. */
 export default function Presenter({ doc, kicker, figures, onClose }: Props) {
   const total = doc.slides.length + 1;
   const [i, setI] = useState(0);
-  const [notes, setNotes] = useState(false);
   const [full, setFull] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -44,13 +45,12 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key;
       const t = e.target as HTMLElement | null;
-      // Enter / Espacio on a focused control (Salir, Notas…) activate it; they do not change the slide.
+      // Enter / Espacio on a focused control (Salir, pantalla completa…) activate it; they do not change the slide.
       if ((k === 'Enter' || k === ' ') && t?.closest('button, a, input, textarea, select, [role="button"]')) return;
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) go(1);
       else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) go(-1);
       else if (k === 'Home') setI(0);
       else if (k === 'End') setI(total - 1);
-      else if (k === 'n' || k === 'N') setNotes((v) => !v);
       else if (k === 'f' || k === 'F') void toggleFull();
       else if (k === 'Escape') void close();
       else return;
@@ -74,7 +74,6 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
   }, []);
 
   const slide = i > 0 ? doc.slides[i - 1] : null;
-  const said = slide ? [slide.notes, ...slideKey(slide)].filter(Boolean) : [];
 
   return createPortal(
     <div ref={root} className="presenter" role="dialog" aria-modal="true" aria-label={`Proyectar: ${doc.title}`}
@@ -89,8 +88,6 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
       <div className="presenter__bar">
         <span className="presenter__count num" aria-live="polite">{i + 1} / {total}</span>
         <div className="presenter__tools">
-          <IconButton label={notes ? 'Ocultar notas del orador (N)' : 'Ver notas del orador (N)'} onClick={() => setNotes((v) => !v)}
-            className={notes ? 'presenter__on' : undefined}><Notepad size={22} /></IconButton>
           <IconButton label={full ? 'Salir de pantalla completa (F)' : 'Pantalla completa (F)'} onClick={() => void toggleFull()}>
             {full ? <CornersIn size={22} /> : <CornersOut size={22} />}
           </IconButton>
@@ -103,16 +100,10 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
           const r = e.currentTarget.getBoundingClientRect();
           go(e.clientX - r.left < r.width * 0.3 ? -1 : 1);
         }}>
-          {slide ? <SlideFace slide={slide} figure={figures[slide.id]} /> : <CoverSlide title={doc.title} kicker={kicker} />}
+          {slide ? <SlideFace slide={slide} figure={figures[slide.id]} projected /> : <CoverSlide title={doc.title} kicker={kicker} />}
         </div>
         <p className="presenter__hint">Gira el móvil para ver la diapositiva más grande.</p>
       </div>
-
-      {notes && (
-        <div className="presenter__notes">
-          {said.length ? said.map((t, k) => <RichText key={k} as="p" text={t} />) : <p>{i === 0 ? 'Portada.' : 'Esta diapositiva no tiene notas.'}</p>}
-        </div>
-      )}
 
       <div className="presenter__nav">
         <IconButton label="Diapositiva anterior" onClick={() => go(-1)} disabled={i === 0}><CaretLeft size={26} weight="bold" /></IconButton>
