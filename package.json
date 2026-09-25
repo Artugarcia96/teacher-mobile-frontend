@@ -14,7 +14,7 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "shots": "SHOTS=1 playwright test",
-    "landing:shots": "node e2e/landing-shots.mjs"
+    "landing:clips": "node e2e/landing-clips.mjs"
   },
   "dependencies": {
     "@capacitor/app": "8.0.1",

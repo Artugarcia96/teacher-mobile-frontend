@@ -8,7 +8,7 @@ React 19 + Vite + TanStack Query, con un kit de componentes propio de estilo *Li
 - Sistema de diseño: [`docs/DESIGN.md`](docs/DESIGN.md)
 - Reglas para agentes y colaboradores: [`CLAUDE.md`](CLAUDE.md)
 - API: [`../teacher-mobile-backend/docs/ARCHITECTURE.md`](../teacher-mobile-backend/docs/ARCHITECTURE.md)
-- Landing: [`landing/`](landing/) (estática, servida en `/`; capturas reales de la demo con `npm run landing:shots`)
+- Landing: [`landing/`](landing/) (estática, servida en `/`; grabaciones reales de la demo con `npm run landing:clips`)
 
 ## Arrancar
 

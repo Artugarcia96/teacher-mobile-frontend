@@ -12,7 +12,7 @@ npm run check        # typecheck + tokens (sin colores sueltos) + eslint. Debe p
 npm run build        # build de producción
 npm run e2e          # Playwright: flujos de profesor contra el backend en modo demo
 npm run shots        # igual, guardando capturas en e2e/screenshots/
-npm run landing:shots  # capturas reales de la demo recién sembrada → landing/img/ (claro y oscuro, móvil y escritorio)
+npm run landing:clips  # grabaciones reales de la demo recién sembrada, con IA real → landing/clips/ y landing/img/og.jpg (claro y oscuro, móvil y escritorio)
 ```
 
 Backend en modo demo (IA real vía Claude, datos de ejemplo, "hoy" congelado en 19/11/2026 10:40):
@@ -42,7 +42,7 @@ src/api/                 hooks de datos por área
 src/lib/                 api.ts (fetch + auth + errores), auth.tsx, format.ts
 src/ui/                  kit de componentes + ui.css
 e2e/                     flujos Playwright + capturas
-landing/                 landing estática (nginx la sirve en /) con capturas de e2e/landing-shots.mjs
+landing/                 landing estática (nginx la sirve en /) con las grabaciones de e2e/landing-clips.mjs
 deploy/                  nginx + script del VPS; se publica a mano con «Deploy web» del repo del backend (../teacher-mobile-backend/docs/DEPLOY.md)
 ```
 

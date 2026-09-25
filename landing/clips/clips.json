@@ -1,0 +1,143 @@
+{
+  "corregir-desktop": {
+    "seconds": 12.7,
+    "ai_seconds": [],
+    "webm": 242295,
+    "mp4": 241401,
+    "poster": 59178
+  },
+  "corregir-desktop-dark": {
+    "seconds": 12.5,
+    "ai_seconds": [],
+    "webm": 246490,
+    "mp4": 243064,
+    "poster": 59684
+  },
+  "corregir-phone": {
+    "seconds": 10.2,
+    "ai_seconds": [],
+    "webm": 227846,
+    "mp4": 232892,
+    "poster": 49882
+  },
+  "corregir-phone-dark": {
+    "seconds": 10.4,
+    "ai_seconds": [],
+    "webm": 229102,
+    "mp4": 221022,
+    "poster": 49608
+  },
+  "evaluacion-phone": {
+    "seconds": 16.5,
+    "ai_seconds": [],
+    "webm": 524734,
+    "mp4": 501469,
+    "poster": 65466
+  },
+  "evaluacion-phone-dark": {
+    "seconds": 15.7,
+    "ai_seconds": [],
+    "webm": 542201,
+    "mp4": 506686,
+    "poster": 63014
+  },
+  "familia-phone": {
+    "seconds": 9.9,
+    "ai_seconds": [],
+    "webm": 277973,
+    "mp4": 372482,
+    "poster": 53972
+  },
+  "familia-phone-dark": {
+    "seconds": 9.5,
+    "ai_seconds": [],
+    "webm": 290224,
+    "mp4": 369177,
+    "poster": 49744
+  },
+  "ficha-phone": {
+    "seconds": 20.5,
+    "ai_seconds": [
+      185
+    ],
+    "webm": 756804,
+    "mp4": 734103,
+    "poster": 66354
+  },
+  "ficha-phone-dark": {
+    "seconds": 20.2,
+    "ai_seconds": [
+      154
+    ],
+    "webm": 706732,
+    "mp4": 659910,
+    "poster": 66510
+  },
+  "historia-desktop": {
+    "seconds": 10.3,
+    "ai_seconds": [],
+    "webm": 323653,
+    "mp4": 330031,
+    "poster": 71744
+  },
+  "historia-desktop-dark": {
+    "seconds": 10.2,
+    "ai_seconds": [],
+    "webm": 313507,
+    "mp4": 275084,
+    "poster": 71490
+  },
+  "historia-phone": {
+    "seconds": 9.4,
+    "ai_seconds": [],
+    "webm": 207464,
+    "mp4": 295690,
+    "poster": 57668
+  },
+  "historia-phone-dark": {
+    "seconds": 9.5,
+    "ai_seconds": [],
+    "webm": 198006,
+    "mp4": 309576,
+    "poster": 57140
+  },
+  "lista-phone": {
+    "seconds": 12.7,
+    "ai_seconds": [],
+    "webm": 306792,
+    "mp4": 220849,
+    "poster": 50034
+  },
+  "lista-phone-dark": {
+    "seconds": 13.1,
+    "ai_seconds": [],
+    "webm": 373866,
+    "mp4": 282945,
+    "poster": 50228
+  },
+  "pile:historia": {
+    "papers": 8,
+    "pages": 29,
+    "seconds": 208
+  },
+  "versiones-phone": {
+    "seconds": 19.1,
+    "ai_seconds": [
+      30,
+      74
+    ],
+    "webm": 677833,
+    "mp4": 798206,
+    "poster": 58010
+  },
+  "versiones-phone-dark": {
+    "seconds": 18.9,
+    "ai_seconds": [
+      32,
+      68
+    ],
+    "webm": 628285,
+    "mp4": 810378,
+    "poster": 56626
+  }
+}
