@@ -20,6 +20,7 @@ export const keys = {
   archivedCourses: ['courses', 'archived'] as const,
   groupStudents: (groupId: string) => ['groups', groupId, 'students'] as const,
   regions: ['regions'] as const,
+  signup: ['signup'] as const,
   search: (q: string) => ['search', q] as const,
 };
 
@@ -30,6 +31,12 @@ function invalidateDay(qc: ReturnType<typeof useQueryClient>) {
 }
 
 export interface ParsedStudents { students: { first_name: string; last_name: string }[]; warnings: string[] }
+
+/** Whether this server lets anyone create an account (closed in production unless the owner lists someone). */
+export function useSignupOpen() {
+  return useQuery({ queryKey: keys.signup, queryFn: () => api.get<{ open: boolean }>('/auth/signup'), staleTime: Infinity })
+    .data?.open === true;
+}
 
 export function useMe(enabled = true) {
   return useQuery({ queryKey: keys.me, queryFn: () => api.get<Me>('/me'), enabled, staleTime: 60_000 });

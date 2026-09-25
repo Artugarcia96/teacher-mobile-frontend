@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSignupOpen } from '../../api/core';
 import { Bare } from '../../app/Shell';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -7,6 +8,9 @@ import { Button, Logo, Segmented, TextField } from '../../ui';
 import './login.css';
 
 type Mode = 'login' | 'register';
+
+/** Where someone without an account asks to join the pilot (the owner's Linktree). */
+const JOIN_URL = 'https://linktr.ee/sepiaeducation';
 
 function message(err: unknown, mode: Mode): string {
   if (err instanceof ApiError) {
@@ -16,12 +20,15 @@ function message(err: unknown, mode: Mode): string {
   return 'Algo ha fallado. Inténtalo de nuevo.';
 }
 
-/** /entrar — sign in or create an account (?cuenta=nueva opens «Crear cuenta», as the landing links it). */
+/** /entrar — sign in, or create an account where the server allows it (?cuenta=nueva opens «Crear cuenta»); where it does
+ * not, only «Entrar» and a link to ask to join the pilot. */
 export default function LoginPage() {
   const { login, register, loggedIn } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [mode, setMode] = useState<Mode>(() => (params.get('cuenta') === 'nueva' ? 'register' : 'login'));
+  const signupOpen = useSignupOpen();
+  const [chosen, setMode] = useState<Mode>(() => (params.get('cuenta') === 'nueva' ? 'register' : 'login'));
+  const mode: Mode = signupOpen ? chosen : 'login';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,8 +72,10 @@ export default function LoginPage() {
           <h1 className="display login__name">Sepia</h1>
           <p className="muted">El cuaderno del profesor.</p>
         </div>
-        <Segmented full label="Acceso" value={mode} onChange={switchMode}
-          options={[{ value: 'login', label: 'Entrar' }, { value: 'register', label: 'Crear cuenta' }]} />
+        {signupOpen && (
+          <Segmented full label="Acceso" value={mode} onChange={switchMode}
+            options={[{ value: 'login', label: 'Entrar' }, { value: 'register', label: 'Crear cuenta' }]} />
+        )}
         <form className="form" onSubmit={submit} noValidate>
           {mode === 'register' && (
             <TextField label="Nombre" autoComplete="name" placeholder="Marta Ruiz" value={name} required
@@ -86,6 +95,11 @@ export default function LoginPage() {
           {mode === 'register' && (
             <p className="login__legal muted">
               Al crear la cuenta aceptas la <a href="/landing/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.
+            </p>
+          )}
+          {!signupOpen && (
+            <p className="login__legal muted">
+              ¿Aún no tienes acceso? <a href={JOIN_URL} rel="noopener">Apúntate al piloto</a>.
             </p>
           )}
         </form>
