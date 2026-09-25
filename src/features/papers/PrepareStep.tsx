@@ -94,10 +94,9 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
               { label: 'Generar otro con IA', icon: <PencilLine size={18} />, onSelect: onGenerate },
             ]} />
         }
-        footer={correction.generated ? 'Al guardar se actualiza también el PDF para imprimir.' : undefined}
       >
         {!correction.rubric && <p className="muted">No se han podido leer las preguntas. Escríbelas aquí para que la IA pueda sugerir notas.</p>}
-        <RubricTable activityId={id} rubric={rubric} maxScore={correction.activity.max_score} />
+        <RubricTable activityId={id} rubric={rubric} maxScore={correction.activity.max_score} generated={correction.generated} />
       </Section>
     </>
   );

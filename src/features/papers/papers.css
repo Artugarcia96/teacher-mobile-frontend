@@ -57,8 +57,12 @@
 
 /* Review step */
 .review-done { flex: 1; display: flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 500; }
+.review-stats { display: grid; gap: 6px; }
+.review-stats__note { padding: 0 4px; font-size: var(--fs-footnote); color: var(--ink-2); }
+.student-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.draft-score { min-width: 42px; text-align: center; font-weight: 600; }
+.missing-action { font-size: var(--fs-sub); font-weight: 600; color: var(--accent); white-space: nowrap; }
 .stat-of { font-family: var(--font-ui); font-size: var(--fs-sub); color: var(--ink-2); }
-.score { font-size: var(--fs-headline); min-width: 36px; text-align: right; }
 
 /* Manual grades */
 .grade-input { width: 76px; min-height: 40px; padding: 8px 10px; text-align: center; font-weight: 600; }

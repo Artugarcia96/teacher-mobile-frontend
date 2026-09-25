@@ -37,12 +37,16 @@ export function Grade({ value, max, average, className }: {
   return <span className={`grade grade--${gradeTone(norm)}${className ? ` ${className}` : ''}`}>{text}</span>;
 }
 
-/** A tinted pill: an average (one decimal) or, with `proposal`, a proposed / final grade (integer);
- *  `label` = qualitative (SU, NT…). */
-export function GradePill({ value, label, proposal }: { value: number | null | undefined; label?: string | null; proposal?: boolean }) {
+/** A tinted pill: an average (one decimal), with `proposal` a proposed / final grade (integer), or with `max` an
+ *  activity score as entered (up to two decimals, toned on its normalized value); `label` = qualitative (SU, NT…). */
+export function GradePill({ value, label, proposal, max }: {
+  value: number | null | undefined; label?: string | null; proposal?: boolean; max?: number;
+}) {
+  const norm = value == null ? null : max ? (value / max) * 10 : value;
+  const text = max ? formatScore(value) : proposal ? formatProposal(value) : formatAverage(value);
   return (
-    <span className={`grade-pill grade--${gradeTone(value ?? null)}`}>
-      <span>{proposal ? formatProposal(value) : formatAverage(value)}</span>
+    <span className={`grade-pill grade--${gradeTone(norm)}`}>
+      <span>{text}</span>
       {label && <small>{label}</small>}
     </span>
   );

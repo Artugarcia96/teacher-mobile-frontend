@@ -11,7 +11,8 @@ export type CorrectionStep = 'prepare' | 'collect' | 'review' | 'done';
 export type MatchStatus = 'unmatched' | 'suggested' | 'confirmed';
 export type Difficulty = 'facil' | 'medio' | 'dificil';
 
-export interface RubricItem { id: string; label: string; text: string; points: number; answer: string; steps: string[] }
+/** `title`: what the question assesses, 2-4 words ("Operaciones combinadas"); "" when the AI did not give one. */
+export interface RubricItem { id: string; label: string; title?: string; text: string; points: number; answer: string; steps: string[] }
 export interface Rubric { title: string; items: RubricItem[]; total: number }
 
 export interface ActivityHead {
@@ -44,10 +45,15 @@ export interface UnmatchedPaper {
   paper_id: string; detected_name: string | null; confidence: number | null; thumb_url: string | null; pages: number; candidates: StudentRef[];
   page_list: ScanPage[]; flags: PaperFlag[];
 }
-export interface FrequentError { item_id: string; label: string; text: string; avg_ratio: number }
+/** A question the class got wrong: "P5 · Operaciones combinadas" · "0,9 de 1,5 de media · 11 por debajo de la mitad".
+ * `title` is short and never cuts a formula. */
+export interface FrequentError {
+  item_id: string; label: string; title: string; avg_points: number; points: number; below_half: number; graded: number; avg_ratio: number;
+}
+/** `average`/`pass_rate` include the AI's unreviewed suggestions while there are any (`provisional` of them). */
 export interface CorrectionStats {
   papers: number; matched: number; suggested: number; confirmed: number; pending: number;
-  average: number | null; pass_rate: number | null; frequent_errors: FrequentError[];
+  average: number | null; pass_rate: number | null; provisional: number; frequent_errors: FrequentError[];
 }
 export interface Correction {
   activity: ActivityHead; document_url: string | null; key_url: string | null; generated: boolean; rubric: Rubric | null;
@@ -69,13 +75,21 @@ export interface PageOpResult {
 }
 
 export interface AIItem { id: string; points: number; feedback: string; confidence: number }
+/** Where one question's answer is: `index` into Review.pages, the band as fractions of the image. */
+export interface Crop { page_id: string; index: number; x0: number; y0: number; x1: number; y1: number }
+/** `pending`: students of the sequence still without a final grade (this one included). `match_status` "suggested":
+ * the name read on the paper must be confirmed before its grade can be accepted. `crops`: per rubric item. */
 export interface Review {
-  student: StudentRef; activity: ActivityHead; position: number; total: number;
+  student: StudentRef; activity: ActivityHead; position: number; total: number; pending: number;
   prev_student_id: string | null; next_student_id: string | null; next_pending_id: string | null;
-  paper_id: string | null; pages_urls: string[]; pages: ScanPage[]; flags: PaperFlag[]; items: RubricItem[]; rubric_total: number;
+  paper_id: string | null; match_status: MatchStatus | null; detected_name: string | null;
+  pages_urls: string[]; pages: ScanPage[]; flags: PaperFlag[]; items: RubricItem[]; rubric_total: number;
   grade: CorrectionGrade | null; ai: { items: AIItem[]; summary: string; suggested_score: number | null } | null;
+  crops: Record<string, Crop[]>;
 }
 export interface ReviewInput { item_scores?: Record<string, number>; score?: number | null; comment?: string | null; absent?: boolean }
+/** `reviewed` of `total` students of the sequence have a final grade after this one. */
+export interface ReviewResult { grade: CorrectionGrade; next_student_id: string | null; reviewed: number; total: number }
 
 export interface GenerateInput { unit_ids: string[]; n_items: number; difficulty: Difficulty; instructions?: string }
 
@@ -197,8 +211,9 @@ export function useSuggest(activityId: string) {
     api.post<JobRef>(`/activities/${activityId}/suggest`, { student_ids: studentIds ?? null }));
 }
 
+/** Confirms every AI suggestion except those whose paper's name is still to confirm (`skipped`). */
 export function useAcceptAll(activityId: string, courseId?: string) {
-  return useCorrectionMutation(activityId, () => api.post<{ count: number }>(`/activities/${activityId}/accept-all`), courseId);
+  return useCorrectionMutation(activityId, () => api.post<{ count: number; skipped: number }>(`/activities/${activityId}/accept-all`), courseId);
 }
 
 export function useReview(activityId: string | undefined, studentId: string | null | undefined) {
@@ -220,7 +235,7 @@ export function prefetchReview(qc: QueryClient, activityId: string, studentId: s
 
 export function useConfirmReview(activityId: string, courseId?: string) {
   return useCorrectionMutation(activityId, ({ studentId, ...body }: ReviewInput & { studentId: string }) =>
-    api.post<{ grade: CorrectionGrade; next_student_id: string | null }>(`/activities/${activityId}/review/${studentId}`, body), courseId);
+    api.post<ReviewResult>(`/activities/${activityId}/review/${studentId}`, body), courseId);
 }
 
 /** Poll a job that works on this activity; refresh the correction when it ends. */

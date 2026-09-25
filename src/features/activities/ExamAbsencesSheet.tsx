@@ -1,16 +1,17 @@
 import { Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useActivity, useMarkNotPresented, useScheduleRepeat, type ActivityDetail, type AttendanceConflict } from '../../api/activities';
-import type { CourseDetail } from '../../api/types';
+import type { CourseDetail, StudentRef } from '../../api/types';
 import { useToday } from '../../lib/auth';
 import { addDays, formatScore, longDate, plural, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, DateField, List, Row, Sheet, SkeletonList, useFeedback } from '../../ui';
 import './activities.css';
 
-/** Students who missed an exam (attendance list of the exam day): schedule a repeat ("repesca", its grades go to the
- * same column) or mark NP. Warns when someone marked absent has a paper or a grade. Mountable from any screen. */
-export default function ExamAbsencesSheet({ activityId, onClose, course }: {
-  activityId: string | null; onClose: () => void; course: CourseDetail;
+/** Students who missed an exam (attendance list of the exam day) and, once the pile is scanned, those without a paper
+ * (`missing`, `received` papers): schedule a repeat ("repesca", its grades go to the same column) or mark NP. Warns
+ * when someone marked absent has a paper or a grade. Mountable from any screen. */
+export default function ExamAbsencesSheet({ activityId, onClose, course, missing = [], received = null }: {
+  activityId: string | null; onClose: () => void; course: CourseDetail; missing?: StudentRef[]; received?: number | null;
 }) {
   const q = useActivity(activityId ?? undefined);
   if (!activityId) return null;
@@ -21,15 +22,24 @@ export default function ExamAbsencesSheet({ activityId, onClose, course }: {
       </Sheet>
     );
   }
-  return <Absences key={q.data.id} activity={q.data} onClose={onClose} course={course} />;
+  return <Absences key={q.data.id} activity={q.data} onClose={onClose} course={course} missing={missing} received={received} />;
 }
 
-function Absences({ activity, onClose, course }: { activity: ActivityDetail; onClose: () => void; course: CourseDetail }) {
+type Absent = ActivityDetail['absent_students'][number];
+
+function Absences({ activity, onClose, course, missing, received }: {
+  activity: ActivityDetail; onClose: () => void; course: CourseDetail; missing: StudentRef[]; received: number | null;
+}) {
   const today = useToday();
   const { toast, confirm } = useFeedback();
   const repeat = useScheduleRepeat(activity.id, course.id);
   const np = useMarkNotPresented(activity.id, course.id);
-  const pending = activity.absent_students.filter((a) => a.pending);
+  // Without a paper but present on the list: as pending as those who missed it.
+  const listed = new Set(activity.absent_students.map((a) => a.student.id));
+  const noPaper: Absent[] = missing.filter((s) => !listed.has(s.id))
+    .map((s) => ({ student: s, justified: false, pending: true, repeat_id: null }));
+  const everyone = [...activity.absent_students, ...noPaper];
+  const pending = everyone.filter((a) => a.pending);
   const [picked, setPicked] = useState<string[]>(() => pending.filter((a) => !a.repeat_id).map((a) => a.student.id));
   const nextDate = course.next_session?.date && course.next_session.date > today ? course.next_session.date : addDays(today, 7);
   const [date, setDate] = useState(nextDate);
@@ -57,7 +67,8 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
     });
   };
 
-  const status = (a: ActivityDetail['absent_students'][number]) => {
+  const status = (a: Absent) => {
+    if (!listed.has(a.student.id)) return 'Sin hoja · no consta falta en la lista';
     const kind = a.justified ? 'Falta justificada' : 'Falta sin justificar';
     const rep = repeatOf(a.repeat_id);
     if (rep && a.pending) return `${kind} · repesca el ${shortDate(rep.date)}`;
@@ -68,7 +79,10 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
   };
 
   return (
-    <Sheet open onClose={onClose} title={`Faltaron a ${activity.title}`} subtitle={`${longDate(activity.date)} · según la lista de ese día`}
+    <Sheet open onClose={onClose} title={received !== null ? `Sin hoja en ${activity.title}` : `Faltaron a ${activity.title}`}
+      subtitle={received !== null
+        ? `${received} de ${activity.sheet.length} hojas recibidas · ${longDate(activity.date)}`
+        : `${longDate(activity.date)} · según la lista de ese día`}
       footer={chosen.length > 0 ? (
         <>
           <Button variant="neutral" onClick={markNP} loading={np.isPending}>Poner NP ({chosen.length})</Button>
@@ -82,7 +96,7 @@ function Absences({ activity, onClose, course }: { activity: ActivityDetail; onC
           </Callout>
         )}
         <List>
-          {activity.absent_students.map((a) => (
+          {everyone.map((a) => (
             <Row key={a.student.id} title={a.student.sort_name} sub={status(a)}
               trail={a.repeat_id ? <Button size="sm" variant="plain" to={`/clases/${course.id}/actividades/${a.repeat_id}`}>Ver repesca</Button> : undefined} />
           ))}

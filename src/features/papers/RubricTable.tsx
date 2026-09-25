@@ -7,8 +7,9 @@ import RubricItemSheet from './RubricItemSheet';
 
 const pts = (v: number) => formatNumber(v, 2);
 
-/** The rubric as a compact editable table: nº · enunciado · solución · puntos. */
-export function RubricTable({ activityId, rubric, maxScore }: { activityId: string; rubric: Rubric; maxScore: number }) {
+/** The rubric as a compact editable table: nº · enunciado · solución · puntos. `generated`: saving re-renders the exam
+ * to print, and its button says so. */
+export function RubricTable({ activityId, rubric, maxScore, generated }: { activityId: string; rubric: Rubric; maxScore: number; generated?: boolean }) {
   const save = useSaveRubric(activityId);
   const { toast } = useFeedback();
   const [items, setItems] = useState<RubricItem[]>(rubric.items);
@@ -30,7 +31,7 @@ export function RubricTable({ activityId, rubric, maxScore }: { activityId: stri
   };
 
   const submit = () => save.mutate(items, {
-    onSuccess: () => toast('Rúbrica guardada'),
+    onSuccess: () => toast(generated ? 'Rúbrica guardada · examen para imprimir actualizado' : 'Rúbrica guardada'),
     onError: (e) => toast(e.message, { tone: 'error' }),
   });
 
@@ -67,7 +68,7 @@ export function RubricTable({ activityId, rubric, maxScore }: { activityId: stri
       {dirty && (
         <div className="rubric__actions">
           <Button variant="neutral" onClick={() => setItems(JSON.parse(source) as RubricItem[])}>Descartar cambios</Button>
-          <Button onClick={submit} loading={save.isPending}>Guardar rúbrica</Button>
+          <Button onClick={submit} loading={save.isPending}>{generated ? 'Guardar y actualizar el PDF' : 'Guardar rúbrica'}</Button>
         </div>
       )}
       <RubricItemSheet

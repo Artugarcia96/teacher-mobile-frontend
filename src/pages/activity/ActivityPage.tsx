@@ -1,29 +1,35 @@
-import { DotsThree, FileX, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
+import { DotsThree, Exam, FileX, Key, PencilSimple, Rows, Trash, UserMinus, Warning } from '@phosphor-icons/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useActivity } from '../../api/activities';
 import { useCourse } from '../../api/core';
-import { useActivityJob, useCorrection, type Correction } from '../../api/papers';
+import { useActivityJob, useCorrection, useDocumentUrl, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
 import ExamAbsencesSheet, { conflictsText } from '../../features/activities/ExamAbsencesSheet';
 import ActivityDataSheet from '../../features/papers/ActivityDataSheet';
 import { CollectStep } from '../../features/papers/CollectStep';
-import { ExamStep } from '../../features/papers/ExamStep';
+import { ExamSteps } from '../../features/papers/ExamSteps';
 import GenerateExamSheet from '../../features/papers/GenerateExamSheet';
 import { ManualGrades } from '../../features/papers/ManualGrades';
+import { missingStudents } from '../../features/papers/MissingPapers';
+import { openSigned } from '../../features/papers/openDoc';
 import { needsLook } from '../../features/papers/pageLabels';
 import { PrepareStep } from '../../features/papers/PrepareStep';
 import { ReviewMenu, ReviewStep } from '../../features/papers/ReviewStep';
 import '../../features/papers/papers.css';
 import { api } from '../../lib/api';
 import { formatGrade, KIND_LABEL, longDate, plural, TERM_LABEL } from '../../lib/format';
-import { Button, Callout, Dot, EmptyState, IconButton, Menu, Page, SkeletonList, useFeedback } from '../../ui';
+import { Button, Callout, Dot, EmptyState, IconButton, Menu, Page, SkeletonList, useFeedback, type MenuItem } from '../../ui';
 import './activity.css';
 
 const STEP_INDEX = { prepare: 1, collect: 2, review: 3, done: 3 } as const;
 const PREPARE_JOBS = ['extract_rubric', 'generate_exam'];
 const COLLECT_JOBS = ['ingest_papers', 'reclassify_pages'];
+const FINAL = ['confirmed', 'absent', 'exempt'];
+
+/** Where each activity page was scrolled to: coming back from the focus review lands on the same row. */
+const scrollMemory = new Map<string, number>();
 
 interface Attached { student_id: string; name: string; kind: string }
 
@@ -56,41 +62,50 @@ const DONE_TOAST: Record<string, (job: Job) => string> = {
     const done = Number(j.result?.suggested) || 0;
     const held = Number(j.result?.skipped) || 0;
     const base = done ? 'Sugerencias de la IA listas' : 'La IA no ha sugerido ninguna nota nueva';
-    return held ? `${base} · ${plural(held, 'hoja por revisar queda', 'hojas por revisar quedan')} sin sugerencia` : base;
+    return held ? `${base} · ${plural(held, 'hoja queda', 'hojas quedan')} sin sugerencia hasta que revises sus páginas` : base;
   },
 };
 
+/** Step 1, collapsed: "Preparado · 6 preguntas". */
 function prepareSummary(c: Correction, manual: boolean) {
-  if (c.rubric) return `${c.generated ? 'Generado con IA' : 'Examen subido'} · ${plural(c.rubric.items.length, 'pregunta', 'preguntas')}`;
-  if (c.document_url) return 'Examen subido, sin rúbrica';
+  if (c.rubric) return `Preparado · ${plural(c.rubric.items.length, 'pregunta', 'preguntas')}`;
+  if (c.document_url) return 'Examen subido, sin preguntas';
   return manual || c.step !== 'prepare' ? 'Sin documento (solo nota)' : 'Subir, generar o solo nota';
 }
 
+/** Step 2, collapsed: "Recogido · 24 de 26 hojas", or what needs the teacher first. */
 function collectSummary(c: Correction) {
-  if (!c.stats.papers && !c.unplaced.length) return c.rubric ? 'Aún no has subido las hojas' : 'Primero prepara el examen';
-  const hojas = plural(c.stats.papers, 'hoja', 'hojas');
+  if (!c.stats.papers && !c.unplaced.length) return c.rubric || c.document_url ? 'Aún no has subido las hojas' : 'Primero prepara el examen';
+  const received = c.students.filter((s) => s.paper_id).length;
+  const hojas = `${received} de ${c.students.length} hojas`;
+  const flagged = c.students.filter((s) => needsLook(s.flags)).length;
   const todo = [
     c.unmatched.length && `${c.unmatched.length} sin identificar`,
     c.unplaced.length && plural(c.unplaced.length, 'página por colocar', 'páginas por colocar'),
-    c.students.filter((s) => needsLook(s.flags)).length && `${c.students.filter((s) => needsLook(s.flags)).length} por revisar`,
+    flagged && `${flagged} por ordenar`,
   ].filter(Boolean);
-  return todo.length ? `${hojas} · ${todo.join(' · ')}` : `${hojas} · ${c.stats.matched} de ${c.students.length} emparejados`;
+  return todo.length ? `${hojas} · ${todo.join(' · ')}` : `Recogido · ${hojas}`;
 }
 
+/** Step 3, collapsed: "18 por revisar · 6 revisados". */
 function reviewSummary(c: Correction) {
-  const done = c.students.filter((s) => s.grade && ['confirmed', 'absent'].includes(s.grade.status)).length;
-  return done ? `${done} de ${c.students.length} con nota` : 'Sin notas todavía';
+  const done = c.students.filter((s) => s.grade && FINAL.includes(s.grade.status)).length;
+  if (c.stats.suggested) return `${c.stats.suggested} por revisar · ${plural(done, 'revisado', 'revisados')}`;
+  if (done) return done === c.students.length ? `Revisado · ${done} de ${c.students.length}` : `${done} de ${c.students.length} con nota`;
+  return 'Sin notas todavía';
 }
 
 export default function ActivityPage() {
   const { courseId, activityId } = useParams();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { toast, confirm } = useFeedback();
   const { data: c, isLoading, error } = useCorrection(activityId);
-  const detail = useActivity(activityId).data; // attendance of the exam day: who missed it, conflicts
+  const detail = useActivity(activityId).data; // attendance of the exam day, units of the exam
   const course = useCourse(courseId).data;
+  const docUrl = useDocumentUrl(activityId!);
   const [absences, setAbsences] = useState(false);
   const absent = useMemo(() => new Set(detail?.sheet.filter((r) => r.pending_absent).map((r) => r.student.id)), [detail]);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -126,6 +141,18 @@ export default function ActivityPage() {
     lastStep.current = c.step;
   }, [c?.step]);
 
+  // Back from the focus review: the same scroll position; the position is kept while the page is open.
+  const restore = !!(location.state as { restoreScroll?: boolean } | null)?.restoreScroll;
+  const loaded = !!c;
+  useEffect(() => {
+    if (!loaded || !activityId) return;
+    const y = scrollMemory.get(activityId);
+    if (restore && y) requestAnimationFrame(() => window.scrollTo(0, y));
+    const onScroll = () => scrollMemory.set(activityId, window.scrollY);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [loaded, activityId, restore]);
+
   const remove = useMutation({
     mutationFn: () => api.delete(`/activities/${activityId}`),
     onSuccess: () => {
@@ -156,14 +183,28 @@ export default function ActivityPage() {
   const current = open ?? (noDocument ? 3 : runningKind && PREPARE_JOBS.includes(runningKind) ? 1 : runningKind && COLLECT_JOBS.includes(runningKind) ? 2 : step);
   const onJob = (j: Job) => setJobId(j.id);
   const closeGenerate = () => setParams((p) => { p.delete('generar'); p.delete('unidad'); return p; }, { replace: true });
+  const openDoc = (variant: 'print' | 'key' | 'extra-sheet') =>
+    openSigned(() => docUrl.mutateAsync(variant), (m) => toast(m, { tone: 'error' }), (m) => toast(m));
 
   const missed = detail?.absent_students.length ?? 0;
+  const missing = missingStudents(c);
+  const received = c.students.filter((s) => s.paper_id).length;
+  const pending = c.stats.pending;
 
   const deleteActivity = async () => {
     if (await confirm({ title: 'Eliminar la actividad', text: 'Se borran sus notas del cuaderno y las hojas escaneadas.', confirm: 'Eliminar', danger: true })) {
       remove.mutate();
     }
   };
+
+  const menu: MenuItem[] = [];
+  if (c.document_url) {
+    menu.push({ label: 'Examen para imprimir', icon: <Exam size={18} />, onSelect: () => openDoc('print') });
+    menu.push({ label: 'Hoja extra', icon: <Rows size={18} />, onSelect: () => openDoc('extra-sheet') });
+  }
+  if (c.rubric) menu.push({ label: 'Soluciones', icon: <Key size={18} />, onSelect: () => openDoc('key') });
+  menu.push({ label: 'Editar datos', icon: <PencilSimple size={18} />, onSelect: () => setEditing(true), separatorBefore: menu.length > 0 });
+  menu.push({ label: 'Eliminar actividad', icon: <Trash size={18} />, danger: true, separatorBefore: true, onSelect: deleteActivity });
 
   return (
     <Page
@@ -178,52 +219,64 @@ export default function ActivityPage() {
         <span>{isExam ? '' : `${KIND_LABEL[a.kind]} · `}sobre {formatGrade(a.max_score)}</span>
       </>}
       actions={<>
-        {!!missed && (
+        {!!missed && !c.stats.papers && (
           <Button size="sm" variant="plain" icon={<UserMinus size={16} />} onClick={() => setAbsences(true)}
             aria-label={`${missed === 1 ? 'Faltó 1 alumno' : `Faltaron ${missed} alumnos`}: programar repesca o poner NP`}>
             {missed === 1 ? 'Faltó 1' : `Faltaron ${missed}`}
           </Button>
         )}
-        <Menu trigger={(o) => <IconButton label="Más opciones" glass onClick={o}><DotsThree size={22} weight="bold" /></IconButton>}
-          items={[
-            { label: 'Editar datos', icon: <PencilSimple size={18} />, onSelect: () => setEditing(true) },
-            { label: 'Eliminar actividad', icon: <Trash size={18} />, danger: true, separatorBefore: true, onSelect: deleteActivity },
-          ]} />
+        <Menu trigger={(o) => <IconButton label="Más opciones" glass onClick={o}><DotsThree size={22} weight="bold" /></IconButton>} items={menu} />
       </>}
     >
       {isExam ? (
         <div className="exam-steps">
+          {c.stats.papers > 0 && pending > 0 && (
+            <Button to={`/clases/${courseId}/actividades/${activityId}/revisar`} className="review-main">
+              Revisar alumno a alumno · faltan {pending}
+            </Button>
+          )}
           {!!detail?.attendance_conflicts.length && (
             <Callout tone="warn" icon={<Warning size={18} />}>
               <b>¿Hoja mal asignada o lista mal pasada?</b> {conflictsText(detail.attendance_conflicts)}{' '}
               <button type="button" className="link-btn" onClick={() => setAbsences(true)}>Revisar</button>
             </Callout>
           )}
-          <ExamStep n={1} title="Preparar" summary={prepareSummary(c, manual)} open={current === 1} onOpen={() => setOpen(1)}>
-            <PrepareStep correction={c} job={job} running={!!runningKind && PREPARE_JOBS.includes(runningKind)} onJob={onJob}
-              onGenerate={() => setParams((p) => { p.set('generar', '1'); return p; }, { replace: true })}
-              onManual={() => { setManual(true); setOpen(3); }} />
-          </ExamStep>
-          {!noDocument && (
-            <ExamStep n={2} title="Recoger" summary={collectSummary(c)} open={current === 2} onOpen={() => setOpen(2)}>
-              <CollectStep correction={c} job={job} running={!!runningKind && COLLECT_JOBS.includes(runningKind)}
-                grading={runningKind === 'suggest_grades'} onJob={onJob} />
-            </ExamStep>
-          )}
-          <ExamStep n={noDocument ? 2 : 3} title={noDocument ? 'Poner notas' : 'Revisar'} summary={reviewSummary(c)}
-            open={current === 3} onOpen={() => setOpen(3)} action={noDocument ? undefined : <ReviewMenu correction={c} />}>
-            {noDocument
-              ? <ManualGrades correction={c} absent={absent} />
-              : <ReviewStep correction={c} job={job} running={runningKind === 'suggest_grades'} onOpenCollect={() => setOpen(2)} absent={absent} />}
-          </ExamStep>
+          <ExamSteps open={current} onOpen={setOpen} steps={[
+            {
+              id: 1, n: 1, title: 'Preparar', summary: prepareSummary(c, manual),
+              content: (
+                <PrepareStep correction={c} job={job} running={!!runningKind && PREPARE_JOBS.includes(runningKind)} onJob={onJob}
+                  onGenerate={() => setParams((p) => { p.set('generar', '1'); return p; }, { replace: true })}
+                  onManual={() => { setManual(true); setOpen(3); }} />
+              ),
+            },
+            ...(noDocument ? [] : [{
+              id: 2, n: 2, title: 'Recoger', summary: collectSummary(c),
+              content: (
+                <CollectStep correction={c} job={job} running={!!runningKind && COLLECT_JOBS.includes(runningKind)}
+                  grading={runningKind === 'suggest_grades'} onJob={onJob} onOpenMissing={() => setAbsences(true)} />
+              ),
+            }]),
+            {
+              id: 3, n: noDocument ? 2 : 3, title: noDocument ? 'Poner notas' : 'Revisar', summary: reviewSummary(c),
+              action: noDocument ? undefined : <ReviewMenu correction={c} />,
+              content: noDocument
+                ? <ManualGrades correction={c} absent={absent} />
+                : <ReviewStep correction={c} job={job} running={runningKind === 'suggest_grades'} onOpenCollect={() => setOpen(2)}
+                  onOpenMissing={() => setAbsences(true)} absent={absent} unitId={detail?.unit_ids[0] ?? null} />,
+            },
+          ]} />
         </div>
       ) : (
         <ManualGrades correction={c} absent={absent} />
       )}
       <GenerateExamSheet open={generateOpen} onClose={closeGenerate} activityId={a.id} courseId={a.course.id}
-        initialUnitId={params.get('unidad')} onJob={onJob} />
+        initialUnitId={params.get('unidad')} activityTitle={a.title} activityUnitIds={detail?.unit_ids ?? []} onJob={onJob} />
       <ActivityDataSheet open={editing} onClose={() => setEditing(false)} activity={a} />
-      {course && <ExamAbsencesSheet activityId={absences ? a.id : null} onClose={() => setAbsences(false)} course={course} />}
+      {course && (
+        <ExamAbsencesSheet activityId={absences ? a.id : null} onClose={() => setAbsences(false)} course={course}
+          missing={c.stats.papers ? missing : []} received={c.stats.papers ? received : null} />
+      )}
     </Page>
   );
 }

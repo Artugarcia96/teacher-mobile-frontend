@@ -4,6 +4,7 @@ import type { Job } from '../../api/types';
 import { plural } from '../../lib/format';
 import { DropZone, List, Row, Section, Segmented, useFeedback } from '../../ui';
 import { JobLine } from './JobLine';
+import { MissingPapersRow, missingStudents } from './MissingPapers';
 import { ScanPages } from './ScanPages';
 
 interface Props {
@@ -14,18 +15,19 @@ interface Props {
   /** The AI is suggesting grades: pages can still be fixed (the grading re-checks them before saving). */
   grading: boolean;
   onJob: (job: Job) => void;
+  /** Who is missing from the pile: NP or a repeat exam (ExamAbsencesSheet). */
+  onOpenMissing: () => void;
 }
 
 type Mode = 'names' | 'list_order';
 
 /** Step 2 — upload the scanned pile; pages are sorted by their printed marker and names matched with the class list. */
-export function CollectStep({ correction, job, running, grading, onJob }: Props) {
+export function CollectStep({ correction, job, running, grading, onJob, onOpenMissing }: Props) {
   const upload = useUploadPapers(correction.activity.id);
   const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
 
   const { stats, students } = correction;
-  const missing = students.filter((s) => !s.paper_id);
   const busy = running || upload.isPending;
   const pages = students.reduce((n, s) => n + s.pages.length, 0) + correction.unmatched.reduce((n, u) => n + u.pages, 0);
   const blocked = busy ? `Espera a que termine: ${(running && job?.message) || 'subiendo las hojas…'}` : null;
@@ -69,14 +71,12 @@ export function CollectStep({ correction, job, running, grading, onJob }: Props)
         </>
       )}
       {stats.papers === 0 && !busy && correction.unplaced.length === 0 && uploader}
-      {stats.papers > 0 && (
+      {stats.papers > 0 && !missingStudents(correction).length && (
         <p className="collect-count">
           <b className="num">{stats.matched} de {students.length}</b> emparejados · {plural(pages, 'página', 'páginas')}
-          {missing.length > 0 && missing.length <= 8 && (
-            <span className="muted"> · Sin examen: {missing.map((s) => s.student.first_name + ' ' + s.student.last_name.split(' ')[0]).join(', ')}</span>
-          )}
         </p>
       )}
+      <MissingPapersRow correction={correction} onOpen={onOpenMissing} />
       <ScanPages correction={correction} blocked={blocked} busy={busy || grading} onJob={onJob} />
       {(stats.papers > 0 || correction.unplaced.length > 0) && !busy && <Section title="Añadir hojas">{uploader}</Section>}
     </>

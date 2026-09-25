@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { correctionKeys, useConfirmReview, type Correction, type CorrectionStudent } from '../../api/papers';
-import { formatGrade, parseGradeInput } from '../../lib/format';
+import { formatGrade, formatScore, parseGradeInput } from '../../lib/format';
 import { Avatar, Chip, List, Row, Section, useFeedback } from '../../ui';
 
 const shown = (s: CorrectionStudent) =>
-  s.grade?.status === 'absent' ? 'NP' : s.grade?.status === 'confirmed' ? formatGrade(s.grade.score, 2) : '';
+  s.grade?.status === 'absent' ? 'NP' : s.grade?.status === 'confirmed' ? formatScore(s.grade.score) : '';
 
 /** Plain grading list: one numeric box per student, Enter jumps to the next one. Saves on blur. `absent`: marked absent
  *  on the exam day and still without a grade ("Faltó"). */

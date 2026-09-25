@@ -172,6 +172,11 @@ export function exportCsvLabel(region: { export_label?: string | null } | null |
   return region?.export_label ? `Exportar CSV para ${region.export_label}` : 'Exportar CSV';
 }
 
+/** Lowercase without accents ("Raíces" → "raices"), to compare what the teacher typed. */
+export function fold(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }

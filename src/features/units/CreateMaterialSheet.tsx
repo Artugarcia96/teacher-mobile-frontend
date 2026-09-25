@@ -21,6 +21,8 @@ export interface CreateMaterialSheetProps {
   /** Latest ready apuntes of the unit (source for "Lectura fácil"). */
   notesId?: string | null;
   onCreated?: (material: Material) => void;
+  /** Prefilled choice (a worksheet to reinforce what an exam showed). */
+  initial?: { kind: GenKind; worksheetKind?: WorksheetKind; instructions?: string };
 }
 
 /** "Crear con IA": pick one of 5 kinds + a few options. The material appears in the unit with a spinner. */
@@ -29,15 +31,15 @@ export default function CreateMaterialSheet(props: CreateMaterialSheetProps) {
   return <CreateMaterial {...props} />;
 }
 
-function CreateMaterial({ onClose, unitId, notesId, onCreated }: CreateMaterialSheetProps) {
+function CreateMaterial({ onClose, unitId, notesId, onCreated, initial }: CreateMaterialSheetProps) {
   const { toast } = useFeedback();
   const generate = useGenerateMaterial(unitId);
-  const [kind, setKind] = useState<GenKind>('notes');
+  const [kind, setKind] = useState<GenKind>(initial?.kind ?? 'notes');
   const [length, setLength] = useState<'breve' | 'normal'>('normal');
-  const [wk, setWk] = useState<WorksheetKind>('refuerzo');
+  const [wk, setWk] = useState<WorksheetKind>(initial?.worksheetKind ?? 'refuerzo');
   const [nItems, setNItems] = useState(6);
   const [difficulty, setDifficulty] = useState<Difficulty>('medio');
-  const [instructions, setInstructions] = useState('');
+  const [instructions, setInstructions] = useState(initial?.instructions ?? '');
 
   const submit = async () => {
     try {
