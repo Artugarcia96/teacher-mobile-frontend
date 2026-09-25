@@ -1,10 +1,11 @@
-import { ClipboardText, DotsThree, GearSix, UserPlus } from '@phosphor-icons/react';
+import { ClipboardText, DotsThree, GearSix, UserPlus, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCourse } from '../../api/core';
 import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
 import { CourseMenuProvider, useCourseMenuState } from '../../features/course/CourseMenu';
 import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
+import { ApiError } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
 import { courseLabel, isLive, ordinals, plural, sessionText } from '../../lib/format';
 import { Button, Dot, EmptyState, IconButton, Menu, Page, Segmented, SkeletonList, type MenuItem } from '../../ui';
@@ -30,17 +31,20 @@ export default function CoursePage() {
   const navigate = useNavigate();
   const { me } = useAuth();
   const today = useToday();
-  const { data: course, isLoading, error } = useCourse(courseId);
+  const { data: course, isLoading, error, refetch } = useCourse(courseId);
   const menu = useCourseMenuState();
   const [settings, setSettings] = useState(false);
   const [taking, setTaking] = useState(false);
   const current: Tab = (TABS.find((t) => t.value === tab)?.value ?? 'cuaderno') as Tab;
 
   if (error) {
+    const notFound = error instanceof ApiError && error.status === 404;
     return (
       <Page title="Clase" back="/clases" backLabel="Clases" backToOrigin>
-        <EmptyState icon={<GearSix size={24} />} title="No se ha encontrado la clase" text="Puede que se haya eliminado."
-          action={<Button variant="tinted" to="/clases">Ir a Clases</Button>} />
+        <EmptyState icon={<Warning size={24} />} title={notFound ? 'No se ha encontrado la clase' : 'No se ha podido cargar la clase'}
+          text={notFound ? 'Puede que se haya eliminado.' : error.message}
+          action={notFound ? <Button variant="tinted" to="/clases">Ir a Clases</Button>
+            : <Button variant="tinted" onClick={() => refetch()}>Reintentar</Button>} />
       </Page>
     );
   }
@@ -50,7 +54,7 @@ export default function CoursePage() {
 
   const next = course.next_session;
   const now = me?.now;
-  const canTake = isLive(next, today, now) && !next?.taken;
+  const canTake = isLive(next, today, now) && !next?.taken && course.student_count > 0;
   const when = next ? sessionText(next, today, now) : course.schedule.length ? null : 'Sin horario';
   // The session may be in another room than the class's usual one ("Lab. 1"); a bare number reads "Aula 204".
   const room = next?.room ?? course.room;

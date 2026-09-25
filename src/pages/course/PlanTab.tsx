@@ -1,12 +1,13 @@
 import { ArrowDown, ArrowUp, CheckCircle, Circle, Copy, DotsThree, ListBullets, Plus, ShareNetwork, Trash, UploadSimple, WarningCircle } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { useCourses } from '../../api/core';
 import type { CourseDetail } from '../../api/types';
-import { useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
+import { useCopyUnits, useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
 import { useCourseMenu } from '../../features/course/CourseMenu';
 import CopyUnitsSheet from '../../features/units/CopyUnitsSheet';
 import ImportUnitsSheet from '../../features/units/ImportUnitsSheet';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
-import { plural, TERM_LABEL } from '../../lib/format';
+import { ordinals, plural, TERM_LABEL } from '../../lib/format';
 import { Button, Chip, EmptyState, IconButton, List, Menu, Row, Section, SkeletonList, useFeedback, type MenuItem } from '../../ui';
 import './PlanTab.css';
 
@@ -46,7 +47,7 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
           <EmptyState icon={<ListBullets size={24} />} title="Organiza el curso por unidades"
             text="Pega el índice del libro y Sepia propone las unidades de cada evaluación. Después podrás crear apuntes, presentaciones y fichas de cada una."
             action={<div className="plan-empty__actions">
-              <Button icon={<UploadSimple size={18} />} onClick={() => setSheet('import')}>Importar temario</Button>
+              <CopyFromSibling course={course} onImport={() => setSheet('import')} />
               <Button variant="neutral" icon={<Plus size={18} />} onClick={() => addUnit()}>Añadir unidad</Button>
             </div>} />
         </div>
@@ -94,6 +95,37 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
       </div>
       {sheets}
     </div>
+  );
+}
+
+/** Another group of the same subject and level usually follows the same units: copying them (with their materials) comes
+ *  first; importing with AI again is the second option. */
+function CopyFromSibling({ course, onImport }: { course: CourseDetail; onImport: () => void }) {
+  const { toast } = useFeedback();
+  const courses = useCourses();
+  const sibling = (courses.data ?? []).find((c) => c.id !== course.id && c.subject === course.subject
+    && c.group.stage === course.group.stage && c.group.level != null && c.group.level === course.group.level);
+  const units = useUnits(sibling?.id);
+  const copy = useCopyUnits(course.id);
+  const n = units.data?.length ?? 0;
+  const importButton = (primary: boolean) => (
+    <Button variant={primary ? 'primary' : 'neutral'} icon={<UploadSimple size={18} />} onClick={onImport}>Importar temario</Button>
+  );
+  if (!sibling || !n) return importButton(true);
+  const from = ordinals(sibling.group.name);
+  const run = async () => {
+    try {
+      await copy.mutateAsync(sibling.id);
+      toast(`Temario copiado de ${from}: ${plural(n, 'unidad', 'unidades')}`);
+    } catch (e) {
+      toast((e as Error).message, { tone: 'error' });
+    }
+  };
+  return (
+    <>
+      <Button icon={<Copy size={18} />} onClick={run} loading={copy.isPending}>Copiar de {from} ({plural(n, 'unidad', 'unidades')})</Button>
+      {importButton(false)}
+    </>
   );
 }
 

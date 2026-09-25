@@ -9,7 +9,7 @@ import {
 } from '../../api/evaluation';
 import type { CourseDetail } from '../../api/types';
 import NewActivitySheet from '../../features/activities/NewActivitySheet';
-import { download } from '../../lib/api';
+import { ApiError, download } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
 import { exportCsvLabel, formatAverage, formatPercent, formatProposal, longDate, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
@@ -62,9 +62,14 @@ export default function EvaluationPage() {
   );
 
   if (course.error) {
+    const notFound = course.error instanceof ApiError && course.error.status === 404;
     return (
       <Page title={title} back="/clases" backLabel="Clases">
-        <EmptyState icon={<Student size={24} />} title="No se ha encontrado la clase" action={<Button to="/clases">Ver clases</Button>} />
+        <EmptyState icon={notFound ? <Student size={24} /> : <Warning size={24} />}
+          title={notFound ? 'No se ha encontrado la clase' : 'No se ha podido cargar la clase'}
+          text={notFound ? 'Puede que se haya eliminado.' : course.error.message}
+          action={notFound ? <Button variant="tinted" to="/clases">Ir a Clases</Button>
+            : <Button variant="tinted" onClick={() => course.refetch()}>Reintentar</Button>} />
       </Page>
     );
   }

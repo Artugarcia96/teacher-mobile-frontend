@@ -1,10 +1,11 @@
 /** Asistencia de la clase por evaluación: listas de hoy, listas sin pasar (últimos 14 días lectivos) y faltas por alumno. */
-import { Check, DotsThree, ListChecks, WarningCircle, XCircle } from '@phosphor-icons/react';
+import { CalendarBlank, Check, DotsThree, ListChecks, WarningCircle, XCircle } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useAttendanceSummary, useBulkTaken, type SessionSlot } from '../../api/attendance';
 import { useCancelSession } from '../../api/today';
 import type { CourseDetail } from '../../api/types';
 import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
+import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
 import { useAuth } from '../../lib/auth';
 import { longDate, plural, TERM_SHORT } from '../../lib/format';
 import { Button, EmptyState, IconButton, List, Menu, Row, RowIcon, Section, Segmented, SkeletonList, useFeedback } from '../../ui';
@@ -15,6 +16,7 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
   const { toast, confirm } = useFeedback();
   const [term, setTerm] = useState(me?.school_year.current_term && me.school_year.current_term <= 3 ? me.school_year.current_term : 1);
   const [sheet, setSheet] = useState<{ date: string; start: string } | null>(null);
+  const [settings, setSettings] = useState(false);
   const q = useAttendanceSummary(course.id, term);
   const bulk = useBulkTaken(course.id);
   const cancel = useCancelSession();
@@ -52,8 +54,13 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
     body = <EmptyState icon={<WarningCircle size={24} />} title="No se ha podido cargar la asistencia" text={(q.error as Error | null)?.message}
       action={<Button variant="tinted" onClick={() => q.refetch()}>Reintentar</Button>} />;
   } else {
+    const noSchedule = course.schedule.length === 0;
     body = (
       <>
+        {noSchedule && (
+          <EmptyState icon={<CalendarBlank size={24} />} title="Esta clase no tiene horario" text="Añádelo para pasar lista."
+            action={<Button onClick={() => setSettings(true)}>Añadir horario</Button>} />
+        )}
         {s.today.length > 0 && (
           <Section title="Hoy">
             <List inset={64}>
@@ -82,7 +89,7 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
             </Button>
           </Section>
         )}
-        <Section title="Por alumno" footer={s.students.length ? 'Ordenado por faltas sin justificar.' : undefined}>
+        {!(noSchedule && s.students.length === 0) && <Section title="Por alumno" footer={s.students.length ? 'Ordenado por faltas sin justificar.' : undefined}>
           {s.students.length === 0 ? (
             <List><Row title="Nadie ha faltado ni llegado tarde" sub={`${TERM_SHORT[term]} evaluación`} muted /></List>
           ) : (
@@ -99,7 +106,7 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
               })}
             </List>
           )}
-        </Section>
+        </Section>}
       </>
     );
   }
@@ -117,6 +124,7 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
         <TakeAttendanceSheet open onClose={() => setSheet(null)} courseId={course.id} date={sheet.date} start={sheet.start}
           label={course.label} room={course.room} />
       )}
+      <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
     </div>
   );
 }

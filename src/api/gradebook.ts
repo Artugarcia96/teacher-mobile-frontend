@@ -1,5 +1,6 @@
 /** Cuaderno (gradebook). Backend: GET /courses/{id}/gradebook. Averages come from the server only. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSyncExternalStore } from 'react';
 import { api } from '../lib/api';
 import { activityKeys, type ActivityKind, type CountsFor, type GradeInput, type GradeStatus } from './activities';
 import type { Category, StudentRef } from './types';
@@ -33,6 +34,10 @@ export interface GradebookRow {
   average: number | null;
   categories: Record<string, number | null>;
   proposed: number | null;
+  /** The grade that counts: the teacher's adjustment in Evaluación, else `proposed`. */
+  final: number | null;
+  adjusted: boolean;
+  /** Of `final`. */
   qualitative: string | null;
   recovery: { before: number | null; score: number; activity_id: string } | null;
   drafts: number;
@@ -59,28 +64,55 @@ export function useGradebook(courseId: string, term: number) {
   });
 }
 
-/** Save one cell with an optimistic update; averages refresh from the server once the last pending save settles.
- * `activityId` is where the grade lives (a repeat exam, maybe); `columnId` the cuaderno column it shows in. */
-export function useSaveCell(courseId: string, term: number) {
+/** One cell save: `activityId` is where the grade lives (a repeat exam, maybe); `columnId` the cuaderno column it shows in. */
+export interface CellSave { term: number; activityId: string; columnId: string; grade: GradeInput; optimistic: GradeCell }
+
+// Saves that failed, per class: the typed value stays on screen as «Sin guardar» until a retry succeeds.
+const unsaved = new Map<string, CellSave[]>();
+const listeners = new Set<() => void>();
+const EMPTY: CellSave[] = [];
+const sameCell = (a: CellSave, b: CellSave) => a.term === b.term && a.columnId === b.columnId && a.grade.student_id === b.grade.student_id;
+function setUnsaved(courseId: string, list: CellSave[]) {
+  if (list.length) unsaved.set(courseId, list); else unsaved.delete(courseId);
+  listeners.forEach((l) => l());
+}
+function subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; }
+
+/** Failed saves of this class (all terms), to show as «Sin guardar» and retry. */
+export function useUnsavedCells(courseId: string): CellSave[] {
+  return useSyncExternalStore(subscribe, () => unsaved.get(courseId) ?? EMPTY);
+}
+
+/** Save one cell with an optimistic update. A failure puts back only that cell and keeps the typed value as unsaved
+ * (`useUnsavedCells`); averages refresh from the server once the last pending save settles. */
+export function useSaveCell(courseId: string) {
   const qc = useQueryClient();
-  const key = gradebookKeys.one(courseId, term);
   const mutationKey = ['save-cell', courseId];
+  const patch = (term: number, studentId: string, columnId: string, cell: GradeCell | undefined) =>
+    qc.setQueryData<Gradebook>(gradebookKeys.one(courseId, term), (gb) => gb && {
+      ...gb,
+      students: gb.students.map((r) => {
+        if (r.student.id !== studentId) return r;
+        const grades = { ...r.grades };
+        if (cell) grades[columnId] = cell; else delete grades[columnId];
+        return { ...r, grades };
+      }),
+    });
   return useMutation({
     mutationKey,
-    mutationFn: ({ activityId, grade }: { activityId: string; columnId: string; grade: GradeInput; optimistic: GradeCell }) =>
-      api.put(`/activities/${activityId}/grades`, { grades: [grade] }),
-    onMutate: async ({ columnId, grade, optimistic }) => {
-      await qc.cancelQueries({ queryKey: key });
-      const prev = qc.getQueryData<Gradebook>(key);
-      qc.setQueryData<Gradebook>(key, (gb) => gb && {
-        ...gb,
-        students: gb.students.map((r) => r.student.id !== grade.student_id ? r : {
-          ...r, grades: { ...r.grades, [columnId]: optimistic },
-        }),
-      });
+    mutationFn: ({ activityId, grade }: CellSave) => api.put(`/activities/${activityId}/grades`, { grades: [grade] }),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: gradebookKeys.one(courseId, v.term) });
+      setUnsaved(courseId, (unsaved.get(courseId) ?? []).filter((u) => !sameCell(u, v)));
+      const prev = qc.getQueryData<Gradebook>(gradebookKeys.one(courseId, v.term))
+        ?.students.find((r) => r.student.id === v.grade.student_id)?.grades[v.columnId];
+      patch(v.term, v.grade.student_id, v.columnId, v.optimistic);
       return { prev };
     },
-    onError: (_err, _vars, ctx) => { if (ctx?.prev) qc.setQueryData(key, ctx.prev); },
+    onError: (_err, v, ctx) => {
+      patch(v.term, v.grade.student_id, v.columnId, ctx?.prev);
+      setUnsaved(courseId, [...(unsaved.get(courseId) ?? []).filter((u) => !sameCell(u, v)), v]);
+    },
     onSettled: (_data, _err, { activityId, columnId }) => {
       qc.invalidateQueries({ queryKey: activityKeys.one(activityId) });
       qc.invalidateQueries({ queryKey: activityKeys.one(columnId) });

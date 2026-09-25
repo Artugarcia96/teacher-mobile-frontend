@@ -22,7 +22,8 @@ export interface GroupRef { id: string; name: string; stage: 'primaria' | 'eso' 
 export interface CourseRef { id: string; subject: string; short?: string | null; color: string; room?: string | null; group: GroupRef; label: string }
 
 export interface Slot { weekday: number; start: string; end: string; room?: string | null }
-export interface Category { key: string; label: string; weight: number }
+/** `activities`: how many activities of the class are in it (class detail only). */
+export interface Category { key: string; label: string; weight: number; activities?: number }
 /** `taken`: the list of this session is already taken (only possible once it has started). */
 export interface NextSession { date: string; start: string; end: string; room?: string | null; taken?: boolean }
 export interface CourseSummary extends CourseRef { student_count: number; schedule: Slot[]; next_session?: NextSession | null; archived: boolean }
