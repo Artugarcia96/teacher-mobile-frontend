@@ -2,7 +2,10 @@
 # Runs ON THE VPS, called by the backend repo's .github/workflows/deploy-frontend.yml («Deploy web»; see
 # ../teacher-mobile-backend/docs/DEPLOY.md).
 # Publishes the built site (app + landing) in ~/sepia-cuaderno/web and (re)starts sepia-cuaderno-web: nginx:alpine on
-# the public port 8200, serving the site and proxying /api to the sepia-cuaderno-api container.
+# port 8200, serving the site and proxying /api to the sepia-cuaderno-api container. The port is public (plain http)
+# until https://app.sepiaeducation.com serves this web (sepiaeducation-app.sh; BEHIND_HTTPS=true when the workflow is
+# about to do it): from then on it is only local, so logins and the AI never go over plain http, and sepia-education's
+# nginx reaches the web through the sepia-cuaderno network.
 # The VPS also runs sepia-education and coteacher: this script only touches sepia-cuaderno-* resources.
 #
 #   bash deploy.sh <release dir>     (site/ and nginx.conf.template, unpacked by the workflow)
@@ -20,6 +23,16 @@ IMAGE=nginx:alpine
 LANDING_ONLY=false
 [ -f "$RELEASE/site/index.html" ] || LANDING_ONLY=true
 
+behind_https() {  # the workflow says so, or sepia-education's nginx already has the block of sepiaeducation-app.sh
+  local conf
+  [ "${BEHIND_HTTPS:-}" != true ] || return 0
+  conf="$(docker inspect sepia-education-nginx-1 --format \
+    '{{range .Mounts}}{{if eq .Destination "/etc/nginx/nginx.conf"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
+  [ -n "$conf" ] && grep -qF '# >>> sepia-cuaderno app.sepiaeducation.com' "$conf" 2>/dev/null
+}
+PUBLISH="$PORT:80"
+if behind_https; then PUBLISH="127.0.0.1:$PORT:80"; fi
+
 say() { printf '\n== %s\n' "$*"; }
 
 nginx_args() {  # nginx_args <version dir>: docker run arguments that give nginx that version's site and config
@@ -31,7 +44,7 @@ nginx_args() {  # nginx_args <version dir>: docker run arguments that give nginx
 start() {  # the only place the public container is created
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   nginx_args "$WEB_DIR/live"
-  docker run -d --name "$NAME" --restart unless-stopped -p "$PORT:80" \
+  docker run -d --name "$NAME" --restart unless-stopped -p "$PUBLISH" \
     --memory 128m --cpus 0.5 --log-opt max-size=10m --log-opt max-file=3 \
     "${NGINX_ARGS[@]}" "$IMAGE" >/dev/null
 }
@@ -74,7 +87,7 @@ docker rm -f "$NAME-check" >/dev/null 2>&1 || true
 nginx_args "$WEB_DIR/next"
 docker run --rm --name "$NAME-check" "${NGINX_ARGS[@]}" "$IMAGE" nginx -t -q
 
-say "Publicando la versión nueva en :$PORT"
+say "Publicando la versión nueva en :$PORT ($([ "$PUBLISH" = "$PORT:80" ] && echo "público, http" || echo "solo local: se entra por https://app.sepiaeducation.com"))"
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 if [ -d "$WEB_DIR/live" ]; then mv "$WEB_DIR/live" "$WEB_DIR/previous"; fi
 mv "$WEB_DIR/next" "$WEB_DIR/live"
