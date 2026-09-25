@@ -7,7 +7,7 @@
 @media (max-width: 479px) { .set-pair { grid-template-columns: minmax(0, 1fr); } }
 .set-sub { margin-top: var(--s-3); }
 .set-accent { color: var(--accent); font-weight: 500; }
-.set-add { display: grid; gap: var(--s-3); align-items: stretch; }
-.set-add__btns { display: flex; justify-content: flex-end; gap: var(--s-2); }
+.set-holiday { display: grid; gap: var(--s-3); align-items: stretch; }
+.set-holiday__btns { display: flex; justify-content: space-between; gap: var(--s-2); }
 .set-email { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings .section + .list { margin-top: var(--s-2); }

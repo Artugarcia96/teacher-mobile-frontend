@@ -1,4 +1,4 @@
-import { Plus, SignOut, Warning, X } from '@phosphor-icons/react';
+import { Plus, SignOut, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useMe, usePatchMe, useRegions, useSaveSchoolYear, useSendFeedback } from '../../api/core';
 import type { Holiday, Me, Term } from '../../api/types';
@@ -7,7 +7,7 @@ import { useAuth } from '../../lib/auth';
 import { shortDate, TERM_LABEL } from '../../lib/format';
 import { getTheme, setTheme, type Theme } from '../../lib/theme';
 import {
-  ActionBar, Button, DateField, EmptyState, IconButton, List, Page, Row, Section, Segmented, Select, SkeletonList, TextArea, TextField,
+  ActionBar, Button, DateField, EmptyState, List, Page, Row, Section, Segmented, Select, SkeletonList, TextArea, TextField,
   useDraft, useFeedback,
 } from '../../ui';
 import './settings.css';
@@ -15,12 +15,12 @@ import './settings.css';
 const errText = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback);
 
 interface Profile { name: string; school: string; region: string }
-interface Year { label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[] }
+interface Year { label: string; terms: Term[]; holidays: Holiday[] }
 
 const profileOf = (me: Me): Profile => ({ name: me.teacher.name, school: me.teacher.school ?? '', region: me.teacher.region ?? '' });
 const yearOf = (me: Me): Year => {
   const y = me.school_year;
-  return { label: y.label, start_date: y.start_date, end_date: y.end_date, terms: y.terms, holidays: y.holidays };
+  return { label: y.label, terms: y.terms, holidays: y.holidays };
 };
 
 /** "8 sept 2026 – 22 dic 2026" pair of date fields. */
@@ -61,25 +61,46 @@ function ProfileSection({ me, value, onChange }: { me: Me; value: Profile; onCha
   );
 }
 
-function SchoolYearSection({ value, onChange }: { value: Year; onChange: (y: Year) => void }) {
-  const [adding, setAdding] = useState(false);
-  const [h, setH] = useState<Holiday>({ label: '', start: '', end: '' });
-  const setTerm = (n: number, start: string, end: string) => onChange({ ...value, terms: value.terms.map((t) => (t.n === n ? { ...t, start, end } : t)) });
+/** One holiday of the draft, edited in place: motivo and dates. «Listo» folds it back into its row. */
+function HolidayEditor({ value, onChange, onRemove, onDone }: {
+  value: Holiday; onChange: (h: Holiday) => void; onRemove: () => void; onDone: () => void;
+}) {
+  return (
+    <div className="row set-holiday">
+      <TextField label="Motivo" placeholder="Día del centro" value={value.label} autoFocus={!value.label}
+        onChange={(e) => onChange({ ...value, label: e.target.value })} />
+      <div className="set-pair">
+        <DateField label="Desde" value={value.start}
+          onChange={(start) => onChange({ ...value, start, end: value.end && value.end < start ? '' : value.end })} />
+        <DateField label="Hasta (opcional)" value={value.end === value.start ? '' : value.end} min={value.start || undefined} clearable
+          onChange={(end) => onChange({ ...value, end })} />
+      </div>
+      <div className="set-holiday__btns">
+        <Button size="sm" variant="danger" onClick={onRemove}>Quitar festivo</Button>
+        <Button size="sm" variant="tinted" onClick={onDone} disabled={!value.start}>{value.start ? 'Listo' : 'Pon la fecha'}</Button>
+      </div>
+    </div>
+  );
+}
 
-  const addHoliday = () => {
-    const item = { label: h.label.trim() || 'Festivo', start: h.start, end: h.end || h.start };
-    onChange({ ...value, holidays: [...value.holidays, item].sort((a, b) => a.start.localeCompare(b.start)) });
-    setH({ label: '', start: '', end: '' });
-    setAdding(false);
+function SchoolYearSection({ value, onChange }: { value: Year; onChange: (y: Year) => void }) {
+  const [open, setOpen] = useState<number | null>(null);
+  const setTerm = (n: number, start: string, end: string) => onChange({ ...value, terms: value.terms.map((t) => (t.n === n ? { ...t, start, end } : t)) });
+  const setHolidays = (holidays: Holiday[]) => onChange({ ...value, holidays });
+
+  const add = () => {
+    setHolidays([...value.holidays, { label: '', start: '', end: '' }]);
+    setOpen(value.holidays.length);
   };
-  const hBlocker = !h.start ? 'Pon la fecha' : h.end && h.end < h.start ? 'El fin va después del inicio' : null;
+  const remove = (i: number) => {
+    setHolidays(value.holidays.filter((_, j) => j !== i));
+    setOpen(null);
+  };
 
   return (
     <Section title="Curso escolar" footer="Las evaluaciones deciden a qué trimestre va cada nota. Los festivos no tienen clase en Hoy.">
       <div className="card card--pad form">
         <TextField label="Curso" value={value.label} onChange={(e) => onChange({ ...value, label: e.target.value })} />
-        <Range label="Periodo lectivo" start={value.start_date} end={value.end_date}
-          onChange={(start_date, end_date) => onChange({ ...value, start_date, end_date })} />
         {value.terms.map((t) => (
           <Range key={t.n} label={TERM_LABEL[t.n]} start={t.start} end={t.end} onChange={(s, e) => setTerm(t.n, s, e)} />
         ))}
@@ -87,26 +108,14 @@ function SchoolYearSection({ value, onChange }: { value: Year; onChange: (y: Yea
 
       <div className="section__head set-sub"><h3 className="section__title">Festivos y vacaciones</h3></div>
       <List>
-        {value.holidays.map((x, i) => (
-          <Row key={`${x.start}-${x.label}`} title={x.label}
-            sub={x.end && x.end !== x.start ? `${shortDate(x.start)} – ${shortDate(x.end)}` : shortDate(x.start)}
-            trail={<IconButton size="sm" label={`Quitar ${x.label}`} onClick={() => onChange({ ...value, holidays: value.holidays.filter((_, j) => j !== i) })}><X size={16} /></IconButton>} />
-        ))}
-        {!adding ? (
-          <Row lead={<Plus size={18} className="set-accent" />} title={<span className="set-accent">Añadir festivo</span>} onClick={() => setAdding(true)} chevron={false} />
+        {value.holidays.map((x, i) => (i === open ? (
+          <HolidayEditor key={i} value={x} onChange={(h) => setHolidays(value.holidays.map((y, j) => (j === i ? h : y)))}
+            onRemove={() => remove(i)} onDone={() => setOpen(null)} />
         ) : (
-          <div className="row set-add">
-            <TextField label="Motivo" placeholder="Día del centro" value={h.label} onChange={(e) => setH({ ...h, label: e.target.value })} />
-            <div className="set-pair">
-              <DateField label="Desde" value={h.start} onChange={(v) => setH({ ...h, start: v })} />
-              <DateField label="Hasta (opcional)" value={h.end} min={h.start || undefined} clearable onChange={(v) => setH({ ...h, end: v })} />
-            </div>
-            <div className="set-add__btns">
-              <Button size="sm" variant="neutral" onClick={() => setAdding(false)}>Cancelar</Button>
-              <Button size="sm" variant="tinted" onClick={addHoliday} disabled={!!hBlocker}>{hBlocker ?? 'Añadir'}</Button>
-            </div>
-          </div>
-        )}
+          <Row key={i} title={x.label.trim() || 'Festivo'} onClick={() => setOpen(i)} aria-label={`Editar ${x.label.trim() || 'festivo'}`}
+            sub={!x.start ? 'Sin fecha' : x.end && x.end !== x.start ? `${shortDate(x.start)} – ${shortDate(x.end)}` : shortDate(x.start)} />
+        )))}
+        <Row lead={<Plus size={18} className="set-accent" />} title={<span className="set-accent">Añadir festivo</span>} onClick={add} chevron={false} />
       </List>
     </Section>
   );
@@ -157,6 +166,8 @@ function SettingsForm({ me }: { me: Me }) {
   const year = useDraft(yearOf(me));
   const [error, setError] = useState<string | null>(null);
   const saving = patchMe.isPending || saveYear.isPending;
+  const blocker = !profile.draft.name.trim() ? 'Escribe tu nombre'
+    : year.draft.holidays.some((h) => !h.start) ? 'Pon la fecha del festivo' : null;
 
   const discard = () => { profile.reset(); year.reset(); setError(null); };
   const save = async () => {
@@ -167,7 +178,10 @@ function SettingsForm({ me }: { me: Me }) {
         const t = await patchMe.mutateAsync({ name: p.name.trim(), school: p.school.trim() || null, region: p.region || null });
         profile.setDraft({ name: t.name, school: t.school ?? '', region: t.region ?? '' });
       }
-      if (year.dirty) year.setDraft(yearOf({ ...me, school_year: await saveYear.mutateAsync(year.draft) }));
+      if (year.dirty) {
+        const holidays = year.draft.holidays.map((h) => ({ label: h.label.trim() || 'Festivo', start: h.start, end: h.end || h.start }));
+        year.setDraft(yearOf({ ...me, school_year: await saveYear.mutateAsync({ ...year.draft, holidays }) }));
+      }
       toast('Cambios guardados');
     } catch (e) {
       setError(errText(e, 'No se ha podido guardar. Revisa la conexión y vuelve a intentarlo.'));
@@ -181,7 +195,7 @@ function SettingsForm({ me }: { me: Me }) {
       {(profile.dirty || year.dirty) && (
         <ActionBar note="Sin guardar" error={error}>
           <Button size="sm" variant="neutral" onClick={discard} disabled={saving}>Descartar</Button>
-          <Button size="sm" onClick={save} loading={saving} disabled={!profile.draft.name.trim()}>Guardar cambios</Button>
+          <Button size="sm" onClick={save} loading={saving} disabled={!!blocker}>{blocker ?? 'Guardar cambios'}</Button>
         </ActionBar>
       )}
     </>
