@@ -1,25 +1,54 @@
-# Sepia web: static app + landing, and /api proxied to the API container.
+# Sepia web (sepia-cuaderno-web): the landing at "/", the app for every other route and /api proxied to the API.
+# The nginx:alpine entrypoint renders this template at start-up, filling in SEPIA_API_UPSTREAM (set by deploy/deploy.sh).
 server {
     listen 80;
     server_name _;
+    server_tokens off;
     root /usr/share/nginx/html;
     index index.html;
-    client_max_body_size 80m;          # scanned exams, photos of textbook pages
 
-    # Landing page at the root; the app lives at /hoy, /clases, /evaluar, /entrar…
-    location = / { try_files /landing/index.html =404; }
-    location /landing/ { try_files $uri =404; expires 7d; }
+    client_max_body_size 80m;           # scanned exams, photos of textbook pages
+    client_body_timeout 300s;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Docker DNS, resolved per request: nginx starts (and serves the site) even when the API container is down.
+    resolver 127.0.0.11 valid=10s ipv6=off;
 
     location /api/ {
-        proxy_pass ${SEPIA_API_UPSTREAM};
+        set $sepia_api ${SEPIA_API_UPSTREAM};
+        proxy_pass $sepia_api;          # no URI part: the request goes as is, /api prefix included
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;       # AI jobs start quickly, but uploads of big scans can take a while
-        proxy_send_timeout 300s;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 300s;        # big uploads
+        proxy_read_timeout 300s;        # AI answers that are not jobs (import units, rewrite, brief) take up to ~80 s
     }
 
-    location /assets/ { try_files $uri =404; expires 1y; add_header Cache-Control "public, immutable"; }
-    location / { try_files $uri $uri/ /index.html; }
+    # Landing
+    location = / {
+        add_header Cache-Control "no-cache";
+        try_files /landing/index.html =404;
+    }
+    location /landing/ {
+        add_header Cache-Control "public, max-age=3600";
+        try_files $uri =404;
+    }
+
+    # App: hashed bundles are immutable; index.html is never cached so a deploy is seen at once.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+    location = /index.html {
+        add_header Cache-Control "no-store";
+    }
+    location / {
+        try_files $uri /index.html;
+    }
 }

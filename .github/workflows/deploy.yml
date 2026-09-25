@@ -1,26 +1,79 @@
-# Deploys Sepia to the VPS on every push to main (or manually).
-# Needs repository secrets: VPS_HOST, VPS_USER and VPS_SSH_KEY (private key; the public key goes in ~/.ssh/authorized_keys on the VPS).
-# Optional repository variable SEPIA_DIR (default /opt/sepia). See ../teacher-mobile-backend/docs/DEPLOY.md.
-name: Deploy
+# Builds the app and deploys it with the landing to the VPS as the sepia-cuaderno-web container (public :8200),
+# which proxies /api to sepia-cuaderno-api. See ../teacher-mobile-backend/docs/DEPLOY.md.
+# Repository settings → Secrets and variables → Actions:
+#   VPS_HOST, VPS_USER (variables or secrets) · VPS_PASSWORD or VPS_SSH_KEY (secret)
+name: Deploy web
+
 on:
   push:
-    branches: [main]
+    branches: [claude/repo-analysis-webpage-issue-7t3d8w, main]
   workflow_dispatch:
-concurrency: deploy-vps
+
+concurrency:
+  group: sepia-cuaderno-deploy-web
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Update code and restart containers on the VPS
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+          CYPRESS_INSTALL_BINARY: "0"
+        run: npm ci
+
+      - name: Check (types, design tokens, lint)
+        run: npm run check
+
+      - name: Build
+        env:
+          VITE_API_URL: ""   # same origin: nginx on the VPS proxies /api to the API
+        run: npm run build
+
+      - name: Package the site, the nginx template and the deploy script
+        run: |
+          mkdir -p release/site
+          cp -R dist/. release/site/
+          cp -R landing release/site/landing
+          cp deploy/nginx.conf.template deploy/deploy.sh release/
+          tar -czf web.tar.gz -C release .
+          ls -lh web.tar.gz
+
+      - name: Upload to the VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST || vars.VPS_HOST }}
+          username: ${{ secrets.VPS_USER || vars.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          source: web.tar.gz
+          target: /tmp/sepia-cuaderno-web-deploy
+          rm: true
+
+      - name: Publish on the VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST || vars.VPS_HOST }}
+          username: ${{ secrets.VPS_USER || vars.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
           script: |
-            set -euo pipefail
-            cd "${{ vars.SEPIA_DIR || '/opt/sepia' }}"
-            git -C teacher-mobile-backend pull --ff-only
-            git -C teacher-mobile-frontend pull --ff-only
-            docker compose -f teacher-mobile-backend/deploy/docker-compose.yml up -d --build
-            docker image prune -f
+            set -e
+            trap 'rm -rf /tmp/sepia-cuaderno-web-deploy' EXIT
+            cd /tmp/sepia-cuaderno-web-deploy
+            mkdir release
+            tar -xzf web.tar.gz -C release
+            bash release/deploy.sh release

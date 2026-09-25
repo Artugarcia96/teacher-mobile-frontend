@@ -55,6 +55,7 @@ function ProfileSection({ me, value, onChange }: { me: Me; value: Profile; onCha
       </div>
       <List>
         <Row title="Cuenta" trail={<span className="set-email">{me.teacher.email}</span>} />
+        {me.ai_provider === 'none' && <Row title="IA no configurada en este servidor" sub="Corregir con IA, crear materiales y redactar comentarios no están disponibles." wrapSub />}
       </List>
     </Section>
   );
