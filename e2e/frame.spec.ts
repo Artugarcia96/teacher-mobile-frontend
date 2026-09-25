@@ -18,7 +18,7 @@ test('a hung connection offers «Reintentar» after one wait', async ({ page }, 
 
   await page.unroute(today);
   await page.getByRole('button', { name: 'Reintentar' }).click();
-  await expect(page.getByRole('button', { name: 'Pasar lista' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible();
 });
 
 test('justifying several absences leaves one toast', async ({ page }, info) => {
