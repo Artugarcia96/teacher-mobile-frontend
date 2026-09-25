@@ -1,6 +1,7 @@
 import { Plus, Warning } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSaveRubric, type Rubric, type RubricItem } from '../../api/papers';
+import { useSaveVersionRubric } from '../../api/versions';
 import { formatNumber } from '../../lib/format';
 import { Button, Callout, RichText, Stepper, useFeedback } from '../../ui';
 import RubricItemSheet from './RubricItemSheet';
@@ -8,9 +9,15 @@ import RubricItemSheet from './RubricItemSheet';
 const pts = (v: number) => formatNumber(v, 2);
 
 /** The rubric as a compact editable table: nº · enunciado · solución · puntos. `generated`: saving re-renders the exam
- * to print, and its button says so. */
-export function RubricTable({ activityId, rubric, maxScore, generated }: { activityId: string; rubric: Rubric; maxScore: number; generated?: boolean }) {
-  const save = useSaveRubric(activityId);
+ * to print, and its button says so. `versionKey`: the questions of another version of the exam (always laid out by
+ * Sepia). */
+export function RubricTable({ activityId, rubric, maxScore, generated, versionKey }: {
+  activityId: string; rubric: Rubric; maxScore: number; generated?: boolean; versionKey?: string;
+}) {
+  const saveExam = useSaveRubric(activityId);
+  const saveVersion = useSaveVersionRubric(activityId, versionKey ?? '');
+  const save = versionKey ? saveVersion : saveExam;
+  const rendered = generated || !!versionKey;
   const { toast } = useFeedback();
   const [items, setItems] = useState<RubricItem[]>(rubric.items);
   const [editing, setEditing] = useState<number | null>(null);
@@ -31,7 +38,7 @@ export function RubricTable({ activityId, rubric, maxScore, generated }: { activ
   };
 
   const submit = () => save.mutate(items, {
-    onSuccess: () => toast(generated ? 'Rúbrica guardada · examen para imprimir actualizado' : 'Rúbrica guardada'),
+    onSuccess: () => toast(rendered ? 'Rúbrica guardada · examen para imprimir actualizado' : 'Rúbrica guardada'),
     onError: (e) => toast(e.message, { tone: 'error' }),
   });
 
@@ -68,7 +75,7 @@ export function RubricTable({ activityId, rubric, maxScore, generated }: { activ
       {dirty && (
         <div className="rubric__actions">
           <Button variant="neutral" onClick={() => setItems(JSON.parse(source) as RubricItem[])}>Descartar cambios</Button>
-          <Button onClick={submit} loading={save.isPending}>{generated ? 'Guardar y actualizar el PDF' : 'Guardar rúbrica'}</Button>
+          <Button onClick={submit} loading={save.isPending}>{rendered ? 'Guardar y actualizar el PDF' : 'Guardar rúbrica'}</Button>
         </div>
       )}
       <RubricItemSheet

@@ -10,7 +10,7 @@
 .review-bar__back span { max-width: none; }
 .review-bar__title { min-width: 0; max-width: 52vw; display: flex; flex-direction: column; align-items: center; line-height: 1.2; text-align: center; }
 .review-bar__title strong { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.review-bar__title span { font-size: var(--fs-caption); color: var(--ink-2); white-space: nowrap; }
+.review-bar__title span { font-size: var(--fs-caption); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .review-bar__nav { display: flex; gap: 2px; justify-self: end; }
 
 .review-body { display: grid; gap: var(--s-4); padding: var(--s-3) var(--gutter) calc(var(--foot-h, 132px) + 16px); overflow-x: clip; }

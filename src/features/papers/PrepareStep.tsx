@@ -7,18 +7,22 @@ import { IconButton, List, Menu, Row, RowIcon, Section, useFeedback } from '../.
 import { JobLine } from './JobLine';
 import { openSigned } from './openDoc';
 import { RubricTable } from './RubricTable';
+import { VersionsSection } from './VersionsSection';
 
 interface Props {
   correction: Correction;
   job: Job | undefined;
+  /** Uploading or generating the exam: the step shows its progress only. */
   running: boolean;
+  /** Writing versions of the exam: the step stays usable, the «Versiones» section shows the progress. */
+  versionsRunning: boolean;
   onJob: (job: Job) => void;
   onGenerate: () => void;
   onManual: () => void;
 }
 
-/** Step 1 — the exam document and its rubric. */
-export function PrepareStep({ correction, job, running, onJob, onGenerate, onManual }: Props) {
+/** Step 1 — the exam document, its rubric and its versions (Modelo B, adapted ones, printing for the class). */
+export function PrepareStep({ correction, job, running, versionsRunning, onJob, onGenerate, onManual }: Props) {
   const id = correction.activity.id;
   const upload = useUploadDocument(id);
   const docUrl = useDocumentUrl(id);
@@ -100,6 +104,9 @@ export function PrepareStep({ correction, job, running, onJob, onGenerate, onMan
         {!correction.rubric && <p className="muted">No se han podido leer las preguntas. Escríbelas aquí para que la IA pueda sugerir notas.</p>}
         <RubricTable activityId={id} rubric={rubric} maxScore={correction.activity.max_score} generated={correction.generated} />
       </Section>
+      {correction.rubric && printable && (
+        <VersionsSection correction={correction} job={versionsRunning ? job : undefined} running={versionsRunning} onJob={onJob} />
+      )}
     </>
   );
 }

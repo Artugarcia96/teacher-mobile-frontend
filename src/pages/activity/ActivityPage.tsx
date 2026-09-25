@@ -1,10 +1,11 @@
-import { DotsThree, Exam, FileX, Key, PencilSimple, Rows, Trash, UserMinus, Warning } from '@phosphor-icons/react';
+import { DotsThree, Exam, FileX, Key, PencilSimple, Printer, Rows, Trash, UserMinus, Warning } from '@phosphor-icons/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router-dom';
 import { useActivity } from '../../api/activities';
 import { useCourse } from '../../api/core';
 import { useActivityJob, useCorrection, useDocumentUrl, type Correction } from '../../api/papers';
+import { useClassPrintUrl } from '../../api/versions';
 import type { Job } from '../../api/types';
 import ExamAbsencesSheet, { conflictsText } from '../../features/activities/ExamAbsencesSheet';
 import ActivityDataSheet from '../../features/papers/ActivityDataSheet';
@@ -26,6 +27,7 @@ import './activity.css';
 
 const STEP_INDEX = { prepare: 1, collect: 2, review: 3, done: 3 } as const;
 const PREPARE_JOBS = ['extract_rubric', 'generate_exam'];
+const VERSION_JOBS = ['prepare_versions'];
 const COLLECT_JOBS = ['ingest_papers', 'reclassify_pages'];
 const FINAL = ['confirmed', 'absent', 'exempt'];
 
@@ -57,6 +59,11 @@ function pagesToast(j: Job): string {
 const DONE_TOAST: Record<string, (job: Job) => string> = {
   extract_rubric: () => 'Preguntas leídas. Revisa puntos y soluciones antes de imprimir.',
   generate_exam: () => 'Examen generado. Revisa las preguntas antes de imprimir.',
+  prepare_versions: (j) => {
+    const failed = Number(j.result?.failed) || 0;
+    return failed ? `${plural(failed, 'versión no se ha podido preparar', 'versiones no se han podido preparar')}: ábrelas y pulsa «Rehacer»`
+      : 'Versiones preparadas. Revísalas antes de imprimir.';
+  },
   ingest_papers: pagesToast,
   reclassify_pages: pagesToast,
   suggest_grades: (j) => {
@@ -67,9 +74,13 @@ const DONE_TOAST: Record<string, (job: Job) => string> = {
   },
 };
 
-/** Step 1, collapsed: "Preparado · 6 preguntas". */
+/** Step 1, collapsed: "Preparado · 6 preguntas · 3 versiones más" (or, before scanning, who still lacks the adapted
+ * version their measures ask for). */
 function prepareSummary(c: Correction, manual: boolean) {
-  if (c.rubric) return `Preparado · ${plural(c.rubric.items.length, 'pregunta', 'preguntas')}`;
+  const versions = c.pending_adapted && !c.stats.papers
+    ? ` · ${plural(c.pending_adapted, 'alumno sin su versión adaptada', 'alumnos sin su versión adaptada')}`
+    : c.versions.length ? ` · ${plural(c.versions.length, 'versión más', 'versiones más')}` : '';
+  if (c.rubric) return `Preparado · ${plural(c.rubric.items.length, 'pregunta', 'preguntas')}${versions}`;
   if (c.document_url) return 'Examen subido, sin preguntas';
   return manual || c.step !== 'prepare' ? 'Sin documento (solo nota)' : 'Subir, generar o solo nota';
 }
@@ -108,6 +119,7 @@ export default function ActivityPage() {
   const detail = useActivity(activityId).data; // attendance of the exam day, units of the exam
   const course = useCourse(courseId).data;
   const docUrl = useDocumentUrl(activityId!);
+  const classPrint = useClassPrintUrl(activityId!);
   const [absences, setAbsences] = useState(false);
   const absent = useMemo(() => new Set(detail?.sheet.filter((r) => r.pending_absent).map((r) => r.student.id)), [detail]);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -126,7 +138,8 @@ export default function ActivityPage() {
       if (j.kind === 'suggest_grades') return; // never move the teacher away from what they are doing
       // After preparing, keep step 1 open so the teacher reviews the questions before printing; after a scan with
       // something to fix, keep "Recoger" open.
-      pinned.current = PREPARE_JOBS.includes(j.kind) ? 1 : COLLECT_JOBS.includes(j.kind) && Number(j.result?.attention) > 0 ? 2 : null;
+      pinned.current = PREPARE_JOBS.includes(j.kind) || VERSION_JOBS.includes(j.kind) ? 1
+        : COLLECT_JOBS.includes(j.kind) && Number(j.result?.attention) > 0 ? 2 : null;
       setOpen(pinned.current);
     },
     onFail: (j) => { toast(j.error || 'No se ha podido completar. Inténtalo de nuevo.', { tone: 'error' }); setJobId(null); },
@@ -183,7 +196,8 @@ export default function ActivityPage() {
   const isExam = a.kind === 'exam';
   const step = STEP_INDEX[c.step];
   const noDocument = !c.document_url && !c.rubric && !c.stats.papers && (manual || c.step === 'review');
-  const current = open ?? (noDocument ? 3 : runningKind && PREPARE_JOBS.includes(runningKind) ? 1 : runningKind && COLLECT_JOBS.includes(runningKind) ? 2 : step);
+  const current = open ?? (noDocument ? 3 : runningKind && (PREPARE_JOBS.includes(runningKind) || VERSION_JOBS.includes(runningKind)) ? 1
+    : runningKind && COLLECT_JOBS.includes(runningKind) ? 2 : step);
   const onJob = (j: Job) => setJobId(j.id);
   const closeGenerate = () => setParams((p) => { p.delete('generar'); p.delete('unidad'); return p; }, { replace: true });
   const openDoc = (variant: 'print' | 'key' | 'extra-sheet') =>
@@ -204,6 +218,10 @@ export default function ActivityPage() {
   const menu: MenuItem[] = [];
   if (c.document_url || (c.generated && c.rubric)) { // a repeat of a generated exam is laid out on first print
     menu.push({ label: 'Examen para imprimir', icon: <Exam size={18} />, onSelect: () => openDoc('print') });
+    menu.push({
+      label: 'Imprimir para la clase', icon: <Printer size={18} />,
+      onSelect: () => openSigned(() => classPrint.mutateAsync(), (m) => toast(m, { tone: 'error' }), (m) => toast(m)),
+    });
     menu.push({ label: 'Hoja extra', icon: <Rows size={18} />, onSelect: () => openDoc('extra-sheet') });
   }
   if (c.rubric) menu.push({ label: 'Soluciones', icon: <Key size={18} />, onSelect: () => openDoc('key') });
@@ -249,7 +267,8 @@ export default function ActivityPage() {
             {
               id: 1, n: 1, title: 'Preparar', summary: prepareSummary(c, manual),
               content: (
-                <PrepareStep correction={c} job={job} running={!!runningKind && PREPARE_JOBS.includes(runningKind)} onJob={onJob}
+                <PrepareStep correction={c} job={job} running={!!runningKind && PREPARE_JOBS.includes(runningKind)}
+                  versionsRunning={!!runningKind && VERSION_JOBS.includes(runningKind)} onJob={onJob}
                   onGenerate={() => setParams((p) => { p.set('generar', '1'); return p; }, { replace: true })}
                   onManual={() => { setManual(true); setOpen(3); }} />
               ),

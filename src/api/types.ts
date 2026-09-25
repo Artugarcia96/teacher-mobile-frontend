@@ -40,9 +40,10 @@ export interface Note {
 
 /** `final` is the teacher's final grade (only if set); `proposed` the rounded average. */
 export interface TermCell { term: number; average: number | null; proposed?: number | null; final: number | null }
+/** `adapted`: obtained on an adapted version of the exam (its name, «Adaptado · letra ampliada»). */
 export interface GradeLine {
   activity_id: string; title: string; date: string; category_label: string; score: number | null; max_score: number; normalized: number | null;
-  status: string; comment?: string | null;
+  status: string; comment?: string | null; adapted?: string | null;
 }
 /** Past exam of the current evaluación the student still lacks (no grade or NP). */
 export interface PendingExam { activity_id: string; title: string; date: string; status: 'empty' | 'absent' }

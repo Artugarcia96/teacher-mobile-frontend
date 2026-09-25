@@ -23,9 +23,10 @@ const pts = (v: number) => formatNumber(v, 2);
 const LOW = 0.7;
 const FINAL = ['confirmed', 'absent', 'exempt'];
 
-/** "7 de 24 · faltan 18" */
+/** "Modelo B · 7 de 24 · faltan 18" (the version of the paper first: its questions are the ones below). */
 function progress(r: Review): string {
-  return `${r.position} de ${r.total} · ${r.pending ? `faltan ${r.pending}` : 'todos revisados'}`;
+  const where = `${r.position} de ${r.total} · ${r.pending ? `faltan ${r.pending}` : 'todos revisados'}`;
+  return r.version ? `${r.version.label} · ${where}` : where;
 }
 
 /** Focus mode: one student at a time. Phone: each question with the crop of its answer, the whole sheet behind

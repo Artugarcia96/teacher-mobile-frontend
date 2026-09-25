@@ -55,6 +55,16 @@ function Score({ s, max }: { s: CorrectionStudent; max: number }) {
   return <span className="faint">—</span>;
 }
 
+/** Papers left out of the per-question table: other questions (adapted versions) or a Modelo B that no longer
+ * matches Modelo A. */
+function excludedNote(stats: Correction['stats']): string | null {
+  const parts = [
+    stats.excluded_adapted && `${stats.excluded_adapted === 1 ? '1 examen adaptado no cuenta' : `${stats.excluded_adapted} exámenes adaptados no cuentan`} en esta tabla: sus preguntas son otras.`,
+    stats.excluded_modelo && `${stats.excluded_modelo === 1 ? '1 examen del modelo B no cuenta' : `${stats.excluded_modelo} exámenes del modelo B no cuentan`}: sus preguntas ya no coinciden con las del modelo A.`,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
 /** "P5 · Operaciones combinadas" */
 const questionName = (e: FrequentError) => `P${e.label} · ${e.title}`;
 const labels = (errors: FrequentError[]) => {
@@ -101,6 +111,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
   const units = useUnits(activity.course.id).data;
   const base = `/clases/${activity.course.id}/actividades/${activity.id}`;
   const errors = stats.frequent_errors;
+  const excluded = excludedNote(stats);
   const unitId = units ? unitFor(units, activity.title, unitIds) : unitIds[0] ?? null;
   const worksheet = errors.length
     ? (unitId
@@ -145,6 +156,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
                 sub={`${formatNumber(e.avg_points, 1)} de ${formatNumber(e.points, 2)} de media · ${e.below_half} por debajo de la mitad`} />
             ))}
           </List>
+          {excluded && <p className="review-stats__note">{excluded}</p>}
         </Section>
       )}
 

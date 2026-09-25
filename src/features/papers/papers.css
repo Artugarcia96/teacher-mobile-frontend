@@ -120,3 +120,18 @@
 @media (max-width: 520px) {
   .lightbox__actions .viewer-lock + .btn:nth-last-child(3) { flex-basis: 100%; } /* with the note: same layout as without */
 }
+
+/* Versions of the exam (Modelo B, adapted ones) */
+.version-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.version-status--warn { color: var(--warn); }
+.version-sub { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.version-names { margin: 0; padding: 0 4px; font-size: var(--fs-sub); line-height: 1.5; }
+.version-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); padding-top: var(--s-2); }
+.versions-action { display: grid; gap: 6px; justify-items: start; padding: 0 4px; }
+.versions-action > .muted { font-size: var(--fs-footnote); }
+@media (max-width: 640px) { .versions-action > .btn { width: 100%; } }
+.adapt-sub { display: grid; gap: 2px; }
+.assign-row { align-items: flex-start; }
+.assign-row .row__sub { margin-top: 6px; }
+.assign-row .row__sub .field { width: 100%; max-width: 360px; }
+.assign-row__n { min-width: 22px; padding-top: 2px; color: var(--ink-3); font-size: var(--fs-sub); text-align: right; }

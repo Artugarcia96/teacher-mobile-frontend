@@ -15,6 +15,11 @@ export type Difficulty = 'facil' | 'medio' | 'dificil';
 export interface RubricItem { id: string; label: string; title?: string; text: string; points: number; answer: string; steps: string[] }
 export interface Rubric { title: string; items: RubricItem[]; total: number }
 
+/** Which version of the exam a student takes or a paper is («Modelo B», «Adaptado · letra ampliada»); `base` = the
+ * activity's own exam. Full versions: src/api/versions.ts. */
+export type VersionKind = 'base' | 'modelo' | 'adaptada';
+export interface VersionRef { key: string; label: string; kind: VersionKind }
+
 /** `repeat_of`: the original exam when this one is its repeat ("repesca"). */
 export interface ActivityHead {
   id: string; title: string; kind: ActivityKind; category: string; date: string; term: number; max_score: number; course: CourseRef;
@@ -30,7 +35,8 @@ export interface ScanPage {
   id: string; index: number; url: string; thumb_url: string; kind: PageKind; page_number: number | null; total_pages: number | null;
   exam_code: string | null; written_name: string; questions: string[]; back: boolean; maybe_written: boolean;
 }
-/** Warnings: falta_pagina · pagina_duplicada · extra_sin_nombre · pagina_dudosa · nombre_distinto · nombre_repetido.
+/** Warnings: falta_pagina · pagina_duplicada · extra_sin_nombre · pagina_dudosa · nombre_distinto · nombre_repetido ·
+ * version_distinta.
  * Info: orden · reverso_escrito · pagina_deducida · pagina_nueva_tras_nota. */
 export interface PaperFlag { code: string; pages: number[] }
 /** Another exam of the same teacher (a page of it in this pile, or the exam the pile was photocopied from). */
@@ -39,9 +45,11 @@ export type LooseReason = 'otro' | 'otro_examen' | 'sin_examen' | 'extra_sin_exa
 export interface LoosePage extends ScanPage { reason: LooseReason; candidates: StudentRef[]; other_exam: ExamRef | null }
 export type Tray = 'unplaced' | 'discarded';
 
+/** `version`: the version of their paper (or the one they take); null when the exam has no versions. */
 export interface CorrectionStudent {
   student: StudentRef; paper_id: string | null; match_status: MatchStatus | null; match_confidence: number | null; detected_name: string | null;
   thumb_url: string | null; grade: CorrectionGrade | null; pages: ScanPage[]; flags: PaperFlag[]; extra_count: number;
+  version: VersionRef | null;
 }
 export interface UnmatchedPaper {
   paper_id: string; detected_name: string | null; confidence: number | null; thumb_url: string | null; pages: number; candidates: StudentRef[];
@@ -52,16 +60,22 @@ export interface UnmatchedPaper {
 export interface FrequentError {
   item_id: string; label: string; title: string; avg_points: number; points: number; below_half: number; graded: number; avg_ratio: number;
 }
-/** `average`/`pass_rate` include the AI's unreviewed suggestions while there are any (`provisional` of them). */
+/** `average`/`pass_rate` include the AI's unreviewed suggestions while there are any (`provisional` of them).
+ * `frequent_errors` only add up versions with Modelo A's questions: `excluded_adapted` / `excluded_modelo` papers are
+ * left out ("3 exámenes adaptados no cuentan en esta tabla"). */
 export interface CorrectionStats {
   papers: number; matched: number; suggested: number; confirmed: number; pending: number;
   average: number | null; pass_rate: number | null; provisional: number; frequent_errors: FrequentError[];
+  excluded_adapted: number; excluded_modelo: number;
 }
 export interface Correction {
   activity: ActivityHead; document_url: string | null; key_url: string | null; generated: boolean; rubric: Rubric | null;
   pages_per_paper: number | null; step: CorrectionStep; students: CorrectionStudent[]; unmatched: UnmatchedPaper[];
   stats: CorrectionStats; next_pending_id: string | null; job: Job | null;
   exam_code: string | null; unplaced: LoosePage[]; discarded: ScanPage[]; printed_from: ExamRef | null;
+  /** Other versions of the exam (Modelo B, adapted ones); `pending_adapted`: students whose measures ask for an adapted
+   * version they do not take yet. */
+  versions: VersionRef[]; pending_adapted: number;
 }
 
 export interface Paper {
@@ -89,6 +103,8 @@ export interface Review {
   pages_urls: string[]; pages: ScanPage[]; flags: PaperFlag[]; items: RubricItem[]; rubric_total: number;
   grade: CorrectionGrade | null; ai: { items: AIItem[]; summary: string; suggested_score: number | null } | null;
   crops: Record<string, Crop[]>; page_hints: Record<string, number>;
+  /** The paper's version («Modelo B», «Adaptado · letra ampliada»): its questions are the ones in `items`. */
+  version: VersionRef | null;
 }
 export interface ReviewInput { item_scores?: Record<string, number>; score?: number | null; comment?: string | null; absent?: boolean }
 /** `reviewed` of `total` students of the sequence have a final grade after this one. */
@@ -105,6 +121,7 @@ export const correctionKeys = {
 /** Everything that shows grades or pending work for this activity. */
 export function invalidateCorrection(qc: QueryClient, activityId: string, courseId?: string) {
   qc.invalidateQueries({ queryKey: correctionKeys.one(activityId) });
+  qc.invalidateQueries({ queryKey: ['versions', activityId] });
   qc.invalidateQueries({ queryKey: activityKeys.one(activityId) });
   qc.invalidateQueries({ queryKey: ['inbox'] });
   qc.invalidateQueries({ queryKey: ['today'] });
