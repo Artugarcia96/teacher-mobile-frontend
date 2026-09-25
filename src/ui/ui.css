@@ -143,8 +143,9 @@ button.row:active, a.row:active { background: var(--fill); }
 .chip {
   display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: var(--r-pill);
   font-size: 12.5px; font-weight: 600; white-space: nowrap; background: var(--fill); color: var(--ink-2); border: 0;
-  letter-spacing: 0.005em; word-spacing: 0.12em;
+  letter-spacing: 0.005em; word-spacing: 0.12em; max-width: 100%;
 }
+.chip__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* a long label never widens its row */
 button.chip { cursor: pointer; }
 button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip--ok { background: var(--ok-soft); color: var(--ok); }
@@ -153,10 +154,13 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip--accent { background: var(--accent-soft); color: var(--accent); }
 .chip--info { background: var(--info-soft); color: var(--info); }
 .chip--outline { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); }
-.chip--selected { background: var(--ink); color: var(--paper); }
+.chip--selected { background: var(--accent-soft); color: var(--accent); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-scroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px var(--gutter); margin: 0 calc(-1 * var(--gutter)); }
 .chip-scroll::-webkit-scrollbar { display: none; }
+
+.logo { display: inline-block; flex: none; color: var(--accent); background: currentColor;
+  -webkit-mask: url(/squid.svg) center / contain no-repeat; mask: url(/squid.svg) center / contain no-repeat; }
 
 .ai-badge {
   display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11px; font-weight: 700;
@@ -206,7 +210,8 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .seg__btn .count { margin-left: 5px; color: var(--ink-3); font-weight: 500; }
 
 /* ── Fields ─────────────────────────────────────────────── */
-.field { display: grid; gap: 6px; }
+/* One column as wide as the form: a long line inside (a chip, a formula) never widens the sheet. */
+.field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .field__label { font-size: var(--fs-footnote); font-weight: 600; color: var(--ink-2); }
 .field__hint { font-size: var(--fs-footnote); color: var(--ink-3); }
 .field__error { font-size: var(--fs-footnote); color: var(--danger); }
@@ -221,7 +226,7 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .select { appearance: none; background-image: none; padding-right: 36px; }
 .select-wrap { position: relative; }
 .select-wrap svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink-2); }
-.form { display: grid; gap: var(--s-4); }
+.form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--s-3); }
 /* DateField: native date picker underneath, Spanish text on top ("martes, 8 sept 2026") whatever the browser locale. */
 .datefield { position: relative; min-width: 0; }
@@ -258,8 +263,7 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .sheet-scrim { position: fixed; inset: 0; z-index: 100; background: var(--scrim); animation: fade-in var(--t-med) var(--ease); }
 .sheet {
   position: fixed; z-index: 101; left: 0; right: 0; bottom: 0; max-height: 92vh; display: flex; flex-direction: column;
-  border-radius: var(--r-sheet) var(--r-sheet) 0 0; background: var(--glass-strong); box-shadow: var(--e3);
-  -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0; background: var(--glass-opaque); box-shadow: var(--e3);
   border: 0.5px solid var(--glass-stroke); animation: sheet-up var(--t-slow) var(--ease);
   padding-bottom: env(safe-area-inset-bottom);
 }

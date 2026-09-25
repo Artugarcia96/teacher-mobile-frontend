@@ -83,7 +83,7 @@ async function send(method: string, path: string, body?: Body, timeout?: number,
   try {
     r = await fetch(`${BASE}/api${path}`, { method, headers, body: payload, signal: timeout ? AbortSignal.timeout(timeout) : undefined });
   } catch (e) {
-    if ((e as Error).name === 'TimeoutError') throw new ApiError(0, 'El servidor no responde. Revisa la conexión y vuelve a intentarlo.');
+    if ((e as Error).name === 'TimeoutError') throw new ApiError(0, 'El servidor no responde. Revisa la conexión y vuelve a intentarlo.', 'timeout');
     throw new ApiError(0, 'Sin conexión con el servidor. Revisa tu conexión.');
   }
   if (r.status === 401 && retry && t && !path.startsWith('/auth/')) {

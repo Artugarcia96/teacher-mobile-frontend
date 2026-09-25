@@ -1,17 +1,32 @@
 import { CaretRight } from '@phosphor-icons/react';
-import type { CSSProperties, ReactNode } from 'react';
+import { isValidElement, type CSSProperties, type ReactNode } from 'react';
 import { formatAverage, formatProposal, formatScore, gradeTone } from '../lib/format';
 
 export function Chip({ children, tone, onClick, selected, icon, disabled, title }: {
   children: ReactNode; tone?: 'ok' | 'warn' | 'danger' | 'accent' | 'info' | 'outline'; onClick?: () => void; selected?: boolean; icon?: ReactNode;
-  /** Tappable chips only; `title` says why it is disabled. */
+  /** `disabled`: tappable chips only. `title`: shown on hover instead of the full label (why a chip is disabled). */
   disabled?: boolean; title?: string;
 }) {
   const cls = ['chip', tone && `chip--${tone}`, selected && 'chip--selected'].filter(Boolean).join(' ');
+  // A label longer than the row is cut with an ellipsis and read whole on hover. An element child keeps its own box.
+  const label = isValidElement(children) ? children : <span className="chip__text">{children}</span>;
+  const full = title ?? (plainText(children) || undefined);
   if (onClick) {
-    return <button type="button" className={cls} onClick={onClick} aria-pressed={selected} disabled={disabled} title={title}>{icon}{children}</button>;
+    return <button type="button" className={cls} onClick={onClick} aria-pressed={selected} disabled={disabled} title={full}>{icon}{label}</button>;
   }
-  return <span className={cls}>{icon}{children}</span>;
+  return <span className={cls} title={full}>{icon}{label}</span>;
+}
+
+function plainText(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(plainText).join('');
+  if (isValidElement<{ children?: ReactNode }>(node)) return plainText(node.props.children);
+  return '';
+}
+
+/** Sepia's squid mark in the accent (public/squid.svg, painted as a mask so it follows the theme). */
+export function Logo({ size }: { size: number }) {
+  return <span className="logo" style={{ width: size, height: size }} aria-hidden />;
 }
 
 export function AIBadge({ label = 'Borrador IA' }: { label?: string }) {
