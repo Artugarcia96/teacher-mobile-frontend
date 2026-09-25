@@ -1,6 +1,6 @@
 /* Sepia landing: the app's design system (docs/DESIGN.md). Every token it shares with src/styles/tokens.css has the
    same value (npm run check:tokens compares them). "Cristal para el marco, papel para el contenido": glass only for
-   the bar; the screenshot frames are solid so nothing blurs behind them. */
+   the bar; the frames around the recordings are solid so nothing blurs behind them. */
 @font-face { font-family: 'Instrument Sans'; src: url(fonts/instrument-sans-latin-wght-normal.woff2) format('woff2-variations'); font-weight: 400 700; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215; }
 @font-face { font-family: 'Instrument Sans'; src: url(fonts/instrument-sans-latin-ext-wght-normal.woff2) format('woff2-variations'); font-weight: 400 700; font-display: swap; unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: 'Instrument Serif'; src: url(fonts/instrument-serif-latin-400-normal.woff2) format('woff2'); font-weight: 400; font-display: swap; }
@@ -35,9 +35,10 @@
   --serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --gutter: 16px;
   --max: 1180px;
+  --phone: min(260px, 72vw); /* a phone recording's frame */
 }
 @media (min-width: 768px) { :root { --gutter: 24px; } }
-@media (min-width: 1024px) { :root { --gutter: 40px; } }
+@media (min-width: 1024px) { :root { --gutter: 40px; --phone: 300px; } }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -67,7 +68,7 @@
 
 /* ── Base ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-top: 88px; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 84px; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body { margin: 0; min-width: 320px; overflow-x: hidden; background: var(--canvas); color: var(--ink);
   font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -89,19 +90,20 @@ h1, h2, h3, p, ol, ul, figure { margin: 0; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background: var(--glass-strong); } }
 @media (prefers-reduced-transparency: reduce) { .glass { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 
-/* ── Bar ─────────────────────────────────────────────── */
+/* ── Bar: both ways in, always one tap away ──────────── */
 .bar { position: sticky; top: 10px; z-index: 10; width: min(calc(var(--max) + 16px), calc(100% - 2 * var(--gutter) + 16px));
-  margin: 10px auto 0; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 16px; border-radius: 999px; }
+  margin: 10px auto 0; display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 16px; border-radius: 999px; }
 .brand { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; min-height: 44px;
   font-family: var(--serif); font-size: 26px; line-height: 1; text-decoration: none; }
 .brand--small { font-size: 21px; margin: 0; }
+@media (max-width: 359px) { .bar .brand span { display: none; } .bar .btn--sm { padding: 0 12px; } }
 
 /* ── Buttons ─────────────────────────────────────────── */
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 24px;
   border-radius: 14px; font-weight: 600; font-size: 16px; text-decoration: none; white-space: nowrap;
   transition: transform 160ms var(--ease), background-color 160ms var(--ease); }
 .btn:active { transform: scale(0.97); }
-.btn--sm { min-height: 44px; padding: 0 18px; border-radius: 999px; font-size: 15px; }
+.btn--sm { min-height: 44px; padding: 0 16px; border-radius: 999px; font-size: 15px; }
 .btn--primary { background: var(--accent); color: var(--on-accent); }
 .btn--primary:hover { background: var(--accent-hover); }
 .btn--tinted { background: var(--accent-soft); color: var(--accent); }
@@ -110,96 +112,118 @@ h1, h2, h3, p, ol, ul, figure { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:active { transform: none; } }
 
 /* ── Type ────────────────────────────────────────────── */
-.kicker, .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2); }
+.kicker, .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2); text-wrap: balance; }
 .eyebrow { color: var(--accent); }
-h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(46px, 11.5vw, 92px); line-height: 0.98;
-  letter-spacing: -0.02em; margin: 14px 0 20px; text-wrap: balance; }
-h1 em { color: var(--accent); }
-h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(36px, 8.4vw, 58px); line-height: 1.02;
-  letter-spacing: -0.015em; margin: 10px 0 16px; text-wrap: balance; }
+h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(42px, 11vw, 92px); line-height: 0.98;
+  letter-spacing: -0.02em; margin: 12px 0 0; text-wrap: balance; }
+h1 em, h2 em { color: var(--accent); }
+h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 8.2vw, 56px); line-height: 1.02;
+  letter-spacing: -0.015em; margin: 10px 0 14px; text-wrap: balance; }
 h3 { font-size: 17px; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
-.lead { font-size: 19px; line-height: 1.5; color: var(--ink-2); max-width: 34em; text-wrap: pretty; }
-.feature__body p, .ai__head p:not(.eyebrow), .ai__list p, .closing p { color: var(--ink-2); text-wrap: pretty; }
-.feature__body p + p, .ai__head p + p, .closing p + p { margin-top: 12px; }
+.lead { font-size: 19px; line-height: 1.5; color: var(--ink-2); max-width: 32em; text-wrap: pretty; }
+.moment__copy p:not(.eyebrow), .ai__head p:not(.eyebrow), .ai__list p, .closing p { color: var(--ink-2); text-wrap: pretty; }
 .ai__head a { color: var(--accent); }
 
 /* ── Layout ──────────────────────────────────────────── */
 main { width: min(var(--max), calc(100% - 2 * var(--gutter))); margin: 0 auto; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .actions--center { justify-content: center; }
+@media (max-width: 479px) { .hero .actions .btn { flex: 1 1 auto; } }
 
-.hero { display: grid; gap: 44px; padding: 44px 0 24px; }
+/* Hero: the pain, then the recording that answers it (right under the headline on a phone, beside it on a desktop). */
+.hero { display: grid; gap: 20px; padding-top: 28px; grid-template-areas: 'head' 'clip' 'body'; }
+.hero__head { grid-area: head; }
+.hero .clip { grid-area: clip; }
+.hero__body { grid-area: body; }
 @media (min-width: 1024px) {
-  .hero { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 64px; padding: 72px 0 40px; }
-  .hero .shot--phone { width: clamp(280px, calc((100svh - 170px) * 780 / 1688), 360px); }
-  h1 { font-size: clamp(64px, 6.4vw, 92px); }
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); grid-template-areas: 'head clip' 'body clip';
+    grid-template-rows: auto 1fr; column-gap: 48px; row-gap: 22px; align-items: start; padding-top: 64px;
+    min-height: min(calc(100svh - 96px), 760px); }
+  .hero__head { align-self: end; }
+  .hero .clip { align-self: center; }
+  h1 { font-size: clamp(56px, 5.4vw, 80px); }
 }
 
-.feature { display: grid; gap: 32px; padding: 88px 0 0; }
-.feature__copy { max-width: 36em; }
-@media (min-width: 1024px) {
-  .feature { padding-top: 136px; }
-  .feature--phone { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 64px; }
-  .feature--phone .shot--phone { width: 330px; }
-  .feature--flip .feature__copy { order: 2; }
-  .feature--wide { gap: 48px; }
-}
-@media (min-width: 1200px) {
-  .feature--wide .feature__copy { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 64px;
-    max-width: none; align-items: end; }
-  .feature--wide h2 { margin-bottom: 0; }
-}
-
-.steps { list-style: none; padding: 0; display: grid; gap: 12px; counter-reset: step; }
-.steps li { position: relative; padding-left: 40px; color: var(--ink-2); counter-increment: step; }
+/* Del examen a la nota: three short steps under the hero. */
+.steps { list-style: none; padding: 0; display: grid; gap: 14px; counter-reset: step; margin-top: 44px; }
+.steps li { position: relative; padding-left: 40px; color: var(--ink-2); counter-increment: step; text-wrap: pretty; }
 .steps li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 9px;
   display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 14px;
   font-variant-numeric: tabular-nums; }
 .steps b { color: var(--ink); font-weight: 600; }
+@media (min-width: 768px) { .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; } }
+@media (min-width: 1024px) { .steps { margin-top: 56px; } }
 
-/* ── Screenshot frames: a solid device edge around the app (phone shots below 1024 px, desktop shots above) ── */
-.shot { margin: 0; }
-.shot img { width: 100%; background: var(--canvas); }
-.shot--phone, .shot--adaptive { width: min(300px, 80vw); justify-self: center; padding: 7px; border-radius: 46px;
-  background: var(--glass-strong); border: 0.5px solid var(--frame-stroke); box-shadow: inset 0 1px 0 var(--glass-edge), var(--e3); }
-.shot--phone img, .shot--adaptive img { border-radius: 39px; }
-.shot figcaption { display: none; padding: 10px 12px 4px; font-size: 13px; line-height: 1.4; color: var(--ink-2); text-align: center; }
-/* Below the hero, phone shots show the top of the screen: the part the copy talks about, without the tab capsule. */
-@media (max-width: 1023px) { .feature .shot img { aspect-ratio: 780 / 1300; object-fit: cover; object-position: top; } }
+/* A moment: when it hurts, one line on what Sepia does, and the recording of it. */
+.moment { display: grid; gap: 24px; padding-top: 64px; }
+.moment__copy { max-width: 30em; }
+.moment__copy p:not(.eyebrow) { max-width: 26em; }
 @media (min-width: 1024px) {
-  .shot--adaptive { width: 100%; padding: 6px; border-radius: 22px; }
-  .shot--adaptive img { border-radius: 16px; }
-  .shot--adaptive figcaption { display: block; } /* about the desktop shot: the phone one has no scanned sheet */
+  .moment { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 96px; padding-top: 120px;
+    max-width: 1000px; margin: 0 auto; }
+  .moment--flip .moment__copy { order: 2; }
+  .moment--wide { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 48px; max-width: none; }
 }
 
+.week { padding-top: 80px; max-width: 30em; }
+.week h2 { margin-bottom: 0; }
+@media (min-width: 1024px) { .week { padding-top: 144px; max-width: none; text-align: center; } }
+
+/* ── Recordings: a solid frame around the app; the poster underneath shows until the video plays ── */
+.clip { display: grid; justify-items: center; gap: 12px; }
+.clip__frame { width: var(--phone); padding: 6px; border-radius: 40px; background: var(--glass-strong);
+  border: 0.5px solid var(--frame-stroke); box-shadow: inset 0 1px 0 var(--glass-edge), var(--e3); }
+.clip__screen { position: relative; overflow: hidden; border-radius: 34px; background: var(--canvas); aspect-ratio: 390 / 844; }
+.clip__screen img { width: 100%; height: 100%; object-fit: cover; }
+.clip__screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+  transition: opacity 240ms var(--ease); }
+.clip.is-live video { opacity: 1; }
+/* The hero and the history exam: the whole width on a phone (a shorter screen), the desktop app beside the copy. */
+.clip--hero .clip__frame, .clip--wide .clip__frame { width: 100%; max-width: 420px; padding: 5px; border-radius: 26px; }
+.clip--hero .clip__screen, .clip--wide .clip__screen { aspect-ratio: 390 / 660; border-radius: 21px; }
+@media (min-width: 1024px) {
+  .clip--hero .clip__frame, .clip--wide .clip__frame { max-width: none; padding: 6px; border-radius: 20px; }
+  .clip--hero .clip__screen, .clip--wide .clip__screen { aspect-ratio: 1024 / 640; border-radius: 14px; }
+}
+.clip figcaption { display: flex; align-items: center; gap: 10px; max-width: 30em; font-size: 13px; line-height: 1.4;
+  color: var(--ink-2); text-wrap: pretty; }
+.clip--hero figcaption, .clip--wide figcaption { justify-self: start; }
+.clip__toggle { position: relative; flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: 50%; background: var(--fill); color: var(--ink); cursor: pointer;
+  transition: background-color 160ms var(--ease); }
+.clip__toggle::before { content: ''; position: absolute; inset: -4px; }
+.clip__toggle:hover { background: var(--accent-soft); color: var(--accent); }
+.clip__toggle[hidden] { display: none; }
+.clip__toggle svg { width: 14px; height: 14px; fill: currentColor; }
+@media (prefers-reduced-motion: reduce) { .clip__screen video, .clip__toggle { transition: none; } }
+
 /* ── IA ──────────────────────────────────────────────── */
-.ai { padding-top: 112px; display: grid; gap: 28px; }
-.ai__head { max-width: 36em; }
+.ai { padding-top: 96px; display: grid; gap: 24px; }
+.ai__head { max-width: 30em; }
+.ai__head h2 { margin-bottom: 10px; }
 .ai__list { list-style: none; padding: 0; display: grid; gap: 1px; background: var(--line); border-radius: 20px;
   overflow: hidden; box-shadow: var(--e1); }
-.ai__list li { background: var(--paper); padding: 22px 22px 24px; }
+.ai__list li { background: var(--paper); padding: 20px 20px 22px; }
 .ai__list p { font-size: 16px; }
-@media (min-width: 768px) { .ai__list { grid-template-columns: 1fr 1fr; } .ai__list li { padding: 28px 30px 30px; } }
-@media (min-width: 1024px) { .ai { padding-top: 152px; } }
-@media (min-width: 1200px) { .ai { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; align-items: start; } }
+@media (min-width: 768px) { .ai__list { grid-template-columns: 1fr 1fr; } .ai__list li { padding: 26px 28px 28px; } }
+@media (min-width: 1024px) { .ai { padding-top: 144px; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 64px; align-items: start; } }
 
 /* ── Closing ─────────────────────────────────────────── */
-.closing { margin: 112px auto 0; max-width: 40em; text-align: center; }
+.closing { margin: 96px auto 0; max-width: 34em; text-align: center; }
 .closing h2 { margin-top: 0; }
-@media (min-width: 1024px) { .closing { margin-top: 160px; } }
+@media (min-width: 1024px) { .closing { margin-top: 144px; } }
 
 /* ── Footer ──────────────────────────────────────────── */
-.foot { width: min(var(--max), calc(100% - 2 * var(--gutter))); margin: 96px auto 0;
+.foot { width: min(var(--max), calc(100% - 2 * var(--gutter))); margin: 88px auto 0;
   padding: 24px 0 calc(40px + env(safe-area-inset-bottom)); border-top: 0.5px solid var(--line);
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; color: var(--ink-2); font-size: 14px; }
 .foot .brand { color: var(--ink); }
-.foot__legal { display: flex; gap: 16px; }
+.foot__legal { display: flex; gap: 16px; margin-left: auto; }
 .foot__legal a { min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; }
 .foot__legal a:hover { color: var(--ink); text-decoration: underline; }
-.foot__link { margin-left: auto; color: var(--accent); font-weight: 600; text-decoration: none; min-height: 44px;
-  display: inline-flex; align-items: center; }
+.foot__link { color: var(--accent); font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
 .foot__link:hover { text-decoration: underline; }
-@media (max-width: 599px) { .foot__link { margin-left: 0; } }
+@media (max-width: 599px) { .foot__legal { margin-left: 0; } }
 
 /* ── Legal pages (privacidad.html, aviso-legal.html) ─── */
 .legal { max-width: 720px; padding-top: 48px; }

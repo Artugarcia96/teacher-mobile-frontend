@@ -1,0 +1,138 @@
+{
+  "corregir-desktop": {
+    "seconds": 12.6,
+    "ai_seconds": [],
+    "webm": 162346,
+    "mp4": 170297,
+    "poster": 40932
+  },
+  "corregir-desktop-dark": {
+    "seconds": 12.3,
+    "ai_seconds": [],
+    "webm": 160455,
+    "mp4": 164693,
+    "poster": 40572
+  },
+  "corregir-phone": {
+    "seconds": 9.8,
+    "ai_seconds": [],
+    "webm": 70031,
+    "mp4": 91777,
+    "poster": 23192
+  },
+  "corregir-phone-dark": {
+    "seconds": 9.9,
+    "ai_seconds": [],
+    "webm": 73365,
+    "mp4": 97738,
+    "poster": 23398
+  },
+  "evaluacion-phone": {
+    "seconds": 12.9,
+    "ai_seconds": [],
+    "webm": 238399,
+    "mp4": 252674,
+    "poster": 27048
+  },
+  "evaluacion-phone-dark": {
+    "seconds": 12.4,
+    "ai_seconds": [],
+    "webm": 250644,
+    "mp4": 280656,
+    "poster": 26038
+  },
+  "familia-phone": {
+    "seconds": 9,
+    "ai_seconds": [],
+    "webm": 149790,
+    "mp4": 167053,
+    "poster": 23276
+  },
+  "familia-phone-dark": {
+    "seconds": 8.5,
+    "ai_seconds": [],
+    "webm": 126501,
+    "mp4": 171244,
+    "poster": 22208
+  },
+  "ficha-phone": {
+    "seconds": 18.9,
+    "ai_seconds": [
+      36
+    ],
+    "webm": 287525,
+    "mp4": 303767,
+    "poster": 25212
+  },
+  "ficha-phone-dark": {
+    "seconds": 18.4,
+    "ai_seconds": [
+      52
+    ],
+    "webm": 278045,
+    "mp4": 301412,
+    "poster": 26322
+  },
+  "historia-desktop": {
+    "seconds": 9.1,
+    "ai_seconds": [],
+    "webm": 128222,
+    "mp4": 141449,
+    "poster": 51646
+  },
+  "historia-desktop-dark": {
+    "seconds": 9.1,
+    "ai_seconds": [],
+    "webm": 126582,
+    "mp4": 143172,
+    "poster": 51964
+  },
+  "historia-phone": {
+    "seconds": 7.8,
+    "ai_seconds": [],
+    "webm": 78066,
+    "mp4": 102439,
+    "poster": 25600
+  },
+  "historia-phone-dark": {
+    "seconds": 7.8,
+    "ai_seconds": [],
+    "webm": 87315,
+    "mp4": 124518,
+    "poster": 25562
+  },
+  "lista-phone": {
+    "seconds": 8.8,
+    "ai_seconds": [],
+    "webm": 118109,
+    "mp4": 126440,
+    "poster": 23140
+  },
+  "lista-phone-dark": {
+    "seconds": 9.8,
+    "ai_seconds": [],
+    "webm": 109156,
+    "mp4": 133495,
+    "poster": 23002
+  },
+  "versiones-phone": {
+    "seconds": 18.4,
+    "ai_seconds": [
+      53,
+      86
+    ],
+    "webm": 310168,
+    "mp4": 326290,
+    "poster": 24194
+  },
+  "versiones-phone-dark": {
+    "seconds": 18.4,
+    "ai_seconds": [
+      53,
+      70
+    ],
+    "webm": 314502,
+    "mp4": 353744,
+    "poster": 25350
+  }
+}

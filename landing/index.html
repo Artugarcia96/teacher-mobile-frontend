@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Sepia · El cuaderno del profesor</title>
-  <meta name="description" content="El cuaderno del profesor de Secundaria y Bachillerato: pasar lista, notas, exámenes corregidos en borrador, materiales y evaluación, en el móvil y en el ordenador.">
+  <meta name="description" content="El cuaderno del profesor de Secundaria y Bachillerato. Escaneas el montón de exámenes y la IA propone los puntos de cada pregunta con la respuesta del alumno al lado; tú aceptas o cambias. Grabaciones de la app real.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="es_ES">
-  <meta property="og:title" content="Sepia · El cuaderno del profesor">
-  <meta property="og:description" content="Lista, notas y exámenes corregidos en borrador, para Secundaria y Bachillerato.">
+  <meta property="og:title" content="Sepia · Que el montón de exámenes no se coma tu domingo">
+  <meta property="og:description" content="El cuaderno del profesor de Secundaria y Bachillerato. La IA propone; tú decides.">
   <!-- WhatsApp needs absolute URLs in link previews: once the domain is set, add og:url and make og:image absolute. -->
-  <meta property="og:image" content="/landing/img/og.jpg?v=1a55d811">
+  <meta property="og:image" content="/landing/img/og.jpg?v=46113251">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Sepia: lista, notas y exámenes corregidos en borrador, junto a la pantalla Hoy en el móvil.">
+  <meta property="og:image:alt" content="Sepia: que el montón de exámenes no se coma tu domingo, junto a la revisión de un examen escaneado en el móvil.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#F3F1EC" media="(prefers-color-scheme: light)">
@@ -30,136 +30,164 @@
 
   <header class="bar glass glass-strong">
     <a class="brand" href="/" aria-label="Sepia, inicio"><img src="/landing/img/squid.svg" alt="" width="26" height="26"><span>Sepia</span></a>
-    <a class="btn btn--tinted btn--sm" href="/entrar">Entrar</a>
+    <a class="btn btn--plain btn--sm" href="/entrar">Entrar</a>
+    <a class="btn btn--primary btn--sm" href="/entrar?cuenta=nueva">Crear cuenta</a>
   </header>
 
   <main id="contenido">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero__copy">
-        <p class="kicker">Para Secundaria y Bachillerato</p>
-        <h1 id="hero-title">Lista, notas y <em>exámenes corregidos en&nbsp;borrador.</em></h1>
-        <p class="lead">Pasas lista con un par de toques al empezar la clase. Y lo que se come tus tardes —corregir el montón de exámenes, los comentarios del boletín, apuntes y fichas— la IA te lo deja en borrador y tú lo revisas.</p>
+      <div class="hero__head">
+        <p class="kicker">El cuaderno del profesor de ESO y Bachillerato</p>
+        <h1 id="hero-title">Que el montón de exámenes <em>no se coma tu&nbsp;domingo.</em></h1>
+      </div>
+
+      <figure class="clip clip--hero" data-clip="corregir" data-base="/landing/clips/corregir" data-devices="phone desktop" data-v="1385d210">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(min-width: 1024px) and (prefers-color-scheme: dark)" srcset="/landing/clips/corregir-desktop-dark.webp?v=b881b081" width="1440" height="900">
+            <source media="(min-width: 1024px)" srcset="/landing/clips/corregir-desktop.webp?v=a99c3c47" width="1440" height="900">
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/corregir-phone-dark.webp?v=9fb04ea3" width="585" height="990">
+            <img src="/landing/clips/corregir-phone.webp?v=e2b0ef05" width="585" height="990" fetchpriority="high"
+              alt="Grabación de la revisión de un examen de fracciones escaneado: bajo cada pregunta, el recorte de la respuesta escrita a mano, la frase de la IA sobre ella y los puntos que propone. En una pregunta que la IA ha puntuado a la baja, el profesor sube un cuarto de punto y pulsa «Aceptar y siguiente».">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>La app de verdad, con una clase de ejemplo. Ninguna nota cuenta hasta que la aceptas.</span></figcaption>
+      </figure>
+
+      <div class="hero__body">
+        <p class="lead">Escaneas las hojas tal cual y la IA propone los puntos de cada pregunta, con la respuesta del alumno al lado. Tú aceptas o cambias, alumno a alumno.</p>
         <div class="actions">
           <a class="btn btn--primary" href="/entrar?cuenta=nueva">Crear cuenta</a>
-          <a class="btn btn--tinted" href="#lista">Ver cómo funciona</a>
+          <a class="btn btn--tinted" href="#semana">Más grabaciones</a>
         </div>
       </div>
-      <figure class="shot shot--phone">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="/landing/img/hoy-phone-dark.webp?v=8d268462" width="780" height="1688">
-          <img src="/landing/img/hoy-phone.webp?v=edbca887" width="780" height="1688" fetchpriority="high"
-            alt="Pantalla Hoy en el móvil: la clase de ahora con el aula, el tiempo que queda, por dónde ibais, los deberes que mandaste y el botón Pasar lista, y debajo la agenda del día.">
-        </picture>
+    </section>
+
+    <ol class="steps" aria-label="Del examen a la nota">
+      <li><b>Tu examen de siempre,</b> subido en PDF o generado desde tus unidades, impreso desde Sepia.</li>
+      <li><b>El montón tal cual,</b> del escáner o en fotos del móvil, sin ordenarlo por lista.</li>
+      <li><b>Alumno a alumno:</b> aceptas o cambias los puntos y la nota entra en tu cuaderno.</li>
+    </ol>
+
+    <section class="moment moment--wide" id="historia" aria-labelledby="historia-title">
+      <div class="moment__copy">
+        <p class="eyebrow">No solo Matemáticas</p>
+        <h2 id="historia-title">Y cuando la respuesta <em>no es un número.</em></h2>
+        <p>Un examen de Historia de 1.º de Bachillerato, corregido igual: la IA lee lo que escribió cada alumno y dice qué le falta respecto a la solución.</p>
+      </div>
+      <figure class="clip clip--wide" data-clip="historia" data-base="/landing/clips/historia" data-devices="phone desktop" data-v="8d8c4aa7">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(min-width: 1024px) and (prefers-color-scheme: dark)" srcset="/landing/clips/historia-desktop-dark.webp?v=fd247675" width="1440" height="900">
+            <source media="(min-width: 1024px)" srcset="/landing/clips/historia-desktop.webp?v=4b903628" width="1440" height="900">
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/historia-phone-dark.webp?v=ff23d39c" width="585" height="990">
+            <img src="/landing/clips/historia-phone.webp?v=c0f90574" width="585" height="990" loading="lazy" decoding="async"
+              alt="Grabación de la revisión de un examen escaneado de Historia del Mundo Contemporáneo: bajo cada pregunta, la respuesta escrita a mano, la frase de la IA sobre ella (por ejemplo, qué hechos están mal ordenados y qué falta por explicar) y los puntos que propone.">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>Examen y hojas de ejemplo hechos con IA para esta grabación; la corrección es la de la app, sin retoques.</span></figcaption>
       </figure>
     </section>
 
-    <section class="feature feature--phone feature--flip" id="lista" aria-labelledby="lista-title">
-      <div class="feature__copy">
-        <div class="feature__head">
-          <p class="eyebrow">Pasar lista</p>
-          <h2 id="lista-title">La lista, en dos toques.</h2>
-        </div>
-        <div class="feature__body">
-          <p>La lista empieza con todos presentes: tocas a quien falta y un segundo toque lo cambia a retraso. Cada toque se guarda al momento, y si están todos, «Cerrar lista» la da por pasada.</p>
-          <p>En Hoy tienes también lo pendiente, como una lista sin pasar o un examen por revisar, y la agenda del día.</p>
-        </div>
+    <div class="week" id="semana">
+      <p class="eyebrow">El resto de la semana</p>
+      <h2>Los otros ratos que <em>se hacen largos.</em></h2>
+    </div>
+
+    <section class="moment" id="lista" aria-labelledby="lista-title">
+      <div class="moment__copy">
+        <p class="eyebrow">Entre dos clases</p>
+        <h2 id="lista-title">Cinco minutos de pasillo. <em>La lista, en dos&nbsp;toques.</em></h2>
+        <p>Empiezan todos presentes: un toque es falta y otro, retraso. Se guarda al momento.</p>
       </div>
-      <figure class="shot shot--phone">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="/landing/img/lista-phone-dark.webp?v=afe9112b" width="780" height="1688">
-          <img src="/landing/img/lista-phone.webp?v=61022d50" width="780" height="1688" loading="lazy" decoding="async"
-            alt="Pasar lista en el móvil: la clase por orden de lista, con el resumen de presentes, faltas y retrasos arriba y una falta y un retraso marcados.">
-        </picture>
+      <figure class="clip" data-clip="lista" data-base="/landing/clips/lista" data-devices="phone" data-v="97face6e">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/lista-phone-dark.webp?v=fa48c752" width="585" height="1266">
+            <img src="/landing/clips/lista-phone.webp?v=55b98719" width="585" height="1266" loading="lazy" decoding="async"
+              alt="Grabación en el móvil: desde Hoy, «Pasar lista»; un toque marca una falta, dos toques un retraso, y «Cerrar lista» deja la clase con la lista pasada.">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>Pasar lista no usa IA: va al momento.</span></figcaption>
       </figure>
     </section>
 
-    <section class="feature feature--wide" id="cuaderno" aria-labelledby="cuaderno-title">
-      <div class="feature__copy">
-        <div class="feature__head">
-          <p class="eyebrow">Cuaderno y evaluación</p>
-          <h2 id="cuaderno-title">Tus ponderaciones y la nota propuesta, ya hechas.</h2>
-        </div>
-        <div class="feature__body">
-          <p>Alumnos por filas y actividades por columnas. Pones tus ponderaciones (por defecto, exámenes 60&nbsp;%, trabajos 30&nbsp;%, observación 10&nbsp;%) y Sepia calcula la media y la nota propuesta, igual en el cuaderno, en la ficha del alumno y en la sesión de evaluación. Lo que propone la IA no cuenta hasta que lo aceptas.</p>
-          <p>En cada evaluación, los comentarios de boletín en borrador, el acta en PDF y las notas en un CSV, en el orden de la lista, para pasarlas a Séneca, Raíces o Ítaca.</p>
-        </div>
+    <section class="moment moment--flip" id="versiones" aria-labelledby="versiones-title">
+      <div class="moment__copy">
+        <p class="eyebrow">La semana del examen</p>
+        <h2 id="versiones-title">El modelo B y las adaptaciones, <em>sin copiar y pegar en&nbsp;Word.</em></h2>
+        <p>Un toque para el modelo B y otro para la versión que piden las medidas de cada alumno: por pasos, con letra ampliada o de su ACS. La IA recibe el examen, nunca el diagnóstico.</p>
       </div>
-      <figure class="shot shot--adaptive">
-        <picture>
-          <source media="(max-width: 1023px) and (prefers-color-scheme: dark)" srcset="/landing/img/evaluacion-phone-dark.webp?v=a7352eba" width="780" height="1688">
-          <source media="(max-width: 1023px)" srcset="/landing/img/evaluacion-phone.webp?v=b038277e" width="780" height="1688">
-          <source media="(prefers-color-scheme: dark)" srcset="/landing/img/cuaderno-desktop-dark.webp?v=e6c8f79d" width="2336" height="1460">
-          <img src="/landing/img/cuaderno-desktop.webp?v=393c0edc" width="2336" height="1460" loading="lazy" decoding="async"
-            alt="En el móvil, la sesión de evaluación: la media de la clase, el aviso de las notas de la IA aún sin revisar, el botón para redactar los comentarios de boletín y la media y la nota propuesta de cada alumno. En el ordenador, el cuaderno: alumnos por apellidos, una columna por actividad y la media fija a la derecha.">
-        </picture>
+      <figure class="clip" data-clip="versiones" data-base="/landing/clips/versiones" data-devices="phone" data-v="275503cc">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/versiones-phone-dark.webp?v=7565f011" width="585" height="1266">
+            <img src="/landing/clips/versiones-phone.webp?v=7cf4259e" width="585" height="1266" loading="lazy" decoding="async"
+              alt="Grabación en el móvil: en las versiones de un examen, «Añadir modelo B» y después «Preparar versiones adaptadas»; aparecen el modelo B y las versiones por pasos, con letra ampliada y de ACS, cada una con sus alumnos, y se abren las preguntas de la versión de ACS.">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>La IA tardó <span data-wait="versiones">unos 2&nbsp;minutos</span>; aquí va acelerado.</span></figcaption>
       </figure>
     </section>
 
-    <section class="feature feature--wide" id="examenes" aria-labelledby="examenes-title">
-      <div class="feature__copy">
-        <div class="feature__head">
-          <p class="eyebrow">Exámenes</p>
-          <h2 id="examenes-title">Del montón escaneado a la nota, alumno a alumno.</h2>
-        </div>
-        <div class="feature__body">
-          <ol class="steps">
-            <li><b>Preparar.</b> Sube tu examen o genéralo desde tus unidades. Vale tu examen de siempre, con el nombre arriba y las mismas hojas para todos.</li>
-            <li><b>Escanear.</b> Pasa el montón por la fotocopiadora del centro o hazle fotos con el móvil, sin ordenarlo por lista. Sepia lee el nombre de la cabecera, lo busca en tu lista y te pide confirmar los dudosos.</li>
-            <li><b>Revisar.</b> Con la hoja al lado, la IA propone los puntos de cada pregunta y tú pulsas «Aceptar y siguiente».</li>
-          </ol>
-        </div>
+    <section class="moment" id="ficha" aria-labelledby="ficha-title">
+      <div class="moment__copy">
+        <p class="eyebrow">Después de corregir</p>
+        <h2 id="ficha-title">Lo que peor ha salido, <em>en una ficha de&nbsp;refuerzo.</em></h2>
+        <p>Sepia te enseña las preguntas con peor media y la IA prepara una ficha sobre ellas, con su solucionario aparte.</p>
       </div>
-      <figure class="shot shot--adaptive">
-        <picture>
-          <source media="(max-width: 1023px) and (prefers-color-scheme: dark)" srcset="/landing/img/revisar-phone-dark.webp?v=9d5bfbdc" width="780" height="1688">
-          <source media="(max-width: 1023px)" srcset="/landing/img/revisar-phone.webp?v=ef4b957b" width="780" height="1688">
-          <source media="(prefers-color-scheme: dark)" srcset="/landing/img/revisar-desktop-dark.webp?v=d28f7de3" width="2336" height="1460">
-          <img src="/landing/img/revisar-desktop.webp?v=c3bb4c50" width="2336" height="1460" loading="lazy" decoding="async"
-            alt="Revisión de un examen: cada pregunta con los puntos que propone la IA para aceptarlos o cambiarlos y, en el ordenador, al lado, una hoja de ejemplo generada para la demo.">
-        </picture>
-        <figcaption>Hoja de ejemplo generada para la demo.</figcaption>
+      <figure class="clip" data-clip="ficha" data-base="/landing/clips/ficha" data-devices="phone" data-v="5510b39b">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/ficha-phone-dark.webp?v=f8b442de" width="585" height="1266">
+            <img src="/landing/clips/ficha-phone.webp?v=85cb3a84" width="585" height="1266" loading="lazy" decoding="async"
+              alt="Grabación en el móvil: bajo «Errores frecuentes» de un examen, «Crear ficha de refuerzo»; la hoja «Crear con IA» se abre con la ficha de refuerzo elegida y lo que peor salió en las indicaciones y, al terminar, la ficha muestra sus ejercicios y la solución de cada uno.">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>La IA tardó <span data-wait="ficha">unos 45&nbsp;s</span>; aquí va acelerado.</span></figcaption>
       </figure>
     </section>
 
-    <section class="feature feature--wide" id="materiales" aria-labelledby="materiales-title">
-      <div class="feature__copy">
-        <div class="feature__head">
-          <p class="eyebrow">Programación y materiales</p>
-          <h2 id="materiales-title">Apuntes, presentaciones y fichas de cada unidad.</h2>
-        </div>
-        <div class="feature__body">
-          <p>Pega el índice de tu programación o del libro y la IA propone las unidades de cada evaluación.</p>
-          <p>En cada unidad pides apuntes, una presentación que descargas en .pptx para retocarla, un resumen, una versión de lectura fácil o una ficha con su solucionario. Si has subido el tema del libro o tus apuntes en PDF, Word o PowerPoint, la IA parte de ellos.</p>
-        </div>
+    <section class="moment moment--flip" id="familia" aria-labelledby="familia-title">
+      <div class="moment__copy">
+        <p class="eyebrow">En el recreo</p>
+        <h2 id="familia-title">Otra falta sin justificar. <em>El mensaje a la familia ya está escrito.</em></h2>
+        <p>Con la fecha de cada falta, para que lo copies y lo envíes tú: Sepia no escribe a nadie.</p>
       </div>
-      <figure class="shot shot--adaptive">
-        <picture>
-          <source media="(max-width: 1023px) and (prefers-color-scheme: dark)" srcset="/landing/img/material-phone-dark.webp?v=1437ee31" width="780" height="1688">
-          <source media="(max-width: 1023px)" srcset="/landing/img/material-phone.webp?v=e01daff0" width="780" height="1688">
-          <source media="(prefers-color-scheme: dark)" srcset="/landing/img/material-desktop-dark.webp?v=848e0f21" width="2336" height="1460">
-          <img src="/landing/img/material-desktop.webp?v=adbc334f" width="2336" height="1460" loading="lazy" decoding="async"
-            alt="Presentación de una unidad creada con IA y marcada como borrador: diapositivas con definiciones y ejemplos resueltos, y los botones para descargarla en .pptx o en PDF.">
-        </picture>
+      <figure class="clip" data-clip="familia" data-base="/landing/clips/familia" data-devices="phone" data-v="41143231">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/familia-phone-dark.webp?v=bcc395ee" width="585" height="1266">
+            <img src="/landing/clips/familia-phone.webp?v=27b4d4c8" width="585" height="1266" loading="lazy" decoding="async"
+              alt="Grabación en el móvil: en «A vigilar», un alumno con faltas sin justificar; «Avisar a la familia» abre el mensaje escrito con las fechas de las faltas y «Copiar y guardar» lo copia.">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>Este mensaje no usa IA: sale de tus listas y tus notas.</span></figcaption>
       </figure>
     </section>
 
-    <section class="feature feature--phone" id="alumnos" aria-labelledby="alumnos-title">
-      <div class="feature__copy">
-        <div class="feature__head">
-          <p class="eyebrow">Alumnos</p>
-          <h2 id="alumnos-title">Quién necesita apoyo y a quién vigilar.</h2>
-        </div>
-        <div class="feature__body">
-          <p>En la lista de la clase ves las medidas de apoyo de cada alumno, como más tiempo, letra ampliada o ACS, y quién está «A&nbsp;vigilar» por hechos concretos: una nota que baja de aprobado a suspenso, dos exámenes suspensos seguidos, faltas sin justificar o deberes sin hacer.</p>
-          <p>Desde Hoy, «Avisar a la familia» te deja escrito el mensaje con esos hechos para que lo copies. Antes de una tutoría, «Preparar tutoría» te da un guion breve con sus notas, faltas y observaciones; la IA no recibe el nombre del alumno.</p>
-        </div>
+    <section class="moment" id="evaluacion" aria-labelledby="evaluacion-title">
+      <div class="moment__copy">
+        <p class="eyebrow">Fin de trimestre</p>
+        <h2 id="evaluacion-title">A la sesión de evaluación, <em>con todo propuesto.</em></h2>
+        <p>La nota propuesta sale de tus ponderaciones, con la cuenta a un toque, y el comentario del boletín llega en borrador.</p>
       </div>
-      <figure class="shot shot--phone">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="/landing/img/alumnos-phone-dark.webp?v=dc626c7a" width="780" height="1688">
-          <img src="/landing/img/alumnos-phone.webp?v=11f6e1a8" width="780" height="1688" loading="lazy" decoding="async"
-            alt="Alumnos de una clase en el móvil: la media de cada uno y, cuando toca, el motivo por el que está «A vigilar» o sus medidas de apoyo, como letra grande y lectura en voz alta.">
-        </picture>
+      <figure class="clip" data-clip="evaluacion" data-base="/landing/clips/evaluacion" data-devices="phone" data-v="784aa7da">
+        <div class="clip__frame"><div class="clip__screen">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="/landing/clips/evaluacion-phone-dark.webp?v=dae4a72c" width="585" height="1266">
+            <img src="/landing/clips/evaluacion-phone.webp?v=cca68767" width="585" height="1266" loading="lazy" decoding="async"
+              alt="Grabación en el móvil: la primera evaluación de una clase con la nota propuesta de cada alumno; en la hoja de una alumna, «Cómo se calcula» muestra la media de cada categoría con su peso y la cuenta, y debajo, el comentario de boletín en borrador.">
+          </picture>
+          <video muted playsinline loop preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1"></video>
+        </div></div>
+        <figcaption><button class="clip__toggle" type="button" hidden></button><span>Los comentarios ya los había redactado la IA; tú los aceptas o los cambias.</span></figcaption>
       </figure>
     </section>
 
@@ -167,35 +195,97 @@
       <div class="ai__head">
         <p class="eyebrow">Cómo trabaja la IA</p>
         <h2 id="ia-title">Propone. Tú decides.</h2>
-        <p>Solo entra donde se van las horas: corregir, redactar comentarios, preparar materiales y tutorías e importar un temario.</p>
-        <p>La IA la pone un proveedor externo. Cuál es, dónde están sus servidores y qué recibe, en la <a href="/landing/privacidad.html">política de privacidad</a>.</p>
+        <p>La pone un proveedor externo: cuál es y qué recibe, en la <a href="/landing/privacidad.html">política de privacidad</a>.</p>
       </div>
       <ul class="ai__list">
-        <li><h3>Borradores que tú revisas</h3><p>Las notas sugeridas, los comentarios y los materiales llegan marcados «Borrador&nbsp;IA»; la rúbrica, las unidades importadas y a quién va cada hoja los revisas antes de usarlos. Una nota sugerida no cuenta en la media hasta que la confirmas.</p></li>
-        <li><h3>No escribe a nadie por ti</h3><p>Sepia no envía nada a las familias ni a la plataforma de notas: el mensaje lo copias tú y las notas las descargas.</p></li>
-        <li><h3>Qué ve la IA</h3><p>Para corregir, la hoja escaneada, con el nombre que escribió el alumno. Para los comentarios de boletín, el nombre de pila, sus notas y faltas, si tiene ACS y hasta tres observaciones tuyas, nunca los apellidos. Para una tutoría, sus notas, faltas, observaciones y medidas de apoyo, sin el nombre. Tu lista de clase no sale de Sepia: el nombre leído se busca en ella aquí.</p></li>
-        <li><h3>El día a día, sin esperas</h3><p>Pasar lista, el cuaderno y las medias no usan IA: van al momento y las medias salen de tus ponderaciones.</p></li>
+        <li><h3>Borradores que revisas</h3><p>Notas, versiones, fichas y comentarios llegan marcados «Borrador&nbsp;IA». Una nota sugerida no cuenta hasta que la aceptas.</p></li>
+        <li><h3>Tarda lo que tarda</h3><p>De unos segundos a un par de minutos, y mientras sigues trabajando. En los vídeos, esa espera va acelerada con el tiempo real a la vista.</p></li>
+        <li><h3>Qué ve</h3><p>Para corregir, la hoja escaneada. Para el boletín, el nombre de pila y sus datos del trimestre, nunca los apellidos. Tu lista de clase no sale de Sepia.</p></li>
+        <li><h3>Qué no toca</h3><p>Pasar lista, el cuaderno y las medias no usan IA: van al momento y salen de tus ponderaciones.</p></li>
       </ul>
     </section>
 
     <section class="closing" id="empezar" aria-labelledby="empezar-title">
-      <h2 id="empezar-title">Empezar lleva una tarde.</h2>
-      <p>Creas cada clase con su horario y su aula, y pegas la lista de alumnos desde Séneca, Raíces o una hoja de cálculo, o importas un CSV. Al día siguiente pasas lista desde el móvil.</p>
-      <p>Funciona en el navegador del móvil y del ordenador; en el móvil, añádela a la pantalla de inicio.</p>
+      <h2 id="empezar-title">Empezar lleva <em>una tarde.</em></h2>
+      <p>Creas tus clases con su horario y pegas la lista de alumnos desde Séneca, Raíces o una hoja de cálculo. Al día siguiente pasas lista desde el móvil.</p>
       <div class="actions actions--center">
         <a class="btn btn--primary" href="/entrar?cuenta=nueva">Crear cuenta</a>
+        <a class="btn btn--tinted" href="/entrar">Ya tengo cuenta</a>
       </div>
     </section>
   </main>
 
   <footer class="foot">
     <a class="brand brand--small" href="/"><img src="/landing/img/squid.svg" alt="" width="20" height="20"><span>Sepia</span></a>
-    <span>El cuaderno del profesor de Secundaria y Bachillerato.</span>
+    <span>El cuaderno del profesor de Secundaria y Bachillerato, en el navegador del móvil y del ordenador.</span>
     <nav class="foot__legal" aria-label="Información legal">
       <a href="/landing/privacidad.html">Privacidad</a>
       <a href="/landing/aviso-legal.html">Aviso legal</a>
     </nav>
-    <a class="foot__link" href="/entrar">Entrar o crear cuenta</a>
   </footer>
+
+  <script>
+    // The recordings: each plays muted and looping only while it is on screen, in the page's colour scheme and size
+    // (WebM, or MP4 where WebM does not play). With reduced motion or Save-Data none starts on its own: its poster
+    // stays and its button plays it. Without JS, or without either format, the posters are the page.
+    (() => {
+      const probe = document.createElement('video');
+      const ext = probe.canPlayType('video/webm; codecs="vp9"') ? 'webm' : probe.canPlayType('video/mp4; codecs="avc1.640028"') ? 'mp4' : '';
+      if (!ext) return;
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+      const dark = matchMedia('(prefers-color-scheme: dark)');
+      const wide = matchMedia('(min-width: 1024px)');
+      const saveData = !!(navigator.connection && navigator.connection.saveData);
+      const PAUSE = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="3.4" height="12" rx="1"/><rect x="11.6" y="4" width="3.4" height="12" rx="1"/></svg>';
+      const PLAY = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 4.2v11.6a.8.8 0 0 0 1.2.7l9-5.8a.8.8 0 0 0 0-1.4l-9-5.8a.8.8 0 0 0-1.2.7z"/></svg>';
+      const clips = [...document.querySelectorAll('[data-clip]')].map((fig) => ({
+        fig, video: fig.querySelector('video'), button: fig.querySelector('.clip__toggle'), visible: false, held: reduce.matches || saveData,
+      }));
+      const source = (c) => {
+        const d = c.fig.dataset;
+        const device = wide.matches && d.devices.includes('desktop') ? 'desktop' : 'phone';
+        return `${d.base}-${device}${dark.matches ? '-dark' : ''}.${ext}?v=${d.v}`;
+      };
+      const paint = (c) => {
+        const playing = c.visible && !c.held;
+        c.button.innerHTML = playing ? PAUSE : PLAY;
+        c.button.setAttribute('aria-label', playing ? 'Pausar la grabación' : 'Reproducir la grabación');
+      };
+      const sync = (c) => {
+        const want = source(c);
+        const loaded = c.video.getAttribute('src');
+        if (loaded && loaded !== want) { // another scheme or size: back to the poster until the right video plays
+          c.fig.classList.remove('is-live');
+          c.video.removeAttribute('src');
+          c.video.load();
+        }
+        if (c.visible && !c.held) {
+          if (!c.video.getAttribute('src')) c.video.src = want;
+          c.video.play().catch(() => { c.held = true; paint(c); });
+        } else if (!c.video.paused) {
+          c.video.pause();
+        }
+        paint(c);
+      };
+      const seen = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          const c = clips.find((x) => x.fig === e.target);
+          c.visible = e.isIntersecting;
+          sync(c);
+        }
+      }, { threshold: 0.25 });
+      for (const c of clips) {
+        c.button.hidden = false;
+        c.video.addEventListener('playing', () => c.fig.classList.add('is-live'));
+        c.button.addEventListener('click', () => { c.held = !c.held; sync(c); });
+        paint(c);
+        seen.observe(c.fig);
+      }
+      const all = () => clips.forEach(sync);
+      dark.addEventListener('change', all);
+      wide.addEventListener('change', all);
+      reduce.addEventListener('change', () => clips.forEach((c) => { c.held = reduce.matches; sync(c); }));
+    })();
+  </script>
 </body>
 </html>
