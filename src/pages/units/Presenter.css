@@ -1,0 +1,28 @@
+/* Presentation mode — layout only; the slide faces are the same as the cards (Slides.css, container units). */
+.presenter {
+  position: fixed; inset: 0; z-index: 300; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto;
+  background: var(--canvas-2); color: var(--ink); animation: fade-in var(--t-med) var(--ease);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.presenter__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px 0 20px; }
+.presenter__count { font-size: var(--fs-sub); color: var(--ink-2); font-weight: 500; }
+.presenter__tools { display: flex; gap: 4px; }
+.presenter__on { background: var(--accent-soft); color: var(--accent); }
+.presenter__stage { container-type: size; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 8px 16px; }
+.presenter__hint { display: none; margin: 0; font-size: var(--fs-footnote); color: var(--ink-2); text-align: center; }
+@media (orientation: portrait) and (max-width: 767px) { .presenter__hint { display: block; } }
+.presenter__frame { container-type: inline-size; width: min(100cqw, (100cqh - 48px) * 16 / 9); cursor: pointer; user-select: none; }
+@media not ((orientation: portrait) and (max-width: 767px)) { .presenter__frame { width: min(100cqw, 100cqh * 16 / 9); } }
+.presenter__frame .slide { box-shadow: var(--e2), inset 0 0 0 1px var(--line); }
+.presenter__frame .slide--cover { box-shadow: var(--e2), inset 1.4cqi 0 0 var(--accent); }
+.presenter__notes {
+  max-height: 26vh; overflow-y: auto; margin: 0 16px; padding: 14px 18px; border-radius: var(--r-row);
+  background: var(--paper); box-shadow: var(--e1); font-size: 18px; line-height: 1.5; display: grid; gap: 6px;
+}
+.presenter__notes p { margin: 0; }
+.presenter__nav { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 8px 16px 12px; }
+.presenter__nav .icon-btn { width: 48px; height: 48px; }
+.presenter__nav .icon-btn:disabled { opacity: 0.3; }
+.presenter__dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 60vw; }
+.presenter__dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); transition: background var(--t-fast); }
+.presenter__dots i.on { background: var(--accent); }

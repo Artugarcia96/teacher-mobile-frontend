@@ -2,12 +2,14 @@ import {
   ArrowDown, ArrowSquareOut, ArrowUp, ArrowsLeftRight, ArrowsClockwise, CopySimple, DotsThree, Lock, PencilSimple, ShareNetwork,
   Student, Trash, WarningCircle,
 } from '@phosphor-icons/react';
-import { useDeleteMaterial, useReadMaterial, useUnshareMaterial, useUpdateMaterial, type Material } from '../../api/units';
-import { shortDate } from '../../lib/format';
+import { useDeleteMaterial, useReadMaterial, useRetryMaterial, useUnshareMaterial, useUpdateMaterial, type Material } from '../../api/units';
+import { plural, shortDate } from '../../lib/format';
 import { AIBadge, Button, IconButton, Menu, Row, RowIcon, Spinner, useFeedback, type MenuItem } from '../../ui';
-import { isGenerated, kindLabel, MaterialIcon } from '../units/kinds';
+import { failedText, isDraft, isGenerated, kindLabel, MaterialIcon, readyText, shortTitle, withArticle } from '../units/kinds';
 import { useOpenMaterial } from './open';
 import type { PlaceMode } from './PlaceMaterialSheet';
+import { GenerationLine } from './progress';
+import { watchJob } from './watch';
 import './materials.css';
 
 export interface MaterialActions {
@@ -21,7 +23,7 @@ const FILE_TYPE: Record<string, string> = {
 };
 
 /** Type for the meta line, without repeating the title: "PDF", "Fotos · 6 páginas", "Vídeo de YouTube",
- *  "6 ejercicios" (title "Ficha de refuerzo · …"), "" for "Apuntes · Fracciones". */
+ *  "10 ejercicios · 3 páginas" (title "Ficha de refuerzo · …"), "5 páginas" for "Apuntes · Fracciones". */
 export function typeLabel(m: Material): string {
   if (m.kind === 'upload') {
     const pages = Number(m.options?.pages ?? 0);
@@ -31,20 +33,25 @@ export function typeLabel(m: Material): string {
   }
   const label = kindLabel(m);
   const named = m.title.startsWith(label);
-  const items = m.kind === 'worksheet' && m.options?.n_items ? `${m.options.n_items} ejercicios` : '';
-  return [named ? '' : label, items].filter(Boolean).join(' · ');
+  const n = Number(m.options?.n_items_used ?? m.options?.n_items ?? 0);
+  const items = m.kind === 'worksheet' && n ? `${n} ejercicios` : '';
+  const pages = m.kind !== 'slides' ? Number(m.options?.pages ?? 0) : 0;  // of the PDF: what printing it takes
+  return [named ? '' : label, items, pages ? plural(pages, 'página', 'páginas') : ''].filter(Boolean).join(' · ');
 }
 
-/** One material of a unit: opens on tap, actions in its menu (grouped "Para alumnos" / "Solo para ti"). */
-export function MaterialRow({ m, courseId, group, all, today, actions }: {
-  m: Material; courseId: string; group: Material[]; all: Material[]; today: string; actions: MaterialActions;
+/** One material of a unit: opens on tap, actions in its menu (grouped "Para alumnos" / "Solo para ti"). The title
+ *  leaves out the unit (it is the page's). */
+export function MaterialRow({ m, courseId, unitTitle, group, all, today, actions }: {
+  m: Material; courseId: string; unitTitle: string; group: Material[]; all: Material[]; today: string; actions: MaterialActions;
 }) {
   const open = useOpenMaterial();
   const update = useUpdateMaterial();
   const unshare = useUnshareMaterial();
   const del = useDeleteMaterial(m.unit_id ?? undefined);
   const read = useReadMaterial();
+  const retry = useRetryMaterial();
   const { toast, confirm } = useFeedback();
+  const title = shortTitle(m.title, unitTitle);
   const fail = (e: unknown) => toast((e as Error).message, { tone: 'error' });
   const lead = (
     <RowIcon tone={isGenerated(m.kind) ? 'accent' : undefined}>
@@ -53,17 +60,37 @@ export function MaterialRow({ m, courseId, group, all, today, actions }: {
   );
 
   if (m.status === 'generating') {
-    return <Row lead={lead} title={m.title} sub={`Creando ${kindLabel(m).toLowerCase()}…`} trail={<Spinner />} />;
+    return <Row lead={lead} title={title} sub={<GenerationLine m={m} />} wrapSub trail={<Spinner />} onClick={() => open(m, courseId)} chevron={false} />;
   }
   if (m.status === 'failed') {
+    const again = () => retry.mutate(m.id, {
+      onSuccess: ({ material, job }) => {
+        watchJob({
+          job: job.id, kind: 'material', done: readyText(material, unitTitle),
+          failed: failedText(material, unitTitle),
+          path: `/clases/${courseId}/unidades/${material.unit_id}/materiales/${material.id}`,
+        });
+        toast(`Creando ${withArticle(material)} otra vez`);
+      },
+      onError: fail,
+    });
     const remove = async () => {
-      if (!(await confirm({ title: 'Quitar este material', text: m.error ?? undefined, confirm: 'Quitar', danger: true }))) return;
+      if (!(await confirm({ title: `¿Quitar «${title}»?`, text: 'No se pudo crear; se quita de la unidad.', confirm: 'Quitar', danger: true }))) return;
       del.mutate(m.id, { onSuccess: () => toast('Material quitado'), onError: fail });
     };
     return (
-      <Row lead={<RowIcon tone="warn"><WarningCircle size={20} /></RowIcon>} title={m.title}
-        sub={<span className="mrow__error">{m.error || 'No se ha podido crear.'}</span>}
-        trail={<Button size="sm" variant="plain" onClick={remove}>Quitar</Button>} />
+      <div className="mrow mrow--failed">
+        <Row lead={<RowIcon tone="warn"><WarningCircle size={20} /></RowIcon>} title={title} wrapSub
+          sub={<span className="mrow__error mrow__error--wrap">{m.error || 'No se ha podido crear.'}</span>}
+          trail={<span className="mrow__failed-actions">
+            <Button size="sm" variant="tinted" loading={retry.isPending} onClick={again}>Volver a intentar</Button>
+            <span className="mrow__gap" />
+          </span>} />
+        <div className="mrow__menu">
+          <Menu trigger={(o) => <IconButton label={`Opciones de ${title}`} onClick={o}><DotsThree size={20} weight="bold" /></IconButton>}
+            items={[{ label: 'Quitar', icon: <Trash size={18} />, danger: true, onSelect: remove }]} />
+        </div>
+      </div>
     );
   }
 
@@ -90,7 +117,7 @@ export function MaterialRow({ m, courseId, group, all, today, actions }: {
 
   const remove = async () => {
     const ok = await confirm({
-      title: `¿Eliminar «${m.title}»?`,
+      title: `¿Eliminar «${title}»?`,
       text: m.shared ? 'El enlace para alumnos dejará de funcionar. No se puede deshacer.' : 'No se puede deshacer.',
       confirm: 'Eliminar', danger: true,
     });
@@ -128,16 +155,16 @@ export function MaterialRow({ m, courseId, group, all, today, actions }: {
           <ShareNetwork size={13} weight="bold" aria-label="Compartido con alumnos" /><span className="mrow__shared-label">Compartido</span>
         </span>
       )}
-      {isGenerated(m.kind) && <AIBadge />}
+      {isDraft(m) && <AIBadge />}
     </span>
   );
 
   return (
     <div className="mrow">
-      <Row lead={lead} title={m.title} sub={sub} onClick={() => open(m, courseId)} chevron={false}
+      <Row lead={lead} title={title} sub={sub} onClick={() => open(m, courseId)} chevron={false}
         trail={<span className="mrow__gap" />} />
       <div className="mrow__menu">
-        <Menu trigger={(o) => <IconButton label={`Opciones de ${m.title}`} onClick={o}><DotsThree size={20} weight="bold" /></IconButton>} items={items} />
+        <Menu trigger={(o) => <IconButton label={`Opciones de ${title}`} onClick={o}><DotsThree size={20} weight="bold" /></IconButton>} items={items} />
       </div>
     </div>
   );

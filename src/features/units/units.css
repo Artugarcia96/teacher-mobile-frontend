@@ -2,10 +2,14 @@
 .textarea.import-text { min-height: max(260px, 48vh); font-variant-numeric: tabular-nums; }
 
 .proposals { display: grid; }
-.proposal { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr) 76px 32px; align-items: center; gap: 6px; padding: 8px 6px 8px 10px; }
+.proposal { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr) 76px 32px; align-items: start; gap: 6px; padding: 8px 6px 8px 10px; }
 .proposal + .proposal::before { content: ''; position: absolute; top: 0; left: 32px; right: 0; height: 0.5px; background: var(--line); }
-.proposal__n { color: var(--ink-3); font-size: var(--fs-footnote); text-align: right; }
-.proposal__title { min-height: 40px; padding: 8px 10px; }
+.proposal__n { padding-top: 11px; color: var(--ink-3); font-size: var(--fs-footnote); text-align: right; }
+.proposal__title { min-height: 40px; padding: 8px 10px; resize: none; line-height: 1.35; font: inherit; }
+.proposal__summary {
+  grid-column: 2 / 4; min-height: 36px; padding: 6px 10px; resize: vertical; font: inherit; font-size: var(--fs-footnote);
+  line-height: 1.4; color: var(--ink-2);
+}
 .proposal__term .select { min-height: 40px; padding: 8px 24px 8px 10px; font-size: var(--fs-sub); }
 .proposal__term svg { right: 8px; }
 @media (min-width: 768px) {
@@ -17,4 +21,11 @@
 .kind-row__check { color: var(--accent); }
 .kind-row__radio { color: var(--ink-3); }
 
-.option-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 500; }
+
+/* Crear con IA: the other sources the AI reads */
+.create-sources { margin: -6px 0 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: var(--fs-sub); color: var(--ink-2); }
+.create-sources b { color: var(--ink); font-weight: 600; }
+
+/* Preparar el trimestre */
+.prepare-progress { display: grid; gap: 8px; font-weight: 500; }
+.prepare-warn { display: inline-flex; align-items: center; gap: 4px; color: var(--warn); }

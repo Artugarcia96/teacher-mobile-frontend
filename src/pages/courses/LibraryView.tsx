@@ -1,15 +1,16 @@
-import { Books, MagnifyingGlass, ShareNetwork, WarningCircle } from '@phosphor-icons/react';
+import { ArrowSquareOut, Books, CopySimple, DotsThree, MagnifyingGlass, ShareNetwork, WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useArchivedCourses, useCourses } from '../../api/core';
 import { useLibrary, type LibraryItem } from '../../api/library';
 import type { MaterialKind } from '../../api/units';
 import { readingStatus, typeLabel } from '../../features/materials/MaterialRow';
+import PlaceMaterialSheet from '../../features/materials/PlaceMaterialSheet';
 import { useOpenMaterial } from '../../features/materials/open';
-import { isGenerated, MaterialIcon } from '../../features/units/kinds';
+import { isDraft, isGenerated, kindLabel, MaterialIcon, shortTitle } from '../../features/units/kinds';
 import { useToday } from '../../lib/auth';
 import { courseShortLabel, plural, shortDate } from '../../lib/format';
-import { AIBadge, Button, Chip, Dot, EmptyState, List, Row, RowIcon, SearchField, SkeletonList } from '../../ui';
+import { AIBadge, Button, Chip, Dot, EmptyState, IconButton, List, Menu, Row, RowIcon, SearchField, SkeletonList } from '../../ui';
 import './library.css';
 
 const KINDS: { key: string; label: string; kinds?: MaterialKind[] }[] = [
@@ -52,6 +53,8 @@ export default function LibraryView() {
   const filtered = Boolean(query.trim() || courseId || kinds);
   const clear = () => setParams({ vista: 'materiales' }, { replace: true });
   const classes = [...(courses.data ?? []), ...(archived.data ?? [])];
+  const [reusing, setReusing] = useState<LibraryItem | null>(null);
+  const archivedIds = new Set((archived.data ?? []).map((c) => c.id));
 
   let body;
   if (lib.isLoading) body = <SkeletonList rows={6} />;
@@ -74,7 +77,9 @@ export default function LibraryView() {
   } else {
     body = (
       <>
-        <List inset={64}>{lib.data.map((m) => <LibraryRow key={m.id} m={m} today={today} onOpen={() => open(m, m.course.id)} />)}</List>
+        <List inset={64}>
+          {lib.data.map((m) => <LibraryRow key={m.id} m={m} archived={archivedIds.has(m.course.id)} today={today} onOpen={() => open(m, m.course.id)} onReuse={() => setReusing(m)} />)}
+        </List>
         <p className="library__count">{plural(lib.data.length, 'material', 'materiales')}</p>
       </>
     );
@@ -95,29 +100,57 @@ export default function LibraryView() {
         {KINDS.map((k) => <Chip key={k.key} selected={kind === k.key} onClick={() => set('tipo', k.key === 'all' ? undefined : k.key)}>{k.label}</Chip>)}
       </div>
       {body}
+      {reusing && (
+        <PlaceMaterialSheet material={reusing} mode="copy" courseId={reusing.course.id} unitTitle={reusing.unit?.title ?? ''}
+          onClose={() => setReusing(null)} />
+      )}
     </div>
   );
 }
 
-function LibraryRow({ m, today, onOpen }: { m: LibraryItem; today: string; onOpen: () => void }) {
+/** One material of any class: opens on tap; «Usar en otra clase…» also from archived classes. */
+function LibraryRow({ m, archived, today, onOpen, onReuse }: {
+  m: LibraryItem; archived: boolean; today: string; onOpen: () => void; onReuse: () => void;
+}) {
   const date = m.created_at.slice(0, 10);
   const type = typeLabel(m);
-  const meta = [courseShortLabel(m.course), m.unit?.title, type, date === today ? 'Hoy' : shortDate(date)].filter(Boolean).join(' · ');
   const reading = readingStatus(m);
+  // «Apuntes · El átomo» across 30 units: the unit is what tells them apart, so it goes first (the kind in the sub)
+  const short = shortTitle(m.title, m.unit?.title);
+  const label = kindLabel(m);
+  const byUnit = isGenerated(m.kind) && !!m.unit && short.startsWith(label);
+  const title = byUnit ? `${m.unit!.title}${short.slice(label.length)}` : short;
+  const meta = [byUnit ? label : '', courseShortLabel(m.course) + (archived ? ' (archivada)' : ''), byUnit ? '' : m.unit?.title, type,
+    date === today ? 'Hoy' : shortDate(date)].filter(Boolean).join(' · ');
   return (
-    <Row onClick={onOpen} chevron={false} wrapSub
-      lead={<RowIcon tone={isGenerated(m.kind) ? 'accent' : undefined}>
-        <MaterialIcon kind={m.kind} filename={String(m.options?.filename ?? '')} linkKind={m.link_kind} />
-      </RowIcon>}
-      title={m.title}
-      sub={<span className="library__sub">
-        <span className="library__meta"><Dot color={m.course.color} /><span>{meta}</span></span>
-        {(reading || isGenerated(m.kind)) && (
-          <span className="mrow__sub">{reading && <span className={reading.className}>{reading.text}</span>}{isGenerated(m.kind) && <AIBadge />}</span>
-        )}
-        {m.snippet && <span className="library__snippet">{m.snippet}</span>}
-      </span>}
-      trail={m.shared ? <ShareNetwork size={16} aria-label="Compartido con alumnos" className="library__shared" /> : undefined}
-    />
+    <div className="mrow">
+      <Row onClick={onOpen} chevron={false} wrapSub
+        lead={<RowIcon tone={isGenerated(m.kind) ? 'accent' : undefined}>
+          <MaterialIcon kind={m.kind} filename={String(m.options?.filename ?? '')} linkKind={m.link_kind} />
+        </RowIcon>}
+        title={title}
+        sub={<span className="library__sub">
+          <span className="library__meta"><Dot color={m.course.color} /><span>{meta}</span></span>
+          {(reading || isDraft(m) || m.status === 'generating') && (
+            <span className="mrow__sub">
+              {m.status === 'generating' && <span className="mrow__reading">Creando…</span>}
+              {reading && <span className={reading.className}>{reading.text}</span>}
+              {isDraft(m) && <AIBadge />}
+            </span>
+          )}
+          {m.snippet && <span className="library__snippet">{m.snippet}</span>}
+        </span>}
+        trail={<span className="library__trail">
+          {m.shared && <ShareNetwork size={16} aria-label="Compartido con alumnos" className="library__shared" />}
+          <span className="mrow__gap" />
+        </span>}
+      />
+      <div className="mrow__menu">
+        <Menu trigger={(o) => <IconButton label={`Opciones de ${title}`} onClick={o}><DotsThree size={20} weight="bold" /></IconButton>} items={[
+          { label: 'Abrir', icon: <ArrowSquareOut size={18} />, onSelect: onOpen },
+          { label: 'Usar en otra clase…', icon: <CopySimple size={18} />, onSelect: onReuse, disabledReason: m.status !== 'ready' ? 'Aún no está listo' : undefined },
+        ]} />
+      </div>
+    </div>
   );
 }

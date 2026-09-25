@@ -12,7 +12,7 @@ export default function AddLinkSheet({ open, onClose, unitId }: { open: boolean;
 
   const close = () => { setUrl(''); setTitle(''); onClose(); };
   const save = async () => {
-    if (!clean) return;
+    if (!clean || add.isPending) return;
     try {
       await add.mutateAsync({ url: clean, title: title.trim() || undefined });
       toast('Enlace añadido');

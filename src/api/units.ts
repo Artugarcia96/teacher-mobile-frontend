@@ -1,8 +1,8 @@
-/** Programación (units) & materials. Backend: app/api/units.py (slice E). Slice E extends this file;
- * keep `Unit`, `unitKeys` and `useUnits` stable — other areas import them. */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+/** Programación (units) & materials. Backend: app/api/units.py and app/api/library.py. */
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fileUrl, uploadWithProgress } from '../lib/api';
-import type { CourseRef, Job } from './types';
+import type { ContentDoc, Element, FigureSpec, Level } from './content';
+import type { CourseRef, Job, JobRef } from './types';
 
 export type UnitStatus = 'pending' | 'current' | 'done';
 export interface Unit {
@@ -21,23 +21,26 @@ export function useUnits(courseId: string | undefined) {
   return useQuery({ queryKey: unitKeys.list(courseId!), queryFn: () => api.get<Unit[]>(`/courses/${courseId}/units`), enabled: !!courseId });
 }
 
-// ── Material types (mirror app/ai/schemas.py + app/schemas/units.py) ────────
+// ── Material types (mirror app/schemas/units.py) ─────────────────────────────
 export type MaterialKind = 'upload' | 'link' | 'notes' | 'slides' | 'summary' | 'adapted' | 'worksheet';
+/** What «Crear con IA» makes: apuntes, presentación, resumen, lectura fácil, ficha (the content pipeline). */
 export type GenKind = Exclude<MaterialKind, 'upload' | 'link'>;
 export type Audience = 'alumnos' | 'profesor';
 export type LinkKind = 'youtube' | 'drive' | 'genially' | 'canva' | 'wordwall' | 'web';
-export type WorksheetKind = 'refuerzo' | 'practica' | 'ampliacion';
-export type Difficulty = 'facil' | 'medio' | 'dificil';
 
 export interface Material {
   id: string; unit_id: string | null; kind: MaterialKind; title: string; status: 'ready' | 'generating' | 'failed';
   error?: string | null; options: Record<string, unknown>; created_at: string; updated_at: string;
-  file_url?: string | null; extra_url?: string | null; pptx_url?: string | null; job_id?: string | null;
+  file_url?: string | null; extra_url?: string | null; pptx_url?: string | null;
+  /** While it is generated (its own job, or the «Preparar el trimestre» batch) or read by the AI. */
+  job_id?: string | null;
   /** Metadata (app/services/materials.py): who it is for, manual order, the teacher's note, last opened (date). */
   audience: Audience; position: number; notes?: string | null; last_used_at?: string | null;
   /** AI reading of photos / scanned PDFs, so generation for the unit can use their text. */
   text_status?: 'reading' | 'done' | 'failed' | null;
   url?: string | null; link_kind?: LinkKind | null; shared: boolean;
+  /** Generated: the teacher marked it as reviewed (no «Borrador IA» mark). */
+  reviewed?: boolean;
 }
 
 export interface Share { url: string; path: string; expires_on: string; qr_png: string | null }
@@ -48,30 +51,32 @@ export interface GroundingSource {
 }
 export interface Grounding { sources: GroundingSource[]; reading: { id: string; title: string }[] }
 
-export type BlockType = 'text' | 'definition' | 'example' | 'formula' | 'note' | 'list' | 'exercise';
-export interface Block { id: string; type: BlockType; title: string; text: string; items: string[]; solution: string }
-export interface DocSection { id: string; title: string; blocks: Block[] }
-export interface NotesDoc { title: string; subtitle: string; objectives: string[]; sections: DocSection[]; self_check: string[] }
-
-export interface Slide { title: string; bullets: string[]; example: string; notes: string }
-export interface SlideDeck { title: string; subtitle: string; slides: Slide[] }
-
-export interface Item { id: string; label: string; text: string; points: number; answer: string; steps: string[]; options: string[]; level: string }
-export interface AssessmentDoc { title: string; instructions: string; sections: { title: string; items: Item[] }[] }
-
 export interface MaterialDetail extends Material {
-  content: NotesDoc | SlideDeck | AssessmentDoc | null; course: CourseRef; unit_title?: string | null;
+  /** Generated: the ContentDoc (anything else is content that could not be converted: shown read-only). */
+  content: ContentDoc | Record<string, unknown> | null;
+  /** SVG of each figure by element id ("b7"; "b7:solucion" = the solved figure of an exercise). */
+  figures: Record<string, string>;
+  /** Ids of the figures that cannot be drawn (the PDF leaves them out): shown as a warning to edit them. */
+  figure_errors: string[];
+  /** What prints broken in the PDF («p. 2: fórmula sin componer (…)»). */
+  render_issues: string[];
+  course: CourseRef; unit_title?: string | null;
 }
-export interface UnitDetail { unit: Unit; course: CourseRef; materials: Material[] }
+export interface UnitDetail {
+  unit: Unit; course: CourseRef; materials: Material[];
+  /** The class's own files outside any unit that the AI can follow as a guide (the imported «Programación»). */
+  guides: { id: string; title: string }[];
+}
 
+/** «Crear con IA». Ficha: one `level` (none = the three levels), at most `n_items` exercises and `notebook` (no space to
+ *  answer); `sessions` splits it in class sessions. */
 export interface GenerateInput {
-  kind: GenKind; length?: 'breve' | 'normal'; worksheet_kind?: WorksheetKind; n_items?: number; difficulty?: Difficulty;
-  instructions?: string; from_material_id?: string;
+  kind: GenKind; instructions?: string; guide_material_id?: string; level?: Level; n_items?: number; sessions?: number;
+  notebook?: boolean;
 }
 
-export const MATERIAL_LABEL: Record<MaterialKind, string> = {
-  upload: 'Archivo subido', link: 'Enlace', notes: 'Apuntes', slides: 'Presentación', summary: 'Resumen', adapted: 'Lectura fácil', worksheet: 'Ficha',
-};
+/** A unit of an imported programación: its title, term and the saberes it lists (the unit's summary). */
+export interface UnitProposal { title: string; term: number | null; summary: string }
 
 // ── Units ────────────────────────────────────────────────────────────────────
 function useInvalidateCourse(courseId: string) {
@@ -124,14 +129,26 @@ export function useOrderUnits(courseId: string) {
 export function useImportUnits(courseId: string) {
   return useMutation({
     mutationFn: (text: string) =>
-      api.post<{ proposals: { title: string; term: number | null }[]; warning: string | null }>(`/courses/${courseId}/units/import`, { text }, { slow: true }),
+      api.post<{ proposals: UnitProposal[]; warning: string | null }>(`/courses/${courseId}/units/import`, { text }, { slow: true }),
+  });
+}
+
+/** The programación as a file (PDF with text, Word, PowerPoint, text): the same proposals as pasting it; the file stays
+ *  as the class's «Programación», a guide for «Crear con IA». */
+export function useImportUnitsFile(courseId: string) {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return api.upload<{ proposals: UnitProposal[]; warning: string | null }>(`/courses/${courseId}/units/import-file`, form);
+    },
   });
 }
 
 export function useBulkUnits(courseId: string) {
   const done = useInvalidateCourse(courseId);
   return useMutation({
-    mutationFn: (units: { title: string; term: number | null }[]) => api.post<Unit[]>(`/courses/${courseId}/units/bulk`, { units }),
+    mutationFn: (units: UnitProposal[]) => api.post<Unit[]>(`/courses/${courseId}/units/bulk`, { units }),
     onSuccess: done,
   });
 }
@@ -151,6 +168,15 @@ export function useUnit(unitId: string | undefined) {
     queryFn: () => api.get<UnitDetail>(`/units/${unitId}`),
     enabled: !!unitId,
     refetchInterval: (q) => (q.state.data?.materials.some(isBusy) ? 1500 : false),
+  });
+}
+
+/** Several units with their materials (the progress of «Preparar el trimestre»), refreshed while `poll`. */
+export function useUnitDetails(unitIds: string[], poll: boolean) {
+  return useQueries({
+    queries: unitIds.map((id) => ({
+      queryKey: unitKeys.one(id), queryFn: () => api.get<UnitDetail>(`/units/${id}`), refetchInterval: poll ? 3000 : (false as const),
+    })),
   });
 }
 
@@ -193,12 +219,13 @@ export function useUploadMaterials(unitId: string) {
 /** Photos of book pages per material: the AI reads at most this many (backend READ_MAX_PAGES). */
 export const MAX_PAGES = 30;
 
-/** What the AI will read for these units (own material first, fairly shared). Refreshes while files are read. */
-export function useGrounding(unitIds: string[]) {
+/** What the AI will read for these units (own material first, fairly shared). Refreshes while files are read.
+ *  `ownOnly`: creating a material reads only the teacher's own files (exams also read Sepia's apuntes). */
+export function useGrounding(unitIds: string[], ownOnly = false) {
   const ids = [...unitIds].sort();
   return useQuery({
-    queryKey: unitKeys.grounding(ids),
-    queryFn: () => api.get<Grounding>(`/grounding?unit_ids=${ids.join(',')}`),
+    queryKey: [...unitKeys.grounding(ids), ownOnly],
+    queryFn: () => api.get<Grounding>(`/grounding?unit_ids=${ids.join(',')}${ownOnly ? '&own_only=true' : ''}`),
     enabled: ids.length > 0,
     refetchInterval: (q) => (q.state.data?.reading.length ? 3000 : false),
   });
@@ -224,9 +251,14 @@ function useInvalidateMaterials() {
   };
 }
 
-export interface MaterialMeta { title?: string; unit_id?: string; audience?: Audience; position?: number; notes?: string | null }
+export interface MaterialMeta {
+  title?: string; unit_id?: string; audience?: Audience; position?: number; notes?: string | null;
+  /** Generated: checked by the teacher (clears «Borrador IA»). */
+  reviewed?: boolean;
+}
 
-/** Rename, move to another unit/class, "para alumnos"/"solo para mí", reorder (`position` = index without it), note. */
+/** Rename, move to another unit/class, "para alumnos"/"solo para mí", reorder (`position` = index without it), note,
+ *  «Marcar como revisado». */
 export function useUpdateMaterial() {
   const done = useInvalidateMaterials();
   return useMutation({
@@ -263,6 +295,7 @@ export function useUnshareMaterial() {
   return useMutation({ mutationFn: (id: string) => api.delete(`/materials/${id}/share`), onSuccess: done });
 }
 
+/** «Crear con IA»: the material appears in the unit at once («generating») and its job fills it (1-4 min). */
 export function useGenerateMaterial(unitId: string) {
   const qc = useQueryClient();
   const done = useInvalidateUnit(unitId);
@@ -275,31 +308,83 @@ export function useGenerateMaterial(unitId: string) {
   });
 }
 
+/** «Preparar el trimestre» makes at most this many materials at once (backend PREPARE_MAX). */
+export const PREPARE_MAX = 15;
+
+/** «Preparar el trimestre»: the chosen kinds for each chosen unit, one job for all of them. The kinds a unit already
+ *  has are skipped (`skipped`) unless `replace`. */
+export function usePrepareMaterials(courseId: string) {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: (body: { unit_ids: string[]; kinds: GenKind[]; instructions?: string; notebook?: boolean; replace?: boolean }) =>
+      api.post<{ materials: Material[]; job: Job; skipped: number }>(`/courses/${courseId}/prepare`, body),
+    onSuccess: done,
+  });
+}
+
+/** A generated material that failed, again with the options it was asked with. */
+export function useRetryMaterial() {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: (id: string) => api.post<{ material: Material; job: Job }>(`/materials/${id}/retry`),
+    onSuccess: done,
+  });
+}
+
 export function useMaterial(materialId: string | undefined) {
   return useQuery({
     queryKey: unitKeys.material(materialId!),
     queryFn: () => api.get<MaterialDetail>(`/materials/${materialId}`),
     enabled: !!materialId,
-    refetchInterval: (q) => (q.state.data?.status === 'generating' ? 1500 : false),
+    refetchInterval: (q) => (q.state.data?.status === 'generating' ? 2000 : false),
   });
 }
 
-export function usePatchMaterial(materialId: string) {
+function useSetMaterial(materialId: string) {
   const qc = useQueryClient();
+  return (data: MaterialDetail) => {
+    qc.setQueryData(unitKeys.material(materialId), data);
+    if (data.unit_id) qc.invalidateQueries({ queryKey: unitKeys.one(data.unit_id) });
+    qc.invalidateQueries({ queryKey: ['library'] });
+  };
+}
+
+/** The teacher's version of one element (block or slide, same id): validated, files rebuilt (still a draft until she
+ *  marks the material as reviewed). */
+export function usePatchBlock(materialId: string) {
+  const set = useSetMaterial(materialId);
   return useMutation({
-    mutationFn: (body: { title?: string; content?: MaterialDetail['content'] }) => api.patch<MaterialDetail>(`/materials/${materialId}`, body),
-    onSuccess: (data) => {
-      qc.setQueryData(unitKeys.material(materialId), data);
-      if (data.unit_id) qc.invalidateQueries({ queryKey: unitKeys.one(data.unit_id) });
-    },
+    mutationFn: (block: Element) => api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${block.id}`, { block }, { slow: true }),
+    onSuccess: set,
   });
 }
 
+export function useDeleteBlock(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: (blockId: string) => api.delete<MaterialDetail>(`/materials/${materialId}/blocks/${blockId}`, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** AI rewrite of one element as the teacher asks (a job, 20-60 s; verified like a generated material). */
 export function useRewriteBlock(materialId: string) {
-  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { block_id: string; instruction: string }) => api.post<MaterialDetail>(`/materials/${materialId}/rewrite`, body, { slow: true }),
-    onSuccess: (data) => qc.setQueryData(unitKeys.material(materialId), data),
+    mutationFn: ({ blockId, instruction }: { blockId: string; instruction: string }) =>
+      api.post<JobRef>(`/materials/${materialId}/blocks/${blockId}/rewrite`, { instruction }),
+  });
+}
+
+/** SVG of a figure spec as the teacher edits it (the same drawing as the PDF); 400 says what is wrong. */
+export function useFigurePreview(figure: FigureSpec | null) {
+  const json = figure ? JSON.stringify(figure) : '';
+  return useQuery({
+    queryKey: ['figure', json],
+    queryFn: () => api.post<{ svg: string }>('/figures/preview', { figure }),
+    enabled: !!figure,
+    retry: false,
+    placeholderData: (prev) => prev,
+    staleTime: Infinity,
   });
 }
 

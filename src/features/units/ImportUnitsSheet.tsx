@@ -1,18 +1,18 @@
-import { CaretDown, X } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { useBulkUnits, useImportUnits } from '../../api/units';
+import { CaretDown, FileArrowUp, X } from '@phosphor-icons/react';
+import { useRef, useState } from 'react';
+import { useBulkUnits, useImportUnits, useImportUnitsFile, type UnitProposal } from '../../api/units';
 import { plural } from '../../lib/format';
 import { Button, Callout, IconButton, Sheet, TextArea, useFeedback } from '../../ui';
 import './units.css';
 
-interface Proposal { key: number; title: string; term: number | null }
+interface Proposal extends UnitProposal { key: number }
 
 const PLACEHOLDER = `Tema 1. Números enteros
 Tema 2. Fracciones
 Tema 3. Potencias y raíces
 …`;
 
-/** Paste a book index / programación → AI proposes units with evaluación → edit → create. */
+/** Paste a book index / programación, or choose its file → AI proposes units with evaluación → edit → create. */
 export default function ImportUnitsSheet({ open, onClose, courseId }: { open: boolean; onClose: () => void; courseId: string }) {
   if (!open) return null;
   return <ImportUnits onClose={onClose} courseId={courseId} />;
@@ -21,16 +21,29 @@ export default function ImportUnitsSheet({ open, onClose, courseId }: { open: bo
 function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: string }) {
   const { toast } = useFeedback();
   const parse = useImportUnits(courseId);
+  const parseFile = useImportUnitsFile(courseId);
   const bulk = useBulkUnits(courseId);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [items, setItems] = useState<Proposal[] | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
+  const reading = parse.isPending || parseFile.isPending;
+  const show = ({ proposals, warning }: { proposals: UnitProposal[]; warning: string | null }) => {
+    setItems(proposals.map((p, i) => ({ key: i, ...p })));
+    setWarning(warning);
+  };
   const propose = async () => {
+    if (reading) return;
     try {
-      const { proposals, warning } = await parse.mutateAsync(text);
-      setItems(proposals.map((p, i) => ({ key: i, ...p })));
-      setWarning(warning);
+      show(await parse.mutateAsync(text));
+    } catch (e) {
+      toast((e as Error).message, { tone: 'error' });
+    }
+  };
+  const fromFile = async (file: File) => {
+    try {
+      show(await parseFile.mutateAsync(file));
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
     }
@@ -39,7 +52,7 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
   const valid = (items ?? []).filter((p) => p.title.trim());
   const create = async () => {
     try {
-      await bulk.mutateAsync(valid.map((p) => ({ title: p.title.trim(), term: p.term })));
+      await bulk.mutateAsync(valid.map((p) => ({ title: p.title.trim(), term: p.term, summary: p.summary.trim() })));
       toast(`${plural(valid.length, 'unidad creada', 'unidades creadas')}`);
       onClose();
     } catch (e) {
@@ -54,18 +67,24 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
     return (
       <Sheet open onClose={onClose} title="Importar temario" size="large"
         subtitle="Sepia propone las unidades y reparte las evaluaciones. Podrás revisarlas antes de crearlas."
-        footer={<Button full onClick={propose} loading={parse.isPending} disabled={text.trim().length < 3}>
-          {text.trim().length < 3 ? 'Pega el índice para continuar' : 'Proponer unidades'}
+        footer={<Button full onClick={propose} loading={reading} disabled={text.trim().length < 3 || reading}>
+          {reading ? 'Leyendo el temario…' : text.trim().length < 3 ? 'Pega el índice o elige el archivo' : 'Proponer unidades'}
         </Button>}>
-        <TextArea label="Pega el índice del libro o de tu programación" value={text} onChange={(e) => setText(e.target.value)}
-          placeholder={PLACEHOLDER} className="import-text" />
+        <div className="form">
+          <Button variant="neutral" icon={<FileArrowUp size={18} />} loading={parseFile.isPending} disabled={reading}
+            onClick={() => fileInput.current?.click()}>Elegir el archivo de la programación</Button>
+          <input ref={fileInput} type="file" hidden accept=".pdf,.docx,.pptx,.txt,.md"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void fromFile(f); }} />
+          <TextArea label="O pega el índice del libro o de tu programación" value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={PLACEHOLDER} className="import-text" />
+        </div>
       </Sheet>
     );
   }
 
   return (
     <Sheet open onClose={onClose} title="Revisa las unidades" size="large"
-      subtitle="Corrige los títulos, elige la evaluación (1.ª, 2.ª, 3.ª) o quita las que sobren."
+      subtitle="Corrige los títulos y los contenidos, elige la evaluación (1.ª, 2.ª, 3.ª) o quita las que sobren. Los contenidos guían a la IA al crear los materiales de cada unidad."
       footer={<>
         <Button variant="neutral" onClick={() => setItems(null)}>Volver al texto</Button>
         <Button onClick={create} loading={bulk.isPending} disabled={!valid.length}>
@@ -78,8 +97,8 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
           {items.map((p, i) => (
             <div key={p.key} className="proposal">
               <span className="proposal__n num">{i + 1}</span>
-              <input className="input proposal__title" value={p.title} aria-label={`Título de la unidad ${i + 1}`}
-                onChange={(e) => update(p.key, { title: e.target.value })} />
+              <textarea className="input proposal__title" value={p.title} aria-label={`Título de la unidad ${i + 1}`}
+                rows={lines(p.title, 26)} onChange={(e) => update(p.key, { title: e.target.value.replace(/\n/g, ' ') })} />
               <div className="select-wrap proposal__term">
                 <select className="select" aria-label="Evaluación" value={p.term ?? ''}
                   onChange={(e) => update(p.key, { term: e.target.value ? Number(e.target.value) : null })}>
@@ -93,10 +112,18 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
               <IconButton label="Quitar" size="sm" onClick={() => setItems((xs) => xs && xs.filter((x) => x.key !== p.key))}>
                 <X size={16} />
               </IconButton>
+              <textarea className="input proposal__summary" value={p.summary} maxLength={600}
+                aria-label={`Contenidos de la unidad ${i + 1}`} placeholder="Contenidos (opcional)"
+                rows={Math.min(lines(p.summary, 40), 5)} onChange={(e) => update(p.key, { summary: e.target.value })} />
             </div>
           ))}
         </div>
       </div>
     </Sheet>
   );
+}
+
+/** Rows a textarea needs for a text at about `perRow` characters a row. */
+function lines(text: string, perRow: number): number {
+  return Math.max(1, Math.ceil(text.length / perRow));
 }

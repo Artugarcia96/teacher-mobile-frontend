@@ -4,24 +4,43 @@ import { memo, useLayoutEffect, useMemo, useRef, useState, type RefObject } from
 
 const MATH = /\$\$([\s\S]+?)\$\$|\$([^$]+?)\$/g;
 
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+/** Plain text around the math: escaped, **bold** (key terms in materials) and line breaks. */
+function plain(s: string): string {
+  return esc(s).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
+}
+
+/** Degrees Celsius / Fahrenheit are units: upright C, never the variable C. */
+const DEGREES = /(°|\^\{?\\circ\}?)\s*([CF])(?![A-Za-z])/g;
+/** Chemical notation written as math ($Mg^{2+}$, $H_2O$, $CO_2$) is set upright, like the PDF: an ion (a charge) or a
+ *  formula of two or more element symbols with subscripts. A single letter with an index ($V_1$) stays a variable. */
+const CHEM = /^(?:[A-Z][a-z]?(?:_\{?\d+\}?)?)+(?:\^\{?\d*[+\-−]\}?)?$/;
+function chemistry(tex: string): string {
+  const t = tex.replace(/\s+/g, '');
+  if (!CHEM.test(t)) return tex.replace(DEGREES, '$1\\mathrm{$2}');
+  const charge = t.includes('^');
+  const formula = t.includes('_') && (t.match(/[A-Z]/g) ?? []).length >= 2;
+  return charge || formula ? `\\mathrm{${t}}` : tex;
+}
+
 function renderRich(text: string): string {
-  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
   let out = '';
   let last = 0;
   for (const m of text.matchAll(MATH)) {
-    out += esc(text.slice(last, m.index)).replace(/\n/g, '<br/>');
+    out += plain(text.slice(last, m.index));
     const display = Boolean(m[1]);
     try {
-      out += katex.renderToString((m[1] ?? m[2]).trim(), { displayMode: display, throwOnError: false, strict: 'ignore' });
+      out += katex.renderToString(chemistry((m[1] ?? m[2]).trim()), { displayMode: display, throwOnError: false, strict: 'ignore' });
     } catch {
       out += esc(m[0]);
     }
     last = (m.index ?? 0) + m[0].length;
   }
-  return out + esc(text.slice(last)).replace(/\n/g, '<br/>');
+  return out + plain(text.slice(last));
 }
 
-/** Text with inline LaTeX math ($…$), as produced by the AI and stored in materials/rubrics. `oneLine`: a single line
+/** Text with inline LaTeX math ($…$) and **bold**, as produced by the AI and stored in materials/rubrics. `oneLine`: a single line
  * (line breaks become spaces) that fades out at the right edge only when it is cut. */
 export const RichText = memo(function RichText({ text, as = 'span', className, oneLine = false }: {
   text: string; as?: 'span' | 'div' | 'p'; className?: string; oneLine?: boolean;

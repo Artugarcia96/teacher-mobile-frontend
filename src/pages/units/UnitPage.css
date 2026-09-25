@@ -12,3 +12,4 @@
   .unit-actions__wide { display: inline-flex; }
   .unit-actions__narrow { display: none; }
 }
+.unit-upload { display: grid; gap: 6px; font-weight: 500; }

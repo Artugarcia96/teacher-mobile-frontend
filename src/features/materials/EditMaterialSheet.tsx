@@ -11,7 +11,7 @@ export default function EditMaterialSheet({ material, onClose }: { material: Mat
   const clean = title.trim();
 
   const save = async () => {
-    if (!clean) return;
+    if (!clean || update.isPending) return;
     try {
       await update.mutateAsync({ id: material.id, title: clean, notes: notes.trim() || null });
       toast('Cambios guardados');

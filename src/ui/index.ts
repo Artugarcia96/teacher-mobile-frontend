@@ -9,7 +9,7 @@ export { FeedbackProvider, useFeedback, Menu, type MenuItem } from './feedback';
 export { RichText } from './RichText';
 export { WeekStrip, MonthGrid } from './Calendar';
 export { StackedBar, type BarSegment, type BarTone } from './StackedBar';
-export { DropZone } from './DropZone';
+export { DropZone, DropTarget } from './DropZone';
 export { Lightbox } from './Lightbox';
 export { CropImage } from './CropImage';
 export { Fullscreen } from './Fullscreen';

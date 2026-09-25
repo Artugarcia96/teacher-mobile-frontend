@@ -106,8 +106,8 @@ export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>('GET', path, undefined, opts),
   post: <T>(path: string, body?: Body, opts?: RequestOptions) => request<T>('POST', path, body ?? {}, opts),
   put: <T>(path: string, body?: Body) => request<T>('PUT', path, body ?? {}),
-  patch: <T>(path: string, body?: Body) => request<T>('PATCH', path, body ?? {}),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  patch: <T>(path: string, body?: Body, opts?: RequestOptions) => request<T>('PATCH', path, body ?? {}, opts),
+  delete: <T>(path: string, opts?: RequestOptions) => request<T>('DELETE', path, undefined, opts),
   upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
   /** Fire-and-forget JSON request that outlives the page (leaving a sheet or the tab mid-save): no refresh, no errors. */
   keepalive: (method: 'PUT' | 'POST', path: string, body: Body) => {

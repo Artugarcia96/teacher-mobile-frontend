@@ -7,3 +7,4 @@
 .library__snippet { color: var(--ink-3); font-size: var(--fs-footnote); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .library__shared { color: var(--accent); }
 .library__count { color: var(--ink-3); font-size: var(--fs-footnote); padding: 0 4px; }
+.library__trail { display: inline-flex; align-items: center; gap: 6px; }

@@ -1,5 +1,5 @@
 import { Camera, UploadSimple } from '@phosphor-icons/react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { Button } from './Button';
 import './DropZone.css';
 
@@ -51,6 +51,32 @@ export function DropZone({ onFiles, title, hint, accept, multiple, buttonLabel, 
         <input ref={camera} type="file" hidden accept="image/*" capture="environment" multiple={multiple}
           onChange={(e) => { take(e.target.files); e.target.value = ''; }} />
       )}
+    </div>
+  );
+}
+
+/** The whole area takes files dropped from the computer; a veil says so while files are dragged over it. */
+export function DropTarget({ onFiles, label, disabled, children, className }: {
+  onFiles: (files: File[]) => void; label: string; disabled?: boolean; children: ReactNode; className?: string;
+}) {
+  const depth = useRef(0);
+  const [over, setOver] = useState(false);
+  const files = (e: DragEvent) => Array.from(e.dataTransfer.types).includes('Files');
+  return (
+    <div className={`drop-target${className ? ` ${className}` : ''}`}
+      onDragEnter={(e) => { if (!files(e) || disabled) return; depth.current += 1; setOver(true); }}
+      onDragOver={(e) => { if (files(e) && !disabled) e.preventDefault(); }}
+      onDragLeave={() => { depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); }}
+      onDrop={(e) => {
+        if (!files(e) || disabled) return;
+        e.preventDefault();
+        depth.current = 0;
+        setOver(false);
+        const list = Array.from(e.dataTransfer.files);
+        if (list.length) onFiles(list);
+      }}>
+      {children}
+      {over && <div className="drop-target__veil" aria-hidden><span>{label}</span></div>}
     </div>
   );
 }
