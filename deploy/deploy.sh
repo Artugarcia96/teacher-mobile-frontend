@@ -5,6 +5,7 @@
 # The VPS also runs sepia-education and coteacher: this script only touches sepia-cuaderno-* resources.
 #
 #   bash deploy.sh <release dir>     (site/ and nginx.conf.template, unpacked by the workflow)
+# A release without site/index.html is the "solo landing" mode: only / and /landing/ are served.
 set -euo pipefail
 
 RELEASE="$(cd "${1:?uso: deploy.sh <carpeta de la versión>}" && pwd)"
@@ -15,6 +16,8 @@ NETWORK=sepia-cuaderno
 PORT=8200
 UPSTREAM=http://sepia-cuaderno-api:8000
 IMAGE=nginx:alpine
+LANDING_ONLY=false
+[ -f "$RELEASE/site/index.html" ] || LANDING_ONLY=true
 
 say() { printf '\n== %s\n' "$*"; }
 
@@ -37,12 +40,12 @@ page_has() {  # page_has <path> <text>
   page="$(curl -fs --max-time 3 "http://127.0.0.1:$PORT$1")" && [[ "$page" == *"$2"* ]]
 }
 
-serving() {  # the landing at / with its first image, and the app at /hoy, up to ~20 s
+serving() {  # the landing at / with its first image, and the app at /hoy (unless solo landing), up to ~20 s
   local img
   img="$(grep -oE '/landing/img/[A-Za-z0-9._-]+' "$WEB_DIR/live/site/landing/index.html" | head -n 1 || true)"
   for _ in $(seq 1 20); do
     sleep 1
-    if page_has / '/landing/landing.css' && page_has /hoy 'id="root"' \
+    if page_has / '/landing/landing.css' && { $LANDING_ONLY || page_has /hoy 'id="root"'; } \
       && { [ -z "$img" ] || curl -fs -o /dev/null --max-time 3 "http://127.0.0.1:$PORT$img"; }; then
       return 0
     fi
@@ -78,6 +81,7 @@ mv "$WEB_DIR/next" "$WEB_DIR/live"
 if start && serving; then
   rm -rf "$WEB_DIR/previous"
   say "Web desplegada en http://127.0.0.1:$PORT/"
+  if $LANDING_ONLY; then say "Solo landing: la app no está publicada"; exit 0; fi
   if health="$(curl -fs --max-time 5 "http://127.0.0.1:$PORT/api/health")"; then
     say "API a través de nginx: $health"
   else
@@ -86,7 +90,7 @@ if start && serving; then
   exit 0
 fi
 
-echo "nginx no sirve la landing (/, con sus imágenes) o la app (/hoy) en :$PORT. Últimas líneas del registro:" >&2
+echo "nginx no sirve la landing (/, con sus imágenes) o la app (/hoy, salvo en solo landing) en :$PORT. Últimas líneas del registro:" >&2
 docker logs --tail 40 "$NAME" >&2 || true
 if [ -d "$WEB_DIR/previous" ]; then
   say "Volviendo a la versión anterior"

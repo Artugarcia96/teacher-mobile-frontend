@@ -8,6 +8,11 @@ name: Deploy web
 # Manual only: nothing is published until the owner decides (Actions → Deploy web → Run workflow).
 on:
   workflow_dispatch:
+    inputs:
+      solo_landing:
+        description: "Publicar solo la landing: la app sigue sin publicar y cualquier otra ruta vuelve a /"
+        type: boolean
+        default: false
 
 concurrency:
   group: sepia-cuaderno-deploy-web
@@ -38,6 +43,7 @@ jobs:
         run: npm run check
 
       - name: Build
+        if: ${{ !inputs.solo_landing }}
         env:
           VITE_API_URL: ""   # same origin: nginx on the VPS proxies /api to the API
         run: npm run build
@@ -49,9 +55,14 @@ jobs:
             test -f "$f" || { echo "::error::Falta $f (la landing lo cita)"; exit 1; }
           done
           mkdir -p release/site
-          cp -R dist/. release/site/
           cp -R landing release/site/landing
-          cp deploy/nginx.conf.template deploy/deploy.sh release/
+          cp deploy/deploy.sh release/
+          if [ "${{ inputs.solo_landing }}" = "true" ]; then
+            cp deploy/nginx.landing.conf.template release/nginx.conf.template
+          else
+            cp -R dist/. release/site/
+            cp deploy/nginx.conf.template release/
+          fi
           tar -czf web.tar.gz -C release .
           ls -lh web.tar.gz
 

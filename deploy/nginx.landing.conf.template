@@ -1,0 +1,24 @@
+# Sepia web in "solo landing" mode (Deploy web → solo_landing): only the landing is public while the app is not
+# published yet; every other path goes back to "/". Same container and port as the full site (deploy/deploy.sh).
+server {
+    listen 80;
+    server_name _;
+    server_tokens off;
+    root /usr/share/nginx/html;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_types text/css application/javascript image/svg+xml;
+
+    location = / {
+        add_header Cache-Control "no-cache";
+        try_files /landing/index.html =404;
+    }
+    location /landing/ {
+        add_header Cache-Control "public, max-age=3600";
+        try_files $uri =404;
+    }
+    location / {
+        return 302 /;
+    }
+}
