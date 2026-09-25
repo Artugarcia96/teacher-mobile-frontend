@@ -16,7 +16,11 @@ async function setStatus(page: Page, n: number, status: string) {
   await expect(row).toHaveAttribute('aria-label', new RegExp(`: ${status}`));
 }
 
-const closed = (page: Page) => expect(page.locator('.toast', { hasText: 'Lista pasada' })).toBeVisible();
+async function closed(page: Page) {
+  await expect(page.locator('.toast', { hasText: 'Lista pasada' })).toBeVisible();
+  // The sheet leaves its history entry with history.back(): a goto before that lands is aborted (net::ERR_ABORTED).
+  await expect.poll(() => page.evaluate(() => (window.history.state as { sheet?: string } | null)?.sheet ?? null)).toBeNull();
+}
 
 test('two devices taking the same list keep both absences', async ({ page, context }, info) => {
   const errors = trackErrors(page);
