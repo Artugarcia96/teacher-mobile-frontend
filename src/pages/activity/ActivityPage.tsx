@@ -1,9 +1,12 @@
-import { DotsThree, FileX, PencilSimple, Trash } from '@phosphor-icons/react';
+import { DotsThree, FileX, PencilSimple, Trash, UserMinus, Warning } from '@phosphor-icons/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useActivity } from '../../api/activities';
+import { useCourse } from '../../api/core';
 import { useActivityJob, useCorrection, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
+import ExamAbsencesSheet, { conflictsText } from '../../features/activities/ExamAbsencesSheet';
 import ActivityDataSheet from '../../features/papers/ActivityDataSheet';
 import { CollectStep } from '../../features/papers/CollectStep';
 import { ExamStep } from '../../features/papers/ExamStep';
@@ -15,7 +18,7 @@ import { ReviewMenu, ReviewStep } from '../../features/papers/ReviewStep';
 import '../../features/papers/papers.css';
 import { api } from '../../lib/api';
 import { formatGrade, KIND_LABEL, longDate, plural, TERM_LABEL } from '../../lib/format';
-import { Button, Dot, EmptyState, IconButton, Menu, Page, SkeletonList, useFeedback } from '../../ui';
+import { Button, Callout, Dot, EmptyState, IconButton, Menu, Page, SkeletonList, useFeedback } from '../../ui';
 import './activity.css';
 
 const STEP_INDEX = { prepare: 1, collect: 2, review: 3, done: 3 } as const;
@@ -86,6 +89,10 @@ export default function ActivityPage() {
   const qc = useQueryClient();
   const { toast, confirm } = useFeedback();
   const { data: c, isLoading, error } = useCorrection(activityId);
+  const detail = useActivity(activityId).data; // attendance of the exam day: who missed it, conflicts
+  const course = useCourse(courseId).data;
+  const [absences, setAbsences] = useState(false);
+  const absent = useMemo(() => new Set(detail?.sheet.filter((r) => r.pending_absent).map((r) => r.student.id)), [detail]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(() => (params.get('paso') === 'recoger' ? 2 : null)); // "Ordenar páginas"
   const pinned = useRef<number | null>(null);
@@ -150,6 +157,8 @@ export default function ActivityPage() {
   const onJob = (j: Job) => setJobId(j.id);
   const closeGenerate = () => setParams((p) => { p.delete('generar'); p.delete('unidad'); return p; }, { replace: true });
 
+  const missed = detail?.absent_students.length ?? 0;
+
   const deleteActivity = async () => {
     if (await confirm({ title: 'Eliminar la actividad', text: 'Se borran sus notas del cuaderno y las hojas escaneadas.', confirm: 'Eliminar', danger: true })) {
       remove.mutate();
@@ -168,16 +177,28 @@ export default function ActivityPage() {
         <span>{TERM_LABEL[a.term]}</span>
         <span>{isExam ? '' : `${KIND_LABEL[a.kind]} · `}sobre {formatGrade(a.max_score)}</span>
       </>}
-      actions={
+      actions={<>
+        {!!missed && (
+          <Button size="sm" variant="plain" icon={<UserMinus size={16} />} onClick={() => setAbsences(true)}
+            aria-label={`${missed === 1 ? 'Faltó 1 alumno' : `Faltaron ${missed} alumnos`}: programar repesca o poner NP`}>
+            {missed === 1 ? 'Faltó 1' : `Faltaron ${missed}`}
+          </Button>
+        )}
         <Menu trigger={(o) => <IconButton label="Más opciones" glass onClick={o}><DotsThree size={22} weight="bold" /></IconButton>}
           items={[
             { label: 'Editar datos', icon: <PencilSimple size={18} />, onSelect: () => setEditing(true) },
             { label: 'Eliminar actividad', icon: <Trash size={18} />, danger: true, separatorBefore: true, onSelect: deleteActivity },
           ]} />
-      }
+      </>}
     >
       {isExam ? (
         <div className="exam-steps">
+          {!!detail?.attendance_conflicts.length && (
+            <Callout tone="warn" icon={<Warning size={18} />}>
+              <b>¿Hoja mal asignada o lista mal pasada?</b> {conflictsText(detail.attendance_conflicts)}{' '}
+              <button type="button" className="link-btn" onClick={() => setAbsences(true)}>Revisar</button>
+            </Callout>
+          )}
           <ExamStep n={1} title="Preparar" summary={prepareSummary(c, manual)} open={current === 1} onOpen={() => setOpen(1)}>
             <PrepareStep correction={c} job={job} running={!!runningKind && PREPARE_JOBS.includes(runningKind)} onJob={onJob}
               onGenerate={() => setParams((p) => { p.set('generar', '1'); return p; }, { replace: true })}
@@ -192,16 +213,17 @@ export default function ActivityPage() {
           <ExamStep n={noDocument ? 2 : 3} title={noDocument ? 'Poner notas' : 'Revisar'} summary={reviewSummary(c)}
             open={current === 3} onOpen={() => setOpen(3)} action={noDocument ? undefined : <ReviewMenu correction={c} />}>
             {noDocument
-              ? <ManualGrades correction={c} />
-              : <ReviewStep correction={c} job={job} running={runningKind === 'suggest_grades'} onOpenCollect={() => setOpen(2)} />}
+              ? <ManualGrades correction={c} absent={absent} />
+              : <ReviewStep correction={c} job={job} running={runningKind === 'suggest_grades'} onOpenCollect={() => setOpen(2)} absent={absent} />}
           </ExamStep>
         </div>
       ) : (
-        <ManualGrades correction={c} />
+        <ManualGrades correction={c} absent={absent} />
       )}
       <GenerateExamSheet open={generateOpen} onClose={closeGenerate} activityId={a.id} courseId={a.course.id}
         initialUnitId={params.get('unidad')} onJob={onJob} />
       <ActivityDataSheet open={editing} onClose={() => setEditing(false)} activity={a} />
+      {course && <ExamAbsencesSheet activityId={absences ? a.id : null} onClose={() => setAbsences(false)} course={course} />}
     </Page>
   );
 }
