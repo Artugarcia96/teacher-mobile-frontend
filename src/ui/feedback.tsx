@@ -1,5 +1,5 @@
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
 import { Sheet } from './Sheet';
@@ -73,8 +73,18 @@ export function useFeedback(): Ctx {
 export interface MenuItem { label: string; icon?: ReactNode; onSelect: () => void; danger?: boolean; separatorBefore?: boolean }
 
 export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactNode; items: MenuItem[] }) {
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; right: number; above: number } | null>(null);
   const anchor = useRef<HTMLSpanElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+
+  // Keep the whole menu on screen: open upwards when there is no room below (rows near the bottom).
+  useLayoutEffect(() => {
+    const h = menu.current?.offsetHeight ?? 0;
+    if (!pos || !h || pos.top + h <= window.innerHeight - 8) return;
+    const up = pos.above - 6 - h;
+    const top = up >= 8 ? up : Math.max(8, window.innerHeight - 8 - h);
+    if (top !== pos.top) setPos({ ...pos, top });
+  }, [pos]);
 
   useEffect(() => {
     if (!pos) return;
@@ -88,10 +98,7 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
 
   const open = () => {
     const r = anchor.current?.getBoundingClientRect();
-    if (!r) return;
-    const height = items.length * 42 + 12;
-    const below = r.bottom + 6 + height <= window.innerHeight - 8;
-    setPos({ top: below ? r.bottom + 6 : Math.max(8, r.top - 6 - height), right: Math.max(8, window.innerWidth - r.right) });
+    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right), above: r.top });
   };
 
   return (
@@ -100,7 +107,7 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
       {pos && createPortal(
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 109 }} onClick={() => setPos(null)} />
-          <div className="menu" role="menu" style={{ top: pos.top, right: pos.right }}>
+          <div ref={menu} className="menu" role="menu" style={{ top: pos.top, right: pos.right }}>
             {items.map((it) => (
               <div key={it.label}>
                 {it.separatorBefore && <div className="menu__sep" />}

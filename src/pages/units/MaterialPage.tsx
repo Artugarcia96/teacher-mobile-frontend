@@ -1,16 +1,18 @@
-import { ClipboardText, DotsThree, DownloadSimple, PencilSimple, Trash, WarningCircle } from '@phosphor-icons/react';
+import { ClipboardText, DotsThree, DownloadSimple, PencilSimple, ShareNetwork, Trash, WarningCircle } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   downloadMaterial, useDeleteMaterial, useGenerateMaterial, useMaterial, useMaterialToActivity, usePatchMaterial, useRewriteBlock,
   type AssessmentDoc, type Block, type GenerateInput, type GenKind, type MaterialDetail, type NotesDoc, type SlideDeck,
 } from '../../api/units';
+import EditMaterialSheet from '../../features/materials/EditMaterialSheet';
+import ShareSheet from '../../features/materials/ShareSheet';
 import { kindLabel } from '../../features/units/kinds';
 import { fileUrl } from '../../lib/api';
 import { useToday } from '../../lib/auth';
 import { longDate, plural } from '../../lib/format';
 import {
-  AIBadge, Button, EmptyState, IconButton, Menu, Page, Segmented, Sheet, SkeletonList, Spinner, Switch, TextField, useFeedback, type MenuItem,
+  AIBadge, Button, EmptyState, IconButton, Menu, Page, Segmented, SkeletonList, Spinner, Switch, useFeedback, type MenuItem,
 } from '../../ui';
 import NotesView from './NotesView';
 import SlidesView from './SlidesView';
@@ -31,6 +33,7 @@ export default function MaterialPage() {
   const toActivity = useMaterialToActivity(materialId);
   const [busyBlock, setBusyBlock] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [solutions, setSolutions] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -50,7 +53,11 @@ export default function MaterialPage() {
   const eyebrow = <><span className="eyebrow">{kindLabel(m)}</span>{m.kind !== 'upload' && <AIBadge />}</>;
 
   const remove = async () => {
-    const ok = await confirm({ title: `¿Eliminar «${m.title}»?`, text: 'Se borrarán también sus archivos. No se puede deshacer.', confirm: 'Eliminar', danger: true });
+    const ok = await confirm({
+      title: `¿Eliminar «${m.title}»?`,
+      text: `Se borrarán también sus archivos.${m.shared ? ' El enlace para alumnos y su código QR dejarán de funcionar.' : ''} No se puede deshacer.`,
+      confirm: 'Eliminar', danger: true,
+    });
     if (!ok) return;
     try {
       await del.mutateAsync(m.id);
@@ -146,6 +153,7 @@ export default function MaterialPage() {
 
   const menu: MenuItem[] = [
     { label: 'Renombrar', icon: <PencilSimple size={18} />, onSelect: () => setRenaming(true) },
+    { label: 'Compartir con alumnos', icon: <ShareNetwork size={18} />, onSelect: () => setSharing(true) },
     ...(m.kind === 'worksheet' ? [{ label: 'Evaluar esta ficha', icon: <ClipboardText size={18} />, onSelect: evaluate }] : []),
     { label: 'Eliminar', icon: <Trash size={18} />, danger: true, separatorBefore: true, onSelect: remove },
   ];
@@ -195,15 +203,8 @@ export default function MaterialPage() {
       {m.kind === 'upload' && (
         <p className="muted">Este archivo se usa como base cuando creas materiales con IA en esta unidad.</p>
       )}
-      <RenameSheet open={renaming} onClose={() => setRenaming(false)} m={m} onSave={async (title) => {
-        try {
-          await patch.mutateAsync({ title });
-          toast('Nombre cambiado');
-          setRenaming(false);
-        } catch (e) {
-          toast((e as Error).message, { tone: 'error' });
-        }
-      }} saving={patch.isPending} />
+      {renaming && <EditMaterialSheet material={m} onClose={() => setRenaming(false)} />}
+      {sharing && <ShareSheet material={m} onClose={() => setSharing(false)} />}
     </Page>
   );
 }
@@ -216,17 +217,4 @@ function Subtitle({ m }: { m: MaterialDetail }) {
     return <span>{plural(items.length, 'ejercicio', 'ejercicios')} · con solucionario</span>;
   }
   return <span>{m.course.label}</span>;
-}
-
-function RenameSheet({ open, onClose, m, onSave, saving }: { open: boolean; onClose: () => void; m: MaterialDetail; onSave: (t: string) => void; saving: boolean }) {
-  const [title, setTitle] = useState(m.title);
-  const clean = title.trim();
-  return (
-    <Sheet open={open} onClose={onClose} title="Renombrar"
-      footer={<Button full disabled={!clean} loading={saving} onClick={() => onSave(clean)}>Guardar</Button>}>
-      <form onSubmit={(e) => { e.preventDefault(); if (clean) onSave(clean); }}>
-        <TextField label="Nombre" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
-      </form>
-    </Sheet>
-  );
 }

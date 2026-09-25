@@ -2,6 +2,7 @@ import { CheckCircle, Circle } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useGenerateMaterial, type Difficulty, type GenKind, type Material, type WorksheetKind } from '../../api/units';
 import { List, Row, RowIcon, Segmented, Sheet, Stepper, TextField, Button, useFeedback } from '../../ui';
+import { GroundingList } from '../materials/GroundingList';
 import { MaterialIcon } from './kinds';
 import './units.css';
 
@@ -56,7 +57,7 @@ function CreateMaterial({ onClose, unitId, notesId, onCreated }: CreateMaterialS
 
   return (
     <Sheet open onClose={onClose} title="Crear con IA"
-      subtitle="Usa el título de la unidad y los archivos que hayas subido. Es un borrador: podrás revisarlo y editarlo."
+      subtitle="La IA usa tus archivos y fotos de la unidad (no los enlaces). Es un borrador: podrás revisarlo y editarlo."
       footer={<Button full onClick={submit} loading={generate.isPending}>Crear</Button>}>
       <div className="form">
         <div tabIndex={-1} data-autofocus className="kind-list">
@@ -107,6 +108,8 @@ function CreateMaterial({ onClose, unitId, notesId, onCreated }: CreateMaterialS
             </div>
           </>
         )}
+
+        <GroundingList unitIds={[unitId]} what="el material" />
 
         <TextField label="Indicaciones (opcional)" value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={600}
           placeholder={kind === 'worksheet' ? 'Por ejemplo: problemas de la vida diaria' : 'Por ejemplo: más ejemplos de la vida diaria'} />

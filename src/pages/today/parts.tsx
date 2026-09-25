@@ -5,6 +5,7 @@ import {
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { EVENT_KIND_LABEL, type PendingItem, type Today, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
+import { MaterialChips } from '../../features/materials/MaterialChips';
 import { ordinals, parseDate, plural, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, Dot, List, Row, RowIcon } from '../../ui';
 
@@ -109,6 +110,7 @@ export function NowCard({ focus, today, onAttendance, onNote, onHomework, onClos
       {s.activities.length > 0 && (
         <div className="chip-row">{s.activities.map((a) => <Chip key={a.id} tone={a.kind === 'exam' ? 'info' : undefined}>{a.title}</Chip>)}</div>
       )}
+      <MaterialChips session={s} />
       <SessionPlan s={s} canCheck={canTake} onHomework={onHomework} />
       <div className="now-card__actions">
         {canTake && (s.attendance.taken
