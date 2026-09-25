@@ -19,8 +19,8 @@ export interface SessionLogInput {
 export type HomeworkStatus = 'done' | 'not_done' | 'partial';
 export interface HomeworkCheck {
   date: string; start: string; end?: string | null; homework?: string | null; checked: boolean;
-  /** absent = not in class that day (does not count). */
-  students: { student: StudentRef; status: HomeworkStatus; absent: boolean }[];
+  /** absent = not in class that day; new = joined the class after the homework was set. Neither counts. */
+  students: { student: StudentRef; status: HomeworkStatus; absent: boolean; new: boolean }[];
 }
 export interface HomeworkInput { date: string; start: string; homework?: string | null; marks: { student_id: string; status: HomeworkStatus }[] }
 

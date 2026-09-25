@@ -7,7 +7,7 @@ import type { CourseDetail } from '../../api/types';
 import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
 import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
 import { useAuth } from '../../lib/auth';
-import { longDate, plural, TERM_SHORT } from '../../lib/format';
+import { courseShortLabel, longDate, plural, TERM_SHORT } from '../../lib/format';
 import { Button, EmptyState, IconButton, List, Menu, Row, RowIcon, Section, Segmented, SkeletonList, useFeedback } from '../../ui';
 import './attendance-tab.css';
 
@@ -122,7 +122,7 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
       ) : body}
       {sheet && (
         <TakeAttendanceSheet open onClose={() => setSheet(null)} courseId={course.id} date={sheet.date} start={sheet.start}
-          label={course.label} room={course.room} />
+          label={courseShortLabel(course)} room={course.room} />
       )}
       <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
     </div>

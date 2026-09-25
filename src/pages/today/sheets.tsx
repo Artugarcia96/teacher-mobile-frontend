@@ -2,7 +2,7 @@
 import { ArrowCounterClockwise, BookOpen, CalendarX, FilePdf, FlagCheckered, ListChecks, NotePencil } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useCalendar, useCancelSession, useWatch, type TodaySession, type WatchItem } from '../../api/today';
-import { addDays, isoDate, longDate, parseDate } from '../../lib/format';
+import { addDays, isoDate, longDate, parseDate, roomLabel } from '../../lib/format';
 import { MaterialChips } from '../../features/materials/MaterialChips';
 import { fileUrl } from '../../lib/api';
 import { Button, Callout, List, MonthGrid, Row, RowIcon, Sheet, SkeletonList, TextField, useFeedback } from '../../ui';
@@ -27,7 +27,7 @@ function SessionBody({ s, today, onClose, onAttendance, onNote, onHomework, onCl
   const cancel = useCancelSession();
   const [noClass, setNoClass] = useState<string | null>(null);
   const started = s.status === 'past' || s.status === 'now';
-  const when = [longDate(s.date), `${s.start}–${s.end}`, s.room && `Aula ${s.room}`].filter(Boolean).join(' · ');
+  const when = [longDate(s.date), `${s.start}–${s.end}`, s.room && roomLabel(s.room)].filter(Boolean).join(' · ');
 
   const run = async (restore: boolean, note?: string) => {
     try {
@@ -66,7 +66,7 @@ function SessionBody({ s, today, onClose, onAttendance, onNote, onHomework, onCl
   return (
     <Sheet open onClose={onClose} title={s.course.label} subtitle={when}>
       <div className="form">
-        {s.guardia ? <Callout tone="accent"><b>Faltas · tarea:</b> {s.cancel_note}</Callout>
+        {s.guardia ? <Callout tone="accent"><b>Ausente · tarea:</b> {s.cancel_note}</Callout>
           : s.cancelled ? <Callout tone="warn">Sin clase{s.cancel_note ? ` · ${s.cancel_note}` : ''}</Callout>
             : (
               <>
@@ -86,18 +86,18 @@ function SessionBody({ s, today, onClose, onAttendance, onNote, onHomework, onCl
               sub={s.log ? s.log.next ? `Para la próxima: ${s.log.next}` : s.log.done : 'Qué habéis hecho, qué toca y deberes'} onClick={go(onCloseClass)} />
           )}
           {s.guardia_pdf && (
-            <Row lead={<RowIcon tone="accent"><FilePdf size={20} /></RowIcon>} title="Hoja de guardia (PDF)" sub="La que dejaste para jefatura de estudios"
+            <Row lead={<RowIcon tone="accent"><FilePdf size={20} /></RowIcon>} title="Hoja de guardia (PDF)" sub="Para jefatura de estudios"
               onClick={() => window.open(fileUrl(s.guardia_pdf), '_blank', 'noopener')} />
           )}
-          <Row lead={<RowIcon tone="accent"><NotePencil size={20} /></RowIcon>} title="Anotar" sub="Observación, incidencia, positivo o familia"
-            onClick={go(onNote)} />
+          <Row lead={<RowIcon tone="accent"><NotePencil size={20} /></RowIcon>} title="Anotar" onClick={go(onNote)} />
           <Row lead={<RowIcon><BookOpen size={20} /></RowIcon>} title="Abrir clase" to={`/clases/${s.course.id}`} />
         </List>
         {s.cancelled
           ? <Button variant="neutral" full icon={<ArrowCounterClockwise size={18} />} onClick={restore} loading={cancel.isPending}>
             {s.guardia ? 'Ya no falto' : 'Restaurar sesión'}
           </Button>
-          : <Button variant="neutral" full icon={<CalendarX size={18} />} onClick={() => setNoClass('')}>No hay clase</Button>}
+          // With its list taken the class did happen: its absences count.
+          : !s.attendance.taken && <Button variant="neutral" full icon={<CalendarX size={18} />} onClick={() => setNoClass('')}>No hay clase</Button>}
       </div>
     </Sheet>
   );

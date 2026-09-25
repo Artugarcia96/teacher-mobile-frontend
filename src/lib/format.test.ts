@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { courseShortLabel, formatAverage, formatProposal, formatScore, gradeTone, ordinals, sessionText } from './format';
+import { courseShortLabel, formatAverage, formatProposal, formatScore, gradeTone, ordinals, roomLabel, sessionText } from './format';
 
 describe('grade rules', () => {
   it('averages always one decimal, scores up to two, proposals integer', () => {
@@ -28,6 +28,10 @@ describe('ordinals', () => {
     expect(ordinals('1ªevaluación')).toBe('1.ª evaluación');
     expect(ordinals('2.º ESO B')).toBe('2.º ESO B');
     expect(courseShortLabel({ subject: 'Matemáticas', short: 'Mates', group: { name: '1º Bach B' } })).toBe('1.º Bach B · Mates');
+  });
+  it('names rooms without doubling the word', () => {
+    expect(roomLabel('204')).toBe('Aula 204');
+    expect(roomLabel('Lab. Biología')).toBe('Lab. Biología');
   });
 });
 

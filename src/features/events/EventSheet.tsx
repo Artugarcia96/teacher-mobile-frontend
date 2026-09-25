@@ -61,8 +61,8 @@ function EventSheetBody({ onClose, date, event }: EventSheetProps) {
     <Sheet open onClose={onClose} title={event ? 'Editar evento' : 'Añadir evento'}
       footer={<>
         {event && <Button variant="danger" onClick={del} loading={remove.isPending}>Eliminar</Button>}
-        <Button onClick={submit} loading={create.isPending || update.isPending} disabled={!!reason} title={reason ?? undefined}>
-          {event ? 'Guardar' : 'Añadir'}
+        <Button onClick={submit} loading={create.isPending || update.isPending} disabled={!!reason}>
+          {reason ?? (event ? 'Guardar' : 'Añadir')}
         </Button>
       </>}>
       <div className="form">

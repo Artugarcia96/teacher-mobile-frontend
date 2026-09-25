@@ -13,7 +13,7 @@ import AbsenceSheet from '../../features/session/AbsenceSheet';
 import CloseSessionSheet from '../../features/session/CloseSessionSheet';
 import HomeworkCheckSheet from '../../features/session/HomeworkCheckSheet';
 import { useToday } from '../../lib/auth';
-import { addDays, dayNumber, longDate, mondayOf, parseDate } from '../../lib/format';
+import { addDays, courseShortLabel, dayNumber, longDate, mondayOf, parseDate } from '../../lib/format';
 import { Button, EmptyState, IconButton, Menu, Page, Section, Skeleton, SkeletonList, WeekStrip } from '../../ui';
 import { Agenda, dayNeedsAttention, NowCard, PendingList, pickFocus, WatchRows } from './parts';
 import { MonthSheet, nextMonday, SessionSheet, WatchSheet } from './sheets';
@@ -31,9 +31,9 @@ function dayTitle(date: string, today: string): string {
   return `${WEEKDAY[parseDate(date).getDay()]} ${dayNumber(date)}`;
 }
 
-/** One session, as the session sheets need it. */
+/** One session, as the session sheets need it (the label group first, on one line). */
 type Target = { courseId: string; date: string; start: string; label: string; room?: string | null };
-const target = (s: TodaySession): Target => ({ courseId: s.course.id, date: s.date, start: s.start, label: s.course.label, room: s.room });
+const target = (s: TodaySession): Target => ({ courseId: s.course.id, date: s.date, start: s.start, label: courseShortLabel(s.course), room: s.room });
 
 export default function TodayPage() {
   const today = useToday();
@@ -67,16 +67,18 @@ export default function TodayPage() {
   const marked = new Set(week.data?.days.filter(dayNeedsAttention).map((d) => d.date));
   const openAttendance = (s: TodaySession) => setAttendance(target(s));
   const openPending = (p: PendingItem) => {
-    if (p.kind === 'review' && p.activity_id) navigate(`/clases/${p.course_id}/actividades/${p.activity_id}`);
+    // Without AI drafts, what is left are sheets or pages to place: straight to Recoger.
+    if (p.kind === 'review' && p.activity_id) navigate(`/clases/${p.course_id}/actividades/${p.activity_id}${p.count ? '' : '?paso=recoger'}`);
     else if (p.kind === 'grades') navigate(`/clases/${p.course_id}/cuaderno`);
     else if (p.kind === 'comments') navigate(p.course_id ? `/clases/${p.course_id}/evaluacion/${p.term ?? 1}` : '/evaluar');
     else if (p.kind === 'attendance' && p.course_id && p.date && p.start) {
       const c = courses.data?.find((x) => x.id === p.course_id);
-      setAttendance({ courseId: p.course_id, date: p.date, start: p.start, label: c?.label ?? p.title, room: c?.room });
+      setAttendance({ courseId: p.course_id, date: p.date, start: p.start, label: c ? courseShortLabel(c) : p.title, room: c?.room });
     }
   };
 
   const d = day.data;
+  const hasCourses = (courses.data?.length ?? 1) > 0;
   const title = dayTitle(date, today);
   const subtitle = d
     ? [longDate(date), d.lective ? `${d.term_label}${d.week ? `, semana ${d.week}` : ''}` : d.holiday].filter(Boolean).join(' · ')
@@ -113,19 +115,18 @@ export default function TodayPage() {
   } else {
     const weekend = parseDate(date).getDay() % 6 === 0;
     const focus = pickFocus(d, today);
-    const hasCourses = (courses.data?.length ?? 1) > 0;
     let empty = null;
     if (!d.sessions.length) {
-      if (weekend) {
+      if (!hasCourses) {
+        empty = <EmptyState icon={<CalendarBlank size={24} />} title="Aún no tienes clases" text="Crea tu primera clase con su horario y aparecerá aquí."
+          action={<Button onClick={() => navigate('/clases')}>Crear clase</Button>} />;
+      } else if (weekend) {
         const mon = nextMonday(date);
         empty = <EmptyState icon={<Sun size={24} />} title="Fin de semana" text="No hay clases."
           action={<Button variant="tinted" onClick={() => go(mon)}>Ver el lunes {dayNumber(mon)}</Button>} />;
       } else if (!d.lective) {
         empty = <EmptyState icon={<Sun size={24} />} title={`Sin clases · ${d.holiday ?? 'día no lectivo'}`} text="Día no lectivo en tu calendario escolar."
           action={<Button variant="tinted" onClick={() => go(today)}>Volver a hoy</Button>} />;
-      } else if (!hasCourses) {
-        empty = <EmptyState icon={<CalendarBlank size={24} />} title="Aún no tienes clases" text="Crea tu primera clase con su horario y aparecerá aquí."
-          action={<Button onClick={() => navigate('/clases')}>Crear clase</Button>} />;
       } else {
         empty = <EmptyState icon={<CalendarBlank size={24} />} title="Sin clases este día"
           action={date !== today ? <Button variant="tinted" onClick={() => go(today)}>Volver a hoy</Button> : undefined} />;
@@ -151,13 +152,14 @@ export default function TodayPage() {
   const watchMore = watchTotal > Math.min(watch.length, WATCH_VISIBLE);
   const teaching = d?.sessions.filter((s) => !s.cancelled) ?? [];
   const others = watchTotal > 0 ? `Hay ${watchTotal} en otras clases.` : undefined;
-  const watchEmpty = !d?.sessions.length ? { title: 'Este día no tienes clases', sub: watchTotal > 0 ? `Hay ${watchTotal} en tus clases.` : undefined }
-    : !teaching.length ? { title: d.sessions.some((s) => s.guardia) ? 'Este día faltas' : 'Este día no tienes clases', sub: others }
-      : others ? { title: 'Nadie en las clases de este día', sub: others }
-        : { title: 'Nadie a vigilar', sub: 'Nada reciente en tus clases.' };
+  // A day without classes says so once, in the main card: A vigilar keeps only «Ver todos».
+  const noSessions = !d?.sessions.length;
+  const watchEmpty = !teaching.length ? { title: d?.sessions.some((s) => s.guardia) ? 'Este día no estás' : 'Este día no tienes clases', sub: others }
+    : others ? { title: 'Nadie en las clases de este día', sub: others }
+      : { title: 'Nadie a vigilar', sub: 'Nada reciente en tus clases.' };
   const right = day.isLoading ? (
     <div className="today-col"><SkeletonList rows={3} /><SkeletonList rows={4} /></div>
-  ) : d ? (
+  ) : d && hasCourses ? (
     <div className="today-col">
       <Section title={d.is_today ? 'Pendiente' : 'Pendiente de hoy'}
         action={pending.length > PENDING_VISIBLE && (
@@ -167,10 +169,12 @@ export default function TodayPage() {
         )}>
         <PendingList items={pendingAll ? pending : pending.slice(0, PENDING_VISIBLE)} onOpen={openPending} />
       </Section>
-      <Section title="A vigilar"
-        action={watchMore && <button type="button" className="section__action" onClick={() => setWatchAll(true)}>Ver todos ({d.watch_total})</button>}>
-        <WatchRows items={watch.slice(0, WATCH_VISIBLE)} onOpen={setWatchItem} empty={watchEmpty} />
-      </Section>
+      {!(noSessions && !watchTotal) && (
+        <Section title="A vigilar"
+          action={watchMore && <button type="button" className="section__action" onClick={() => setWatchAll(true)}>Ver todos ({d.watch_total})</button>}>
+          {!noSessions && <WatchRows items={watch.slice(0, WATCH_VISIBLE)} onOpen={setWatchItem} empty={watchEmpty} />}
+        </Section>
+      )}
     </div>
   ) : null;
 

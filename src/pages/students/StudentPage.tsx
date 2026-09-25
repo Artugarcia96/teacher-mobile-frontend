@@ -296,7 +296,7 @@ export default function StudentPage() {
       </div>
 
       <QuickNoteSheet open={noting} onClose={() => setNoting(false)} studentIds={[s.id]}
-        courseId={single ? f.courses[0].course.id : undefined} />
+        courseIds={f.courses.map((c) => c.course.id)} />
       <BriefSheet open={briefing} onClose={() => setBriefing(false)} studentId={s.id} name={s.name} />
       <EditStudentSheet open={editing} onClose={() => setEditing(false)} student={s} notesText={f.notes_text}
         acsAllowed={!f.groups.length || f.groups.some((g) => g.stage === 'primaria' || g.stage === 'eso')} />

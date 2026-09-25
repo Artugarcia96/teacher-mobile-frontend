@@ -1,12 +1,12 @@
 /** «Voy a faltar»: elegir días y sesiones, el motivo y la tarea de cada sesión (por defecto lo que planeó el último cierre de
- *  clase —«Toca» y deberes— y, si hay, un material de la unidad). Resultado: las sesiones quedan como «Faltas» en la agenda
+ *  clase —«Toca» y deberes— y, si hay, un material de la unidad). Resultado: las sesiones quedan como «Ausente» en la agenda
  *  y un PDF (hoja de guardia) para jefatura de estudios. */
 import { CalendarX, FilePdf } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAbsenceSessions, useCreateAbsence, type AbsenceSession } from '../../api/sessions';
 import { fileUrl } from '../../lib/api';
 import { useToday } from '../../lib/auth';
-import { plural, shortDate, weekdayShort } from '../../lib/format';
+import { plural, roomLabel, shortDate, weekdayShort } from '../../lib/format';
 import { Button, Chip, DateField, Dot, EmptyState, List, Row, Section, Sheet, SkeletonList, Switch, TextArea, TextField, useFeedback } from '../../ui';
 import './session.css';
 
@@ -48,6 +48,7 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
   }, [sessions]);
 
   const set = (k: string, patch: Partial<Choice>) => setChoices((c) => ({ ...c, [k]: { ...c[k], ...patch } }));
+  const dirty = !!reason.trim() || sessions.some((s) => choices[key(s)] && choices[key(s)].task !== (s.task ?? ''));
   const chosen = sessions.filter((s) => choices[key(s)]?.on);
   const rangeError = range.from < today ? 'Elige un día a partir de hoy' : range.to < range.from ? 'La fecha final debe ser posterior' : null;
   const disabledReason = rangeError ?? (!chosen.length ? 'Elige al menos una sesión'
@@ -71,16 +72,16 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
     return (
       <Sheet open side onClose={onClose} title="Voy a faltar">
         <EmptyState icon={<FilePdf size={24} />} title={`${plural(pdf.count, 'sesión', 'sesiones')} con hoja de guardia`}
-          text="Imprime el PDF y déjalo en jefatura de estudios. En tu agenda esas sesiones aparecen como «Faltas» y desde ellas puedes volver a descargarlo."
+          text="Imprime el PDF y déjalo en jefatura de estudios. En tu agenda esas sesiones aparecen como «Ausente» y desde ellas puedes volver a descargarlo."
           action={<a className="btn btn--primary" href={fileUrl(pdf.url)} target="_blank" rel="noreferrer"><span>Descargar PDF</span></a>} />
       </Sheet>
     );
   }
 
   return (
-    <Sheet open side size="large" onClose={onClose} title="Voy a faltar" subtitle="Deja la tarea de cada clase para el profesorado de guardia."
-      footer={<Button full onClick={submit} loading={create.isPending} disabled={!!disabledReason} title={disabledReason ?? undefined}>
-        {chosen.length ? `Crear hoja de guardia (${chosen.length})` : 'Crear hoja de guardia'}
+    <Sheet open side size="large" onClose={onClose} dirty={dirty} title="Voy a faltar" subtitle="Deja la tarea de cada clase para el profesorado de guardia."
+      footer={<Button full onClick={submit} loading={create.isPending} disabled={!!disabledReason}>
+        {disabledReason ?? `Crear hoja de guardia (${chosen.length})`}
       </Button>}>
       <div className="form">
         <div className="form-row">
@@ -104,7 +105,7 @@ function AbsenceBody({ onClose, date }: AbsenceSheetProps) {
                 return (
                   <List key={key(s)}>
                     <Row lead={<Dot color={s.course.color} large />} title={s.course.label} wrapSub
-                      sub={[`${weekdayShort(s.date)} ${shortDate(s.date)}, ${s.start}–${s.end}`, s.room && `Aula ${s.room}`, s.guardia && 'ya con hoja de guardia']
+                      sub={[`${weekdayShort(s.date)} ${shortDate(s.date)}, ${s.start}–${s.end}`, s.room && roomLabel(s.room), s.guardia && 'ya con hoja de guardia']
                         .filter(Boolean).join(' · ')}
                       trail={<Switch label={`Incluir ${s.course.label} ${s.start}`} checked={c.on} onChange={(on) => set(key(s), { on })} />} />
                     {c.on && (

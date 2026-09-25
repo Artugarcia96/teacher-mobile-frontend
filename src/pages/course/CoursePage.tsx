@@ -7,7 +7,7 @@ import { CourseMenuProvider, useCourseMenuState } from '../../features/course/Co
 import CourseSettingsSheet from '../../features/course/CourseSettingsSheet';
 import { ApiError } from '../../lib/api';
 import { useAuth, useToday } from '../../lib/auth';
-import { courseLabel, isLive, ordinals, plural, sessionText } from '../../lib/format';
+import { courseShortLabel, isLive, ordinals, plural, roomLabel, sessionText } from '../../lib/format';
 import { Button, Dot, EmptyState, IconButton, Menu, Page, Segmented, SkeletonList, type MenuItem } from '../../ui';
 import AttendanceTab from './AttendanceTab';
 import GradebookTab from './GradebookTab';
@@ -56,9 +56,9 @@ export default function CoursePage() {
   const now = me?.now;
   const canTake = isLive(next, today, now) && !next?.taken && course.student_count > 0;
   const when = next ? sessionText(next, today, now) : course.schedule.length ? null : 'Sin horario';
-  // The session may be in another room than the class's usual one ("Lab. 1"); a bare number reads "Aula 204".
+  // The session may be in another room than the class's usual one ("Lab. 1").
   const room = next?.room ?? course.room;
-  const where = room && (/^\d/.test(room) ? `Aula ${room}` : room);
+  const where = room && roomLabel(room);
   const facts = [plural(course.student_count, 'alumno', 'alumnos'), where, when].filter(Boolean).join(' · ');
 
   const items: MenuItem[] = [
@@ -101,7 +101,7 @@ export default function CoursePage() {
         <CourseSettingsSheet open={settings} onClose={() => setSettings(false)} course={course} />
         {taking && next && (
           <TakeAttendanceSheet open onClose={() => setTaking(false)} courseId={course.id} date={next.date} start={next.start}
-            label={courseLabel(course)} />
+            label={courseShortLabel(course)} />
         )}
       </Page>
     </CourseMenuProvider>

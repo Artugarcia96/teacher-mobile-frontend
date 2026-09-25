@@ -18,7 +18,8 @@ export interface InboxEvaluation {
   comments_unreviewed: number;
 }
 export interface Inbox {
-  to_review: { activity: ActivityRef; course: CourseRef; suggested: number; unmatched: number; remaining: number }[];
+  /** unread: scanned pages the AI could not read; unplaced: other pages waiting to be placed. */
+  to_review: { activity: ActivityRef; course: CourseRef; suggested: number; unmatched: number; unread: number; unplaced: number; remaining: number }[];
   to_grade: { activity: ActivityRef; course: CourseRef; missing: number; pending_absent: number }[];
   /** Same order as the class list. */
   evaluations: InboxEvaluation[];

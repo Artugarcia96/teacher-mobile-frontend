@@ -163,6 +163,16 @@ export function useAutosave<T>(save: (payload: T) => Promise<unknown>, keepalive
   return { state, schedule, flush, isDirty: () => timer.current !== null || pending.current !== null || inflight.current !== null };
 }
 
-export const SAVE_LABEL: Record<SaveState, string> = {
+const SAVE_LABEL: Record<SaveState, string> = {
   idle: '', saving: 'Guardando…', saved: 'Guardado', error: 'No se ha podido guardar',
 };
+
+/** First line of a roster sheet's header: when (or what) and the save state, always in its own space on the same line. */
+export function RosterMeta({ text, state }: { text: string; state: SaveState }) {
+  return (
+    <span className="roster-head__meta">
+      <span className="roster-head__text">{text}</span>
+      <span className={state === 'error' ? 'roster-head__save roster-head__err' : 'roster-head__save faint'} aria-live="polite">{SAVE_LABEL[state]}</span>
+    </span>
+  );
+}

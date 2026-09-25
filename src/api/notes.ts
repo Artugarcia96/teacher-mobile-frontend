@@ -21,6 +21,8 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['notes'] });
   qc.invalidateQueries({ queryKey: ['student'] });
   qc.invalidateQueries({ queryKey: ['today'] });
+  qc.invalidateQueries({ queryKey: ['watch'] });
+  qc.invalidateQueries({ queryKey: ['course'] });
 }
 
 export function useCreateNote() {

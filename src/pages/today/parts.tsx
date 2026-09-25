@@ -4,9 +4,9 @@ import {
 } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { EVENT_KIND_LABEL, type PendingItem, type Today, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
+import type { PendingItem, Today, TodayEvent, TodaySession, WatchItem } from '../../api/today';
 import { MaterialChips } from '../../features/materials/MaterialChips';
-import { ordinals, parseDate, plural, shortDate } from '../../lib/format';
+import { courseShortLabel, ordinals, parseDate, plural, roomLabel, shortDate } from '../../lib/format';
 import { Button, Callout, Chip, Dot, List, Row, RowIcon } from '../../ui';
 
 // ── Ahora / Acaba de terminar / Siguiente / Primera clase ──────────────────
@@ -112,30 +112,33 @@ export function NowCard({ focus, today, onAttendance, onNote, onHomework, onClos
   onHomework: (s: TodaySession) => void; onClose: (s: TodaySession) => void;
 }) {
   const s = focus.session;
-  const canTake = s.date <= today;
-  const meta = [s.room && `Aula ${s.room}`, `${s.start}–${s.end}`, s.unit].filter(Boolean).join(' · ');
+  // A future day only informs: its plan and materials, no actions yet.
+  const future = s.date > today;
+  const meta = [s.room && roomLabel(s.room), `${s.start}–${s.end}`, s.unit].filter(Boolean).join(' · ');
   return (
     <section className="card now-card" aria-label={focus.eyebrow}>
       <div className="now-card__eyebrow eyebrow">{focus.eyebrow}</div>
       <Link to={`/clases/${s.course.id}`} className="now-card__title">
         <Dot color={s.course.color} large />
-        <span>{s.course.label}</span>
+        <span>{courseShortLabel(s.course)}</span>
       </Link>
       <div className="now-card__meta">{meta}</div>
       <SessionActivities session={s} />
       <MaterialChips session={s} />
-      <SessionPlan s={s} canCheck={canTake} onHomework={onHomework} />
-      <div className="now-card__actions">
-        {canTake && (s.attendance.taken
-          ? <Button variant="tinted" icon={<Check size={18} weight="bold" />} onClick={() => onAttendance(s)} aria-label={`${attendanceLabel(s.attendance)}. Editar lista`}>{attendanceLabel(s.attendance)}</Button>
-          : <Button icon={<ListChecks size={18} />} onClick={() => onAttendance(s)}>Pasar lista</Button>)}
-        <Button variant="tinted" icon={<NotePencil size={18} />} onClick={() => onNote(s)}>Anotar</Button>
-        {focus.closable && (
-          <Button variant="neutral" icon={s.log ? <Check size={18} weight="bold" /> : <FlagCheckered size={18} />} onClick={() => onClose(s)}>
-            {s.log ? 'Clase cerrada' : 'Cerrar clase'}
-          </Button>
-        )}
-      </div>
+      <SessionPlan s={s} canCheck={!future} onHomework={onHomework} />
+      {!future && (
+        <div className="now-card__actions">
+          {s.attendance.taken
+            ? <Button variant="tinted" icon={<Check size={18} weight="bold" />} onClick={() => onAttendance(s)} aria-label={`${attendanceLabel(s.attendance)}. Editar lista`}>{attendanceLabel(s.attendance)}</Button>
+            : <Button icon={<ListChecks size={18} />} onClick={() => onAttendance(s)}>Pasar lista</Button>}
+          <Button variant="tinted" icon={<NotePencil size={18} />} onClick={() => onNote(s)}>Anotar</Button>
+          {focus.closable && (
+            <Button variant="neutral" icon={s.log ? <Check size={18} weight="bold" /> : <FlagCheckered size={18} />} onClick={() => onClose(s)}>
+              {s.log ? 'Clase cerrada' : 'Cerrar clase'}
+            </Button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -153,10 +156,10 @@ function TimeCol({ start, end, now }: { start?: string | null; end?: string | nu
 
 function sessionChips(s: TodaySession): ReactNode[] {
   const chips: ReactNode[] = [];
-  if (s.guardia) chips.push(<Chip key="c" tone="info">Faltas</Chip>);
+  if (s.guardia) chips.push(<Chip key="c" tone="info">Ausente</Chip>);
   else if (s.cancelled) chips.push(<Chip key="c"><span className="agenda-chip-text">{s.cancel_note ? `Sin clase · ${s.cancel_note}` : 'Sin clase'}</span></Chip>);
   else if (s.attendance.taken) chips.push(<Chip key="a" tone="ok" icon={<Check size={12} weight="bold" />}>Lista pasada</Chip>);
-  else if (s.status === 'past' || s.status === 'now') chips.push(<Chip key="a" tone="warn">Lista sin pasar</Chip>);
+  else if (s.pending) chips.push(<Chip key="a" tone="warn">Lista sin pasar</Chip>);
   if (!s.cancelled && s.activities.some((a) => a.kind === 'exam')) chips.push(<Chip key="e" tone="info">Examen</Chip>);
   return chips;
 }
@@ -166,7 +169,7 @@ export function Agenda({ day, onSession, onEvent }: {
 }) {
   const entries = [
     ...day.sessions.map((s) => {
-      const sub = [s.room && `Aula ${s.room}`, s.unit].filter(Boolean).join(' · ');
+      const sub = [s.room && roomLabel(s.room), s.unit].filter(Boolean).join(' · ');
       const chips = sessionChips(s);
       return {
         key: `s-${s.course.id}-${s.start}`, start: s.start,
@@ -174,7 +177,7 @@ export function Agenda({ day, onSession, onEvent }: {
           // The chips only say the state; the row opens the session, where each action lives.
           <Row key={`s-${s.course.id}-${s.start}`} onClick={() => onSession(s)} chevron={false} muted={s.cancelled}
             lead={<TimeCol start={s.start} end={s.end} now={s.status === 'now' && !s.cancelled} />}
-            title={<><Dot color={s.course.color} /><span>{s.course.label}</span></>}
+            title={<><Dot color={s.course.color} /><span>{courseShortLabel(s.course)}</span></>}
             sub={<span className="agenda-sub">
               <span className="agenda-sub__text">{sub}</span>
               {chips.length > 0 && <span className="agenda-sub__chips">{chips}</span>}
@@ -188,7 +191,7 @@ export function Agenda({ day, onSession, onEvent }: {
         <Row key={`e-${e.id}`} onClick={() => onEvent(e)} chevron={false}
           lead={<TimeCol start={e.start} end={e.end} />}
           title={<><CalendarBlank size={16} className="agenda-evicon" /><span>{e.title}</span></>}
-          sub={[EVENT_KIND_LABEL[e.kind], e.course?.label].filter(Boolean).join(' · ')}
+          sub={e.course?.label}
         />
       ),
     })),
