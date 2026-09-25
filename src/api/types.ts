@@ -5,8 +5,8 @@ import type { WatchItem } from './today';
 
 /** `region` = código de comunidad autónoma ("MD"). */
 export interface Teacher { id: string; email: string; name: string; school?: string | null; region?: string | null }
-/** Comunidad autónoma y su plataforma de notas. */
-export interface Region { code: string; name: string; short: string; platform?: string | null }
+/** Comunidad autónoma. */
+export interface Region { code: string; name: string; short: string }
 export interface Term { n: number; start: string; end: string }
 export interface Holiday { start: string; end: string; label: string }
 /** A period of the school's timetable: ["08:30", "09:25"]. */

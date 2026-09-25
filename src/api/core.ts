@@ -52,7 +52,7 @@ export function usePatchMe() {
 export function useSaveSchoolYear() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Omit<SchoolYear, 'id' | 'current_term' | 'start_date' | 'end_date' | 'periods'>) => api.put<SchoolYear>('/school-year', body),
+    mutationFn: (body: Pick<SchoolYear, 'terms' | 'holidays'>) => api.put<SchoolYear>('/school-year', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
   });
 }
@@ -181,7 +181,7 @@ export function useEditStudentBrief(id: string) {
   return (text: string) => qc.setQueryData<StudentBrief>(keys.brief(id), { text, edited: true });
 }
 
-/** Comunidades autónomas with their grades platform (static list). */
+/** Comunidades autónomas (static list). */
 export function useRegions() {
   return useQuery({ queryKey: keys.regions, queryFn: () => api.get<Region[]>('/regions'), staleTime: Infinity });
 }
