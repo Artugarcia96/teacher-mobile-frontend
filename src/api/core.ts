@@ -45,7 +45,7 @@ export function usePatchMe() {
 export function useSaveSchoolYear() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Omit<SchoolYear, 'id' | 'current_term'>) => api.put<SchoolYear>('/school-year', body),
+    mutationFn: (body: Omit<SchoolYear, 'id' | 'current_term' | 'start_date' | 'end_date'>) => api.put<SchoolYear>('/school-year', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
   });
 }
