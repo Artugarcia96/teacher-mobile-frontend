@@ -103,6 +103,32 @@ export const api = {
   upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
 };
 
+/** POST a FormData reporting upload progress (0-1). fetch cannot report it, so this one uses XMLHttpRequest;
+ *  same auth, refresh and Spanish errors as `api.upload`. */
+export function uploadWithProgress<T>(path: string, form: FormData, onProgress: (fraction: number) => void, retry = true): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE}/api${path}`);
+    const t = tokens.get();
+    if (t) xhr.setRequestHeader('Authorization', `Bearer ${t.access_token}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total) onProgress(e.loaded / e.total); };
+    xhr.onerror = () => reject(new ApiError(0, 'Sin conexión con el servidor. Revisa tu conexión.'));
+    xhr.onload = async () => {
+      if (xhr.status === 401 && retry && t) {
+        if (await refresh()) { uploadWithProgress<T>(path, form, onProgress, false).then(resolve, reject); return; }
+        tokens.set(null);
+        onUnauthorized();
+      }
+      const response = new Response(xhr.responseText || null, {
+        status: xhr.status, headers: { 'content-type': xhr.getResponseHeader('content-type') ?? '' },
+      });
+      if (!response.ok) { reject(await toError(response)); return; }
+      try { resolve(JSON.parse(xhr.responseText) as T); } catch { resolve(undefined as T); }
+    };
+    xhr.send(form);
+  });
+}
+
 /** Absolute URL for signed file links returned by the API (`*_url` fields). */
 export function fileUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;

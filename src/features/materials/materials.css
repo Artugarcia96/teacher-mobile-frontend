@@ -1,0 +1,75 @@
+/* Materials (unit list, library, share, photo pages, Hoy chips) — layout; colors only through tokens. */
+.mrow { position: relative; }
+.mrow + .mrow::before, .mrow + .row::before, .row + .mrow::before {
+  content: ''; position: absolute; z-index: 1; top: 0; right: 0; left: var(--row-inset, 64px); height: 0.5px; background: var(--line);
+}
+.mrow .row { padding-right: 8px; }
+.mrow__gap { display: block; width: 36px; }
+.mrow__menu { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); }
+.mrow__sub { display: flex; align-items: center; gap: 4px 8px; min-width: 0; }
+.mrow__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mrow__reading { color: var(--accent); font-weight: 500; flex: none; }
+.mrow__error { color: var(--danger); }
+.mrow__partial { color: var(--warn); flex: none; }
+.mrow__sub .mrow__error { flex: none; }
+.mrow__shared { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-weight: 500; flex: none; }
+@media (max-width: 767px) { .mrow__shared-label { display: none; } }
+.mrow__sub .ai-badge { flex: none; }
+
+/* Move / copy */
+.place-what { font-weight: 600; }
+.place-hint { font-size: var(--fs-sub); }
+
+/* Share */
+.share-wait { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 0; color: var(--ink-2); }
+.share { display: grid; justify-items: center; gap: 12px; text-align: center; padding-top: 4px; }
+.share__qr { width: min(240px, 70vw); aspect-ratio: 1; image-rendering: pixelated; border-radius: var(--r-row); box-shadow: 0 0 0 1px var(--line); }
+.share__url { font-weight: 600; font-size: var(--fs-body); color: var(--accent); word-break: break-all; }
+.share__text { font-size: var(--fs-sub); max-width: 420px; }
+.share__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; }
+.share__actions > .btn { flex: 1 1 150px; }
+.share .share__stop { color: var(--danger); }
+.share .share__stop:hover:not(:disabled) { background: var(--danger-soft); }
+
+/* Projector view */
+.project { display: grid; justify-items: center; gap: 2.2vh; text-align: center; width: 100%; }
+.project__title { font-family: var(--font-display); font-size: clamp(28px, 5vh, 56px); line-height: 1.1; max-width: 90vw; }
+.project__qr { width: min(62vh, 80vw); aspect-ratio: 1; image-rendering: pixelated; }
+.project__url { font-size: clamp(20px, 4vh, 44px); font-weight: 600; font-variant-numeric: tabular-nums; word-break: break-all; }
+.project__hint { color: var(--ink-2); font-size: clamp(15px, 2.2vh, 22px); }
+
+/* Photo pages */
+.pages__hint { font-size: var(--fs-sub); }
+.pages__add { display: flex; flex-wrap: wrap; gap: 8px; }
+.pages__add > .btn { flex: 1 1 150px; }
+.pages__footer { display: grid; gap: 10px; width: 100%; }
+.pages__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.pages__item { position: relative; aspect-ratio: 3 / 4; border-radius: var(--r-ctl); overflow: hidden; background: var(--fill); box-shadow: 0 0 0 1px var(--line); }
+.pages__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pages__n { position: absolute; left: 6px; bottom: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--r-pill); display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--paper); color: var(--ink); box-shadow: var(--e1); }
+.pages__remove { position: absolute; top: 4px; right: 4px; }
+
+/* Hoy: materials of the current unit */
+/* Bleeds to the card edges (.now-card padding 18px) and fades out on the right when there are more chips.
+   Chips are 36 px with a 4 px hit slop above and below (44 px touch area), inside the row's own padding. */
+.chip-row.now-materials {
+  flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -4px -18px; padding: 4px 18px;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent);
+}
+.now-materials::-webkit-scrollbar { display: none; }
+.now-materials .chip { max-width: 240px; flex: none; }
+.now-materials .chip span { overflow: hidden; text-overflow: ellipsis; }
+.now-materials button.chip { position: relative; height: 36px; padding: 0 12px; font-size: var(--fs-footnote); }
+.now-materials button.chip::before { content: ''; position: absolute; inset: -4px 0; }
+
+/* What the AI reads (Crear con IA, Generar examen) */
+.grounding { gap: 8px; }
+.grounding__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.grounding__item { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-sub); }
+.grounding__item > svg { flex: none; color: var(--ink-2); }
+.grounding__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grounding__usage { flex: none; color: var(--warn); font-size: var(--fs-footnote); }
+.grounding__item--out .grounding__title { color: var(--ink-3); }
+.grounding__more { color: var(--ink-3); font-size: var(--fs-footnote); padding-left: 24px; }
+.share-intro p { margin: 0; }

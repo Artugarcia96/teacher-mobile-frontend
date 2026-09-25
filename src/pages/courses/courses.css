@@ -15,3 +15,4 @@
   .list.courses__list > .row { background: var(--paper); border-radius: var(--r-card); box-shadow: var(--e1); min-height: 72px; padding: 14px 18px; }
   .list.courses__list > .row::before { display: none; }
 }
+.courses__views { max-width: 360px; }

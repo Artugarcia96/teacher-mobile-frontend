@@ -8,7 +8,8 @@ import NewCourseSheet from '../../features/course/NewCourseSheet';
 import { SearchResults } from '../../features/students/StudentSearch';
 import { useAuth, useToday } from '../../lib/auth';
 import { courseLabel, plural, sessionText } from '../../lib/format';
-import { Button, Chip, Dot, EmptyState, List, Page, Row, SearchField, SkeletonList, useFeedback } from '../../ui';
+import { Button, Chip, Dot, EmptyState, List, Page, Row, SearchField, Segmented, SkeletonList, useFeedback } from '../../ui';
+import LibraryView from './LibraryView';
 import './courses.css';
 
 interface Pending { lists: number; review: number }
@@ -62,7 +63,8 @@ function usePending(today: string, enabled: boolean): Map<string, Pending> {
   }, [day.data]);
 }
 
-/** /clases — search (students and classes), the classes, archived ones last. ?nueva=1 opens the new-class sheet. */
+/** /clases — search (students and classes), the classes, archived ones last; or (?vista=materiales) all the teacher's
+ * materials. ?nueva=1 opens the new-class sheet. */
 export default function CoursesPage() {
   const { data, isLoading, error, refetch } = useCourses();
   const { me } = useAuth();
@@ -72,9 +74,20 @@ export default function CoursesPage() {
   const [q, setQ] = useState('');
   const creating = params.get('nueva') === '1';
   const pending = usePending(today, !!data?.length);
+  const view = params.get('vista') === 'materiales' ? 'materials' : 'classes';
 
   const openNew = () => setParams({ nueva: '1' });
   const closeNew = () => setParams({}, { replace: true });
+  const toolbar = (
+    <div className="courses__views">
+      <Segmented full label="Vista" value={view} onChange={(v) => setParams(v === 'materials' ? { vista: 'materiales' } : {}, { replace: true })}
+        options={[{ value: 'classes', label: 'Clases' }, { value: 'materials', label: 'Materiales' }]} />
+    </div>
+  );
+
+  if (view === 'materials') {
+    return <Page title="Materiales" toolbar={toolbar}><LibraryView /></Page>;
+  }
 
   let body;
   if (isLoading) body = <SkeletonList rows={4} />;
@@ -123,7 +136,7 @@ export default function CoursesPage() {
   }
 
   return (
-    <Page title="Clases"
+    <Page title="Clases" toolbar={toolbar}
       actions={data?.length ? <Button size="sm" variant="plain" icon={<Plus size={16} weight="bold" />} onClick={openNew}>Nueva clase</Button> : undefined}>
       {!!data?.length && (
         <div className="courses__search">
