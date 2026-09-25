@@ -38,6 +38,7 @@ function EditForm({ activity, onClose, course, onDeleted }: { activity: Activity
   const ready = value.title.trim().length > 0 && !(value.student_ids && !value.student_ids.length);
 
   const save = () => {
+    if (patch.isPending) return; // Enter in a field submits too: never twice
     const { kind, date, ...rest } = toInput(value);
     // The derived «Deberes» column keeps its kind and date (the server refuses to change them).
     patch.mutate(activity.kind === 'homework' ? rest : { ...rest, kind, date }, {

@@ -11,7 +11,7 @@ import { AIBadge, Button, Callout, List, Row, RowIcon, Section, Spinner, useFeed
 import { measureChips } from '../students/support';
 import AssignmentSheet from './AssignmentSheet';
 import { JobLine } from './JobLine';
-import { useClassPrint } from './useClassPrint';
+import { firstNames, useClassPrint } from './useClassPrint';
 import VersionSheet from './VersionSheet';
 
 /** `?version=S`: open that version's sheet (from «Revisar» before printing for the class). */
@@ -73,7 +73,7 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
   const [params, setParams] = useSearchParams();
   const [open, setOpen] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
-  const classPrint = useClassPrint(id, vs, setOpen);
+  const classPrint = useClassPrint(id, vs, setOpen, onJob);
   const progress = job?.progress;
   useEffect(() => { // each version appears as soon as it is ready
     if (running) qc.invalidateQueries({ queryKey: versionKeys.all(id) });
@@ -127,15 +127,16 @@ export function VersionsSection({ correction, job, running, onJob }: Props) {
 
       {vs.adaptations.length > 0 && (
         <Section title="Adaptaciones en esta clase"
-          footer={vs.pending_adapted > 0 && (
+          footer={vs.pending_adapted.length > 0 && (
             <div className="versions-action">
               <Button variant="tinted" onClick={onAdapt} loading={adapt.isPending} disabled={running}>
                 Preparar versiones adaptadas
               </Button>
-              <span className="muted">
-                {running ? 'Espera a que terminen las versiones en marcha.'
-                  : `${plural(vs.pending_adapted, 'alumno aún no tiene', 'alumnos aún no tienen')} la versión que piden sus medidas.`}
-              </span>
+              {running ? <span className="muted">Espera a que terminen las versiones en marcha.</span> : (
+                <span className="version-warn"><Warning size={14} />
+                  {firstNames(vs.pending_adapted)} aún no {vs.pending_adapted.length === 1 ? 'tiene' : 'tienen'} la versión que piden sus medidas.
+                </span>
+              )}
             </div>
           )}>
           {vs.reminders.length > 0 && (

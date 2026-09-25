@@ -11,7 +11,7 @@ import StudentPickerSheet from '../../features/papers/StudentPickerSheet';
 import { flagLabel, isAttention, pageCaption, pageTag } from '../../features/papers/pageLabels';
 import { cameFromActivity } from '../../features/papers/reviewLink';
 import { fileUrl } from '../../lib/api';
-import { formatGrade, formatNumber, formatScore, gradeTone, parseGradeInput } from '../../lib/format';
+import { formatGrade, formatNumber, formatScore, gradeTone, parseGradeInput, shortDate } from '../../lib/format';
 import {
   AIBadge, Button, Callout, CropImage, DESKTOP, EmptyState, IconButton, Lightbox, Menu, RichText, Skeleton, Stepper, TextField,
   useFeedback, useMediaQuery, type MenuItem,
@@ -23,11 +23,14 @@ const pts = (v: number) => formatNumber(v, 2);
 const LOW = 0.7;
 const FINAL = ['confirmed', 'absent', 'exempt'];
 
-/** "Modelo B · 7 de 24 · faltan 18" (the version of the paper first: its questions are the ones below). */
+/** "7 de 24 · faltan 18 · Modelo B" (the version last: on a phone the end of the line may be cut). */
 function progress(r: Review): string {
   const where = `${r.position} de ${r.total} · ${r.pending ? `faltan ${r.pending}` : 'todos revisados'}`;
-  return r.version ? `${r.version.label} · ${where}` : where;
+  return r.version ? `${where} · ${r.version.label}` : where;
 }
+
+/** Missed the exam and nothing else can go here yet: absent that day, or their repeat exam is not corrected. */
+const onlyNp = (r: Review) => !!r.missed && (r.missed.absent || (!!r.missed.repeat_id && !r.missed.repeat_grade));
 
 /** Focus mode: one student at a time. Phone: each question with the crop of its answer, the whole sheet behind
  * «Ver hoja». Desktop: the sheet on the left follows the question in focus. */
@@ -44,7 +47,7 @@ export default function ReviewPage() {
   const requested = params.get('alumno');
   // Entering without a student: the first one not reviewed yet.
   const studentId = requested ?? (c
-    ? c.next_pending_id ?? c.students.find((s) => !FINAL.includes(s.grade?.status ?? ''))?.student.id ?? c.students[0]?.student.id ?? null
+    ? c.next_pending_id ?? c.students.find((s) => !FINAL.includes(s.grade?.status ?? '') && !s.missed)?.student.id ?? c.students[0]?.student.id ?? null
     : null);
   const review = useReview(activityId, studentId);
   const setNp = useConfirmReview(activityId!, courseId);
@@ -135,15 +138,15 @@ export default function ReviewPage() {
         <div className="review-body"><div className="review-pages"><Skeleton h={480} r={14} /></div><div className="review-panel"><Skeleton h={300} r={20} /></div></div>
       ) : (
         <ReviewStudent key={r.student.id} review={r} activityId={activityId!} courseId={courseId!} desktop={desktop}
-          onGo={go} onDone={after} busy={setNp.isPending} exit={exit} grading={grading} />
+          onGo={go} onDone={after} busy={setNp.isPending} exit={exit} grading={grading} onNp={markAbsent} />
       )}
     </div>
   );
 }
 
-function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone, busy, exit, grading }: {
+function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone, busy, exit, grading, onNp }: {
   review: Review; activityId: string; courseId: string; desktop: boolean; onGo: (id: string) => void;
-  onDone: (res: ReviewResult) => void; busy: boolean; exit: string; grading: Job | null;
+  onDone: (res: ReviewResult) => void; busy: boolean; exit: string; grading: Job | null; onNp: () => void;
 }) {
   const { toast } = useFeedback();
   const confirmReview = useConfirmReview(activityId, courseId);
@@ -177,6 +180,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const sum = Object.values(scores).reduce((a, b) => a + b, 0);
   const manualValue = parseGradeInput(manual);
   const toConfirm = r.match_status === 'suggested';
+  const missed = onlyNp(r) && r.grade?.status !== 'absent'; // only NP can go here (the server says so too)
   const last = !r.next_pending_id;
   // Nothing to accept yet: no AI grading, no grade and no score touched: accepting records a 0, say so.
   const zero = hasItems && !r.ai && r.grade?.status !== 'confirmed' && !touched;
@@ -211,6 +215,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   }, [desktop, focusCrop, focusPage]);
 
   const accept = () => {
+    if (missed) { onNp(); return; }
     let payload: { item_scores?: Record<string, number>; score?: number } = {};
     if (hasItems) payload = { item_scores: scores };
     else if (typeof manualValue === 'number') payload = { score: manualValue };
@@ -267,13 +272,13 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const warnings = r.flags.filter((f) => isAttention(f) || f.code === 'pagina_nueva_tras_nota');
   const tone = gradeTone(r.rubric_total ? (sum / r.rubric_total) * 10 : null);
   const then = last ? 'terminar' : 'siguiente';
-  const acceptLabel = toConfirm ? 'Confirma el nombre' : zero ? `Poner 0 y ${then}` : `Aceptar y ${then}`;
+  const acceptLabel = toConfirm ? 'Confirma el nombre' : missed ? 'Marcar NP' : zero ? `Poner 0 y ${then}` : `Aceptar y ${then}`;
 
   return (
     <div ref={body} className="review-body">
       {desktop && (
         <section className="review-pages" aria-label="Hoja escaneada">
-          {pages.length === 0 ? (
+          {pages.length === 0 ? (missed ? null :
             <div className="review-nopages muted"><FileX size={22} /><span>Sin hojas escaneadas. Corrige con el examen en papel.</span></div>
           ) : (
             <>
@@ -319,6 +324,15 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
             </div>
           </Callout>
         )}
+        {missed && (
+          <Callout tone="warn" icon={<Warning size={18} weight="fill" />}>
+            <span><b>Faltó a este examen.</b>{' '}
+              {r.missed!.repeat_id
+                ? <>Su nota llegará con la repesca del {shortDate(r.missed!.repeat_date!)}. <Link className="link-btn" to={`/clases/${courseId}/actividades/${r.missed!.repeat_id}`}>Ver repesca</Link></>
+                : 'Ponle NP o prográmale una repesca desde el examen.'}
+            </span>
+          </Callout>
+        )}
         {warnings.length > 0 && (
           <Callout tone="warn" icon={<Warning size={18} weight="fill" />}>
             <span>{warnings.map(flagLabel).join(' · ')}. </span>
@@ -334,10 +348,10 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
             )}
           </div>
         )}
-        {!desktop && pages.length === 0 && (
+        {!desktop && pages.length === 0 && !missed && (
           <div className="review-nopages muted"><FileX size={22} /><span>Sin hojas escaneadas. Corrige con el examen en papel.</span></div>
         )}
-        {hasItems ? (
+        {missed ? null : hasItems ? (
           <div className="list review-items">
             {items.map((it) => {
               const ai = aiById.get(it.id);
@@ -393,10 +407,10 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
           <TextField label={`Nota sobre ${formatGrade(r.activity.max_score)}`} inputMode="decimal" value={manual}
             onChange={(e) => setManual(e.target.value)} placeholder="—" autoFocus={!toConfirm} />
         )}
-        <TextField label="Comentario (opcional)" value={comment} maxLength={2000} onChange={(e) => setComment(e.target.value)}
-          placeholder="Sale en la ficha del alumno, junto a la nota" />
+        {!missed && <TextField label="Comentario (opcional)" value={comment} maxLength={2000} onChange={(e) => setComment(e.target.value)}
+          placeholder="Sale en la ficha del alumno, junto a la nota" />}
         <div ref={foot} className="review-foot">
-          {hasItems && (
+          {hasItems && !missed && (
             <div className="review-total">
               <span className="muted">Total</span>
               <span className={`review-total__value grade grade--${tone}`}>{pts(sum)}</span>
@@ -410,7 +424,8 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
               <Button variant="neutral" icon={<CaretLeft size={18} weight="bold" />} aria-label="Alumno anterior" className="review-foot__nav"
                 disabled={!r.prev_student_id} onClick={() => r.prev_student_id && onGo(r.prev_student_id)} />
             )}
-            <Button onClick={accept} loading={confirmReview.isPending} disabled={toConfirm || busy} className="review-accept">{acceptLabel}</Button>
+            <Button onClick={accept} loading={confirmReview.isPending || (missed && busy)} disabled={toConfirm || (busy && !missed)}
+              className="review-accept">{acceptLabel}</Button>
             {!desktop && (
               <Button variant="neutral" icon={<CaretRight size={18} weight="bold" />} aria-label="Alumno siguiente, sin aceptar" className="review-foot__nav"
                 disabled={!r.next_student_id} onClick={() => r.next_student_id && onGo(r.next_student_id)} />

@@ -24,7 +24,7 @@ export interface Reminder { measure: Measure; label: string; students: StudentRe
  * `named_print`: the class print was made (the scans are read with its print map). `numbers`: each student's number on
  * the named copies and the printed class list. */
 export interface Versions {
-  base: Version; versions: Version[]; adaptations: Adaptation[]; reminders: Reminder[]; pending_adapted: number; named_print: boolean;
+  base: Version; versions: Version[]; adaptations: Adaptation[]; reminders: Reminder[]; pending_adapted: StudentRef[]; named_print: boolean;
   numbers: Record<string, number>;
 }
 export interface VersionDetail extends Version { rubric: Rubric | null }
@@ -40,10 +40,16 @@ export function useVersions(activityId: string, enabled = true) {
   });
 }
 
+/** Opening a version is reviewing it: it stops being an AI draft, and the list says so. */
 export function useVersion(activityId: string, key: string | null) {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: versionKeys.one(activityId, key!),
-    queryFn: () => api.get<VersionDetail>(`/activities/${activityId}/versions/${key}`),
+    queryFn: async () => {
+      const v = await api.get<VersionDetail>(`/activities/${activityId}/versions/${key}`);
+      qc.invalidateQueries({ queryKey: versionKeys.all(activityId), exact: true });
+      return v;
+    },
     enabled: !!key,
   });
 }

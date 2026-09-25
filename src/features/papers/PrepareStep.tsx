@@ -1,10 +1,10 @@
-import { ArrowSquareOut, DotsThree, Exam, Key, NotePencil, PencilLine, Rows, UploadSimple } from '@phosphor-icons/react';
-import { useRef } from 'react';
+import { ArrowSquareOut, DotsThree, Exam, Key, NotePencil, PencilLine, Rows, UploadSimple, Warning } from '@phosphor-icons/react';
+import { useRef, useState } from 'react';
 import { useAIUnavailable } from '../../api/core';
-import { useDocumentUrl, useUploadDocument, type Correction } from '../../api/papers';
+import { useDocumentUrl, useGenerateExam, useUploadDocument, type Correction, type GenerateInput } from '../../api/papers';
 import type { Job } from '../../api/types';
 import { plural } from '../../lib/format';
-import { IconButton, List, Menu, Row, RowIcon, Section, useFeedback } from '../../ui';
+import { Button, Callout, IconButton, List, Menu, Row, RowIcon, Section, useFeedback } from '../../ui';
 import { JobLine } from './JobLine';
 import { openSigned } from './openDoc';
 import { RubricTable } from './RubricTable';
@@ -26,6 +26,9 @@ interface Props {
 export function PrepareStep({ correction, job, running, versionsRunning, onJob, onGenerate, onManual }: Props) {
   const id = correction.activity.id;
   const upload = useUploadDocument(id);
+  const retry = useGenerateExam(id);
+  const [sent, setSent] = useState(0);
+  const [dismissed, setDismissed] = useState<string | null>(null);
   const noAI = useAIUnavailable();  // reading or writing the exam needs the AI
   const docUrl = useDocumentUrl(id);
   const { toast } = useFeedback();
@@ -35,7 +38,8 @@ export function PrepareStep({ correction, job, running, versionsRunning, onJob, 
   const onFiles = (list: FileList | null) => {
     const files = Array.from(list ?? []);
     if (!files.length) return;
-    upload.mutate(files, {
+    setSent(0);
+    upload.mutate({ files, onProgress: setSent }, {
       onSuccess: ({ job: j }) => onJob(j),
       onError: (e) => toast(e.message, { tone: 'error' }),
     });
@@ -49,15 +53,35 @@ export function PrepareStep({ correction, job, running, versionsRunning, onJob, 
       onChange={(e) => { onFiles(e.target.files); e.target.value = ''; }} />
   );
 
-  if (running || upload.isPending) {
-    return <>{fileInput}<JobLine job={job} fallback={upload.isPending ? 'Subiendo el examen…' : 'Preparando…'} /></>;
+  if (running || upload.isPending || retry.isPending) {
+    return <>{fileInput}<JobLine job={upload.isPending ? undefined : job} fallback={upload.isPending ? 'Subiendo el examen' : 'Preparando…'}
+      sent={upload.isPending ? sent : undefined} /></>;
   }
+
+  // A generation that failed (or ran out of time) stays here with its reason until another job starts.
+  const failed = correction.job?.status === 'failed' && correction.job.kind === 'generate_exam' && correction.job.id !== dismissed
+    ? correction.job : null;
+  const failure = failed && (
+    <Callout tone="warn" icon={<Warning size={18} />}>
+      <div className="gen-failed">
+        <span><b>No se ha podido generar el examen.</b> {failed.error}</span>
+        <span className="gen-failed__actions">
+          <Button size="sm" disabled={!!noAI} onClick={() => retry.mutate(failed.params as unknown as GenerateInput, {
+            onSuccess: ({ job: j }) => onJob(j),
+            onError: (e) => toast(e.message, { tone: 'error' }),
+          })}>Volver a intentar</Button>
+          <Button size="sm" variant="neutral" onClick={() => setDismissed(failed.id)}>Elegir otra opción</Button>
+        </span>
+      </div>
+    </Callout>
+  );
 
   if (!hasDoc) {
     return (
       <>
         {fileInput}
-        <List className="choice-list">
+        {failure}
+        {!failure && <List className="choice-list">
           <Row lead={<RowIcon tone="accent"><UploadSimple size={20} /></RowIcon>} title="Subir mi examen" wrapSub muted={!!noAI}
             sub={noAI ?? 'PDF o fotos de cada página. Se leen las preguntas, los puntos y las soluciones.'}
             onClick={noAI ? undefined : pick} />
@@ -65,7 +89,7 @@ export function PrepareStep({ correction, job, running, versionsRunning, onJob, 
             sub={noAI ?? 'Un borrador a partir de las unidades de la programación.'} onClick={noAI ? undefined : onGenerate} />
           <Row lead={<RowIcon><NotePencil size={20} /></RowIcon>} title="Sin documento (solo nota)"
             sub="Pones la nota de cada alumno a mano." wrapSub onClick={onManual} />
-        </List>
+        </List>}
       </>
     );
   }
@@ -79,6 +103,7 @@ export function PrepareStep({ correction, job, running, versionsRunning, onJob, 
   return (
     <>
       {fileInput}
+      {failure}
       <List>
         {printable && (
           <Row lead={<RowIcon><Exam size={20} /></RowIcon>} title="Examen para imprimir" wrapSub

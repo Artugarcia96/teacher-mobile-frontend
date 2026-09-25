@@ -1,9 +1,10 @@
-import { CheckCircle, DotsThree, ListChecks, Warning } from '@phosphor-icons/react';
+import { CaretDown, CaretUp, CheckCircle, DotsThree, ListChecks, Warning } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { useAcceptAll, type Correction, type CorrectionStudent, type FrequentError } from '../../api/papers';
 import { useUnits } from '../../api/units';
 import type { Job } from '../../api/types';
-import { formatNumber, formatPercent, formatScore, plural } from '../../lib/format';
-import { AIBadge, Avatar, Button, Callout, Chip, Grade, GradePill, IconButton, List, Menu, RichText, Row, Section, Stats, useFeedback } from '../../ui';
+import { formatNumber, formatPercent, formatScore, plural, shortDate } from '../../lib/format';
+import { AIBadge, Button, Callout, Chip, Grade, GradePill, IconButton, List, Menu, RichText, Row, Section, Stats, useFeedback } from '../../ui';
 import { unitFor } from '../units/unitFor';
 import { JobLine } from './JobLine';
 import { MissingPapersRow } from './MissingPapers';
@@ -17,38 +18,31 @@ interface Props {
   onOpenCollect: () => void;
   /** Who is missing from the pile: NP or a repeat exam (ExamAbsencesSheet). */
   onOpenMissing: () => void;
-  /** Marked absent on the exam day and nothing fills the slot yet (ActivityDetail `sheet[].pending_absent`). */
-  absent: ReadonlySet<string>;
   /** Units the exam is linked to: «Crear ficha de refuerzo» creates it in the first (else the one its title names). */
   unitIds: string[];
-  /** Students with a repeat exam scheduled (not missing from this pile). */
-  covered: ReadonlySet<string>;
 }
 
 const toConfirm = (s: CorrectionStudent) => !!s.paper_id && s.match_status === 'suggested';
 
-/** What is left for this student, in words (nothing once the grade is final). */
-function statusLine(s: CorrectionStudent, absent: boolean) {
+const isFinal = (s: CorrectionStudent) => ['confirmed', 'absent', 'exempt'].includes(s.grade?.status ?? '');
+
+/** What is left for this student, in words (nothing once the grade is final). A student who missed the exam: their
+ * repeat exam, or «Faltó» (NP or a repeat, in the sheet). */
+function statusLine(s: CorrectionStudent) {
   const g = s.grade?.status;
-  if (g === 'confirmed' || g === 'absent' || g === 'exempt') return g === 'exempt' ? 'Exento' : undefined;
+  if (isFinal(s)) return g === 'exempt' ? 'Exento' : undefined;
+  if (s.missed?.repeat_id) return s.missed.repeat_grade ? 'Nota de la repesca' : `Repesca el ${shortDate(s.missed.repeat_date!)}`;
+  if (s.missed) return <Chip tone="warn">Faltó</Chip>;
   if (toConfirm(s)) return <Chip tone="warn">Nombre por confirmar</Chip>;
   if (needsLook(s.flags)) return <Chip tone="warn">Revisa las páginas</Chip>;
   if (g === 'suggested') return undefined;
-  if (absent) return <Chip tone="warn">Faltó</Chip>;
   if (s.paper_id) return 'Sin sugerencia de la IA';
   return 'Sin hoja';
 }
 
-/** Under the name: «Borrador IA» for an unreviewed suggestion, then what is left for this student. */
-function Status({ s, absent }: { s: CorrectionStudent; absent: boolean }) {
-  const line = statusLine(s, absent);
-  if (s.grade?.status !== 'suggested') return line ?? null;
-  return <span className="student-status"><AIBadge />{line}</span>;
-}
-
-/** Validated grades as a pill; the AI's unreviewed suggestion in grey (its row says «Borrador IA»). */
+/** Validated grades as a pill (a repeat exam's too); the AI's unreviewed suggestion in grey. */
 function Score({ s, max }: { s: CorrectionStudent; max: number }) {
-  const g = s.grade;
+  const g = s.grade ?? (s.missed?.repeat_grade || null);
   if (g?.status === 'confirmed') return <GradePill value={g.score} max={max} />;
   if (g?.status === 'absent') return <span className="muted">NP</span>;
   if (g?.status === 'suggested') return <span className="faint num draft-score">{formatScore(g.ai_score ?? g.score)}</span>;
@@ -106,9 +100,14 @@ export function ReviewMenu({ correction }: { correction: Correction }) {
 }
 
 /** Step 3 — figures, frequent errors and the class list (AI drafts vs validated grades); each row opens the focus review. */
-export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMissing, absent, unitIds, covered }: Props) {
+export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMissing, unitIds }: Props) {
   const { activity, stats, students, unmatched } = correction;
   const units = useUnits(activity.course.id).data;
+  const [shownError, setShownError] = useState<string | null>(null);
+  const drafts = students.filter((s) => s.grade?.status === 'suggested').length;
+  const byId = new Map(students.map((s) => [s.student.id, s.student]));
+  const who = (ids: string[]) => ids.map((id) => byId.get(id)).filter((s) => !!s)
+    .map((s) => `${s!.first_name} ${s!.last_name.split(' ')[0]}`.trim()).join(', ');
   const base = `/clases/${activity.course.id}/actividades/${activity.id}`;
   const errors = stats.frequent_errors;
   const excluded = excludedNote(stats);
@@ -126,7 +125,7 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
       {stats.papers > 0 && stats.pending === 0 && !unmatched.length && (
         <div className="review-done"><CheckCircle size={20} weight="fill" /><span>Todas las hojas están revisadas.</span></div>
       )}
-      <MissingPapersRow correction={correction} covered={covered} onOpen={onOpenMissing} />
+      <MissingPapersRow correction={correction} onOpen={onOpenMissing} />
       {unmatched.length > 0 && (
         <Callout tone="warn" icon={<Warning size={18} />}>
           <span>{unmatched.length === 1 ? 'Hay 1 hoja sin identificar.' : `Hay ${unmatched.length} hojas sin identificar.`} </span>
@@ -151,22 +150,37 @@ export function ReviewStep({ correction, job, running, onOpenCollect, onOpenMiss
         <Section title="Errores frecuentes"
           footer={worksheet && <Button variant="tinted" size="sm" to={worksheet}>Crear ficha de refuerzo con {labels(errors)}</Button>}>
           <List>
-            {errors.map((e) => (
-              <Row key={e.item_id} title={<RichText className="error-text" text={questionName(e)} />}
-                sub={`${formatNumber(e.avg_points, 1)} de ${formatNumber(e.points, 2)} de media · ${e.below_half} por debajo de la mitad`} />
-            ))}
+            {errors.map((e) => {
+              const open = shownError === e.item_id;
+              const base = `${formatNumber(e.avg_points, 1)} de ${formatNumber(e.points, 2)} de media · ${e.below_half} por debajo de la mitad`;
+              return (
+                <Row key={e.item_id} title={<RichText className="error-text" text={questionName(e)} />} wrapSub
+                  sub={open && e.below_half_ids.length ? <>{base}<span className="error-who">{who(e.below_half_ids)}</span></> : base}
+                  onClick={e.below_half ? () => setShownError(open ? null : e.item_id) : undefined} aria-expanded={open}
+                  chevron={false} trail={e.below_half ? (open ? <CaretUp size={16} /> : <CaretDown size={16} />) : undefined} />
+              );
+            })}
           </List>
           {excluded && <p className="review-stats__note">{excluded}</p>}
         </Section>
       )}
 
       <Section title={`Clase · ${students.length}`}>
-        <List inset={64}>
-          {students.map((s) => (
-            <Row key={s.student.id} lead={<Avatar initials={s.student.initials} />} title={s.student.sort_name} wrapSub
-              sub={<Status s={s} absent={absent.has(s.student.id)} />} to={`${base}/revisar?alumno=${s.student.id}`} state={FROM_ACTIVITY}
-              trail={<Score s={s} max={activity.max_score} />} />
-          ))}
+        {drafts > 0 && (
+          <p className="drafts-line"><AIBadge label={plural(drafts, 'borrador de la IA', 'borradores de la IA')} />
+            <span>en gris, hasta que los revises</span></p>
+        )}
+        <List>
+          {students.map((s) => {
+            const repeat = !isFinal(s) && s.missed?.repeat_id; // their grade is in the repeat exam
+            const missed = !isFinal(s) && s.missed && !repeat; // NP or a repeat: the sheet
+            return (
+              <Row key={s.student.id} title={s.student.sort_name} wrapSub sub={statusLine(s)}
+                to={repeat ? `/clases/${activity.course.id}/actividades/${repeat}` : missed ? undefined : `${base}/revisar?alumno=${s.student.id}`}
+                state={repeat ? undefined : FROM_ACTIVITY} onClick={missed ? onOpenMissing : undefined}
+                trail={<Score s={s} max={activity.max_score} />} />
+            );
+          })}
         </List>
       </Section>
     </>
