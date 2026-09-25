@@ -6,7 +6,7 @@
   .gb-toolbar > .seg .seg__btn { padding: 0 6px; }
 }
 
-/* The active cell stays above the tab capsule while typing (phones) */
+/* The active cell and the table's end stay above the tab capsule (phones) */
 html:has(.gb-scroll) { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 @media (min-width: 1024px) { html:has(.gb-scroll) { scroll-padding-bottom: var(--s-5); } }
 
