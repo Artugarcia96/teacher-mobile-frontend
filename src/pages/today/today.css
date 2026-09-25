@@ -41,6 +41,7 @@
 .agenda-sub__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-sub__chips { flex: none; display: inline-flex; gap: 6px; }
 .agenda-sub .chip { height: 22px; padding: 0 8px; font-size: 12px; }
+.agenda-chip-text { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-sub button.chip { position: relative; z-index: 1; pointer-events: auto; }
 .agenda-evicon { color: var(--ink-2); flex: none; }
 

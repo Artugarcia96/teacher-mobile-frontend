@@ -1,9 +1,12 @@
-/** «Pasar lista»: todos presentes por defecto; tocar = falta, otro toque = retraso, otro = presente. Guardado automático.
- *  Mantener pulsado (clic derecho en escritorio): justificar o añadir nota. En escritorio se abre como panel lateral. */
+/** «Pasar lista»: todos presentes por defecto; tocar = falta, otro toque = retraso, otro = presente. Guardado automático
+ *  de solo lo que cambia (dos dispositivos con la misma lista no se pisan). Mantener pulsado (clic derecho en escritorio):
+ *  justificar o añadir nota. En escritorio se abre como panel lateral. */
 import { useQueryClient } from '@tanstack/react-query';
 import { NotePencil, SealCheck, WarningCircle } from '@phosphor-icons/react';
-import { Fragment, useEffect, useState } from 'react';
-import { invalidateAttendance, MARK_LABEL, useAttendance, useSaveAttendance, type MarkStatus } from '../../api/attendance';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { invalidateAttendance, MARK_LABEL, useAttendance, useSaveAttendance, type AttendanceInput, type MarkStatus } from '../../api/attendance';
+import { api } from '../../lib/api';
 import { useToday } from '../../lib/auth';
 import { longDate, plural } from '../../lib/format';
 import { Button, Sheet, SkeletonList, useFeedback, type MenuItem } from '../../ui';
@@ -40,16 +43,26 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
   const save = useSaveAttendance(courseId);
   const [marks, setMarks] = useState<Marks | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const autosave = useAutosave((m: Marks) => save.mutateAsync({
+  const navigate = useNavigate();
+  // The marks as the server has them: only the students that differ from these are sent.
+  const saved = useRef<Marks>({});
+  const changes = (m: Marks): AttendanceInput => ({
     date, start,
-    marks: Object.entries(m).filter(([, v]) => v.status !== 'present')
+    marks: Object.entries(m).filter(([id, v]) => saved.current[id]?.status !== v.status || saved.current[id]?.note !== v.note.trim())
       .map(([student_id, v]) => ({ student_id, status: v.status, note: v.note.trim() || null })),
-  }));
+  });
+  const autosave = useAutosave(async (m: Marks) => {
+    const body = changes(m);
+    await save.mutateAsync(body);
+    for (const x of body.marks) saved.current[x.student_id] = { status: x.status, note: x.note ?? '' };
+  }, (m: Marks) => api.keepalive('PUT', `/courses/${courseId}/attendance`, changes(m)));
 
   // Initialise local state once from the server (later refetches must not overwrite taps in progress).
   useEffect(() => {
     if (marks || !q.data) return;
-    setMarks(Object.fromEntries(q.data.students.map((r) => [r.student.id, { status: r.status, note: r.note ?? '' }])));
+    const loaded = Object.fromEntries(q.data.students.map((r) => [r.student.id, { status: r.status, note: r.note ?? '' }]));
+    saved.current = { ...loaded };
+    setMarks(loaded);
   }, [q.data, marks]);
 
   const update = (id: string, patch: Partial<Mark>, delay?: number) => {
@@ -62,8 +75,8 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
   const counts = { present: 0, absent: 0, late: 0, justified: 0 };
   for (const m of Object.values(marks ?? {})) counts[m.status]++;
   const summary = [
-    plural(counts.present, 'presente', 'presentes'), plural(counts.absent, 'falta', 'faltas'), plural(counts.late, 'retraso', 'retrasos'),
-    counts.justified > 0 && plural(counts.justified, 'justificada', 'justificadas'),
+    counts.present > 0 && plural(counts.present, 'presente', 'presentes'), counts.absent > 0 && plural(counts.absent, 'falta', 'faltas'),
+    counts.late > 0 && plural(counts.late, 'retraso', 'retrasos'), counts.justified > 0 && plural(counts.justified, 'justificada', 'justificadas'),
   ].filter(Boolean).join(' · ');
 
   const finish = async (explicit: boolean) => {
@@ -78,6 +91,7 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
   };
 
   const rows = q.data?.students ?? [];
+  const empty = !!q.data && rows.length === 0;
   const names = marks ? NAMES.flatMap(([st, one, many]) => {
     const who = rows.filter((r) => marks[r.student.id]?.status === st).map((r) => r.student.sort_name);
     return who.length ? [{ st, text: who.length === 1 ? one : many, who: who.join('; ') }] : [];
@@ -104,22 +118,24 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
             <span>{when}</span>
             {autosave.state !== 'idle' && <span className={autosave.state === 'error' ? 'roster-head__err' : 'faint'}>{SAVE_LABEL[autosave.state]}</span>}
           </span>
-          {marks && <span className="roster-head__sum num">{summary}</span>}
+          {marks && summary && <span className="roster-head__sum num">{summary}</span>}
           {names.length > 0 && (
             <span className="roster-head__names">
               {names.map((n, i) => <Fragment key={n.st}>{i > 0 && ' · '}{n.text}: <b>{n.who}</b></Fragment>)}
             </span>
           )}
-          <span className="roster-head__do">Toca a quien falte. Otro toque: retraso.</span>
+          {!empty && <span className="roster-head__do">Toca a quien falte. Otro toque: retraso.</span>}
         </span>
       }
-      footer={<Button full onClick={() => void finish(true)} disabled={!marks}>Cerrar lista</Button>}>
+      footer={empty
+        ? <Button full onClick={() => { onClose(); navigate(`/clases/${courseId}/alumnos?anadir=1`); }}>Añadir alumnos</Button>
+        : <Button full onClick={() => void finish(true)} disabled={!marks}>Cerrar lista</Button>}>
       <span tabIndex={-1} data-autofocus className="sr-only">Lista de la clase</span>
       {q.error ? (
         <p className="roster-head__err"><WarningCircle size={18} /> {(q.error as Error).message}</p>
       ) : !marks || !q.data ? (
         <SkeletonList rows={8} />
-      ) : rows.length === 0 ? (
+      ) : empty ? (
         <p className="muted">Esta clase aún no tiene alumnos.</p>
       ) : (
         <RosterList

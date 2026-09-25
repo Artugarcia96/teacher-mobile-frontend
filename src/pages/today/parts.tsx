@@ -3,7 +3,7 @@ import {
   CalendarBlank, ChatCenteredText, Check, Exam, FlagCheckered, ListChecks, NotePencil, Table, UsersThree,
 } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { EVENT_KIND_LABEL, type PendingItem, type Today, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
 import { MaterialChips } from '../../features/materials/MaterialChips';
 import { ordinals, parseDate, plural, shortDate } from '../../lib/format';
@@ -70,7 +70,7 @@ export function homeworkLabel(h: NonNullable<TodaySession['homework']>): string 
 }
 
 /** «Toca: …» (bold), «Deberes: …» with the check, and «El martes: …» (secondary), from the class log. */
-function SessionPlan({ s, canCheck, onHomework }: { s: TodaySession; canCheck: boolean; onHomework: (s: TodaySession) => void }) {
+export function SessionPlan({ s, canCheck, onHomework }: { s: TodaySession; canCheck: boolean; onHomework: (s: TodaySession) => void }) {
   const prev = s.previous;
   const hw = s.homework;
   if (!prev?.next && !hw?.text && !hw?.checked && !prev?.done) return null;
@@ -92,6 +92,21 @@ function SessionPlan({ s, canCheck, onHomework }: { s: TodaySession; canCheck: b
   );
 }
 
+/** The session's activities (exam, repesca…) as chips that open the activity. */
+export function SessionActivities({ session: s }: { session: TodaySession }) {
+  const navigate = useNavigate();
+  if (!s.activities.length) return null;
+  return (
+    <div className="chip-row" aria-label="Actividades de la sesión">
+      {s.activities.map((a) => (
+        <Chip key={a.id} tone={a.kind === 'exam' ? 'info' : 'outline'} onClick={() => navigate(`/clases/${s.course.id}/actividades/${a.id}`)}>
+          {a.title}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
 export function NowCard({ focus, today, onAttendance, onNote, onHomework, onClose }: {
   focus: Focus; today: string; onAttendance: (s: TodaySession) => void; onNote: (s: TodaySession) => void;
   onHomework: (s: TodaySession) => void; onClose: (s: TodaySession) => void;
@@ -107,9 +122,7 @@ export function NowCard({ focus, today, onAttendance, onNote, onHomework, onClos
         <span>{s.course.label}</span>
       </Link>
       <div className="now-card__meta">{meta}</div>
-      {s.activities.length > 0 && (
-        <div className="chip-row">{s.activities.map((a) => <Chip key={a.id} tone={a.kind === 'exam' ? 'info' : undefined}>{a.title}</Chip>)}</div>
-      )}
+      <SessionActivities session={s} />
       <MaterialChips session={s} />
       <SessionPlan s={s} canCheck={canTake} onHomework={onHomework} />
       <div className="now-card__actions">
@@ -140,8 +153,8 @@ function TimeCol({ start, end, now }: { start?: string | null; end?: string | nu
 
 function sessionChips(s: TodaySession, onAttendance: (s: TodaySession) => void): ReactNode[] {
   const chips: ReactNode[] = [];
-  if (s.guardia) chips.push(<Chip key="c" tone="info">Guardia</Chip>);
-  else if (s.cancelled) chips.push(<Chip key="c">Cancelada</Chip>);
+  if (s.guardia) chips.push(<Chip key="c" tone="info">Faltas</Chip>);
+  else if (s.cancelled) chips.push(<Chip key="c"><span className="agenda-chip-text">{s.cancel_note ? `Sin clase · ${s.cancel_note}` : 'Sin clase'}</span></Chip>);
   else if (s.attendance.taken) chips.push(<Chip key="a" tone="ok" icon={<Check size={12} weight="bold" />}>Lista pasada</Chip>);
   else if (s.status === 'past' || s.status === 'now') chips.push(<Chip key="a" tone="warn" onClick={() => onAttendance(s)}>Lista sin pasar</Chip>);
   if (!s.cancelled && s.activities.some((a) => a.kind === 'exam')) chips.push(<Chip key="e" tone="info">Examen</Chip>);

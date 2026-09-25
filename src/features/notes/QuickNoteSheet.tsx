@@ -1,5 +1,5 @@
 /** "Anotar": observación rápida ligada a una clase y/o alumnos. Usada desde Hoy, Clase y Alumno. */
-import { MagnifyingGlass } from '@phosphor-icons/react';
+import { MagnifyingGlass, Plus } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { useCourses, useCourseStudents } from '../../api/core';
 import { useCreateNote } from '../../api/notes';
@@ -27,7 +27,7 @@ const SAVED: Record<NoteKind, string> = {
   observation: 'Observación guardada', incident: 'Incidencia guardada', positive: 'Positivo guardado', family: 'Nota de familia guardada',
 };
 const PLACEHOLDER: Record<NoteKind, string> = {
-  observation: 'Qué habéis hecho, qué queda pendiente…',
+  observation: 'Qué has observado',
   incident: 'Qué ha pasado',
   positive: 'Qué ha hecho bien',
   family: 'Llamada, reunión, acuerdo…',
@@ -45,6 +45,8 @@ function NoteSheetBody({ onClose, courseId: fixedCourse, studentIds }: QuickNote
   const [text, setText] = useState('');
   const [selected, setSelected] = useState<string[]>(studentIds ?? []);
   const [search, setSearch] = useState('');
+  // Opened for some students (a ficha): only they are shown until «Añadir alumnos».
+  const [adding, setAdding] = useState(!studentIds?.length);
   const courses = useCourses();
   const roster = useCourseStudents(courseId);
   const create = useCreateNote();
@@ -99,9 +101,9 @@ function NoteSheetBody({ onClose, courseId: fixedCourse, studentIds }: QuickNote
         <div className="note-students">
           <div className="note-students__head">
             <span className="field__label">{selected.length ? `${selected.length} ${selected.length === 1 ? 'alumno' : 'alumnos'}` : 'Alumnos (opcional)'}</span>
-            {selected.length > 0 && <button type="button" className="section__action" onClick={() => setSelected([])}>Quitar todos</button>}
+            {adding && selected.length > 0 && <button type="button" className="section__action" onClick={() => setSelected([])}>Quitar todos</button>}
           </div>
-          {(roster.data?.length ?? 0) > 10 && (
+          {adding && (roster.data?.length ?? 0) > 10 && (
             <label className="note-search">
               <MagnifyingGlass size={16} />
               <input className="input" placeholder="Buscar alumno" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Buscar alumno" />
@@ -111,12 +113,13 @@ function NoteSheetBody({ onClose, courseId: fixedCourse, studentIds }: QuickNote
             <p className="muted">{(roster.error as Error).message}</p>
           ) : (
             <div className="chip-row">
-              {visible.map((s) => (
+              {(adding ? visible : visible.filter((s) => studentIds?.includes(s.id) || selected.includes(s.id))).map((s) => (
                 <Chip key={s.id} selected={selected.includes(s.id)} onClick={() => toggle(s.id)}>
                   {s.first_name} {s.last_name.split(' ')[0]}
                 </Chip>
               ))}
-              {visible.length === 0 && <span className="muted">{roster.data?.length ? 'Ningún alumno coincide.' : 'Esta clase aún no tiene alumnos.'}</span>}
+              {adding && visible.length === 0 && <span className="muted">{roster.data?.length ? 'Ningún alumno coincide.' : 'Esta clase aún no tiene alumnos.'}</span>}
+              {!adding && <Chip tone="outline" icon={<Plus size={14} />} onClick={() => setAdding(true)}>Añadir alumnos</Chip>}
             </div>
           )}
         </div>
