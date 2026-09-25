@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bare } from '../../app/Shell';
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -16,11 +16,12 @@ function message(err: unknown, mode: Mode): string {
   return 'Algo ha fallado. Inténtalo de nuevo.';
 }
 
-/** /entrar — sign in or create an account. */
+/** /entrar — sign in or create an account (?cuenta=nueva opens «Crear cuenta», as the landing links it). */
 export default function LoginPage() {
   const { login, register, loggedIn } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>('login');
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<Mode>(() => (params.get('cuenta') === 'nueva' ? 'register' : 'login'));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -82,6 +83,11 @@ export default function LoginPage() {
             disabled={!email.trim() || !password || (mode === 'register' && !name.trim())}>
             {mode === 'login' ? 'Entrar' : 'Crear cuenta'}
           </Button>
+          {mode === 'register' && (
+            <p className="login__legal muted">
+              Al crear la cuenta aceptas la <a href="/landing/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.
+            </p>
+          )}
         </form>
       </main>
     </Bare>
