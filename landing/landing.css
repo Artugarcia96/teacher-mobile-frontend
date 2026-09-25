@@ -49,16 +49,15 @@
   --bezel: #1D1D1F;                     /* the device frame around a recording */
   --bezel-edge: rgba(255, 255, 255, 0.10);
   --device-shadow: 0 2px 4px rgba(40, 30, 20, 0.08), 0 30px 60px -12px rgba(40, 30, 20, 0.28), 0 18px 36px -18px rgba(40, 30, 20, 0.30);
-  --ink-tone: #5A5956;                  /* a headline's quieter second clause: softer than ink, firmer than --ink-2 */
   --display: 'Inter', 'Inter Display Apple', 'Inter Display Segoe', 'Inter Display Roboto', 'Inter Display Arial', sans-serif;
   --text: 'Inter', -apple-system, BlinkMacSystemFont, 'Inter Text Segoe', 'Inter Text Roboto', 'Inter Text Arial', sans-serif;
   --margin: 20px;
   --max: 1180px;
-  --section: 88px;          /* the space that opens a section or a band */
+  --section: 112px;         /* the space that opens a section or a band */
   --phone: min(320px, 82vw); /* a phone recording's frame */
 }
-@media (min-width: 768px) { :root { --margin: 32px; --section: 112px; } }
-@media (min-width: 1024px) { :root { --margin: 48px; --section: 136px; } }
+@media (min-width: 768px) { :root { --margin: 32px; --section: 152px; } }
+@media (min-width: 1024px) { :root { --margin: 48px; --section: 184px; } }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -81,7 +80,6 @@
     --ambient-2: rgba(214, 170, 110, 0.07);
     --e1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --e2: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
-    --ink-tone: #A09E99;
     --btn-edge: rgba(255, 255, 255, 0.40);
     --bezel: #34353A;
     --bezel-edge: rgba(255, 255, 255, 0.22);
@@ -119,23 +117,17 @@ b, strong { font-weight: 600; }
 .band { margin-top: var(--section); padding: var(--section) 0; background: var(--paper); }
 
 /* ── Type ────────────────────────────────────────────────
-   Every heading in Inter semibold: display 40→76, title 32→48 (chapter and closing 56), card title 19. Its optical
-   size already tightens it at display sizes, so the tracking is light and follows the size alone: -0.015em on a phone
-   (32-36 px), -0.02em from 38 to 48, -0.022em from 56 up. The rest in Inter regular and medium: label 16→17 in the
-   accent, lead 18→21, body 17, small 15, caption 14 (13 on a phone). A section headline's second clause is --ink-tone
-   on its own line; the hero and the closing are all ink. Numbers are tabular, in the accent. */
+   Every heading in Inter semibold: display 40→76, title 32→48 (long answers, statement and closing 56). Its optical size
+   already tightens it at display sizes, so the tracking follows the size alone: -0.015em on a phone (32-36 px),
+   -0.02em from 38 to 48, -0.022em from 56 up. The rest in Inter regular and medium: lead 18→21, body 17, caption 14
+   (13 on a phone). One short sentence under each heading. */
 h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; }
 h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.02em; }
 h2 { font-size: 32px; line-height: 1.08; letter-spacing: -0.015em; }
-h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
 @media (min-width: 480px) { h2 { font-size: 38px; letter-spacing: -0.02em; } }
 @media (min-width: 1024px) { h2 { font-size: 48px; } }
-.tone { display: block; color: var(--ink-tone); }
-.eyebrow { font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--accent); }
-.eyebrow + h2 { margin-top: 10px; }
-.num { font-weight: 600; font-size: 15px; line-height: 1; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; color: var(--accent); }
 .lead { font-size: 18px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
-@media (min-width: 1024px) { .eyebrow { font-size: 17px; } .lead { font-size: 21px; line-height: 1.45; } }
+@media (min-width: 1024px) { .lead { font-size: 21px; line-height: 1.45; } }
 
 /* ── Bar: both ways in, always one tap away ──────────── */
 .bar { position: sticky; top: 10px; z-index: 10; width: min(calc(var(--max) + 24px), calc(100% - 2 * var(--margin) + 24px));
@@ -176,8 +168,7 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 .hero h1 { margin-top: 10px; }
 .hero .lead { margin-top: 16px; max-width: 32em; }
 .hero .actions { margin-top: 24px; }
-.assure { margin-top: 14px; font-size: 15px; line-height: 1.45; color: var(--ink-2); }
-.hero .clip { margin-top: 36px; }
+.hero .clip { margin-top: 48px; }
 @media (max-width: 479px) {
   .hero .actions { flex-wrap: nowrap; gap: 8px; }
   .hero .actions .btn { flex: 1 1 auto; padding: 0 10px; font-size: 15px; }
@@ -191,81 +182,33 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
   .hero h1 .line { display: block; }
   .hero .lead { margin-top: 20px; max-width: 30em; text-wrap: balance; }
   .hero .actions { justify-content: center; margin-top: 30px; }
-  .hero .clip { margin-top: 56px; width: 100%; }
+  .hero .clip { margin-top: 72px; width: 100%; }
 }
 
-/* ── Del examen a la nota: one ruled sheet of the notebook, three steps, the number in its own column ── */
-.sheet-wrap { margin-top: 56px; }
-.sheet { background: var(--paper); border-radius: 24px; box-shadow: var(--e1), 0 0 0 0.5px var(--line); padding: 22px 20px 4px; }
-.sheet__title { font-family: var(--text); letter-spacing: normal; line-height: 1.35; padding-bottom: 14px; }
-.steps { list-style: none; padding: 0; }
-.steps li { display: grid; grid-template-columns: 36px minmax(0, 1fr); padding: 16px 0 18px; border-top: 1px solid var(--line); }
-.steps .num { padding-top: 5px; }
-.steps p { color: var(--ink-2); text-wrap: pretty; }
-.steps b { color: var(--ink); }
-@media (min-width: 768px) {
-  .sheet { padding: 26px 0 30px; }
-  .sheet__title { padding: 0 28px 18px; border-bottom: 1px solid var(--line); }
-  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .steps li { display: block; padding: 22px 28px 0; border-top: 0; }
-  .steps li + li { border-left: 1px solid var(--line); }
-  .steps .num { display: block; padding: 0 0 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
-}
+/* ── Long answers: heading and one line, then the desktop app across the band ── */
+.wide__head p { margin-top: 20px; max-width: 32em; color: var(--ink-2); text-wrap: pretty; }
+.wide .clip { margin-top: 56px; }
 @media (min-width: 1024px) {
-  .sheet-wrap { margin-top: 72px; }
-  .sheet { padding: 30px 0 36px; }
-  .sheet__title { padding: 0 36px 22px; }
-  .steps li { padding: 26px 36px 0; }
-  .steps p { font-size: 18px; line-height: 1.5; }
-}
-
-/* ── The history exam: heading and words side by side on a desktop, then the desktop app across the band ── */
-.wide__text { margin-top: 16px; }
-.wide__text p { color: var(--ink-2); text-wrap: pretty; max-width: 32em; }
-.fact { margin-top: 18px; padding-left: 14px; border-left: 2px solid var(--line-strong); font-size: 15px; line-height: 1.5; }
-.fact:has(span:empty) { display: none; }
-.wide .clip { margin-top: 40px; }
-@media (min-width: 1024px) {
-  .wide__head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 72px; align-items: start; }
-  .wide__head h2 { max-width: 12em; }
-  /* the paragraph starts on the headline's first line: past the label (17 px × 1.35) and its 10 px, plus the
-     headline's taller half-leading */
-  .wide__text { margin-top: 0; padding-top: calc(17px * 1.35 + 10px + 8px); }
-  .wide__text p:not(.fact) { font-size: 19px; line-height: 1.5; }
-  .wide .clip { margin-top: 64px; }
-}
-
-/* ── The rest of the week: a chapter heading, centred on a desktop ── */
-.chapter { padding-top: calc(var(--section) * 0.8); }
-.chapter p:not(.eyebrow) { margin-top: 16px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
-@media (min-width: 1024px) {
-  .chapter { display: grid; justify-items: center; text-align: center; }
-  .chapter h2 { font-size: 56px; letter-spacing: -0.022em; }
-  .chapter p:not(.eyebrow) { font-size: 21px; line-height: 1.45; }
+  .wide__head { display: grid; justify-items: center; text-align: center; }
+  .wide__head h2 { font-size: 56px; letter-spacing: -0.022em; }
+  .wide__head p { font-size: 21px; line-height: 1.45; }
+  .wide .clip { margin-top: 80px; }
 }
 
 /* ── A moment: when it hurts, one line on what Sepia does, and the recording of it.
    On a desktop the words sit beside the phone, level with its top, the pair centred on the page; while the phone
    scrolls past, the words stay in view beside it. ── */
-.moment { display: grid; gap: 36px; padding-top: var(--section); }
-.chapter + .wrap > .moment:first-child { padding-top: 64px; }
-.moment__copy > p:not(.eyebrow) { margin-top: 16px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
+.moment { display: grid; gap: 40px; padding-top: var(--section); }
+.moment__copy > p { margin-top: 20px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
 @media (min-width: 1024px) {
   :root { --words: 600px; --pair: calc(var(--words) + 80px + var(--phone)); } /* a moment's words, its gap and its phone */
   .moment { grid-template-columns: minmax(0, var(--words)) auto; justify-content: center; align-items: start; column-gap: 80px; }
   .moment h2 { font-size: 44px; }
   .moment__copy { position: sticky; top: 30vh; padding-top: 48px; }
-  .chapter + .wrap > .moment:first-child { padding-top: 96px; }
-  .moment__copy > p:not(.eyebrow) { font-size: 19px; line-height: 1.5; }
+  .moment__copy > p { font-size: 19px; line-height: 1.5; }
   .moment--flip { grid-template-columns: auto minmax(0, var(--words)); }
   .moment--flip .moment__copy { order: 2; }
 }
-
-/* What an NEAE coordinator checks first: a quiet ruled list, a small accent mark on each line. */
-.facts { list-style: none; padding: 0; margin: 22px 0 0; max-width: 30em; border-top: 1px solid var(--line); }
-.facts li { position: relative; padding: 11px 0 11px 20px; border-bottom: 1px solid var(--line); font-size: 15px; line-height: 1.45;
-  color: var(--ink-2); text-wrap: wrap; }
-.facts li::before { content: ''; position: absolute; left: 2px; top: 1.28em; width: 8px; height: 2px; border-radius: 1px; background: var(--accent); }
 
 /* Two short moments side by side on a desktop, on one band: words above, phones on the same line, one left edge. */
 .duo .moment:first-child { padding-top: 0; }
@@ -311,59 +254,36 @@ h3 { font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01e
 .clip__toggle svg { width: 15px; height: 15px; fill: currentColor; }
 @media (prefers-reduced-motion: reduce) { .clip__screen video, .clip__toggle { transition: none; } }
 
-/* ── IA, and coming from paper: a heading beside four numbered points. The AI on its own band, as cards;
-   coming from paper after it, as a ruled list. ── */
-.split { display: grid; gap: 32px; }
-.split__head > p:not(.eyebrow) { margin-top: 16px; color: var(--ink-2); max-width: 28em; text-wrap: pretty; }
-.cards, .points { list-style: none; padding: 0; display: grid; }
-.cards { gap: 12px; }
-.cards li { background: var(--fill); border-radius: 22px; padding: 22px 22px 24px; }
-.cards .num, .points .num { display: block; margin-bottom: 14px; }
-.cards h3, .points h3 { margin-bottom: 6px; }
-.cards p, .points p { font-size: 16px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
-.points p { text-wrap: wrap; }
-.points li { padding: 20px 0 22px; border-top: 1px solid var(--line); }
-.points li:last-child { border-bottom: 1px solid var(--line); }
-#papel { padding-top: var(--section); }
-@media (min-width: 768px) {
-  .cards { grid-template-columns: 1fr 1fr; }
-  .cards li { padding: 28px 28px 30px; }
-  .points { grid-template-columns: 1fr 1fr; column-gap: 40px; }
-  .points li:nth-last-child(2) { border-bottom: 1px solid var(--line); }
-}
+/* ── The last word: one centred statement ── */
+.statement { padding-top: var(--section); display: grid; justify-items: start; }
+.statement p { margin-top: 20px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
+.statement .more { margin-top: 16px; }
+@media (min-width: 768px) { .statement { justify-items: center; text-align: center; } }
 @media (min-width: 1024px) {
-  .split { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 72px; align-items: start; }
-  .split h2 { font-size: 44px; }
-  .split__head { position: sticky; top: 112px; }
-  .split__head > p:not(.eyebrow) { font-size: 19px; line-height: 1.5; }
-  .points li { padding: 26px 0 28px; }
+  .statement h2 { font-size: 56px; letter-spacing: -0.022em; }
+  .statement p { font-size: 21px; line-height: 1.45; }
 }
 
-/* ── Closing: one sheet of paper with the two ways in and three ruled promises ── */
+/* ── Closing: one sheet of paper with the two ways in ── */
 .closing { margin-top: var(--section); }
-.closing__panel { background: var(--paper); border-radius: 28px; box-shadow: var(--e1), 0 0 0 0.5px var(--line); padding: 36px 22px 10px; }
+.closing__panel { background: var(--paper); border-radius: 28px; box-shadow: var(--e1), 0 0 0 0.5px var(--line); padding: 40px 24px; }
 .closing h2 { font-size: 36px; }
-.closing__panel > p { margin-top: 14px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
-.closing .actions { margin-top: 26px; }
-.ruled { list-style: none; padding: 0; margin: 32px 0 0; border-top: 1px solid var(--line); }
-.ruled li { padding: 15px 0 16px; font-size: 16px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
-.ruled li + li { border-top: 1px solid var(--line); }
-.ruled b { color: var(--ink); }
+.closing__panel > p { margin-top: 20px; max-width: 30em; color: var(--ink-2); text-wrap: pretty; }
+.closing .actions { margin-top: 32px; }
 @media (max-width: 479px) { .closing .actions { flex-direction: column; } }
 @media (min-width: 768px) {
-  .closing__panel { padding: 64px 48px 20px; text-align: center; display: grid; justify-items: center; }
+  .closing__panel { padding: 72px 48px; text-align: center; display: grid; justify-items: center; }
   .closing h2 { font-size: 48px; }
   .closing .actions { justify-content: center; }
-  .ruled { width: 100%; max-width: 30em; margin-top: 44px; text-align: left; }
 }
 @media (min-width: 1024px) {
-  .closing__panel { padding: 80px 64px 28px; }
+  .closing__panel { padding: 96px 64px; }
   .closing h2 { font-size: 56px; letter-spacing: -0.022em; }
   .closing__panel > p { font-size: 21px; line-height: 1.45; }
 }
 
 /* ── Footer ──────────────────────────────────────────── */
-.foot { width: min(var(--max), calc(100% - 2 * var(--margin))); margin: 72px auto 0;
+.foot { width: min(var(--max), calc(100% - 2 * var(--margin))); margin: 96px auto 0;
   padding: 20px 0 calc(32px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line);
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; color: var(--ink-2); font-size: 14px; }
 .foot .brand { color: var(--ink); }
