@@ -10,12 +10,14 @@ interface Props {
   thumbUrl?: string | null;
   detected?: string | null;
   onPick: (studentId: string) => void;
+  /** Moving a single page instead of a whole paper. */
+  page?: string | null;
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /** "¿De quién es esta hoja?" — students without a paper first; picking one who has a paper merges the pages. */
-export default function StudentPickerSheet({ open, onClose, students, thumbUrl, detected, onPick }: Props) {
+export default function StudentPickerSheet({ open, onClose, students, thumbUrl, detected, onPick, page }: Props) {
   const [q, setQ] = useState('');
   const [free, taken] = useMemo(() => {
     const list = students.filter((s) => !q || norm(s.student.name).includes(norm(q)));
@@ -28,14 +30,14 @@ export default function StudentPickerSheet({ open, onClose, students, thumbUrl, 
   );
 
   return (
-    <Sheet open={open} onClose={onClose} title="¿De quién es esta hoja?" size="large"
-      subtitle={detected ? `Se lee «${detected}».` : 'No se ha podido leer el nombre.'}>
+    <Sheet open={open} onClose={onClose} title={page ? '¿De quién es esta página?' : '¿De quién es esta hoja?'} size="large"
+      subtitle={[page, detected ? `Se lee «${detected}».` : page ? '' : 'No se ha podido leer el nombre.'].filter(Boolean).join(' · ')}>
       <div className="form">
         {thumbUrl && <img className="picker-head" src={fileUrl(thumbUrl)} alt="Cabecera de la hoja" />}
         <TextField placeholder="Buscar alumno" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar alumno" />
         {free.length > 0 && <Section title="Sin hoja"><List inset={56}>{free.map(row)}</List></Section>}
         {taken.length > 0 && (
-          <Section title="Ya tienen hoja" footer="Si eliges uno de estos, las páginas se añaden a su examen.">
+          <Section title="Ya tienen hoja" footer={page ? 'La página se añade a su examen.' : 'Si eliges uno de estos, las páginas se añaden a su examen.'}>
             <List inset={56}>{taken.map(row)}</List>
           </Section>
         )}

@@ -1,83 +1,52 @@
-import { DotsThree, Trash } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
-import { useAssignPaper, useDeletePaper, useSuggest, useUploadPapers, type Correction } from '../../api/papers';
+import { useState } from 'react';
+import { useUploadPapers, type Correction } from '../../api/papers';
 import type { Job } from '../../api/types';
-import { fileUrl } from '../../lib/api';
 import { plural } from '../../lib/format';
-import { Chip, DropZone, IconButton, Lightbox, List, Menu, Row, Section, Segmented, Stepper, useFeedback } from '../../ui';
+import { DropZone, List, Row, Section, Segmented, useFeedback } from '../../ui';
 import { JobLine } from './JobLine';
-import StudentPickerSheet from './StudentPickerSheet';
+import { ScanPages } from './ScanPages';
 
 interface Props {
   correction: Correction;
   job: Job | undefined;
+  /** The pile is being read (upload or «Volver a leer»): pages cannot be edited meanwhile. */
   running: boolean;
+  /** The AI is suggesting grades: pages can still be fixed (the grading re-checks them before saving). */
+  grading: boolean;
   onJob: (job: Job) => void;
 }
 
 type Mode = 'names' | 'list_order';
 
-/** Step 2 — upload the scanned pile; names are read and matched with the class list. */
-export function CollectStep({ correction, job, running, onJob }: Props) {
-  const id = correction.activity.id;
-  const upload = useUploadPapers(id);
-  const assign = useAssignPaper(id);
-  const remove = useDeletePaper(id);
-  const suggest = useSuggest(id);
-  const { toast, confirm } = useFeedback();
-  const [perPaper, setPerPaper] = useState(correction.pages_per_paper || 1);
+/** Step 2 — upload the scanned pile; pages are sorted by their printed marker and names matched with the class list. */
+export function CollectStep({ correction, job, running, grading, onJob }: Props) {
+  const upload = useUploadPapers(correction.activity.id);
+  const { toast } = useFeedback();
   const [mode, setMode] = useState<Mode>('names');
-  const [picker, setPicker] = useState<{ paperId: string; thumb: string | null; detected: string | null } | null>(null);
-  const [viewer, setViewer] = useState<string | null>(null);
 
-  useEffect(() => { if (correction.pages_per_paper) setPerPaper(correction.pages_per_paper); }, [correction.pages_per_paper]);
-
-  const { stats, students, unmatched } = correction;
-  const toConfirm = students.filter((s) => s.paper_id && s.match_status === 'suggested');
+  const { stats, students } = correction;
   const missing = students.filter((s) => !s.paper_id);
   const busy = running || upload.isPending;
-  const byId = new Map(students.map((s) => [s.student.id, s.student]));
+  const pages = students.reduce((n, s) => n + s.pages.length, 0) + correction.unmatched.reduce((n, u) => n + u.pages, 0);
+  const blocked = busy ? `Espera a que termine: ${(running && job?.message) || 'subiendo las hojas…'}` : null;
 
-  const onFiles = (files: File[]) => upload.mutate({ files, pagesPerPaper: perPaper, mode }, {
+  const onFiles = (files: File[]) => upload.mutate({ files, mode }, {
     onSuccess: ({ job: j }) => onJob(j),
     onError: (e) => toast(e.message, { tone: 'error' }),
   });
 
-  const doAssign = (paperId: string, studentId: string) => {
-    const target = students.find((s) => s.student.id === studentId);
-    const final = ['confirmed', 'absent', 'exempt'].includes(target?.grade?.status ?? '');
-    // New pages for this student → ask the AI again (never over a confirmed grade).
-    const needsSuggestion = !!correction.rubric && !final && (!target?.grade || (!!target.paper_id && target.paper_id !== paperId));
-    assign.mutate({ paperId, studentId }, {
-      onSuccess: () => {
-        toast(`Hoja asignada a ${byId.get(studentId)?.name ?? 'el alumno'}`);
-        if (needsSuggestion) suggest.mutate([studentId], { onSuccess: ({ job: j }) => onJob(j) });
-      },
-      onError: (e) => toast(e.message, { tone: 'error' }),
-    });
-  };
-
-  const discard = async (paperId: string) => {
-    if (!(await confirm({ title: 'Descartar esta hoja', text: 'Se borran sus páginas escaneadas.', confirm: 'Descartar', danger: true }))) return;
-    remove.mutate(paperId, { onSuccess: () => toast('Hoja descartada'), onError: (e) => toast(e.message, { tone: 'error' }) });
-  };
-
-  const thumb = (url: string | null, label: string, wide = false) => url ? (
-    <button type="button" className={`paper-thumb${wide ? ' paper-thumb--wide' : ''}`} onClick={() => setViewer(url)} aria-label={`Ver ${label}`}>
-      <img src={fileUrl(url)} alt="" loading="lazy" />
-    </button>
-  ) : null;
-
   const uploader = (
     <>
-      <p className="muted step-lead">Fotocopia el mismo examen para todos. Después escanea el montón en la copistería o haz fotos, en cualquier orden.</p>
+      <p className="muted step-lead">
+        {mode === 'names'
+          ? 'Escanea el montón a una o dos caras, o haz fotos. Si lo imprimiste desde Sepia, cada página lleva una marca y el montón se ordena solo, aunque venga desordenado. Los reversos en blanco se descartan.'
+          : 'Ordena el montón por apellidos y escanéalo a una o dos caras. Si lo imprimiste desde Sepia, cada página lleva una marca que separa un alumno del siguiente. Los reversos en blanco se descartan.'}
+      </p>
       <List>
-        <Row title="Páginas por examen" sub={correction.pages_per_paper ? 'Tomado del examen original' : undefined}
-          trail={<Stepper label="Páginas por examen" value={perPaper} min={1} max={20} onChange={setPerPaper} />} />
         <Row className="collect-mode" title="Emparejar" wrapSub
           sub={mode === 'names'
             ? 'Se lee el nombre de la cabecera y se compara con tu lista, que no sale de Sepia.'
-            : 'Por orden alfabético de apellidos. Ordena el montón antes de escanear.'}
+            : 'Por orden alfabético de apellidos. También se lee el nombre, para avisarte si el orden no cuadra.'}
           trail={<Segmented label="Cómo emparejar" value={mode} onChange={setMode}
             options={[{ value: 'names', label: 'Leer nombres' }, { value: 'list_order', label: 'En orden de lista' }]} />} />
       </List>
@@ -92,74 +61,24 @@ export function CollectStep({ correction, job, running, onJob }: Props) {
 
   return (
     <>
-      {busy && <JobLine job={job} fallback={upload.isPending ? 'Subiendo las hojas…' : 'Procesando…'} />}
-      {stats.papers === 0 && !busy && uploader}
+      {busy && <JobLine job={running ? job : undefined} fallback={upload.isPending ? 'Subiendo las hojas…' : 'Procesando…'} />}
+      {grading && !busy && (
+        <>
+          <JobLine job={job} fallback="Corrigiendo…" />
+          <p className="muted step-hint">Mientras, puedes seguir ordenando páginas: la IA no guarda la nota de una hoja que cambies.</p>
+        </>
+      )}
+      {stats.papers === 0 && !busy && correction.unplaced.length === 0 && uploader}
       {stats.papers > 0 && (
         <p className="collect-count">
-          <b className="num">{stats.matched} de {students.length}</b> emparejados · {plural(stats.papers, 'hoja', 'hojas')}
+          <b className="num">{stats.matched} de {students.length}</b> emparejados · {plural(pages, 'página', 'páginas')}
           {missing.length > 0 && missing.length <= 8 && (
             <span className="muted"> · Sin examen: {missing.map((s) => s.student.first_name + ' ' + s.student.last_name.split(' ')[0]).join(', ')}</span>
           )}
         </p>
       )}
-
-      {unmatched.length > 0 && (
-        <Section title={`Sin identificar · ${unmatched.length}`}>
-          <List inset={16}>
-            {unmatched.map((u) => (
-              <Row key={u.paper_id} className="tray-row" lead={thumb(u.thumb_url, 'la cabecera')}
-                title={u.detected_name ? <span>Parece: <i>{u.detected_name}</i></span> : 'Nombre ilegible'}
-                wrapSub
-                sub={
-                  <div className="tray-sub">
-                  {thumb(u.thumb_url, 'la cabecera', true)}
-                  <div className="chip-row tray-chips">
-                    {u.candidates.map((c) => (
-                      <Chip key={c.id} tone="outline" onClick={() => doAssign(u.paper_id, c.id)}>{c.first_name} {c.last_name.split(' ')[0]}</Chip>
-                    ))}
-                    <Chip onClick={() => setPicker({ paperId: u.paper_id, thumb: u.thumb_url, detected: u.detected_name })}>Otro…</Chip>
-                  </div>
-                  </div>
-                }
-                trail={
-                  <Menu trigger={(o) => <IconButton label="Más" size="sm" onClick={o}><DotsThree size={20} weight="bold" /></IconButton>}
-                    items={[{ label: 'Descartar hoja', icon: <Trash size={18} />, danger: true, onSelect: () => discard(u.paper_id) }]} />
-                }
-              />
-            ))}
-          </List>
-        </Section>
-      )}
-
-      {toConfirm.length > 0 && (
-        <Section title={`Por confirmar · ${toConfirm.length}`}>
-          <List inset={16}>
-            {toConfirm.map((s) => (
-              <Row key={s.paper_id} className="tray-row" lead={thumb(s.thumb_url, 'la cabecera')}
-                title={s.student.name}
-                wrapSub
-                sub={
-                  <div className="tray-sub">
-                    {thumb(s.thumb_url, 'la cabecera', true)}
-                    {s.detected_name && <span className="muted">Se lee «{s.detected_name}»</span>}
-                    <div className="chip-row tray-chips">
-                      <Chip tone="accent" onClick={() => doAssign(s.paper_id!, s.student.id)}>Es correcto</Chip>
-                      <Chip onClick={() => setPicker({ paperId: s.paper_id!, thumb: s.thumb_url, detected: s.detected_name })}>Cambiar</Chip>
-                    </div>
-                  </div>
-                }
-              />
-            ))}
-          </List>
-        </Section>
-      )}
-
-      {stats.papers > 0 && !busy && <Section title="Añadir hojas">{uploader}</Section>}
-
-      <StudentPickerSheet open={!!picker} onClose={() => setPicker(null)} students={students}
-        thumbUrl={picker?.thumb} detected={picker?.detected}
-        onPick={(sid) => picker && doAssign(picker.paperId, sid)} />
-      {viewer && <Lightbox images={[fileUrl(viewer)!]} index={0} onIndex={() => {}} onClose={() => setViewer(null)} label="Hoja escaneada" />}
+      <ScanPages correction={correction} blocked={blocked} busy={busy || grading} onJob={onJob} />
+      {(stats.papers > 0 || correction.unplaced.length > 0) && !busy && <Section title="Añadir hojas">{uploader}</Section>}
     </>
   );
 }

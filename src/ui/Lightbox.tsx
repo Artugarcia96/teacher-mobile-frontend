@@ -1,5 +1,5 @@
 import { CaretLeft, CaretRight, X } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { IconButton } from './Button';
 import './Lightbox.css';
@@ -10,10 +10,14 @@ interface Props {
   onIndex: (i: number) => void;
   onClose: () => void;
   label?: string;
+  /** What the current image is ("Ana García · Pág. 2 de 2"). */
+  caption?: ReactNode;
+  /** Buttons for the current image, in a glass bar at the bottom. */
+  actions?: ReactNode;
 }
 
 /** Full-screen image viewer (scanned pages). Tap the image to zoom 2x; arrows and Esc work. */
-export function Lightbox({ images, index, onIndex, onClose, label }: Props) {
+export function Lightbox({ images, index, onIndex, onClose, label, caption, actions }: Props) {
   const [zoom, setZoom] = useState(false);
 
   useEffect(() => {
@@ -32,15 +36,17 @@ export function Lightbox({ images, index, onIndex, onClose, label }: Props) {
 
   return createPortal(
     <div className="lightbox" role="dialog" aria-modal="true" aria-label={label ?? 'Página'}>
+      {caption && <div className="lightbox__caption glass">{caption}</div>}
       <div className="lightbox__bar glass">
         <span className="lightbox__count num">{index + 1} / {images.length}</span>
         <IconButton label="Anterior" size="sm" disabled={index === 0} onClick={() => onIndex(index - 1)}><CaretLeft size={18} /></IconButton>
         <IconButton label="Siguiente" size="sm" disabled={index >= images.length - 1} onClick={() => onIndex(index + 1)}><CaretRight size={18} /></IconButton>
         <IconButton label="Cerrar" size="sm" onClick={onClose}><X size={18} /></IconButton>
       </div>
-      <div className={`lightbox__stage${zoom ? ' lightbox__stage--zoom' : ''}`}>
+      <div className={`lightbox__stage${zoom ? ' lightbox__stage--zoom' : ''}${actions ? ' lightbox__stage--actions' : ''}`}>
         <img src={images[index]} alt={`Página ${index + 1}`} onClick={() => setZoom((z) => !z)} />
       </div>
+      {actions && <div className="lightbox__actions glass glass-strong">{actions}</div>}
     </div>,
     document.body,
   );

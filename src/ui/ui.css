@@ -134,6 +134,7 @@ button.row:active, a.row:active { background: var(--fill); }
   letter-spacing: 0.005em; word-spacing: 0.12em;
 }
 button.chip { cursor: pointer; }
+button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .chip--ok { background: var(--ok-soft); color: var(--ok); }
 .chip--warn { background: var(--warn-soft); color: var(--warn); }
 .chip--danger { background: var(--danger-soft); color: var(--danger); }
