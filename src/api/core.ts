@@ -5,7 +5,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type {
-  CourseDetail, CourseSummary, GroupOut, Job, Me, Region, SchoolYear, SearchResult, StudentFile, StudentRef, StudentRow, Teacher,
+  CourseDetail, CourseSummary, GroupOut, Job, Me, Period, Region, SchoolYear, SearchResult, StudentFile, StudentRef, StudentRow, Teacher,
 } from './types';
 
 export const keys = {
@@ -45,8 +45,17 @@ export function usePatchMe() {
 export function useSaveSchoolYear() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Omit<SchoolYear, 'id' | 'current_term' | 'start_date' | 'end_date'>) => api.put<SchoolYear>('/school-year', body),
+    mutationFn: (body: Omit<SchoolYear, 'id' | 'current_term' | 'start_date' | 'end_date' | 'periods'>) => api.put<SchoolYear>('/school-year', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
+  });
+}
+
+/** The school's periods (rows of the timetable grid), stored once for all her classes. */
+export function useSavePeriods() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (periods: Period[]) => api.patch<SchoolYear>('/school-year', { periods }),
+    onSuccess: (year) => qc.setQueryData<Me>(keys.me, (m) => m && { ...m, school_year: year }),
   });
 }
 

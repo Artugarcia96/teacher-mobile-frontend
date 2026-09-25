@@ -15,6 +15,8 @@ export interface AttendanceSummary {
   /** Last 14 lective days, most recent first. */
   sessions_missing: SessionSlot[];
   today: (SessionSlot & { taken: boolean })[];
+  /** Lists taken in the term. */
+  taken: number;
   /** Only students with some mark, most unjustified absences first. */
   students: { student: StudentRef; absent: number; justified: number; late: number }[];
 }

@@ -1,15 +1,11 @@
 /* Programación tab — layout only. */
 .plan { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); min-width: 0; }
-.plan-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
-.plan-bar__meta { color: var(--ink-2); font-size: var(--fs-sub); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plan-bar__meta b { color: var(--ink); font-weight: 600; }
-.plan-bar__actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.plan-bar { display: flex; align-items: center; justify-content: flex-end; min-height: 40px; }
 
 .plan-terms { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); min-width: 0; }
 @media (min-width: 1024px) {
-  .plan-terms { max-width: 860px; }
+  .plan-terms, .plan-bar { max-width: 860px; }
 }
-.plan-term__count { font-size: var(--fs-footnote); color: var(--ink-3); }
 .plan-term__empty { color: var(--ink-3); font-weight: 500; }
 
 .plan-unit { position: relative; }

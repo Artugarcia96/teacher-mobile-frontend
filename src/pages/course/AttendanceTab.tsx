@@ -91,7 +91,9 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
         )}
         {!(noSchedule && s.students.length === 0) && <Section title="Por alumno" footer={s.students.length ? 'Ordenado por faltas sin justificar.' : undefined}>
           {s.students.length === 0 ? (
-            <List><Row title="Nadie ha faltado ni llegado tarde" sub={`${TERM_SHORT[term]} evaluación`} muted /></List>
+            <List>
+              <Row title={s.taken ? 'Nadie ha faltado ni llegado tarde' : 'Aún no has pasado lista'} sub={`${TERM_SHORT[term]} evaluación`} muted />
+            </List>
           ) : (
             <List>
               {s.students.map((r) => {

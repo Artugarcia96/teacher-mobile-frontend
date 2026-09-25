@@ -18,8 +18,13 @@
   font-size: 11px; font-weight: 600; color: var(--ink-3); text-align: center; line-height: 1.1; overflow: hidden;
 }
 .sched__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); font-size: var(--fs-footnote); min-height: 34px; }
-.sched__add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; }
-.sched__add .input { min-width: 0; width: 100%; }
+/* «Otra hora»: start and end side by side, the button under them on phones */
+.sched__add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); align-items: end; }
+.sched__add > .btn { grid-column: 1 / -1; }
+@media (min-width: 560px) {
+  .sched__add { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .sched__add > .btn { grid-column: auto; }
+}
 
 .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
 .swatch {

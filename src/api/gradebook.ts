@@ -1,7 +1,7 @@
 /** Cuaderno (gradebook). Backend: GET /courses/{id}/gradebook. Averages come from the server only. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSyncExternalStore } from 'react';
-import { api } from '../lib/api';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { api, ApiError } from '../lib/api';
 import { activityKeys, type ActivityKind, type CountsFor, type GradeInput, type GradeStatus } from './activities';
 import type { Category, StudentRef } from './types';
 
@@ -67,20 +67,66 @@ export function useGradebook(courseId: string, term: number) {
 /** One cell save: `activityId` is where the grade lives (a repeat exam, maybe); `columnId` the cuaderno column it shows in. */
 export interface CellSave { term: number; activityId: string; columnId: string; grade: GradeInput; optimistic: GradeCell }
 
-// Saves that failed, per class: the typed value stays on screen as «Sin guardar» until a retry succeeds.
+// Saves that failed, per class: the typed value stays on screen as «Sin guardar» until a retry succeeds. Mirrored on
+// the device (a reload, a closed tab or the phone killing it keeps them) and sent again when the connection returns.
 const unsaved = new Map<string, CellSave[]>();
+const restored = new Set<string>();
+/** Cells being sent again right now: the Cuaderno opening and the connection returning never send one twice. */
+const resending = new Set<string>();
+const cellKey = (courseId: string, u: CellSave) => [courseId, u.term, u.columnId, u.grade.student_id].join(' ');
 const listeners = new Set<() => void>();
 const EMPTY: CellSave[] = [];
+const storeKey = (courseId: string) => `sepia.unsaved.${courseId}`;
 const sameCell = (a: CellSave, b: CellSave) => a.term === b.term && a.columnId === b.columnId && a.grade.student_id === b.grade.student_id;
+
+function cellsOf(courseId: string): CellSave[] {
+  if (!restored.has(courseId)) {
+    restored.add(courseId);
+    try {
+      const list = JSON.parse(localStorage.getItem(storeKey(courseId)) ?? '[]') as CellSave[];
+      if (Array.isArray(list) && list.length) unsaved.set(courseId, list);
+    } catch { /* storage blocked or unreadable: nothing to restore */ }
+  }
+  return unsaved.get(courseId) ?? EMPTY;
+}
 function setUnsaved(courseId: string, list: CellSave[]) {
   if (list.length) unsaved.set(courseId, list); else unsaved.delete(courseId);
+  try {
+    if (list.length) localStorage.setItem(storeKey(courseId), JSON.stringify(list));
+    else localStorage.removeItem(storeKey(courseId));
+  } catch { /* private mode: they stay in memory */ }
   listeners.forEach((l) => l());
 }
 function subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; }
+/** The server answered and said no (the activity was deleted, the grade is above its maximum…): sending it again cannot
+ * help, so it is not kept as unsaved. */
+export const rejectedByServer = (e: unknown) => e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 408, 429].includes(e.status);
+const warnBeforeLeaving = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
 
-/** Failed saves of this class (all terms), to show as «Sin guardar» and retry. */
-export function useUnsavedCells(courseId: string): CellSave[] {
-  return useSyncExternalStore(subscribe, () => unsaved.get(courseId) ?? EMPTY);
+/** Failed saves of this class (all terms), to show as «Sin guardar» and retry. `resend` sends them again when the
+ * Cuaderno opens (after a reload they come back from the device) and when the connection returns; while any is left,
+ * leaving the page asks first. */
+export function useUnsavedCells(courseId: string, resend: (u: CellSave) => void): CellSave[] {
+  const list = useSyncExternalStore(subscribe, () => cellsOf(courseId));
+  const send = useRef(resend);
+  useEffect(() => { send.current = resend; });
+  useEffect(() => {
+    const all = () => cellsOf(courseId).forEach((u) => {
+      const key = cellKey(courseId, u);
+      if (resending.has(key)) return;
+      resending.add(key);
+      send.current(u);
+    });
+    all();
+    window.addEventListener('online', all);
+    return () => window.removeEventListener('online', all);
+  }, [courseId]);
+  useEffect(() => {
+    if (!list.length) return;
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [list.length]);
+  return list;
 }
 
 /** Save one cell with an optimistic update. A failure puts back only that cell and keeps the typed value as unsaved
@@ -109,11 +155,13 @@ export function useSaveCell(courseId: string) {
       patch(v.term, v.grade.student_id, v.columnId, v.optimistic);
       return { prev };
     },
-    onError: (_err, v, ctx) => {
+    onError: (err, v, ctx) => {
       patch(v.term, v.grade.student_id, v.columnId, ctx?.prev);
-      setUnsaved(courseId, [...(unsaved.get(courseId) ?? []).filter((u) => !sameCell(u, v)), v]);
+      if (!rejectedByServer(err)) setUnsaved(courseId, [...(unsaved.get(courseId) ?? []).filter((u) => !sameCell(u, v)), v]);
     },
-    onSettled: (_data, _err, { activityId, columnId }) => {
+    onSettled: (_data, _err, v) => {
+      const { activityId, columnId } = v;
+      resending.delete(cellKey(courseId, v));
       qc.invalidateQueries({ queryKey: activityKeys.one(activityId) });
       qc.invalidateQueries({ queryKey: activityKeys.one(columnId) });
       if (qc.isMutating({ mutationKey }) <= 1) {
