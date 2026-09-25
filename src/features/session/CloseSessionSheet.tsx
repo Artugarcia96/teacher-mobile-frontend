@@ -58,8 +58,7 @@ function CloseBody({ onClose, courseId, date, start, label }: CloseSessionSheetP
   const when = [date !== today && longDate(date), d?.end ? `${start}–${d.end}` : start].filter(Boolean).join(' · ');
   return (
     <Sheet open side onClose={onClose} dirty={dirty} title={label ? `Cerrar clase · ${label}` : 'Cerrar clase'} subtitle={when}
-      footer={<Button full variant={empty && d?.saved ? 'danger' : 'primary'} onClick={submit} loading={save.isPending} disabled={!f || (empty && !d?.saved)}
-        title={empty && !d?.saved ? 'Escribe qué habéis hecho' : undefined}>
+      footer={<Button full variant={empty && d?.saved ? 'danger' : 'primary'} onClick={submit} loading={save.isPending} disabled={!f || (empty && !d?.saved)}>
         {empty && d?.saved ? 'Borrar el cierre' : empty ? 'Escribe qué habéis hecho' : 'Guardar'}
       </Button>}>
       {q.error ? <p className="muted">{(q.error as Error).message}</p> : !f || !d ? <SkeletonList rows={3} /> : (

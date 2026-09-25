@@ -22,6 +22,12 @@ export const keys = {
   search: (q: string) => ['search', q] as const,
 };
 
+/** Hoy and Evaluar read the timetable and the class lists: refresh them after a class or roster change. */
+function invalidateDay(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['today'] });
+  qc.invalidateQueries({ queryKey: ['inbox'] });
+}
+
 export interface ParsedStudents { students: { first_name: string; last_name: string }[]; warnings: string[] }
 
 export function useMe(enabled = true) {
@@ -81,6 +87,7 @@ export function usePatchCourse(id: string) {
       qc.setQueryData(keys.course(id), data);
       qc.invalidateQueries({ queryKey: keys.courses });
       qc.invalidateQueries({ queryKey: ['course', id] });
+      invalidateDay(qc);
     },
   });
 }
@@ -89,7 +96,7 @@ export function useDeleteCourse() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, permanent }: { id: string; permanent?: boolean }) => api.delete(`/courses/${id}${permanent ? '?permanent=true' : ''}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.courses }); qc.invalidateQueries({ queryKey: keys.groups }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.courses }); qc.invalidateQueries({ queryKey: keys.groups }); invalidateDay(qc); },
   });
 }
 
@@ -138,6 +145,7 @@ export function useUnenroll() {
       qc.invalidateQueries({ queryKey: keys.courses });
       qc.invalidateQueries({ queryKey: keys.groups });
       qc.invalidateQueries({ queryKey: keys.student(v.studentId) });
+      invalidateDay(qc);
     },
   });
 }
@@ -178,6 +186,7 @@ export function useAddStudents(groupId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses });
       qc.invalidateQueries({ queryKey: keys.groups }); qc.invalidateQueries({ queryKey: ['student'] });
+      invalidateDay(qc);
     },
   });
 }
@@ -186,7 +195,7 @@ export function useRemoveStudent(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (studentId: string) => api.delete(`/groups/${groupId}/students/${studentId}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses }); invalidateDay(qc); },
   });
 }
 

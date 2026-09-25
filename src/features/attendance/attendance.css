@@ -1,9 +1,12 @@
-/* Roster «a toques» (Pasar lista, Revisar deberes). Layout + tokens only. */
-.roster-head { display: grid; gap: 3px; }
-.roster-head__meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+/* Roster «a toques» (Pasar lista, Revisar deberes). Layout + tokens only.
+   Title and header lines never wrap: a tap must not move the rows under the finger. */
+.roster-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; overflow-wrap: anywhere; }
+.roster-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.roster-head__meta { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.roster-head__text, .roster-head__sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-head__text { flex: 1 1 auto; }
+.roster-head__save { flex: none; white-space: nowrap; }
 .roster-head__sum { color: var(--ink); font-weight: 600; }
-.roster-head__names { color: var(--ink-2); }
-.roster-head__names b { color: var(--ink); font-weight: 600; }
 .roster-head__do { color: var(--ink-2); }
 .roster-head__err { color: var(--danger); }
 
@@ -24,13 +27,13 @@
   -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none;
   transition: background var(--t-fast);
 }
-.roster__row:hover:not(:disabled) { background: var(--paper-2); }
+@media (hover: hover) { .roster__row:hover:not(:disabled) { background: var(--paper-2); } }
 .roster__row:active:not(:disabled) { background: var(--fill); }
 .roster__row:disabled { cursor: default; }
 .roster__row:disabled .roster__name { color: var(--ink-3); }
 .roster__n { width: 40px; flex: none; text-align: right; color: var(--ink-3); font-size: var(--fs-sub); }
 .roster__main { flex: 1; min-width: 0; display: grid; }
-.roster__name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster__name { font-weight: 500; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .roster__note { font-size: var(--fs-footnote); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .roster .chip { flex: none; min-width: 84px; justify-content: center; }
 .roster .roster__muted { background: transparent; color: var(--ink-3); font-weight: 500; }

@@ -1,13 +1,14 @@
 /** «Revisar deberes»: todos hechos por defecto; tocar = sin hacer, otro toque = incompleto, otro = hecho. Guardado automático.
- *  Quien faltó ese día no cuenta. Cada guardado recalcula la nota sugerida «Deberes» de la evaluación en el cuaderno. */
+ *  Quien faltó ese día o llegó a la clase después de que se pusieran los deberes («Nuevo») no cuenta. Cada guardado
+ *  recalcula la nota «Deberes» de la evaluación en el cuaderno. */
 import { useQueryClient } from '@tanstack/react-query';
 import { WarningCircle } from '@phosphor-icons/react';
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HOMEWORK_LABEL, invalidateHomework, useHomeworkCheck, useSaveHomeworkCheck, type HomeworkStatus } from '../../api/sessions';
 import { api } from '../../lib/api';
 import { plural } from '../../lib/format';
 import { Button, Sheet, SkeletonList, useFeedback } from '../../ui';
-import { RosterList, SAVE_LABEL, useAutosave } from '../attendance/RosterList';
+import { RosterList, RosterMeta, useAutosave } from '../attendance/RosterList';
 
 export interface HomeworkCheckSheetProps {
   open: boolean;
@@ -15,14 +16,15 @@ export interface HomeworkCheckSheetProps {
   courseId: string;
   date: string;
   start: string;
+  /** Group first, one line: `courseShortLabel(course)`. */
   label?: string;
 }
 
 type Marks = Record<string, HomeworkStatus>;
 
 const NEXT: Record<HomeworkStatus, HomeworkStatus> = { done: 'not_done', not_done: 'partial', partial: 'done' };
-const LABEL = { ...HOMEWORK_LABEL, absent: 'Faltó' };
-const TONE = { done: 'muted', not_done: 'danger', partial: 'warn', absent: 'muted' } as const;
+const LABEL = { ...HOMEWORK_LABEL, absent: 'Faltó', new: 'Nuevo' };
+const TONE = { done: 'muted', not_done: 'danger', partial: 'warn', absent: 'muted', new: 'muted' } as const;
 
 export default function HomeworkCheckSheet(props: HomeworkCheckSheetProps) {
   if (!props.open) return null;
@@ -45,15 +47,11 @@ function HomeworkBody({ onClose, courseId, date, start, label }: HomeworkCheckSh
     setMarks(Object.fromEntries(q.data.students.map((r) => [r.student.id, r.status])));
   }, [q.data, marks]);
 
-  const present = (q.data?.students ?? []).filter((r) => !r.absent);
+  const counted = (q.data?.students ?? []).filter((r) => !r.absent && !r.new);
   const counts = { done: 0, not_done: 0, partial: 0 };
-  for (const r of present) if (marks) counts[marks[r.student.id]]++;
-  const summary = [plural(counts.done, 'hecho', 'hechos'), plural(counts.not_done, 'sin hacer', 'sin hacer'),
+  for (const r of counted) if (marks) counts[marks[r.student.id]]++;
+  const summary = [counts.done > 0 && plural(counts.done, 'hecho', 'hechos'), counts.not_done > 0 && plural(counts.not_done, 'sin hacer', 'sin hacer'),
     counts.partial > 0 && plural(counts.partial, 'incompleto', 'incompletos')].filter(Boolean).join(' · ');
-  const names = marks ? ([['not_done', 'Sin hacer', 'Sin hacer'], ['partial', 'Incompleto', 'Incompletos']] as const).flatMap(([st, one, many]) => {
-    const who = present.filter((r) => marks[r.student.id] === st).map((r) => r.student.sort_name);
-    return who.length ? [{ st, text: who.length === 1 ? one : many, who: who.join('; ') }] : [];
-  }) : [];
 
   const finish = async (explicit: boolean) => {
     const needsSave = autosave.isDirty() || (explicit && !q.data?.checked);
@@ -67,20 +65,14 @@ function HomeworkBody({ onClose, courseId, date, start, label }: HomeworkCheckSh
   };
 
   return (
-    <Sheet open side size="large" onClose={() => void finish(false)} title={label ? `Deberes · ${label}` : 'Revisar deberes'}
+    <Sheet open side size="large" onClose={() => void finish(false)}
+      title={<span className="roster-title">{label ? `Deberes · ${label}` : 'Revisar deberes'}</span>}
       subtitle={
+        // One line each, whatever is tapped: the rows below never move.
         <span className="roster-head">
-          <span className="roster-head__meta">
-            <span>{q.data ? q.data.homework || 'Deberes de la última clase' : ' '}</span>
-            {autosave.state !== 'idle' && <span className={autosave.state === 'error' ? 'roster-head__err' : 'faint'}>{SAVE_LABEL[autosave.state]}</span>}
-          </span>
-          {marks && <span className="roster-head__sum num">{summary}</span>}
-          {names.length > 0 && (
-            <span className="roster-head__names">
-              {names.map((n, i) => <Fragment key={n.st}>{i > 0 && ' · '}{n.text}: <b>{n.who}</b></Fragment>)}
-            </span>
-          )}
-          <span className="roster-head__do">Toca a quien no los haya hecho. Otro toque: incompleto.</span>
+          <RosterMeta text={q.data ? q.data.homework || 'Deberes de la última clase' : '\u00a0'} state={autosave.state} />
+          <span className="roster-head__sum num">{summary || '\u00a0'}</span>
+          <span className="roster-head__do">Toca: sin hacer. Otro toque: incompleto.</span>
         </span>
       }
       footer={<Button full onClick={() => void finish(true)} disabled={!marks}>Terminar revisión</Button>}>
@@ -93,7 +85,9 @@ function HomeworkBody({ onClose, courseId, date, start, label }: HomeworkCheckSh
         <p className="muted">Esta clase aún no tiene alumnos.</p>
       ) : (
         <RosterList
-          rows={q.data.students.map((r) => ({ id: r.student.id, name: r.student.sort_name, status: r.absent ? 'absent' : marks[r.student.id], disabled: r.absent }))}
+          rows={q.data.students.map((r) => ({
+            id: r.student.id, name: r.student.sort_name, status: r.new ? 'new' : r.absent ? 'absent' : marks[r.student.id], disabled: r.absent || r.new,
+          }))}
           label={LABEL} tone={TONE}
           onTap={(id) => {
             const next = { ...marks, [id]: NEXT[marks[id]] };

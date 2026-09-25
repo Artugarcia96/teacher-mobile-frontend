@@ -49,3 +49,33 @@ test('two devices taking the same list keep both absences', async ({ page, conte
   await closed(page);
   expect(errors).toEqual([]);
 });
+
+test('marking never moves the rows, and a class with its list taken cannot be cancelled', async ({ page }, info) => {
+  const errors = trackErrors(page);
+  await openList(page);
+  const list = page.getByRole('list', { name: /Lista de la clase/ });
+  const head = page.locator('.sheet__sub').last();
+  const probe = page.getByRole('button', { name: /^8\. / });
+  // Where row 8 sits in the list and how tall the header is: a tap must change neither (a second tap lands on the same student).
+  const layout = async () => {
+    const [p, l, h] = await Promise.all([probe.boundingBox(), list.boundingBox(), head.boundingBox()]);
+    return [Math.round(p!.y - l!.y), Math.round(h!.height)];
+  };
+  const before = await layout();
+  for (const n of [1, 2, 3, 4, 5]) await setStatus(page, n, 'Falta');
+  await setStatus(page, 2, 'Retraso');
+  expect(await layout()).toEqual(before);
+  await shot(page, info, 'attendance-rows-still');
+  for (const n of [1, 2, 3, 4, 5]) await setStatus(page, n, 'Presente');
+  await page.getByRole('button', { name: 'Cerrar lista' }).click();
+  await closed(page);
+
+  // The session happened: its absences count, so the agenda offers «Editar lista» and no «No hay clase».
+  const agenda = page.locator('section', { has: page.getByRole('heading', { name: 'Agenda' }) });
+  await agenda.getByText('Lista pasada').first().click();
+  const sheet = page.getByRole('dialog').last();
+  await expect(sheet.getByText('Editar lista')).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'No hay clase' })).toHaveCount(0);
+  await shot(page, info, 'session-taken-no-cancel');
+  expect(errors).toEqual([]);
+});

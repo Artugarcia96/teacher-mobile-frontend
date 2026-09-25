@@ -138,6 +138,11 @@ export function courseShortLabel(c: CourseNames): string {
   return `${ordinals(c.group.name)} · ${c.short || c.subject}`;
 }
 
+/** "Aula 204" for a room number; a named room as typed ("Lab. Biología", "Gimnasio"). */
+export function roomLabel(room: string): string {
+  return /^\d/.test(room) ? `Aula ${room}` : room;
+}
+
 /** The session is running now (server "today" and "now"). */
 export function isLive(s: { date: string; start: string; end: string } | null | undefined, today: string, now?: string | null): boolean {
   return !!s && !!now && s.date === today && s.start <= now && now < s.end;

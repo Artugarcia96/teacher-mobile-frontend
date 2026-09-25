@@ -81,6 +81,8 @@ function InboxBody({ data }: { data: Inbox }) {
                   <span className="inbox-chips">
                     {x.suggested > 0 && <Chip tone="accent">{x.suggested} por revisar</Chip>}
                     {x.unmatched > 0 && <Chip tone="warn">{plural(x.unmatched, 'hoja sin alumno', 'hojas sin alumno')}</Chip>}
+                    {x.unread > 0 && <Chip tone="warn">{plural(x.unread, 'página sin leer', 'páginas sin leer')}</Chip>}
+                    {x.unplaced > 0 && <Chip tone="warn">{plural(x.unplaced, 'página por colocar', 'páginas por colocar')}</Chip>}
                   </span>
                 </>} />
             ))}

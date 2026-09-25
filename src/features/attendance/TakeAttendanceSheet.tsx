@@ -3,14 +3,14 @@
  *  justificar o añadir nota. En escritorio se abre como panel lateral. */
 import { useQueryClient } from '@tanstack/react-query';
 import { NotePencil, SealCheck, WarningCircle } from '@phosphor-icons/react';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { invalidateAttendance, MARK_LABEL, useAttendance, useSaveAttendance, type AttendanceInput, type MarkStatus } from '../../api/attendance';
 import { api } from '../../lib/api';
 import { useToday } from '../../lib/auth';
-import { longDate, plural } from '../../lib/format';
+import { longDate, plural, roomLabel } from '../../lib/format';
 import { Button, Sheet, SkeletonList, useFeedback, type MenuItem } from '../../ui';
-import { RosterList, SAVE_LABEL, useAutosave } from './RosterList';
+import { RosterList, RosterMeta, useAutosave } from './RosterList';
 
 export interface TakeAttendanceSheetProps {
   open: boolean;
@@ -18,7 +18,7 @@ export interface TakeAttendanceSheetProps {
   courseId: string;
   date: string;
   start: string;
-  /** Course label, e.g. "Matemáticas · 2º ESO B". */
+  /** Group first, one line: `courseShortLabel(course)` ("2.º ESO B · Mates"). */
   label?: string;
   room?: string | null;
 }
@@ -28,7 +28,6 @@ type Marks = Record<string, Mark>;
 
 const NEXT: Record<MarkStatus, MarkStatus> = { present: 'absent', absent: 'late', late: 'present', justified: 'present' };
 const TONE = { present: 'muted', absent: 'danger', late: 'warn', justified: 'info' } as const;
-const NAMES: [MarkStatus, string, string][] = [['absent', 'Falta', 'Faltan'], ['late', 'Retraso', 'Retrasos'], ['justified', 'Justificada', 'Justificadas']];
 
 export default function TakeAttendanceSheet(props: TakeAttendanceSheetProps) {
   if (!props.open) return null;
@@ -92,11 +91,7 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
 
   const rows = q.data?.students ?? [];
   const empty = !!q.data && rows.length === 0;
-  const names = marks ? NAMES.flatMap(([st, one, many]) => {
-    const who = rows.filter((r) => marks[r.student.id]?.status === st).map((r) => r.student.sort_name);
-    return who.length ? [{ st, text: who.length === 1 ? one : many, who: who.join('; ') }] : [];
-  }) : [];
-  const when = [date !== today && longDate(date), q.data?.end ? `${start}–${q.data.end}` : start, room && `Aula ${room}`]
+  const when = [date !== today && longDate(date), q.data?.end ? `${start}–${q.data.end}` : start, room && roomLabel(room)]
     .filter(Boolean).join(' · ');
 
   const options = (id: string): MenuItem[] => {
@@ -111,19 +106,12 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
   };
 
   return (
-    <Sheet open side size="large" onClose={() => void finish(false)} title={label ?? 'Pasar lista'}
+    <Sheet open side size="large" onClose={() => void finish(false)} title={<span className="roster-title">{label ?? 'Pasar lista'}</span>}
       subtitle={
+        // One line each, whatever is tapped: the rows below never move.
         <span className="roster-head">
-          <span className="roster-head__meta">
-            <span>{when}</span>
-            {autosave.state !== 'idle' && <span className={autosave.state === 'error' ? 'roster-head__err' : 'faint'}>{SAVE_LABEL[autosave.state]}</span>}
-          </span>
-          {marks && summary && <span className="roster-head__sum num">{summary}</span>}
-          {names.length > 0 && (
-            <span className="roster-head__names">
-              {names.map((n, i) => <Fragment key={n.st}>{i > 0 && ' · '}{n.text}: <b>{n.who}</b></Fragment>)}
-            </span>
-          )}
+          <RosterMeta text={when} state={autosave.state} />
+          {!empty && <span className="roster-head__sum num">{summary || '\u00a0'}</span>}
           {!empty && <span className="roster-head__do">Toca a quien falte. Otro toque: retraso.</span>}
         </span>
       }
