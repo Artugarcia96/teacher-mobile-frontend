@@ -14,7 +14,7 @@ React 19 + Vite + TanStack Query, con un kit de componentes propio de estilo *Li
 
 ```bash
 npm install
-../teacher-mobile-backend/scripts/dev.sh --demo   # en otra terminal: API con datos de ejemplo e IA simulada
+../teacher-mobile-backend/scripts/dev.sh --demo   # en otra terminal: API con datos de ejemplo e IA real (Claude por terminal)
 npm run dev                                       # http://127.0.0.1:5173 · demo@sepia.es / sepia1234
 ```
 
@@ -25,3 +25,7 @@ npm run check    # tipos, tokens de diseño y lint
 npm run e2e      # flujos de profesor con Playwright (móvil y escritorio)
 npm run shots    # lo mismo guardando capturas en e2e/screenshots/
 ```
+
+## Desplegar
+
+Un push a la rama de despliegue compila la app en GitHub Actions y la publica con la landing en el VPS (nginx en el puerto 8200, `/api` hacia la API): [`deploy/`](deploy/) y [`../teacher-mobile-backend/docs/DEPLOY.md`](../teacher-mobile-backend/docs/DEPLOY.md).

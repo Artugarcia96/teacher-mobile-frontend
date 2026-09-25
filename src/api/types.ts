@@ -8,7 +8,7 @@ export interface Region { code: string; name: string; short: string; platform?: 
 export interface Term { n: number; start: string; end: string }
 export interface Holiday { start: string; end: string; label: string }
 export interface SchoolYear { id: string; label: string; start_date: string; end_date: string; terms: Term[]; holidays: Holiday[]; current_term: number }
-export interface Me { teacher: Teacher; school_year: SchoolYear; region?: Region | null; ai_provider: string; today: string; now: string }
+export interface Me { teacher: Teacher; school_year: SchoolYear; region?: Region | null; ai_provider: 'openai' | 'claude_cli' | 'mock' | 'none'; today: string; now: string }
 
 export type Measure = 'mas_tiempo' | 'letra_ampliada' | 'enunciados_por_pasos' | 'lectura_en_voz_alta' | 'examen_adaptado' | 'acs';
 /** Apoyos NEAE/ACNEE como medidas concretas (backend app/schemas/support.py). */

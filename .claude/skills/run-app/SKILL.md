@@ -10,7 +10,7 @@ description: Start Sepia locally (backend in demo mode with real AI through the 
    cd ../teacher-mobile-backend && scripts/dev.sh --demo      # en segundo plano (run_in_background)
    curl -s localhost:8000/api/health    # → {"ok":true,"ai_provider":"claude_cli"}
    ```
-   `ai_provider` debe ser `claude_cli` (prompts reales vía Claude por terminal). Si dice `mock`, algo lo ha forzado (el mock es solo para tests unitarios); si dice `openai`, PARA: alguien ha puesto `SEPIA_AI_PROVIDER=openai` (cuesta dinero). La siembra con IA real tarda unos minutos; `python -m app.seed --reset --mock` es rápida pero solo sirve para comprobar que no se rompe nada, no para evaluar la experiencia.
+   `ai_provider` debe ser `claude_cli` (prompts reales vía Claude por terminal). Si dice `mock`, algo lo ha forzado con `SEPIA_AI_PROVIDER=mock` (el mock es solo para tests unitarios); si dice `openai`, PARA: alguien ha puesto `SEPIA_AI_PROVIDER=openai` (cuesta dinero). Si dice `none`, no encuentra el binario `claude` (`SEPIA_CLAUDE_BIN`): la IA queda desactivada (503) y `--demo` no siembra; el mock nunca entra solo. La siembra con IA real tarda unos minutos; `python -m app.seed --reset --mock` es rápida pero solo sirve para comprobar que no se rompe nada, no para evaluar la experiencia.
 2. Frontend (puerto 5173): `npm run dev` (en segundo plano). Proxy `/api` → 8000.
 3. Entrar: `demo@sepia.es` / `sepia1234`.
 
