@@ -83,6 +83,10 @@ export interface CourseSpec {
   students?: string[];
   /** Lists taken before the test, with their marks (student = index in `students`). */
   lists?: { date: string; start: string; marks?: { student: number; status: Status; note?: string }[] }[];
+  /** «Cerrar clase» of earlier sessions (what the next one shows: «Deberes: …» with «Revisar»). */
+  logs?: { date: string; start: string; done?: string; next?: string; homework?: string }[];
+  /** Another subject of the group of that earlier class (index in `courses`): same students, `students` is ignored. */
+  sameGroupAs?: number;
 }
 export interface WorldSpec { courses: CourseSpec[] }
 export interface WorldCourse { id: string; label: string; groupId: string; students: StudentRef[] }
@@ -107,16 +111,20 @@ async function createWorld(ctx: APIRequestContext, spec: WorldSpec): Promise<Wor
   const courses: WorldCourse[] = [];
   for (const c of spec.courses) {
     const group = c.group ?? '2º ESO C';
+    const shared = c.sameGroupAs === undefined ? null : courses[c.sameGroupAs];
     const course = await api.post('/courses', {
       subject: c.subject ?? 'Matemáticas', room: c.room === undefined ? '112' : c.room, schedule: c.slots,
-      new_group: { name: group, stage: /bach/i.test(group) ? 'bachillerato' : 'eso', level: Number(group.match(/\d/)?.[0] ?? 1) },
+      ...(shared ? { group_id: shared.groupId } : {
+        new_group: { name: group, stage: /bach/i.test(group) ? 'bachillerato' : 'eso', level: Number(group.match(/\d/)?.[0] ?? 1) },
+      }),
     });
-    const students: StudentRef[] = c.students?.length ? await api.post(`/groups/${course.group.id}/students`, {
+    const students: StudentRef[] = shared ? shared.students : c.students?.length ? await api.post(`/groups/${course.group.id}/students`, {
       students: c.students.map((n) => { const [last, first] = n.split(', '); return { first_name: first, last_name: last }; }),
     }) : [];
     for (const l of c.lists ?? []) {
       await mark(api, course.id, l.date, l.start, (l.marks ?? []).map((m) => ({ ...m, student: students[m.student] })));
     }
+    for (const log of c.logs ?? []) await api.put(`/courses/${course.id}/sessions/log`, log);
     courses.push({ id: course.id, label: course.label, groupId: course.group.id, students });
   }
   return { api, courses };
@@ -265,6 +273,8 @@ export const missingRow = (page: Page, isoDate: string) =>
 export const studentRow = (page: Page, sortName: string) => section(page, 'Por alumno').getByRole('link', { name: new RegExp(`^${sortName}`) });
 
 export const toast = (page: Page, text: string | RegExp) => page.locator('.toasts .toast').filter({ hasText: text });
+/** What the page wrote to the clipboard (the test needs `permissions: ['clipboard-read', 'clipboard-write']`). */
+export const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
 export const dialog = (page: Page, name: string) => page.getByRole('dialog', { name, exact: true });
 
 /** The «Pasar lista» sheet of a class, once its students are on screen. */
