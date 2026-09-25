@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -193,4 +193,67 @@ export async function routeApiTo(page: Page, apiUrl: string) {
     const response = await route.fetch({ url: `${apiUrl}${u.pathname}${u.search}` });
     await route.fulfill({ response });
   });
+}
+
+// ── The site as production serves it: nginx with deploy/nginx.conf.template ────────────────────────────────────
+
+export interface NginxSite { url: string; stop: () => void }
+
+/** Build the app (vite build, no typecheck) and put the landing next to it as the deploy workflow packages the site
+ *  (dist/ + landing/), then serve it with deploy/nginx.conf.template, its /api proxied to `apiUrl`. The template is used
+ *  as it is, except what only the container decides: the port, the site folder and the API upstream. Null if there is
+ *  no nginx on this machine. */
+export async function startNginxSite(apiUrl: string): Promise<NginxSite | null> {
+  const nginx = ['/usr/sbin/nginx', '/usr/local/sbin/nginx', '/usr/bin/nginx'].find((p) => existsSync(p));
+  if (!nginx) return null;
+  const dir = mkdtempSync(join(tmpdir(), 'sepia-e2e-nginx-'));
+  chmodSync(dir, 0o755);
+  const site = join(dir, 'site');
+  execFileSync('npx', ['vite', 'build', '--outDir', site, '--emptyOutDir', '--logLevel', 'error'], { stdio: 'ignore' });
+  cpSync('landing', join(site, 'landing'), { recursive: true });
+
+  const port = await freePort();
+  let server = readFileSync('deploy/nginx.conf.template', 'utf8');
+  const swaps: [string, string][] = [
+    ['listen 80;', `listen 127.0.0.1:${port};`],
+    ['root /usr/share/nginx/html;', `root ${site};`],
+    ['${SEPIA_API_UPSTREAM}', apiUrl],
+  ];
+  for (const [from, to] of swaps) {
+    if (!server.includes(from)) throw new Error(`deploy/nginx.conf.template no longer has «${from}»: update startNginxSite`);
+    server = server.replace(from, to);
+  }
+  writeFileSync(join(dir, 'server.conf'), server);
+  const asRoot = process.getuid?.() === 0 ? 'user root;\n' : '';
+  writeFileSync(join(dir, 'nginx.conf'), `${asRoot}worker_processes 1;
+pid ${dir}/nginx.pid;
+error_log ${dir}/error.log;
+events { worker_connections 256; }
+http {
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+  access_log off;
+  client_body_temp_path ${dir}/body;
+  proxy_temp_path ${dir}/proxy;
+  fastcgi_temp_path ${dir}/fastcgi;
+  uwsgi_temp_path ${dir}/uwsgi;
+  scgi_temp_path ${dir}/scgi;
+  include ${dir}/server.conf;
+}
+`);
+  const child = spawn(nginx, ['-p', dir, '-c', join(dir, 'nginx.conf'), '-g', 'daemon off;'], { stdio: 'ignore' });
+  const url = `http://127.0.0.1:${port}`;
+  const stop = () => {
+    child.kill('SIGTERM');
+    rmSync(dir, { recursive: true, force: true });
+  };
+  for (let i = 0; i < 80; i++) {
+    try {
+      if ((await fetch(`${url}/api/health`)).ok) return { url, stop };
+    } catch { /* still starting */ }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const log = existsSync(join(dir, 'error.log')) ? readFileSync(join(dir, 'error.log'), 'utf8') : '';
+  stop();
+  throw new Error(`nginx did not serve the site on ${url}\n${log}`);
 }

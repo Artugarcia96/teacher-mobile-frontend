@@ -176,7 +176,7 @@ test('acceso-32 · pegar la lista: se limpia, se corrige un nombre, se quita otr
   ].join('\n'));
   await expect(sheet.getByText('5 alumnos · Apellidos, Nombre')).toBeVisible();
   await expect(sheet.getByText('Línea 1 ignorada: «IES Miguel de Cervantes · 2º ESO B · Cur»')).toBeVisible();
-  await expect(sheet.getByText('«Ana García López» está repetido; se añade una vez.')).toBeVisible();
+  await expect(sheet.getByText('«Ana García López» aparece 2 veces; se añade una.')).toBeVisible();
   for (const n of ['García López, Ana', 'Ruiz Serrano, Pablo', 'Fernández Gil, María José', 'del Río Blanco, José María', 'Núñez Castro, Iker']) {
     await expect(sheet.getByRole('button', { name: new RegExp(n) })).toBeVisible();
   }
@@ -421,7 +421,7 @@ test('acceso-38 · la segunda clase del mismo grupo reutiliza sus alumnos y su h
   expect(errors).toEqual([]);
 });
 
-test('acceso-39 · perfil de la cuenta nueva: centro y comunidad autónoma con su plataforma de notas', async ({ page, request }, info) => {
+test('acceso-39 · perfil de la cuenta nueva: nombre, centro y comunidad autónoma', async ({ page, request }, info) => {
   const errors = trackErrors(page);
   const acc = await registerAccount(request, info, 'perfil');
   await openAs(page, acc, '/hoy');
@@ -447,9 +447,9 @@ test('acceso-39 · perfil de la cuenta nueva: centro y comunidad autónoma con s
 
   await page.getByLabel('Centro').fill('IES Miguel de Cervantes');
   await region.selectOption({ label: 'Comunidad de Madrid' });
-  await expect(page.getByText('Plataforma de notas: Raíces')).toBeVisible();
+  await expect(region).toHaveValue('MD');
   await region.selectOption({ label: 'Andalucía' });
-  await expect(page.getByText('Plataforma de notas: Séneca')).toBeVisible();
+  await expect(region).toHaveValue('AN');
   await shot(page, info, 'acceso-39-profile');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByText('Cambios guardados').last()).toBeVisible();
@@ -459,7 +459,7 @@ test('acceso-39 · perfil de la cuenta nueva: centro y comunidad autónoma con s
   expect(me.teacher).toMatchObject({ name: 'Marta Ruiz', school: 'IES Miguel de Cervantes', region: 'AN' });
   await page.reload();
   await expect(page.getByLabel('Centro')).toHaveValue('IES Miguel de Cervantes');
-  await expect(page.getByText('Plataforma de notas: Séneca')).toBeVisible();
+  await expect(region).toHaveValue('AN');
   if (info.project.name === 'desktop') {
     await expect(page.getByRole('complementary', { name: 'Navegación' }).getByRole('link', { name: /Marta Ruiz/ }))
       .toContainText('IES Miguel de Cervantes');
