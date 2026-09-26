@@ -236,7 +236,7 @@ test.describe('clases · temario', () => {
     await expect(unitTitles(page, '1.ª evaluación')).toHaveText(['Números enteros', 'Potencias y raíces']);
   });
 
-  test('clases-54b · a unit without evaluación stays without it when renamed', async ({ page, teacher }) => {
+  test('clases-54b · a unit without evaluación stays without it when renamed', async ({ page, teacher }, info) => {
     const [c] = teacher.courses;
     const loose = await teacher.api.post(`/courses/${c.id}/units`, { title: 'Repaso de verano', term: null });
     await openClass(page, c.id, 'programacion', '2.º ESO C');
@@ -247,6 +247,7 @@ test.describe('clases · temario', () => {
     await page.getByRole('menuitem', { name: 'Renombrar' }).click();
     const sheet = dialog(page, 'Editar unidad');
     await expect(sheet.getByRole('group', { name: 'Evaluación' }).getByRole('button', { name: 'Sin evaluación' })).toHaveAttribute('aria-pressed', 'true');
+    await shot(page, info, '54b-editar-sin-evaluacion');
     await sheet.getByRole('textbox', { name: 'Título' }).fill('Repaso de verano (cuadernillo)');
     await sheet.getByRole('button', { name: 'Guardar' }).click();
     await expect(toast(page, 'Unidad actualizada')).toBeVisible();

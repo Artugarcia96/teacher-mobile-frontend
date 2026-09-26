@@ -72,7 +72,7 @@ function useAddressSearch(): [string, (q: string) => void] {
   const [q, setQ] = useState(inAddress);
   const written = useRef<string[]>([]); // what the box wrote and the address has not shown yet
   useEffect(() => {
-    const i = written.current.indexOf(inAddress);
+    const i = written.current.lastIndexOf(inAddress);
     if (i >= 0) written.current = written.current.slice(i + 1);
     else {
       written.current = [];

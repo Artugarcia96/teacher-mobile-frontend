@@ -28,17 +28,20 @@ function firstResultPath(r: SearchResult | undefined): string | null {
 export function useEnterOpensFirst(q: string, onOpen: (path: string) => void) {
   const searchNow = useSearchNow();
   const typed = useRef<string | null>(q);
+  const opening = useRef(false); // one Enter at a time: a second one while the search runs would open the page twice
   useEffect(() => {
     typed.current = q;
     return () => { typed.current = null; };
   }, [q]);
   return (e: KeyboardEvent<HTMLInputElement>) => {
     const term = q.trim();
-    if (e.key !== 'Enter' || !term) return;
+    if (e.key !== 'Enter' || !term || opening.current) return;
+    opening.current = true;
     searchNow(term).then((r) => {
       const path = typed.current?.trim() === term ? firstResultPath(r) : null;
       if (path) onOpen(path);
-    }, () => {}); // the list below says the search failed
+    }, () => {}) // the list below says the search failed
+      .finally(() => { opening.current = false; });
   };
 }
 

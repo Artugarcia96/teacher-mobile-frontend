@@ -111,7 +111,7 @@ test.describe('the first list of a new class', () => {
     await expect(s.getByRole('button', { name: 'Añadir 2 alumnos' })).toBeEnabled();
   });
 
-  test('alumnos-13 a line typed after rows copied from Séneca is never dropped in silence', async ({ page, teacher }) => {
+  test('alumnos-13 a line typed among rows copied from Séneca is never dropped in silence', async ({ page, teacher }) => {
     const [c] = teacher.courses;
     const s = await openAdd(page, c.id);
     // Numbered rows: a line without a row number is read as a header or footer, as in a list of plain lines, and said.
@@ -122,6 +122,16 @@ test.describe('the first list of a new class', () => {
     await listField(s).fill('Apellidos\tNombre\nAbad García\tAlejandro\nBenítez Ruiz\tLucía\nCastro León, Marta');
     await expect(previewNames(s)).toHaveText(['Abad García, Alejandro', 'Benítez Ruiz, Lucía', 'Castro León, Marta']);
     await expect(s.getByRole('button', { name: 'Añadir 3 alumnos' })).toBeEnabled();
+    // One row copied from Séneca among plain lines, first or in the middle: its student is kept, never taken for a header.
+    for (const text of [
+      '1\tAbad García, Alejandro\t21/02/2014\tNo\nBenítez Ruiz, Lucía\nCastro León, Marta',
+      'Benítez Ruiz, Lucía\n1\tAbad García, Alejandro\t21/02/2014\tNo\nCastro León, Marta',
+    ]) {
+      await listField(s).fill(text);
+      await expect(previewNames(s)).toHaveCount(3);
+      await expect(previewNames(s)).toContainText(['Abad García, Alejandro']);
+      await expect(s.locator('.callout')).toHaveCount(0);
+    }
   });
 
   test('alumnos-14 correct the preview: fix a split, drop a line; «Hecho» needs the first name', async ({ page, teacher }, info) => {
