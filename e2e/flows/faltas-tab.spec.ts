@@ -1,5 +1,5 @@
 import {
-  bug, CLASS, closed, countListSaves, demoCourse, dialog, expect, headings, isMobile, LABEL, listSheet, missingRow, openFaltas, pastLists, plural,
+  bug, CLASS, closed, countListSaves, demoCourse, dialog, expect, headings, isMobile, listSheet, missingRow, openFaltas, pastLists, plural,
   rosterRow, section, shortDay, shot, studentRow, summary, tapTo, test, todayRow, TODAY, THU,
 } from './faltas-helpers';
 

@@ -1,5 +1,5 @@
 import {
-  agendaRow, bug, CLASS, demoCourse, expect, extraSlot, FRI, homeworkSheet, hoyMenu, isMobile, LABEL, listSheet, MON, nowCard,
+  agendaRow, bug, CLASS, demoCourse, expect, extraSlot, FRI, homeworkSheet, hoyMenu, isMobile, listSheet, MON, nowCard,
   openHoy, section, SHORT, shot, test, THU, TODAY,
 } from './hoy-helpers';
 

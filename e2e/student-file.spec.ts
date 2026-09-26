@@ -25,7 +25,7 @@ test('justify an absence from the student file', async ({ page }, info) => {
   await justified.click();
   await expect(page.locator('.toast', { hasText: 'Justificación quitada' })).toBeVisible();
   await expect(first).toBeVisible();
-  await page.waitForTimeout(5000);  // the toasts go away
+  await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10_000 });  // the toasts go away on their own
 
   await page.getByRole('button', { name: /^A vigilar/ }).click();
   const sheet = page.getByRole('dialog');

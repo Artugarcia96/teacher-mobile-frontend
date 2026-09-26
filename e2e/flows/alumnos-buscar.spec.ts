@@ -58,7 +58,7 @@ test.describe('demo teacher (read only)', () => {
     bug('BUG-ALUMNOS-11', 'the Clases search box takes its value from the address (?q=): letters typed faster than a render are lost («hugo dominguez» → «hgo domingez»)');
     await page.goto('/clases');
     await box(page).click();
-    await page.keyboard.type('hugo dominguez', { delay: 15 });
+    await page.keyboard.type('hugo dominguez'); // key after key with no pause, as a fast thumb or a paste-like burst
     await expect(box(page)).toHaveValue('hugo dominguez');
     await expect(results(page, 'Alumnos').getByRole('button', { name: /Domínguez Marín, Hugo/ })).toBeVisible();
   });

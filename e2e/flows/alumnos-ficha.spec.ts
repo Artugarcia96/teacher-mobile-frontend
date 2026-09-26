@@ -245,8 +245,9 @@ test.describe('a student in two classes of the same group', () => {
 });
 
 test.describe('the order of groups and classes', () => {
-  // Five groups of Matemáticas with the same student: the ficha names them in the order of the class list.
-  const groups = ['1º ESO A', '1º ESO B', '1º ESO C', '1º ESO D', '1º ESO E'];
+  // Eight groups of Matemáticas with the same student: the ficha names them in the order of the class list. (Eight, so
+  // that the database's own order matches the class list by chance once in 40 320 runs, not once in 120.)
+  const groups = ['1º ESO A', '1º ESO B', '1º ESO C', '1º ESO D', '1º ESO E', '1º ESO F', '1º ESO G', '1º ESO H'];
   test.use({
     teacherSpec: { courses: groups.map((g, i) => ({ subject: 'Matemáticas', group: g, students: i === 0 ? ['Alonso Gil, Marta'] : [] })) },
   });
@@ -256,7 +257,7 @@ test.describe('the order of groups and classes', () => {
     const marta = teacher.courses[0].students[0];
     for (const c of teacher.courses.slice(1)) await teacher.api.post(`/groups/${c.groupId}/students`, { student_ids: [marta.id] });
     await openFile(page, marta.id, 'Marta Alonso Gil');
-    await expect(page.locator('.page-head .eyebrow')).toHaveText('1.º ESO A · 1.º ESO B · 1.º ESO C · 1.º ESO D · 1.º ESO E');
+    await expect(page.locator('.page-head .eyebrow')).toHaveText(groups.map((g) => g.replace('º', '.º')).join(' · '));
     await expect(section(page, 'Notas').getByRole('link')).toHaveText(groups.map((g) => `Matemáticas · ${g.replace('º', '.º')}`));
   });
 });
