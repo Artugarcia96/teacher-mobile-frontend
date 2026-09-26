@@ -103,15 +103,33 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
     if (top !== pos.top || right !== pos.right) setPos({ ...pos, top, right });
   }, [pos]);
 
+  const isOpen = !!pos;
+  /** Close; the focus goes back to «···» (it was in the menu, which is about to disappear). */
+  const close = () => {
+    setPos(null);
+    anchor.current?.querySelector<HTMLElement>('button, [tabindex]')?.focus({ preventScroll: true });
+  };
+
   useEffect(() => {
-    if (!pos) return;
-    const close = () => setPos(null);
-    // Capture phase + stop: Escape closes only the menu, not the sheet it was opened from.
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); } };
-    window.addEventListener('resize', close);
+    if (!isOpen) return;
+    // The menu takes the focus, so the arrows (or Tab) reach its options.
+    menu.current?.focus({ preventScroll: true });
+    const onResize = () => setPos(null);
+    // Capture phase + stop: Escape closes only the menu, not the sheet it was opened from, and Tab stays in the menu.
+    const onKey = (e: KeyboardEvent) => {
+      const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])];
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      const move = (i: number) => { e.preventDefault(); e.stopImmediatePropagation(); items[(i + items.length) % items.length]?.focus(); };
+      if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); }
+      else if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) move(at + 1);
+      else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) move(at < 0 ? -1 : at - 1);
+      else if (e.key === 'Home') move(0);
+      else if (e.key === 'End') move(-1);
+    };
+    window.addEventListener('resize', onResize);
     document.addEventListener('keydown', onKey, true);
-    return () => { window.removeEventListener('resize', close); document.removeEventListener('keydown', onKey, true); };
-  }, [pos]);
+    return () => { window.removeEventListener('resize', onResize); document.removeEventListener('keydown', onKey, true); };
+  }, [isOpen]);
 
   const open = () => {
     const r = anchor.current?.getBoundingClientRect();
@@ -123,13 +141,13 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
       {trigger(open)}
       {pos && createPortal(
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 109 }} onClick={() => setPos(null)} />
-          <div ref={menu} className="menu" role="menu" style={{ top: pos.top, right: pos.right }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 109 }} onClick={close} />
+          <div ref={menu} className="menu" role="menu" tabIndex={-1} style={{ top: pos.top, right: pos.right }}>
             {items.map((it) => (
               <div key={it.label}>
                 {it.separatorBefore && <div className="menu__sep" />}
                 <button role="menuitem" className={`menu__item${it.danger ? ' menu__item--danger' : ''}`} disabled={!!it.disabledReason}
-                  onClick={() => { setPos(null); it.onSelect(); }}>
+                  onClick={() => { close(); it.onSelect(); }}>
                   {it.icon}
                   <span className="menu__label">{it.label}{it.disabledReason && <small className="menu__reason">{it.disabledReason}</small>}</span>
                 </button>

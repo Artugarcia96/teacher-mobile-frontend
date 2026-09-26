@@ -1,4 +1,4 @@
-import { bug, classMenuPick, dialog, expect, MATES_2C, openClass, shot, test, toast, type Page } from './clases-helpers';
+import { classMenuPick, dialog, expect, MATES_2C, openClass, shot, test, toast, type Page } from './clases-helpers';
 
 // «Importar temario» (docs/PRODUCT.md §4.1.4): paste the index of the book or the programación, the AI proposes units
 // with their evaluación, the teacher corrects them and creates them. The @ai tests run the real AI (claude_cli in
@@ -133,7 +133,6 @@ test.describe('clases · importar temario', () => {
   });
 
   test('clases-66 · a server without AI says so before the teacher pastes anything', async ({ page, teacher }) => {
-    bug('BUG-CLASES-05', 'ImportUnitsSheet ignores useAIUnavailable: «Proponer unidades» is enabled and only a 503 toast explains it');
     const [c] = teacher.courses;
     await page.route((url) => url.pathname === '/api/me', async (route) => {
       const r = await route.fetch();

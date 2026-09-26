@@ -1,5 +1,6 @@
 .shell { position: relative; min-height: 100vh; }
 .shell__main { position: relative; z-index: 1; min-width: 0; }
+.shell__wait { padding: 72px 16px 0; max-width: 760px; margin: 0 auto; }
 
 /* Sidebar (desktop) */
 .sidebar { display: none; }

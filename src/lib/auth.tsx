@@ -48,10 +48,9 @@ export function useAuth(): AuthCtx {
   return c;
 }
 
-/** Server "today" (Europe/Madrid, can be frozen for demos). Falls back to the device date. */
+/** Server "today" (Europe/Madrid, can be frozen for demos). The Shell renders its pages only once /me has answered. */
 export function useToday(): string {
   const { me } = useAuth();
-  if (me?.today) return me.today;
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (!me) throw new Error('useToday() needs /me: use it inside the Shell');
+  return me.today;
 }

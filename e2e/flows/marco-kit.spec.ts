@@ -68,9 +68,6 @@ test('marco-41 · menú «···»: se abre, Esc lo cierra solo a él, un toque 
 
 test('marco-42 · menú «···» con el teclado: Intro lo abre, el foco entra en sus opciones y Esc lo devuelve al botón', async ({ page }, info) => {
   test.skip(!isDesktop(info), 'a keyboard is the computer\'s');
-  // BUG marco-B1: the menu opens but the focus stays on «···»; Tab goes on through the page behind the open menu
-  // and the arrows do nothing, so its options cannot be reached with the keyboard.
-  bug('marco-B1', 'a menu opened with the keyboard keeps the focus on «···»: its options cannot be reached');
   await page.goto('/hoy');
   const trigger = page.getByRole('button', { name: 'Más acciones' });
   await trigger.focus();
@@ -286,9 +283,6 @@ test('marco-47 · escritorio: Intro nada más escribir en el buscador abre el pr
 });
 
 test('marco-48 · si la pestaña se recarga con una hoja abierta, atrás vuelve a la pantalla anterior al primer gesto', async ({ page }, info) => {
-  // BUG marco-B9: the sheet's history entry survives the reload; the first back only drops it (same address, nothing
-  // changes on screen) and it takes a second back to leave. Phones reload tabs they had in the background.
-  bug('marco-B9', 'after a reload with a sheet open, the first back does nothing');
   await page.goto('/clases');
   await expect(heading(page, 'Clases')).toBeVisible();
   const link = isDesktop(info) ? page.getByRole('complementary', { name: 'Navegación' }).getByRole('link', { name: 'Hoy', exact: true })

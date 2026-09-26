@@ -29,7 +29,8 @@ type Pos = { r: number; c: number };
 export default function GradebookTab({ course }: { course: CourseDetail }) {
   const { me } = useAuth();
   const [params, setParams] = useSearchParams();
-  const term = Number(params.get('term')) || me?.school_year.current_term || 1;
+  const asked = Number(params.get('term'));
+  const term = TERMS.some((t) => t.value === asked) ? asked : me?.school_year.current_term || 1;
   const gb = useGradebook(course.id, term);
   const [newOpen, setNewOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

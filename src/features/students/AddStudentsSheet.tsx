@@ -121,7 +121,7 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
       const out = await add.mutateAsync(mode === 'group' ? { student_ids: [...picked] } : { students: parsed!.students });
       const skipped = count - out.length;
       toast(out.length
-        ? `${plural(out.length, 'alumno añadido', 'alumnos añadidos')}${skipped > 0 ? ` (${skipped} ya estaban)` : ''}`
+        ? `${plural(out.length, 'alumno añadido', 'alumnos añadidos')}${skipped > 0 ? ` (${plural(skipped, 'ya estaba', 'ya estaban')})` : ''}`
         : 'Todos ya estaban en el grupo');
       onClose();
     } catch (e) {

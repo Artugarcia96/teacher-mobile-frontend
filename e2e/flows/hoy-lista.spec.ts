@@ -1,5 +1,5 @@
 import {
-  agendaRow, bug, CLASS, expect, isMobile, LABEL, listSheet, nowCard, openHoy, rosterRow, rowOptions, section, SHORT, shot, tapTo,
+  agendaRow, CLASS, expect, isMobile, LABEL, listSheet, nowCard, openHoy, rosterRow, rowOptions, section, SHORT, shot, tapTo,
   test, toast, TODAY, type World,
 } from './hoy-helpers';
 
@@ -217,7 +217,6 @@ test.describe('hoy · la hoja de la lista se anuncia', () => {
   test.use({ worldSpec: { courses: [CLASS] } });
 
   test('hoy-79 · the list and the homework check are announced with the class (a screen reader says what opened)', async ({ page }) => {
-    bug('BUG-HOY-07', 'Sheet only sets aria-label when its title is a string: «Pasar lista» and «Revisar deberes» (titles in a span) open as unnamed dialogs');
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Pasar lista' }).click();
     await expect(page.getByRole('dialog', { name: SHORT })).toBeVisible();

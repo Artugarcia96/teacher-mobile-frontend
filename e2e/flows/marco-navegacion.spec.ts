@@ -255,10 +255,6 @@ test('marco-11 · la revisión de un examen que ya no existe lo dice con una fra
 });
 
 test('marco-12 · un enlace a Hoy con una fecha mal escrita abre hoy, sin «NaN» ni «undefined»', async ({ page }) => {
-  // BUG marco-B7: ?dia= is used as it comes: «garbage» titles the page «undefined NaN» with a week of «NaN» and the
-  // server's «Revisa el campo «date».» with a «Reintentar» that can never work; «2026-13-45» is shown as Sunday 14
-  // February 2027 while the server refuses it.
-  bug('marco-B7', 'Hoy with a malformed ?dia= shows «undefined NaN» and an error that «Reintentar» cannot fix');
   for (const bad of ['garbage', '2026-13-45']) {
     await page.goto(`/hoy?dia=${bad}`);
     await expect(page.getByRole('main')).not.toContainText(/NaN|undefined/, { timeout: 3_000 });
@@ -268,9 +264,6 @@ test('marco-12 · un enlace a Hoy con una fecha mal escrita abre hoy, sin «NaN�
 });
 
 test('marco-13 · un enlace al Cuaderno con una evaluación que no existe abre la evaluación actual', async ({ page, demo }) => {
-  // BUG marco-B8: /cuaderno?term=9 shows «No se ha podido cargar el cuaderno. La evaluación debe ser 1, 2, 3 o final.»
-  // with a «Reintentar» that repeats the same request; Evaluación (/evaluacion/abc) falls back to the 1.ª instead.
-  bug('marco-B8', 'the Cuaderno with an unknown ?term= shows an error instead of the current evaluación');
   const ids = await demoIds(demo);
   await page.goto(`/clases/${ids.course}/cuaderno?term=9`);
   await expect(heading(page, '2.º ESO B')).toBeVisible();

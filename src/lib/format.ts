@@ -19,6 +19,11 @@ export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** A real calendar date written 'YYYY-MM-DD' (not «garbage», not 2026-13-45). */
+export function isIsoDate(s: string | null): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && isoDate(parseDate(s)) === s;
+}
+
 export function addDays(iso: string, n: number): string {
   const d = parseDate(iso);
   d.setDate(d.getDate() + n);

@@ -361,7 +361,6 @@ test.describe('examenes · recoger', () => {
   });
 
   test('examenes-42 · «Descartar hoja»: an unidentified paper goes to the discarded pages (recoverable), and the toast says so', async ({ page, cloneExam, demo }) => {
-    bug('EX-02', 'the toast reads «Hoja descartada: 1 su página está en «Páginas descartadas».» (plural() prefixes the number)');
     const exam = await cloneExam('fracciones');
     const p = await freshPile(demo, exam.id);
     const vega = p.withExtra;

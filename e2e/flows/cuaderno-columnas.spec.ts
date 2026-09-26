@@ -1,5 +1,5 @@
 import {
-  bug, cell, cellInput, CLASS, column, confirmDialog, expect, gradebook, isMobile, LABEL, NAMES, openCuaderno, openEdit, press,
+  cell, cellInput, CLASS, column, confirmDialog, expect, gradebook, isMobile, LABEL, NAMES, openCuaderno, openEdit, press,
   sheet, shot, test, terms, toast, type CourseSpec, type Page, type World,
 } from './cuaderno-helpers';
 
@@ -254,7 +254,6 @@ test.describe('cuaderno · columnas', () => {
   });
 
   test('cuaderno-39 · the refusal reads right with a single grade above the new maximum', async ({ page, world }, info) => {
-    bug('CUA-02', 'backend says «Hay 1 notas por encima de 8» (no singular) — app/api/activities.py patch_activity');
     await openCuaderno(page, world.id);
     const s = await openEdit(page, info, EXAM);
     const max = s.getByRole('group', { name: 'Nota máxima' });

@@ -321,7 +321,6 @@ test.describe('a class that already has its list', () => {
   });
 
   test('alumnos-21 «(1 ya estaban)» agrees in number: «1 ya estaba»', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-03', 'the toast says «1 alumno añadido (1 ya estaban)»: plural verb for one student');
     const [c] = teacher.courses;
     const s = await openAdd(page, c.id);
     await listField(s).fill('Alonso Gil, Marta\nZamora Gil, Leo');

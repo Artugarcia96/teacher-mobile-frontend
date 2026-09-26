@@ -70,7 +70,6 @@ test.describe('una evaluación con notas', () => {
   });
 
   test('evaluacion-15 mientras carga el perfil, una evaluación que no ha empezado tampoco pide sus datos', async ({ page, world }) => {
-    bug('EVA-05', 'until /api/me answers, a term that has not started counts as open and its evaluation is requested (docs/PRODUCT.md §4.6: «su página no carga datos»)');
     const requested: string[] = [];
     page.on('request', (r) => { if (/\/api\/courses\/[^/]+\/evaluation\/[234]\b/.test(r.url())) requested.push(r.url()); });
     // A slow start (the phone waking up on the school's Wi-Fi): the profile, with the school year, answers late.

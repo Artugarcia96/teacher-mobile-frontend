@@ -31,7 +31,7 @@ export function useCourseMenu(items: MenuItem[]) {
   const id = useId();
   const latest = useRef(items);
   latest.current = items;
-  const signature = items.map((i) => i.label).join('\n');
+  const signature = items.map((i) => `${i.label}\t${i.disabledReason ?? ''}`).join('\n');
   useEffect(() => {
     if (!register) return;
     register(id, latest.current.map((it, i) => ({ ...it, onSelect: () => latest.current[i]?.onSelect() })));
