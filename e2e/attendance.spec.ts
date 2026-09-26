@@ -1,7 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import { shot, trackErrors } from './helpers';
+import { CLASS, expect, test } from './flows/hoy-helpers';
 
 // Pasar lista (no AI): two devices with the same list keep each other's marks, and «Lista pasada» only after the save.
+// A taken list cannot be un-taken, so each test is a teacher of its own with a class on now (10:20, 12 students).
+test.use({ worldSpec: { courses: [CLASS] } });
 
 async function openList(page: Page) {
   await page.goto('/');
@@ -65,6 +68,8 @@ test('marking never moves the rows, and a class with its list taken cannot be ca
     const [p, l, h] = await Promise.all([probe.boundingBox(), list.boundingBox(), head.boundingBox()]);
     return [Math.round(p!.y - l!.y), Math.round(h!.height)];
   };
+  // Measured once the sheet has finished opening: its entry animation still moves the rows.
+  await page.getByRole('dialog').last().evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
   const before = await layout();
   for (const n of [1, 2, 3, 4, 5]) await setStatus(page, n, 'Falta');
   await setStatus(page, 2, 'Retraso');

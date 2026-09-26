@@ -52,14 +52,15 @@ test('acceso-62 · «/» es la landing; «Entrar» abre la app, que entra por el
   expect(errors).toEqual([]);
 });
 
-test('acceso-62b · sin sesión, una ruta de la app lleva a /entrar y «Crear cuenta» de la landing llega al alta', async ({ page }) => {
+test('acceso-62b · sin sesión, una ruta de la app lleva a /entrar, y desde la landing se llega al alta', async ({ page }) => {
   await page.goto(at('/clases/no-existe/cuaderno'));
   await expect(page).toHaveURL(at('/entrar'));
   await expect(page.getByLabel('Correo')).toBeVisible();
 
   await page.goto(at('/'));
-  await page.getByRole('link', { name: 'Crear cuenta' }).first().click();
-  await expect(page).toHaveURL(at('/entrar?cuenta=nueva'));
+  await page.getByRole('banner').getByRole('link', { name: 'Entrar' }).click();
+  await expect(page).toHaveURL(at('/entrar'));
+  await page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page.getByLabel('Nombre')).toBeVisible();
   // The sign-up's privacy link opens the landing's page, not the app.
   const [policy] = await Promise.all([page.waitForEvent('popup'), page.getByRole('link', { name: 'política de privacidad' }).click()]);

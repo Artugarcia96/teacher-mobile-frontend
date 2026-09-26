@@ -185,7 +185,7 @@ export const test = base.extend<Fixtures>({
   storageState: async ({ storageState, maybeTeacher }, use) => {
     await use(maybeTeacher ? maybeTeacher.api.storageState() : storageState);
   },
-  // «Copiar resumen», «Copiar» and «Copiar y guardar» write to the clipboard; the tests read it back.
+  // «Copiar» and «Copiar y guardar» write to the clipboard; the tests read it back.
   permissions: ['clipboard-read', 'clipboard-write'],
   demo: async ({}, use) => {
     const ctx = await request.newContext();

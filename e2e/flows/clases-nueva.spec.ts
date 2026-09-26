@@ -136,7 +136,7 @@ test.describe('clases · nueva clase', () => {
     await expect(sheet.getByRole('radiogroup', { name: 'Color' }).getByRole('radio')).toHaveCount(8);
   });
 
-  test('clases-20 · the other classes\' hours are taken; «Otra hora» adds a row of its own', async ({ page, teacher }, info) => {
+  test('clases-20 · the other classes\' hours are taken; «Otra hora» adds a period to all her classes', async ({ page, teacher }, info) => {
     const sheet = await openNew(page);
     // Thursday 10:20 is Matemáticas · 2.º ESO C: shown with its group, not selectable.
     const taken = cell(sheet, 'jueves', '10:20', '11:15');
@@ -156,10 +156,13 @@ test.describe('clases · nueva clase', () => {
     const end = sheet.getByLabel('Termina');
     await start.fill('16:30');
     await end.fill('16:00');
-    await expect(sheet.getByRole('button', { name: 'Añadir fila' })).toBeDisabled();
+    // Disabled, the button says what is wrong.
+    await expect(sheet.getByRole('button', { name: 'Termina antes de empezar' })).toBeDisabled();
     await end.fill('17:25');
-    await sheet.getByRole('button', { name: 'Añadir fila' }).click();
-    await expect(sheet.getByRole('button', { name: 'Añadir fila' })).toHaveCount(0);
+    await sheet.getByRole('button', { name: 'Añadir hora' }).click();
+    await expect(toast(page, 'Hora 16:30–17:25 añadida a tus clases')).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Añadir hora' })).toHaveCount(0);
+    expect((await teacher.api.get('/me')).school_year.periods).toContainEqual(['16:30', '17:25']);
     await cell(sheet, 'martes', '16:30', '17:25').click();
     await expect(sheet.getByText('1 sesión a la semana')).toBeVisible();
     await shot(page, info, '20-otra-hora');
@@ -241,12 +244,16 @@ test.describe('clases · horario de una clase nueva', () => {
   // The teacher's only class meets on Wednesday 09:00-09:55, off the usual 55-minute periods.
   test.use({ teacherSpec: { courses: [{ ...MATES_2C, subject: 'Física y Química', short: 'FyQ', group: '3º ESO A', slots: [{ weekday: WED, start: '09:00', end: '09:55' }] }] } });
 
-  test('clases-23 · the rows are the teacher\'s own hours plus the usual periods that do not clash', async ({ page }) => {
+  test('clases-23 · the rows are the school\'s periods plus the hours her classes use; what clashes with them is taken', async ({ page }) => {
     const sheet = await openNew(page);
     const rows = sheet.getByRole('grid', { name: 'Horario semanal' }).getByRole('row');
-    await expect(rows).toHaveCount(5);
-    await expect(rows.locator('.sched__time')).toHaveText(['09:0009:55', '10:2011:15', '11:4512:40', '12:4013:35', '13:3514:30']);
+    await expect(rows.locator('.sched__time')).toHaveText(
+      ['08:3009:25', '09:0009:55', '09:2510:20', '10:2011:15', '11:4512:40', '12:4013:35', '13:3514:30']);
     await expect(cell(sheet, 'miércoles', '09:00', '09:55')).toHaveText('3 A');
+    // The periods that overlap Wednesday 09:00–09:55 are taken that day, and free on the others.
+    await expect(cell(sheet, 'miércoles', '08:30', '09:25')).toHaveAttribute('aria-disabled', 'true');
+    await expect(cell(sheet, 'miércoles', '09:25', '10:20')).toHaveAttribute('aria-disabled', 'true');
     await expect(cell(sheet, 'lunes', '09:00', '09:55')).toHaveAttribute('aria-pressed', 'false');
+    await expect(cell(sheet, 'lunes', '08:30', '09:25')).toHaveAttribute('aria-pressed', 'false');
   });
 });

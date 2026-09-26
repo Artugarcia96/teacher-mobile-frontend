@@ -104,10 +104,10 @@ test.describe('a class of its own', () => {
       await teacher.api.post('/notes', { course_id: c.id, kind: 'incident', date, text: 'Interrumpe la clase.', student_ids: [c.students[0].id] });
     }
     await page.reload();
-    await expect(rosterRow(page, 'Alonso Gil, Marta').locator('.chip')).toHaveText(['2 incidencias en 7 días']);
+    await expect(rosterRow(page, 'Alonso Gil, Marta')).toHaveAccessibleName('Alonso Gil, Marta 2 incidencias en 7 días 3 faltas');
     await expect(rosterRow(page, 'Alonso Gil, Marta').locator('.students-roster__abs')).toHaveText('3 faltas');
-    // No grades yet: the pill shows the dash.
-    await expect(rosterRow(page, 'Alonso Gil, Marta').locator('.grade-pill')).toHaveText('—');
+    // No grade that counts yet in the class: no average pills.
+    await expect(rosterRow(page, 'Alonso Gil, Marta').locator('.grade-pill')).toHaveCount(0);
   });
 
   test('alumnos-05 a class without students: the empty state opens «Añadir alumnos»', async ({ page, teacher }, info) => {

@@ -9,10 +9,11 @@ const box = (page: Page) => page.getByRole('searchbox', { name: 'Buscar alumno o
 const results = (page: Page, title: 'Alumnos' | 'Clases') =>
   page.locator('section.section').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
 
-/** Types like a person and presses Enter once the results are on screen, as a person reads them first. (Enter pressed
- *  in the same breath as the typing is dropped: BUG-ALUMNOS-07, alumnos-88.) */
+/** Writes the search and presses Enter once the results are on screen, as a person reads them first. (Enter pressed
+ *  in the same breath as the typing is dropped: BUG-ALUMNOS-07, alumnos-88; letters typed fast are lost in Clases:
+ *  BUG-ALUMNOS-11, alumnos-112.) */
 async function typeAndEnter(page: Page, input: Locator, text: string, first: RegExp, opened: Locator) {
-  await input.pressSequentially(text);
+  await input.fill(text);
   await expect(page.getByRole('button', { name: first }).first()).toBeVisible();
   await expect(async () => {
     if (await input.isVisible()) await input.press('Enter');
@@ -48,9 +49,18 @@ test.describe('demo teacher (read only)', () => {
       await route.continue().catch(() => {});
     });
     await page.goto('/clases');
-    await box(page).pressSequentially('dominguez marin');
+    await box(page).fill('dominguez marin');
     await box(page).press('Enter');
     await expect(page.getByRole('heading', { level: 1, name: 'Hugo Domínguez Marín' })).toBeVisible();
+  });
+
+  test('alumnos-112 letters typed quickly in the Clases search are all kept', async ({ page }) => {
+    bug('BUG-ALUMNOS-11', 'the Clases search box takes its value from the address (?q=): letters typed faster than a render are lost («hugo dominguez» → «hgo domingez»)');
+    await page.goto('/clases');
+    await box(page).click();
+    await page.keyboard.type('hugo dominguez', { delay: 15 });
+    await expect(box(page)).toHaveValue('hugo dominguez');
+    await expect(results(page, 'Alumnos').getByRole('button', { name: /Domínguez Marín, Hugo/ })).toBeVisible();
   });
 
   test('alumnos-82 classes by group or subject («2 eso b», «fisica»)', async ({ page }) => {
@@ -71,11 +81,12 @@ test.describe('demo teacher (read only)', () => {
     await box(page).fill('zzzz');
     await expect(page.getByText('Sin resultados')).toBeVisible();
     await expect(page.getByText('No hay alumnos ni clases que coincidan con «zzzz». Prueba con el apellido o el grupo («2 ESO B»).')).toBeVisible();
-    // Enter with nothing found does nothing.
+    // Enter with nothing found does nothing (the term stays in the address, so a reload keeps it).
     await box(page).press('Enter');
-    await expect(page).toHaveURL(/\/clases$/);
+    await expect(page).toHaveURL(/\/clases\?q=zzzz$/);
     await page.getByRole('button', { name: 'Borrar la búsqueda' }).click();
     await expect(box(page)).toHaveValue('');
+    await expect(page).toHaveURL(/\/clases$/);
     await expect(page.getByRole('link', { name: /Matemáticas · 2\.º ESO B/ })).toBeVisible();
     // Esc in the box clears it too.
     await box(page).fill('hugo');
@@ -151,8 +162,11 @@ test.describe('demo teacher (read only)', () => {
   test('alumnos-86 computer: «/» typed in a text field, or with a sheet open, does not open the search', async ({ page }, info) => {
     test.skip(isMobile(info), 'keyboard shortcuts are for computers');
     await page.goto('/clases');
-    await box(page).click();
-    await page.keyboard.type('a/b');
+    await box(page).fill('a');
+    // Key by key, each one once the box has the one before (fast typing loses letters: alumnos-112).
+    await page.keyboard.press('/');
+    await expect(box(page)).toHaveValue('a/');
+    await page.keyboard.press('b');
     await expect(box(page)).toHaveValue('a/b');
     await expect(sheet(page, 'Buscar')).toHaveCount(0);
     // With «Anotar» open (from a ficha), «/» and Ctrl+K do nothing.

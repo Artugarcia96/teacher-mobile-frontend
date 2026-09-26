@@ -13,6 +13,8 @@
     "check": "npm run typecheck && npm run check:tokens && npm run lint",
     "test": "vitest run",
     "e2e": "playwright test",
+    "e2e:flows": "playwright test --grep-invert @ai",
+    "e2e:ai": "playwright test --grep @ai --project desktop",
     "shots": "SHOTS=1 playwright test",
     "landing:clips": "node e2e/landing-clips.mjs"
   },

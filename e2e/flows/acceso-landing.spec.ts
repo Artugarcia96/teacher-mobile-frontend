@@ -20,17 +20,21 @@ async function expectImagesLoaded(page: Page) {
   }
 }
 
-test('acceso-01 · la landing carga entera: titular, capturas reales y sin errores', async ({ page }, info) => {
+const PILOT = 'https://linktr.ee/sepiaeducation';
+
+test('acceso-01 · la landing carga entera: titular, grabaciones reales y sin errores', async ({ page }, info) => {
   const errors = trackErrors(page);
   const broken: string[] = [];
   page.on('response', (r) => { if (r.status() >= 400) broken.push(`${r.status()} ${r.url()}`); });
   await page.goto(LANDING);
   await expect(page).toHaveTitle('Sepia · El cuaderno del profesor');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Lista, notas y');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Que el montón de exámenes');
   // The call to action is on the first screen, on the phone too.
-  await expect(page.getByRole('link', { name: 'Crear cuenta' }).first()).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Apúntate al piloto' }).first()).toBeInViewport();
   await expect(page.getByRole('banner').getByRole('link', { name: 'Entrar' })).toBeInViewport();
-  for (const h of ['La lista, en dos toques.', 'Propone. Tú decides.', 'Empezar lleva una tarde.']) {
+  for (const h of ['También con respuestas largas', 'Pasar lista desde el móvil', 'Un examen adaptado para cada alumno',
+    'Refuerzo de lo que peor ha salido', 'Mensajes a las familias', 'Evaluaciones más llevaderas',
+    'La última palabra es tuya', '¿Quieres probarlo?']) {
     await expect(page.getByRole('heading', { name: h })).toBeAttached();
   }
   await shot(page, info, 'acceso-01-landing');
@@ -39,41 +43,35 @@ test('acceso-01 · la landing carga entera: titular, capturas reales y sin error
   expect(errors).toEqual([]);
 });
 
-test('acceso-02 · «Crear cuenta» de la landing abre /entrar ya en «Crear cuenta»', async ({ page }) => {
+test('acceso-02 · «Apúntate al piloto» lleva a la página del piloto; «Ya tengo cuenta» abre /entrar', async ({ page }) => {
   await page.goto(LANDING);
-  await page.getByRole('link', { name: 'Crear cuenta' }).first().click();
-  await expect(page).toHaveURL(/\/entrar\?cuenta=nueva$/);
-  await expect(page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Crear cuenta' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByLabel('Nombre')).toBeVisible();
-  await expect(page.getByText('Al menos 8 caracteres.')).toBeVisible();
+  // Header, first screen and closing: the same page to ask to join (outside Sepia, so only its address is checked).
+  const join = page.getByRole('link', { name: 'Apúntate al piloto' });
+  await expect(join).toHaveCount(3);
+  for (const link of await join.all()) await expect(link).toHaveAttribute('href', PILOT);
 
-  // The closing call to action at the bottom does the same.
-  await page.goto(LANDING);
-  const closing = page.getByRole('region', { name: 'Empezar lleva una tarde.' });
-  await closing.getByRole('link', { name: 'Crear cuenta' }).click();
-  await expect(page).toHaveURL(/\/entrar\?cuenta=nueva$/);
-  await expect(page.getByLabel('Nombre')).toBeVisible();
+  const closing = page.getByRole('region', { name: '¿Quieres probarlo?' });
+  await closing.getByRole('link', { name: 'Ya tengo cuenta' }).click();
+  await expect(page).toHaveURL(/\/entrar$/);
+  await expect(page.getByLabel('Correo')).toBeVisible();
+  await expect(page.getByLabel('Contraseña')).toBeVisible();
 });
 
-test('acceso-03 · «Entrar» de la cabecera y del pie abren /entrar para iniciar sesión', async ({ page }) => {
+test('acceso-03 · «Entrar» de la cabecera abre /entrar para iniciar sesión', async ({ page }) => {
   await page.goto(LANDING);
   await page.getByRole('banner').getByRole('link', { name: 'Entrar' }).click();
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Entrar' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Nombre')).toHaveCount(0);
   await expect(page.getByLabel('Correo')).toBeVisible();
-
-  await page.goto(LANDING);
-  await page.getByRole('contentinfo').getByRole('link', { name: 'Entrar o crear cuenta' }).click();
-  await expect(page).toHaveURL(/\/entrar$/);
   await expect(page.getByLabel('Contraseña')).toBeVisible();
 });
 
-test('acceso-04 · «Ver cómo funciona» baja a la lista y «Saltar al contenido» funciona con el teclado', async ({ page }) => {
+test('acceso-04 · «Ver cómo funciona» baja a la primera grabación y «Saltar al contenido» funciona con el teclado', async ({ page }) => {
   await page.goto(LANDING);
   await page.getByRole('link', { name: 'Ver cómo funciona' }).click();
-  await expect(page).toHaveURL(/#lista$/);
-  await expect(page.getByRole('heading', { name: 'La lista, en dos toques.' })).toBeInViewport();
+  await expect(page).toHaveURL(/#historia$/);
+  await expect(page.getByRole('heading', { name: 'También con respuestas largas' })).toBeInViewport();
 
   await page.goto(LANDING);
   await page.keyboard.press('Tab');
@@ -102,7 +100,7 @@ test('acceso-05 · privacidad y aviso legal: se abren desde la landing, enlazan 
 
   // The AI paragraph of the landing points to the same policy.
   await page.goto(LANDING);
-  await page.getByRole('region', { name: 'Propone. Tú decides.' }).getByRole('link', { name: 'política de privacidad' }).click();
+  await page.getByRole('region', { name: 'La última palabra es tuya' }).getByRole('link', { name: 'Cómo tratamos los datos' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Privacidad' })).toBeVisible();
 });
 

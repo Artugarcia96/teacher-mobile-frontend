@@ -14,7 +14,9 @@ test.describe('clases · cabecera y menú (demo)', () => {
     await openClass(page, b2.id, '', '2.º ESO B');
     await expect(page.locator('.page-head__eyebrow')).toHaveText('Matemáticas');
     await expect(page.locator('.course-facts')).toHaveText('26 alumnos · Aula 204 · En clase hasta 11:15');
-    await expect(page.getByRole('button', { name: 'Pasar lista' })).toBeVisible();
+    // Offered while the list of the class on now is still to take (taking it: clases-25, a teacher of its own).
+    const now = await demo.get(`/courses/${b2.id}/attendance?date=${TODAY}&start=10:20`);
+    await expect(page.getByRole('button', { name: 'Pasar lista' })).toHaveCount(now.taken ? 0 : 1);
     await shot(page, info, '24-cabecera');
 
     for (const [label, group, facts] of [
@@ -41,7 +43,7 @@ test.describe('clases · cabecera y menú (demo)', () => {
     await expect(page.getByText('Cano Álvarez, Jorge')).toBeVisible();
     await tab(page, 'Temario').click();
     await expect(page).toHaveURL(new RegExp(`/clases/${b2.id}/programacion$`));
-    await expect(page.getByText('1 de 10 unidades impartidas')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '1.ª evaluación' })).toBeVisible();
     await tab(page, 'Faltas').click();
     await expect(page).toHaveURL(new RegExp(`/clases/${b2.id}/asistencia$`));
     await tab(page, 'Cuaderno').click();
@@ -66,7 +68,7 @@ test.describe('clases · cabecera y menú (demo)', () => {
     await expect(page).toHaveURL(/\/clases$/);
 
     await page.goto('/hoy');
-    await page.getByRole('region', { name: /^Ahora/ }).getByRole('link', { name: DEMO_2B }).click();
+    await page.getByRole('region', { name: /^Ahora/ }).getByRole('link', { name: '2.º ESO B · Mates' }).click();
     await expect(page.getByRole('heading', { level: 1, name: '2.º ESO B' })).toBeVisible();
     await expect(back('Hoy')).toBeVisible();
     await back('Hoy').click();
@@ -91,7 +93,7 @@ test.describe('clases · cabecera y menú (demo)', () => {
     await expect(page.getByRole('button', { name: 'Actividad' })).toBeVisible();
     expect(await items()).toEqual(['Evaluar la 1.ª', 'Exportar cuaderno (CSV)', 'Ponderaciones', 'Añadir alumnos', 'Ajustes de la clase']);
     await tab(page, 'Temario').click();
-    await expect(page.getByText('1 de 10 unidades impartidas')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '1.ª evaluación' })).toBeVisible();
     expect(await items()).toEqual(['Importar temario', 'Copiar de otra clase', 'Añadir alumnos', 'Ajustes de la clase']);
     await tab(page, 'Alumnos').click();
     expect(await items()).toEqual(['Añadir alumnos', 'Ajustes de la clase']);
@@ -128,7 +130,7 @@ test.describe('clases · cabecera y menú (demo)', () => {
     const lines = text.slice(1).trim().split(/\r?\n/);
     const header = lines[0].split(';');
     expect(header.slice(0, 2)).toEqual(['Apellidos', 'Nombre']);
-    expect(header.slice(-2)).toEqual(['Media', 'Propuesta']);
+    expect(header.slice(-2)).toEqual(['Media', 'Nota']);
     expect(lines).toHaveLength(book.students.length + 1);
     // Same average as the Media column (one decimal, decimal comma), student by student.
     for (const row of book.students.slice(0, 5)) {
@@ -229,7 +231,8 @@ test.describe('clases · pasar lista desde la cabecera', () => {
     await openClass(page, c.id, 'alumnos', '2.º ESO C');
     await expect(page.locator('.course-facts')).toHaveText('12 alumnos · Aula 112 · En clase hasta 11:15');
     await page.getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = dialog(page, 'Matemáticas · 2.º ESO C');
+    // The list's sheet has no accessible name (BUG-HOY-07, hoy-79): found by what it says.
+    const sheet = page.getByRole('dialog').filter({ hasText: 'Toca a quien falte. Otro toque: retraso.' });
     await expect(sheet.getByRole('button', { name: /^1\. Alonso Gil, Marta/ })).toBeVisible();
     await shot(page, info, '25-pasar-lista');
     await sheet.getByRole('button', { name: /^2\. / }).click(); // Falta

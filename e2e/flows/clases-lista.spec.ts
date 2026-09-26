@@ -93,17 +93,21 @@ test.describe('clases · lista (demo)', () => {
   test('clases-06 · Enter in the search box opens the first result', async ({ page }) => {
     await page.goto('/clases');
     const box = page.getByRole('searchbox', { name: 'Buscar alumno o clase' });
+    // Enter once the results are on screen, as a person reads them first (an Enter pressed while the search is still
+    // answering is lost: BUG-CLASES-01, clases-06b).
+    const enterOpens = async (opened: ReturnType<typeof page.getByRole>) => expect(async () => {
+      if (await box.isVisible()) await box.press('Enter');
+      await expect(opened).toBeVisible({ timeout: 1000 });
+    }).toPass();
     await box.fill('dominguez marin');
     await expect(page.getByRole('button', { name: /^Domínguez Marín, Hugo/ })).toBeVisible();
-    await box.press('Enter');
+    await enterOpens(page.getByRole('heading', { level: 1, name: /Hugo/ }));
     await expect(page).toHaveURL(/\/alumnos\/[0-9a-f-]+/);
-    await expect(page.getByRole('heading', { level: 1, name: /Hugo/ })).toBeVisible();
 
     await page.goto('/clases');
     await box.fill('3 eso a');
     await expect(page.getByRole('button', { name: DEMO_3A })).toBeVisible();
-    await box.press('Enter');
-    await expect(page.getByRole('heading', { level: 1, name: '3.º ESO A' })).toBeVisible();
+    await enterOpens(page.getByRole('heading', { level: 1, name: '3.º ESO A' }));
   });
 
   test('clases-06b · Enter pressed right after typing opens the first result of what was typed', async ({ page, demo }) => {
@@ -138,11 +142,12 @@ test.describe('clases · lista (demo)', () => {
     await expect(page.getByText('Sin resultados')).toBeVisible();
     await expect(page.getByText('No hay alumnos ni clases que coincidan con «zzqx».', { exact: false })).toBeVisible();
     await shot(page, info, '07-sin-resultados');
-    await box.press('Enter'); // nothing to open: stays
-    await expect(page).toHaveURL(/\/clases$/);
+    await box.press('Enter'); // nothing to open: stays (the term is kept in the address)
+    await expect(page).toHaveURL(/\/clases\?q=zzqx$/);
 
     await page.getByRole('button', { name: 'Borrar la búsqueda' }).click();
     await expect(box).toHaveValue('');
+    await expect(page).toHaveURL(/\/clases$/);
     await expect(classRow(page, DEMO_2B)).toBeVisible();
 
     await box.fill('zzqx');
@@ -205,9 +210,12 @@ test.describe('clases · lista (demo)', () => {
     await expect(box).toBeFocused();
     await box.fill('1 bach b');
     await expect(sheet.getByRole('button', { name: DEMO_1BACH })).toBeVisible();
-    await box.press('Enter');
+    // Enter once the results are on screen (one pressed while the search still answers is lost: clases-06b).
+    await expect(async () => {
+      if (await box.isVisible()) await box.press('Enter');
+      await expect(page.getByRole('heading', { level: 1, name: '1.º Bach B' })).toBeVisible({ timeout: 1000 });
+    }).toPass();
     await expect(sheet).toBeHidden();
-    await expect(page.getByRole('heading', { level: 1, name: '1.º Bach B' })).toBeVisible();
 
     await page.keyboard.press('Control+k');
     await expect(sheet).toBeVisible();

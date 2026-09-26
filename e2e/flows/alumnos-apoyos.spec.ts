@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import {
-  bug, expect, fileMenu, isMobile, MATES_2C, openFile, openRoster, rosterRow, section, sheet, shot, test, toast,
+  expect, fileMenu, isMobile, MATES_2C, openFile, openRoster, rosterRow, section, sheet, shot, test, toast,
 } from './alumnos-helpers';
 
 // «Editar datos y apoyos» (ficha › «···»; on a computer a side panel with the ficha in view): name, NEAE/ACNEE and its
@@ -167,7 +167,6 @@ test.describe('an ESO class', () => {
   });
 
   test('alumnos-65 edited details are not lost by Esc: it asks before discarding', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-02', '«Editar datos y apoyos» does not mark the sheet dirty: Esc, ✕, back or the scrim discard the edits');
     const adrian = teacher.courses[0].students[5];
     const s = await openEdit(page, adrian.id, 'Adrián Fuentes Vera');
     await s.getByLabel('Detalles de la adaptación').fill('Necesita más tiempo para leer.');

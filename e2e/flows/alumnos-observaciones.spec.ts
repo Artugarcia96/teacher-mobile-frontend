@@ -39,11 +39,11 @@ test.describe('one class', () => {
     await expect(s.getByText('Matemáticas · 2.º ESO C')).toBeVisible();
     const text = s.getByRole('textbox', { name: 'Texto' });
     await expect(text).toBeFocused();
-    await expect(chips(s)).toHaveText(['Marta Alonso', 'Añadir alumnos']);
+    await expect(chips(s)).toHaveText(['Alonso, Marta', 'Añadir alumnos']);
     await expect(chips(s).first()).toHaveAttribute('aria-pressed', 'true');
     await expect(s.getByText('1 alumno', { exact: true })).toBeVisible();
-    await expect(s.getByRole('button', { name: 'Guardar' })).toBeDisabled();
-    await expect(s.getByRole('button', { name: 'Guardar' })).toHaveAttribute('title', 'Escribe la observación');
+    // Disabled, the button says why.
+    await expect(s.getByRole('button', { name: 'Escribe la observación' })).toBeDisabled();
 
     await s.getByRole('group', { name: 'Tipo' }).getByRole('button', { name: 'Incidencia' }).click();
     await expect(text).toHaveAttribute('placeholder', 'Qué ha pasado');
@@ -96,17 +96,17 @@ test.describe('one class', () => {
     await expect(chips(s)).toHaveCount(12);
     const search = s.getByRole('textbox', { name: 'Buscar alumno' });
     await search.fill('pablo');
-    await expect(chips(s)).toHaveText(['Marta Alonso', 'Pablo Benítez']);
-    await chips(s).filter({ hasText: 'Pablo Benítez' }).click();
+    await expect(chips(s)).toHaveText(['Alonso, Marta', 'Benítez, Pablo']);
+    await chips(s).filter({ hasText: 'Benítez, Pablo' }).click();
     await expect(s.getByText('2 alumnos', { exact: true })).toBeVisible();
     // «Quitar todos» clears the choice; then both again.
     await s.getByRole('button', { name: 'Quitar todos' }).click();
     await expect(s.getByText('Alumnos (opcional)')).toBeVisible();
     await expect(s.getByRole('button', { name: 'Quitar todos' })).toHaveCount(0);
-    await expect(chips(s)).toHaveText(['Pablo Benítez']); // the search still filters
+    await expect(chips(s)).toHaveText(['Benítez, Pablo']); // the search still filters
     await search.fill('');
-    await chips(s).filter({ hasText: 'Marta Alonso' }).click();
-    await chips(s).filter({ hasText: 'Pablo Benítez' }).click();
+    await chips(s).filter({ hasText: 'Alonso, Marta' }).click();
+    await chips(s).filter({ hasText: 'Benítez, Pablo' }).click();
     await expect(s.getByText('2 alumnos', { exact: true })).toBeVisible();
     await s.getByRole('button', { name: 'Guardar' }).click();
     await expect(toast(page, 'Observación guardada')).toBeVisible();
@@ -126,7 +126,7 @@ test.describe('one class', () => {
     const s = sheet(page, 'Anotar');
     await s.getByRole('button', { name: 'Añadir alumnos' }).click();
     await s.getByRole('textbox', { name: 'Buscar alumno' }).fill('benitez');
-    await expect(chips(s).filter({ hasText: 'Pablo Benítez' })).toBeVisible();
+    await expect(chips(s).filter({ hasText: 'Benítez, Pablo' })).toBeVisible();
   });
 
   test('alumnos-54 edit an observation: text, kind and date; empty text cannot be saved', async ({ page, teacher }, info) => {
@@ -160,7 +160,6 @@ test.describe('one class', () => {
   });
 
   test('alumnos-55 an edited observation is not lost by a stray tap: the scrim does nothing', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-02', '«Editar observación» does not mark the sheet dirty: a tap on the scrim, ✕, Esc or back discard the edit');
     const marta = teacher.courses[0].students[0];
     await openFile(page, marta.id, 'Marta Alonso Gil');
     await noteMenu(page, 'Pregunta mucho en clase.', 'Editar');
@@ -226,7 +225,7 @@ test.describe('two classes', () => {
     await expect(s.getByText('Matemáticas · 2.º ESO C')).toBeVisible();
     await s.getByRole('button', { name: 'Cambiar' }).click();
     await s.getByRole('button', { name: /Física y Química · 2\.º ESO C/ }).click();
-    await expect(chips(s).first()).toHaveText('Marta Alonso');
+    await expect(chips(s).first()).toHaveText('Alonso, Marta');
     await expect(chips(s).first()).toHaveAttribute('aria-pressed', 'true');
     await s.getByRole('textbox', { name: 'Texto' }).fill('Muy buen informe de laboratorio.');
     await s.getByRole('button', { name: 'Guardar' }).click();

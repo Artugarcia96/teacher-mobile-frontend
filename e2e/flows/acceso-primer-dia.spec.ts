@@ -30,6 +30,8 @@ async function addStudents(acc: Account, request: Parameters<typeof apiAs>[0], c
 }
 
 const addSheet = (page: Page) => page.getByRole('dialog', { name: 'Añadir alumnos' });
+// The list's sheet has no accessible name (BUG-HOY-07, hoy-79): found by what it says.
+const listSheet = (page: Page) => page.getByRole('dialog').filter({ hasText: '2.º ESO B · Mates' });
 
 test('acceso-30 · cuenta nueva: Hoy, Clases y Evaluar vacíos llevan a crear la primera clase', async ({ page, request }, info) => {
   const errors = trackErrors(page);
@@ -39,7 +41,8 @@ test('acceso-30 · cuenta nueva: Hoy, Clases y Evaluar vacíos llevan a crear la
   await expect(page.getByText('1.ª evaluación, semana 11')).toBeVisible();
   await expect(page.getByText('Aún no tienes clases')).toBeVisible();
   await expect(page.getByText('Crea tu primera clase con su horario y aparecerá aquí.')).toBeVisible();
-  await expect(page.getByText('Este día no tienes clases')).toBeVisible();
+  // Said once: no second «no classes» line for the day under it.
+  await expect(page.getByText('Este día no tienes clases')).toHaveCount(0);
   await shot(page, info, 'acceso-30-hoy-empty');
   if (info.project.name === 'desktop') {
     const side = page.getByRole('complementary', { name: 'Navegación' });
@@ -116,12 +119,14 @@ test('acceso-31 · «Nueva clase»: materia, grupo, horario, aula y color; al cr
   await expect(cell('martes de 12:40 a 13:35')).toHaveAttribute('aria-pressed', 'false');
   await expect(sheet.getByText('2 sesiones a la semana')).toBeVisible();
 
+  // «Otra hora» adds a period to all her classes; the button says what is wrong with the times.
   await sheet.getByRole('button', { name: 'Otra hora' }).click();
   await sheet.getByLabel('Empieza').fill('15:30');
   await sheet.getByLabel('Termina').fill('15:00');
-  await expect(sheet.getByRole('button', { name: 'Añadir fila' })).toBeDisabled();
+  await expect(sheet.getByRole('button', { name: 'Termina antes de empezar' })).toBeDisabled();
   await sheet.getByLabel('Termina').fill('16:25');
-  await sheet.getByRole('button', { name: 'Añadir fila' }).click();
+  await sheet.getByRole('button', { name: 'Añadir hora' }).click();
+  await expect(page.getByText('Hora 15:30–16:25 añadida a tus clases')).toBeVisible();
   await cell('viernes de 15:30 a 16:25').click();
   await expect(sheet.getByText('3 sesiones a la semana')).toBeVisible();
 
@@ -274,10 +279,9 @@ test('acceso-34 · filas copiadas de una tabla (con tabuladores) avisan de la l�
   await expect(sheet.getByText(/Línea 1 ignorada/)).toBeVisible();
 });
 
-// BUG acceso-B02: «Añadir alumnos» holds a pasted list of 25-30 names, but a stray tap on the scrim, Esc or the back
-// gesture throws it away without asking, unlike Anotar or Nueva actividad («Descartar los cambios»).
+// «Añadir alumnos» holds a pasted list of 25-30 names: a stray tap on the scrim, Esc or the back gesture asks first,
+// like Anotar or Nueva actividad («Descartar los cambios»).
 test('acceso-35 · «Añadir alumnos» no pierde la lista pegada por un toque fuera, Esc o atrás', async ({ page, request }, info) => {
-  test.fail(true, 'acceso-B02: AddStudentsSheet no pasa `dirty` a Sheet');
   const acc = await registerAccount(request, info, 'perder');
   const course = await createCourse(acc, request);
   await openAs(page, acc, `/clases/${course.id}/alumnos`);
@@ -320,17 +324,18 @@ test('acceso-36 · con horario y alumnos, Hoy ya sirve: la clase de ahora, su li
 
   const now = page.getByRole('region', { name: 'Ahora · quedan 35 min' });
   await expect(now).toBeVisible();
-  await expect(now).toContainText('Matemáticas · 2.º ESO B');
+  await expect(now).toContainText('2.º ESO B · Mates');
   await expect(now).toContainText('Aula 204 · 10:20–11:15');
-  const agenda = page.getByRole('button', { name: /10:20.*Matemáticas · 2\.º ESO B/ });
-  await expect(agenda).toContainText('Lista sin pasar');
+  // The class is on: its list is not owed yet, so the agenda row only says what and where.
+  const agenda = page.getByRole('button', { name: /10:20.*2\.º ESO B · Mates/ });
+  await expect(agenda).not.toContainText('Lista');
   // The class was created today: no list of earlier days is owed; nobody to watch yet.
   await expect(page.getByText('No hay listas, correcciones ni comentarios pendientes.')).toBeVisible();
   await expect(page.getByText('Nadie a vigilar')).toBeVisible();
 
   // The list has the three of them, all present by default; one absence and «Cerrar lista».
   await now.getByRole('button', { name: 'Pasar lista' }).click();
-  const list = page.getByRole('dialog', { name: 'Matemáticas · 2.º ESO B' });
+  const list = listSheet(page);
   await expect(list.getByText('Toca a quien falte. Otro toque: retraso.')).toBeVisible();
   await expect(list).toContainText('3 presentes');
   await list.getByRole('button', { name: /Núñez Castro, Iker/ }).click();
@@ -362,7 +367,7 @@ test('acceso-37 · una clase sin alumnos: «Pasar lista» lleva a añadirlos y, 
   await openAs(page, acc, '/hoy');
   const now = page.getByRole('region', { name: 'Ahora · quedan 35 min' });
   await now.getByRole('button', { name: 'Pasar lista' }).click();
-  const list = page.getByRole('dialog', { name: 'Matemáticas · 2.º ESO B' });
+  const list = listSheet(page);
   await expect(list.getByText('Esta clase aún no tiene alumnos.')).toBeVisible();
   await list.getByRole('button', { name: 'Añadir alumnos' }).click();
   await expect(page).toHaveURL(/\/alumnos\?anadir=1$/);
@@ -392,11 +397,12 @@ test('acceso-38 · la segunda clase del mismo grupo reutiliza sus alumnos y su h
   await sheet.getByRole('button', { name: '2.º ESO B' }).click();
   await expect(sheet.getByText('Ya tiene 3 alumnos: se usarán en esta clase. ¿Solo algunos? Elige «Nuevo grupo» y añádelos desde 2.º ESO B.')).toBeVisible();
 
-  // The rows are the teacher's own hours (09:00–10:00 in place of the 08:30 and 09:25 periods it overlaps); her other
-  // class's cells are taken, named by its group, and cannot be chosen.
+  // The rows are the school's periods plus the teacher's own hours (09:00–10:00); every cell that overlaps her other
+  // class is taken, named by its group, and cannot be chosen.
   const grid = sheet.getByRole('grid', { name: 'Horario semanal' });
   await expect(grid.getByRole('gridcell', { name: 'lunes de 09:00 a 10:00: Matemáticas · 2.º ESO B' })).toHaveText('2 B');
-  await expect(grid.getByRole('gridcell', { name: /de 08:30 a 09:25/ })).toHaveCount(0);
+  await expect(grid.getByRole('gridcell', { name: 'lunes de 08:30 a 09:25: Matemáticas · 2.º ESO B' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(grid.getByRole('gridcell', { name: 'martes de 08:30 a 09:25', exact: true })).toHaveAttribute('aria-pressed', 'false');
   const taken = grid.getByRole('gridcell', { name: 'jueves de 10:20 a 11:15: Matemáticas · 2.º ESO B' });
   await expect(taken).toHaveAttribute('aria-disabled', 'true');
   await taken.click({ force: true }); // a tap on it does nothing
@@ -473,9 +479,9 @@ test('acceso-40 · curso escolar de la cuenta nueva: evaluaciones y festivos de 
   await createCourse(acc, request);
   await openAs(page, acc, '/ajustes');
 
-  await expect(page.getByLabel('Curso', { exact: true })).toHaveValue('2026-2027', FIRST_RENDER);
   // Dates read in Spanish whatever the browser; the native picker underneath holds the ISO date.
   const date = (label: string) => page.locator('.datefield').filter({ has: page.getByLabel(label, { exact: true }) });
+  await expect(page.getByLabel('1.ª evaluación: primer día')).toHaveValue('2026-09-08', FIRST_RENDER);
   await expect(date('1.ª evaluación: primer día')).toContainText('8 sept 2026');
   await expect(page.getByLabel('1.ª evaluación: primer día')).toHaveValue('2026-09-08');
   await expect(date('1.ª evaluación: último día')).toContainText('22 dic 2026');
@@ -500,6 +506,7 @@ test('acceso-40 · curso escolar de la cuenta nueva: evaluaciones y festivos de 
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByText('Cambios guardados').last()).toBeVisible();
   const year = await apiAs(request, acc.access_token).get('/school-year');
+  expect(year.label).toBe('2026-2027');
   expect(year.terms[0]).toEqual({ n: 1, start: '2026-09-08', end: '2026-12-18' });
   expect(year.holidays).toContainEqual({ label: 'Jornada de puertas abiertas', start: '2026-11-19', end: '2026-11-19' });
   await page.reload();
@@ -535,7 +542,8 @@ test('acceso-41 · recorrido completo: de la landing a pasar la primera lista, s
   const errors = trackErrors(page);
   const email = uniqueEmail(info, 'recorrido');
   await page.goto('/landing/index.html');
-  await page.getByRole('link', { name: 'Crear cuenta' }).first().click();
+  await page.getByRole('banner').getByRole('link', { name: 'Entrar' }).click();
+  await page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Crear cuenta' }).click();
   await page.getByLabel('Nombre').fill('Marta Ruiz Ortega');
   await page.getByLabel('Correo').fill(email);
   await page.getByLabel('Contraseña').fill('clave-segura-1');
@@ -556,9 +564,9 @@ test('acceso-41 · recorrido completo: de la landing a pasar la primera lista, s
 
   await goTo(page, info, 'Hoy');
   const now = page.getByRole('region', { name: 'Ahora · quedan 35 min' });
-  await expect(now).toContainText('Matemáticas · 2.º ESO B');
+  await expect(now).toContainText('2.º ESO B · Mates');
   await now.getByRole('button', { name: 'Pasar lista' }).click();
-  const list = page.getByRole('dialog', { name: 'Matemáticas · 2.º ESO B' });
+  const list = listSheet(page);
   await expect(list).toContainText('5 presentes');
   await list.getByRole('button', { name: 'Cerrar lista' }).click();
   await expect(page.getByText('Lista pasada · 5 presentes')).toBeVisible();

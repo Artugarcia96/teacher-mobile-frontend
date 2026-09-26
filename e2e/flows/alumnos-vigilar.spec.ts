@@ -64,7 +64,7 @@ test.describe('a class with students to watch', () => {
     await expect(callout(page)).toBeVisible();
     expect(await inHoy(teacher.api, marta.id)).toBe(false);
     await page.reload();
-    await expect(callout(page)).toHaveAccessibleName('A vigilar: 2 incidencias en 7 días');
+    await expect(callout(page)).toHaveAccessibleName('A vigilar: 2 incidencias en 7 días. Ya lo sabes desde el 19 nov');
 
     // Something new (another incident, today) brings her back.
     await page.getByRole('button', { name: 'Anotar' }).click();

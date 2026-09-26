@@ -1,12 +1,12 @@
 import type { Page } from '@playwright/test';
 import {
-  bug, clipboard, demoCourse, DEMO_2B, demoStudent, denyClipboard, expect, isMobile, MATES_2C, openFile, section, shot, test,
+  bug, demoCourse, DEMO_2B, demoStudent, expect, isMobile, MATES_2C, openFile, section, shot, test,
   toast, type CourseSpec,
 } from './alumnos-helpers';
 
 // Ficha del alumno: the header (marks, measures), Notas with the same numbers as the Cuaderno (AI drafts, NP, adapted
 // versions, «No cuenta», comments, «Exámenes pendientes»), Asistencia of the term (justify in place, «Deshacer»),
-// «Copiar resumen», a student in two classes, the way back, and the not-found and failed states. No AI.
+// a student in two classes, the way back, and the not-found and failed states. No AI.
 
 /** Marta Alonso Gil (index 0) with a bit of everything; Pablo Benítez (1) was absent (NP) in Examen U1. */
 const FICHA_CLASS: CourseSpec = {
@@ -49,7 +49,6 @@ test.describe('a student with a bit of everything', () => {
     await openFile(page, marta.id, 'Marta Alonso Gil');
     await expect(page.locator('.page-head .eyebrow')).toHaveText('2.º ESO C');
     await expect(page.getByRole('button', { name: 'Anotar' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Copiar resumen' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Preparar tutoría' })).toBeVisible();
 
     const notas = section(page, 'Notas');
@@ -154,44 +153,6 @@ test.describe('a student with a bit of everything', () => {
     // Tap the counts again to fold the list.
     await head.click();
     await expect(rows).toHaveCount(0);
-  });
-
-  test('alumnos-33 «Copiar resumen»: fixed text with the term, faltas, pending, homework and the last 3 notes', async ({ page, teacher }) => {
-    const [c] = teacher.courses;
-    const marta = c.students[0];
-    const file = await teacher.api.get(`/students/${marta.id}`);
-    await openFile(page, marta.id, 'Marta Alonso Gil');
-    await page.getByRole('button', { name: 'Copiar resumen' }).click();
-    await expect(toast(page, 'Resumen copiado')).toBeVisible();
-    expect(await clipboard(page)).toBe([
-      'Marta Alonso Gil',
-      `Matemáticas · 2.º ESO C, 1.ª evaluación: media ${avg(file.courses[0].terms[0].average)} · 2 faltas (1 justificada) · 1 retraso · pendiente: Examen U2 · Proporcionalidad`,
-      'Deberes: no hizo 1 de 3 · 1 incompleto',
-      'Últimas observaciones:',
-      '· 18 nov, incidencia: No trae el material por tercera vez.',
-      '· 10 nov, observación: Trabajan bien en pareja.',
-      '· 5 nov, positivo: Ayuda a sus compañeros.',
-    ].join('\n'));
-
-    // With the term grade set, it says «nota»; an NP pending says so.
-    await teacher.api.put(`/courses/${c.id}/evaluation/1/students/${marta.id}`, { final_grade: 6 });
-    const pablo = c.students[1];
-    await openFile(page, pablo.id, 'Pablo Benítez Ruiz');
-    await page.getByRole('button', { name: 'Copiar resumen' }).click();
-    await expect(toast(page, 'Resumen copiado')).toBeVisible();
-    expect(await clipboard(page)).toMatch(/^Pablo Benítez Ruiz\nMatemáticas · 2\.º ESO C, 1\.ª evaluación: media \d+,\d · sin faltas · pendiente: Examen U1 · Fracciones \(NP\)\nDeberes: todos hechos \(3\)\nÚltimas observaciones:\n· 10 nov, observación: Trabajan bien en pareja\.$/);
-    await openFile(page, marta.id, 'Marta Alonso Gil');
-    await page.getByRole('button', { name: 'Copiar resumen' }).click();
-    await expect(toast(page, 'Resumen copiado')).toBeVisible();
-    expect((await clipboard(page)).split('\n')[1]).toMatch(/^Matemáticas · 2\.º ESO C, 1\.ª evaluación: nota 6 · /);
-  });
-
-  test('alumnos-34 «Copiar resumen» where the browser does not allow the clipboard says so', async ({ page, teacher }) => {
-    const marta = teacher.courses[0].students[0];
-    await openFile(page, marta.id, 'Marta Alonso Gil');
-    await denyClipboard(page);
-    await page.getByRole('button', { name: 'Copiar resumen' }).click();
-    await expect(toast(page, 'No se ha podido copiar. Tu navegador no deja usar el portapapeles.')).toBeVisible();
   });
 
   test('alumnos-35 opened directly, back goes to the class roster («‹ 2.º ESO C»)', async ({ page, teacher }) => {

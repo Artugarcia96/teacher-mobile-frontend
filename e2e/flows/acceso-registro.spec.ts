@@ -4,8 +4,9 @@ import {
   apiAs, DEMO, LOGGED_OUT, loginAccount, routeApiTo, startClosedSignupApi, uniqueEmail, type ClosedApi,
 } from './acceso.helpers';
 
-// Acceso · crear cuenta: validación, correo repetido, la cuenta nueva con su curso escolar por defecto y el registro
-// cerrado (SEPIA_SIGNUP_EMAILS) de un servidor público. No AI. Nobody is signed in.
+// Acceso · crear cuenta: validación, correo repetido, la cuenta nueva con su curso escolar por defecto, un servidor sin
+// registro (solo «Entrar» y el enlace al piloto) y el registro cerrado a unos correos (SEPIA_SIGNUP_EMAILS). No AI.
+// Nobody is signed in.
 test.use({ storageState: LOGGED_OUT });
 
 const PASSWORD = 'clave-segura-1';
@@ -98,6 +99,19 @@ test('acceso-22 · crear cuenta abre «Nueva clase» y deja hecho el curso escol
   await expect(page.getByText('Pega la lista de alumnos.')).toBeVisible();
   await page.goto('/hoy');
   await expect(page.getByText('1.ª evaluación, semana 11')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('acceso-23b · un servidor sin registro solo ofrece «Entrar» y lleva a quien no tiene cuenta al piloto', async ({ page }) => {
+  const errors = trackErrors(page);
+  // What GET /auth/signup says in production with SEPIA_SIGNUP_EMAILS empty.
+  await page.route((url) => url.pathname === '/api/auth/signup', (route) => route.fulfill({ json: { open: false } }));
+  await page.goto('/entrar?cuenta=nueva');
+  await expect(page.getByRole('link', { name: 'Apúntate al piloto' })).toHaveAttribute('href', 'https://linktr.ee/sepiaeducation');
+  await expect(page.getByRole('group', { name: 'Acceso' })).toHaveCount(0);
+  await expect(page.getByLabel('Nombre')).toHaveCount(0);
+  await expect(submit(page)).toHaveCount(0);
+  await expect(page.locator('form').getByRole('button', { name: 'Entrar' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

@@ -219,7 +219,6 @@ test.describe('the first list of a new class', () => {
   });
 
   test('alumnos-19 a pasted list is not lost by a stray tap: the scrim does nothing and ✕ asks first', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-02', '«Añadir alumnos» does not mark the sheet dirty: a tap on the scrim, ✕, Esc or back discard a pasted list');
     const [c] = teacher.courses;
     const s = await openAdd(page, c.id);
     await listField(s).fill('García López, Ana\nPablo Ruiz Serrano');

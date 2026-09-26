@@ -44,16 +44,15 @@ test.describe('clases · temario', () => {
     const unit = await teacher.api.get(`/units/${c.units[1].id}`);
     await teacher.api.post(`/materials/${unit.materials[0].id}/share`, { origin: 'http://127.0.0.1' });
     await openClass(page, c.id, 'programacion', '2.º ESO C');
-    await expect(page.getByText('1 de 4 unidades impartidas · En curso: Fracciones')).toBeVisible();
-    await expect(term(page, '1.ª evaluación').getByText('3 unidades')).toBeVisible();
-    await expect(term(page, '2.ª evaluación').getByText('1 unidad', { exact: true })).toBeVisible();
+    // Each row's mark says its status, once: no progress line or counts on top.
+    await expect(page.getByText(/unidades impartidas/)).toHaveCount(0);
     await expect(unitTitles(page, '1.ª evaluación')).toHaveText(['Números enteros', 'Fracciones', 'Potencias y raíces']);
     await expect(unitTitles(page, '2.ª evaluación')).toHaveText(['Ecuaciones de primer grado']);
     await expect(unitLink(page, 'Números enteros').getByLabel('Impartida')).toBeVisible();
     await expect(unitLink(page, 'Fracciones').getByText('En curso')).toBeVisible();
     await expect(unitLink(page, 'Fracciones')).toContainText('1 material');
     await expect(unitLink(page, 'Fracciones').getByLabel('Compartido con alumnos')).toBeVisible();
-    await expect(unitLink(page, 'Potencias y raíces')).toContainText('Sin materiales');
+    await expect(unitLink(page, 'Potencias y raíces')).not.toContainText('material');
     await expect(unitLink(page, 'Potencias y raíces').getByLabel('Pendiente')).toBeVisible();
     await expect(term(page, '3.ª evaluación').getByText('Sin unidades')).toBeVisible();
     await shot(page, info, '47-temario');
@@ -77,7 +76,7 @@ test.describe('clases · temario', () => {
     await expect(toast(page, 'Unidad añadida')).toBeVisible();
     await expect(sheet).toBeHidden();
     await expect(unitTitles(page, '2.ª evaluación')).toHaveText(['Ecuaciones de primer grado', 'Proporcionalidad']);
-    await expect(page.getByText('1 de 5 unidades impartidas')).toBeVisible();
+    await expect(unitLink(page, 'Proporcionalidad').getByLabel('Pendiente')).toBeVisible();
     const units = await teacher.api.get(`/courses/${c.id}/units`);
     expect(units.find((u: { title: string }) => u.title === 'Proporcionalidad')).toMatchObject({ term: 2, status: 'pending' });
   });
@@ -107,18 +106,19 @@ test.describe('clases · temario', () => {
     // A later unit en curso: the one before it is done.
     await unitMenu(page, 'Potencias y raíces', 'Marcar en curso');
     await expect(toast(page, 'Unidad en curso')).toBeVisible();
-    await expect(page.getByText('2 de 4 unidades impartidas · En curso: Potencias y raíces')).toBeVisible();
+    await expect(unitLink(page, 'Potencias y raíces').getByText('En curso')).toBeVisible();
     await expect(unitLink(page, 'Fracciones').getByLabel('Impartida')).toBeVisible();
     expect(await statuses(teacher.api, c.id)).toMatchObject({ Fracciones: 'done', 'Potencias y raíces': 'current' });
 
     // An earlier unit en curso: the later one goes back to pending.
     await unitMenu(page, 'Números enteros', 'Marcar en curso');
-    await expect(page.getByText('En curso: Números enteros')).toBeVisible();
+    await expect(unitLink(page, 'Números enteros').getByText('En curso')).toBeVisible();
+    await expect(unitLink(page, 'Potencias y raíces').getByLabel('Pendiente')).toBeVisible();
     expect(await statuses(teacher.api, c.id)).toMatchObject({ 'Números enteros': 'current', 'Potencias y raíces': 'pending' });
 
     await unitMenu(page, 'Números enteros', 'Marcar como pendiente');
     await expect(toast(page, 'Unidad pendiente')).toBeVisible();
-    await expect(page.getByText('1 de 4 unidades impartidas', { exact: true })).toBeVisible(); // nothing en curso
+    await expect(page.locator('.plan').getByText('En curso', { exact: true })).toHaveCount(0); // nothing en curso
     await unitMenu(page, 'Ecuaciones de primer grado', 'Marcar como impartida');
     await expect(toast(page, 'Unidad impartida')).toBeVisible();
     expect(await statuses(teacher.api, c.id)).toEqual({
@@ -295,9 +295,17 @@ test.describe('clases · temario', () => {
   test('clases-57 · a unit that does not exist: «No se ha encontrado la unidad» and «Volver al temario»', async ({ page, teacher }) => {
     const [c] = teacher.courses;
     await page.goto(`/clases/${c.id}/unidades/00000000-0000-0000-0000-000000000000`);
-    await expect(page.getByText('No se ha encontrado la unidad')).toBeVisible();
+    await expect(page.getByText('No se ha encontrado la unidad', { exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Volver al temario' }).click();
     await expect(page).toHaveURL(new RegExp(`/clases/${c.id}/programacion$`));
+  });
+
+  test('clases-57b · a unit that does not exist says so once, and why', async ({ page, teacher }) => {
+    bug('BUG-CLASES-09', 'UnitPage shows the 404 message as the text under the title: «No se ha encontrado la unidad» twice, and no reason');
+    const [c] = teacher.courses;
+    await page.goto(`/clases/${c.id}/unidades/00000000-0000-0000-0000-000000000000`);
+    await expect(page.getByText('No se ha encontrado la unidad', { exact: true })).toBeVisible();
+    await expect(page.getByText(/No se ha encontrado la unidad/)).toHaveCount(1);
   });
 
   test('clases-62 · a failed load of the units says so', async ({ page, teacher }) => {
@@ -339,7 +347,6 @@ test.describe('clases · temario vacío', () => {
     await sheet.getByRole('textbox', { name: 'Título' }).fill('Números enteros');
     await sheet.getByRole('button', { name: 'Añadir unidad' }).click();
     await expect(toast(page, 'Unidad añadida')).toBeVisible();
-    await expect(page.getByText('1 unidad', { exact: true }).first()).toBeVisible();
     await expect(unitLink(page, 'Números enteros')).toBeVisible();
     expect(await teacher.api.get(`/courses/${c.id}/units`)).toHaveLength(1);
   });
@@ -370,7 +377,8 @@ test.describe('clases · copiar temario', () => {
     await expect(unitTitles(page, '1.ª evaluación')).toHaveText(['Números enteros', 'Fracciones', 'Potencias y raíces']);
     await expect(unitLink(page, 'Fracciones')).toContainText('1 material');
     const units = await teacher.api.get(`/courses/${b.id}/units`);
-    expect(units.map((u: { status: string }) => u.status)).toEqual(['pending', 'pending', 'pending']);
+    // Copied as pending, and with nothing en curso in the class, its first unit of the current evaluación is.
+    expect(units.map((u: { status: string }) => u.status)).toEqual(['current', 'pending', 'pending']);
     const fr = await teacher.api.get(`/units/${units[1].id}`);
     expect(fr.materials.map((m: { title: string }) => m.title)).toEqual(['Vídeo: fracciones equivalentes']);
     // The source class keeps its own units.
