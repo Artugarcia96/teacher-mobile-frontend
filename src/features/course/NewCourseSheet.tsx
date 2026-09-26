@@ -71,6 +71,7 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
   const isNew = groupId === NEW || (!hasGroups && groupId === null);
   const groupOk = isNew ? groupName.trim().length > 0 : !!groupId;
   const blocker = !subject.trim() ? 'Escribe la materia' : !groupOk ? (isNew ? 'Escribe el nombre del grupo' : 'Elige un grupo') : null;
+  const dirty = !!subject.trim() || groupId !== null || !!groupName.trim() || touched || schedule.length > 0 || !!room.trim() || picked !== null;
 
   const submit = async () => {
     setError(null);
@@ -89,7 +90,7 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Nueva clase" size="large"
+    <Sheet open={open} onClose={onClose} title="Nueva clase" size="large" dirty={dirty}
       footer={<Button full onClick={submit} loading={create.isPending} disabled={!!blocker}>{blocker ?? 'Crear clase'}</Button>}>
       <div className="form">
         <div className="chips-field">

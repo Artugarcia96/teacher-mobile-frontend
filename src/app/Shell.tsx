@@ -7,7 +7,7 @@ import { JobWatcher } from '../features/materials/watch';
 import { SearchSheet } from '../features/students/StudentSearch';
 import { useAuth } from '../lib/auth';
 import { courseLabel, courseShortLabel } from '../lib/format';
-import { Avatar, Dot, Logo } from '../ui';
+import { Avatar, Dot, ErrorBoundary, Logo } from '../ui';
 import './shell.css';
 
 const NAV = [
@@ -103,7 +103,9 @@ export function Shell() {
         </NavLink>
       </aside>
       <main className="shell__main">
-        <Outlet />
+        <ErrorBoundary resetKey={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
       <SearchSheet open={searching} onClose={() => setSearching(false)} />
       <nav className="tabcap glass" aria-label="Navegación">

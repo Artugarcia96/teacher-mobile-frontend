@@ -506,7 +506,6 @@ test.describe('faltas · «Avisar a la familia» con dos faltas el mismo día', 
   });
 
   test('faltas-19 · two classes missed on one day: the family message still tells the three absences the teacher sees', async ({ page, world }) => {
-    bug('FALTAS-BUG-07', '«Avisar a la familia» lists each date once: «Faltas sin justificar: 12 y 19 de noviembre.» for the 3 absences of «A vigilar: 3 faltas sin justificar en 14 días»');
     const c = world.courses[0];
     await openFaltas(page, c.id);
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();

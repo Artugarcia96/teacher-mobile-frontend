@@ -36,7 +36,7 @@ test('acceso-62 · «/» es la landing; «Entrar» abre la app, que entra por el
   await page.getByRole('banner').getByRole('link', { name: 'Entrar' }).click();
   await expect(page).toHaveURL(at('/entrar'));
   await page.getByLabel('Correo').fill(DEMO.email);
-  await page.getByLabel('Contraseña').fill(DEMO.password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(DEMO.password);
   await page.locator('form').getByRole('button', { name: 'Entrar' }).click();
   await expect(page).toHaveURL(at('/hoy'));
   await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible();

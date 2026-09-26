@@ -15,7 +15,7 @@ const submit = (page: Page) => page.locator('form').getByRole('button', { name: 
 async function fillSignup(page: Page, name: string, email: string, password: string) {
   await page.getByLabel('Nombre').fill(name);
   await page.getByLabel('Correo').fill(email);
-  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
 }
 
 test('acceso-20 · crear cuenta: el botón espera a los tres campos y los errores se dicen antes de perder nada', async ({ page }, info) => {
@@ -25,9 +25,9 @@ test('acceso-20 · crear cuenta: el botón espera a los tres campos y los errore
   await page.goto('/entrar?cuenta=nueva');
   await expect(submit(page)).toBeDisabled();
   await expect(page.getByLabel('Nombre')).toHaveAttribute('autocomplete', 'name');
-  await expect(page.getByLabel('Contraseña')).toHaveAttribute('autocomplete', 'new-password');
+  await expect(page.getByLabel('Contraseña', { exact: true })).toHaveAttribute('autocomplete', 'new-password');
   await page.getByLabel('Correo').fill(uniqueEmail(info, 'valida'));
-  await page.getByLabel('Contraseña').fill(PASSWORD);
+  await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   await expect(submit(page)).toBeDisabled(); // still no name
   await page.getByLabel('Nombre').fill('   ');
   await expect(submit(page)).toBeDisabled();
@@ -70,7 +70,7 @@ test('acceso-22 · crear cuenta abre «Nueva clase» y deja hecho el curso escol
   await page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page.getByText('Al menos 8 caracteres.')).toBeVisible();
   await fillSignup(page, '  Marta Ruiz Ortega ', `  ${email.replace('e2e-', 'E2E-')} `, PASSWORD);
-  await page.getByLabel('Contraseña').press('Enter');
+  await page.getByLabel('Contraseña', { exact: true }).press('Enter');
 
   await expect(page).toHaveURL(/\/clases\?nueva=1$/);
   const sheet = page.getByRole('dialog', { name: 'Nueva clase' });

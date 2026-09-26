@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSignupOpen } from '../../api/core';
 import { Bare } from '../../app/Shell';
 import { ApiError } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { Button, Logo, Segmented, TextField } from '../../ui';
+import { returnPath, useAuth } from '../../lib/auth';
+import { Button, Logo, PasswordField, Segmented, TextField } from '../../ui';
 import './login.css';
 
 type Mode = 'login' | 'register';
@@ -20,11 +20,12 @@ function message(err: unknown, mode: Mode): string {
   return 'Algo ha fallado. Inténtalo de nuevo.';
 }
 
-/** /entrar — sign in, or create an account where the server allows it (?cuenta=nueva opens «Crear cuenta»); where it does
- * not, only «Entrar» and a link to ask to join the pilot. */
+/** /entrar — sign in (then back to the screen that was asked for, or Hoy), or create an account where the server allows
+ * it (?cuenta=nueva opens «Crear cuenta»); where it does not, only «Entrar» and a link to ask to join the pilot. */
 export default function LoginPage() {
   const { login, register, loggedIn } = useAuth();
   const navigate = useNavigate();
+  const back = returnPath(useLocation().state);
   const [params] = useSearchParams();
   const signupOpen = useSignupOpen();
   const [chosen, setMode] = useState<Mode>(() => (params.get('cuenta') === 'nueva' ? 'register' : 'login'));
@@ -35,7 +36,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (loggedIn && !busy) return <Navigate to="/hoy" replace />;
+  if (loggedIn && !busy) return <Navigate to={back} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -48,7 +49,7 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         await login(email.trim(), password);
-        navigate('/hoy', { replace: true });
+        navigate(back, { replace: true });
       } else {
         await register(name.trim(), email.trim(), password);
         navigate('/clases?nueva=1', { replace: true });
@@ -83,7 +84,7 @@ export default function LoginPage() {
           )}
           <TextField label="Correo" type="email" autoComplete="email" inputMode="email" placeholder="nombre@centro.es"
             value={email} required onChange={(e) => setEmail(e.target.value)} />
-          <TextField label="Contraseña" type="password" value={password} required
+          <PasswordField label="Contraseña" value={password} required
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             hint={mode === 'register' ? 'Al menos 8 caracteres.' : undefined}
             onChange={(e) => setPassword(e.target.value)} />

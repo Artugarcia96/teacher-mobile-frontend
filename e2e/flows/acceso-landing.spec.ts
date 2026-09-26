@@ -54,7 +54,7 @@ test('acceso-02 · «Apúntate al piloto» lleva a la página del piloto; «Ya t
   await closing.getByRole('link', { name: 'Ya tengo cuenta' }).click();
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(page.getByLabel('Correo')).toBeVisible();
-  await expect(page.getByLabel('Contraseña')).toBeVisible();
+  await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible();
 });
 
 test('acceso-03 · «Entrar» de la cabecera abre /entrar para iniciar sesión', async ({ page }) => {
@@ -64,7 +64,7 @@ test('acceso-03 · «Entrar» de la cabecera abre /entrar para iniciar sesión',
   await expect(page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Entrar' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Nombre')).toHaveCount(0);
   await expect(page.getByLabel('Correo')).toBeVisible();
-  await expect(page.getByLabel('Contraseña')).toBeVisible();
+  await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible();
 });
 
 test('acceso-04 · «Ver cómo funciona» baja a la primera grabación y «Saltar al contenido» funciona con el teclado', async ({ page }) => {

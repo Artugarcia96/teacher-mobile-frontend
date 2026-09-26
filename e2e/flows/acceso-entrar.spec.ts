@@ -12,7 +12,7 @@ const mode = (page: Page, name: 'Entrar' | 'Crear cuenta') => page.getByRole('gr
 
 async function signInWithForm(page: Page, email: string, password: string) {
   await page.getByLabel('Correo').fill(email);
-  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await submit(page).click();
 }
 
@@ -32,13 +32,13 @@ test('acceso-11 · entrar: el botón espera a los dos campos y los errores se di
   await expect(submit(page)).toBeDisabled();
   await page.getByLabel('Correo').fill(DEMO.email);
   await expect(submit(page)).toBeDisabled();
-  await page.getByLabel('Contraseña').fill('no-es-esta');
+  await page.getByLabel('Contraseña', { exact: true }).fill('no-es-esta');
   await expect(submit(page)).toBeEnabled();
   await submit(page).click();
   await expect(page.getByRole('alert')).toHaveText('Correo o contraseña incorrectos.');
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(page.getByLabel('Correo')).toHaveValue(DEMO.email);
-  await expect(page.getByLabel('Contraseña')).toHaveValue('no-es-esta');
+  await expect(page.getByLabel('Contraseña', { exact: true })).toHaveValue('no-es-esta');
   await expect(submit(page)).toBeEnabled();
   await shot(page, info, 'acceso-11-login-error');
 
@@ -64,7 +64,7 @@ test('acceso-18 · muchas contraseñas mal seguidas: espera unos minutos, dicho 
   for (let i = 0; i < 5; i++) {
     await signInWithForm(page, acc.email, `no-es-esta-${i}`);
     await expect(page.getByRole('alert')).toHaveText('Correo o contraseña incorrectos.');
-    await page.getByLabel('Contraseña').fill('');
+    await page.getByLabel('Contraseña', { exact: true }).fill('');
   }
   // …the next try waits, with how long, and the right password does not get in meanwhile.
   await signInWithForm(page, acc.email, acc.password);
@@ -78,11 +78,11 @@ test('acceso-12 · entrar solo con el teclado (correo con mayúsculas y espacios
   await page.goto('/entrar');
   // The browser's password manager can fill and save these fields.
   await expect(page.getByLabel('Correo')).toHaveAttribute('autocomplete', 'email');
-  await expect(page.getByLabel('Contraseña')).toHaveAttribute('autocomplete', 'current-password');
+  await expect(page.getByLabel('Contraseña', { exact: true })).toHaveAttribute('autocomplete', 'current-password');
   await page.getByLabel('Correo').focus();
   await page.keyboard.type('  Demo@Sepia.es ');
   await page.keyboard.press('Tab');
-  await expect(page.getByLabel('Contraseña')).toBeFocused();
+  await expect(page.getByLabel('Contraseña', { exact: true })).toBeFocused();
   await page.keyboard.type(DEMO.password);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/hoy$/);
@@ -186,7 +186,7 @@ test('acceso-15 · salir y entrar con otra cuenta no enseña nada de la anterior
 test('acceso-16 · sin conexión, entrar lo dice y se puede reintentar', async ({ page, context }) => {
   await page.goto('/entrar');
   await page.getByLabel('Correo').fill(DEMO.email);
-  await page.getByLabel('Contraseña').fill(DEMO.password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(DEMO.password);
   await context.setOffline(true);
   await submit(page).click();
   await expect(page.getByRole('alert')).toHaveText('Sin conexión con el servidor. Revisa tu conexión.');
@@ -196,14 +196,42 @@ test('acceso-16 · sin conexión, entrar lo dice y se puede reintentar', async (
   await expect(page).toHaveURL(/\/hoy$/);
 });
 
-// BUG acceso-B01: a link into the app opened without a session (a bookmark, a shared link, the session expired)
-// goes to /entrar and, after signing in, always to Hoy: the page the teacher asked for is lost.
+// A link into the app opened without a session (a bookmark, a shared link) goes to /entrar and, after signing in, to
+// the page the teacher asked for, not to Hoy.
 test('acceso-17 · un enlace a una pantalla de la app vuelve a esa pantalla después de entrar', async ({ page, request }) => {
-  test.fail(true, 'acceso-B01: RequireAuth no guarda la dirección pedida y LoginPage siempre navega a /hoy');
   const demo = await loginAccount(request, DEMO.email, DEMO.password);
   const [course]: { id: string }[] = await apiAs(request, demo.access_token).get('/courses');
   await page.goto(`/clases/${course.id}/alumnos`);
   await expect(page).toHaveURL(/\/entrar/);
   await signInWithForm(page, DEMO.email, DEMO.password);
   await expect(page).toHaveURL(new RegExp(`/clases/${course.id}/alumnos$`));
+});
+
+// On a phone a mistyped password is seen before it is sent (five wrong ones lock the account for a while, acceso-18).
+test('acceso-60 · «Mostrar contraseña» enseña lo escrito y, pulsado otra vez, lo vuelve a tapar', async ({ page, request }, info) => {
+  const acc = await registerAccount(request, info, 'mostrar');
+  await page.goto('/entrar');
+  const password = page.getByLabel('Contraseña', { exact: true });
+  await password.fill('clave-segura-1');
+  await expect(password).toHaveAttribute('type', 'password');
+  // A toggle: the name stays, aria-pressed says whether it is shown.
+  const toggle = page.getByRole('button', { name: 'Mostrar contraseña' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(password).toHaveAttribute('type', 'text');
+  await expect(password).toHaveValue('clave-segura-1');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const box = await toggle.boundingBox();
+  expect(box!.width).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+  await shot(page, info, 'acceso-60-password-shown');
+  await toggle.click();
+  await expect(password).toHaveAttribute('type', 'password');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  // Shown or not, «Entrar» sends what was typed.
+  await page.getByLabel('Correo').fill(acc.email);
+  await password.fill(acc.password);
+  await toggle.click();
+  await submit(page).click();
+  await expect(page).toHaveURL(/\/hoy$/);
 });

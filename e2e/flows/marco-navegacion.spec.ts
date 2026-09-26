@@ -291,7 +291,7 @@ test.describe('navegación · sin sesión', () => {
     await expect(page.locator('aside.sidebar')).toHaveCount(0);
     await expect(page.locator('nav.tabcap')).toHaveCount(0);
     await page.getByLabel('Correo').fill('demo@sepia.es');
-    await page.getByLabel('Contraseña').fill('sepia1234');
+    await page.getByLabel('Contraseña', { exact: true }).fill('sepia1234');
     await page.locator('form').getByRole('button', { name: 'Entrar' }).click();
     await expect(page).toHaveURL(/\/hoy$/);
     await expect(heading(page, 'Hoy')).toBeVisible();

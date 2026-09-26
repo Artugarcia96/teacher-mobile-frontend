@@ -56,10 +56,15 @@ export function isDraft(m: Pick<Material, 'kind' | 'reviewed' | 'status'>): bool
 }
 
 /** The title without the unit it belongs to, where the unit is already on screen: «Apuntes · El átomo» → «Apuntes»,
- *  «Ficha de refuerzo · El átomo (2)» → «Ficha de refuerzo (2)». A title the teacher wrote stays as it is. */
+ *  «Ficha de refuerzo · El átomo (2)» → «Ficha de refuerzo (2)». Only at the end: a title the teacher wrote stays as
+ *  it is («Vídeo · Fracciones equivalentes» in the unit «Fracciones»). */
 export function shortTitle(title: string, unitTitle?: string | null): string {
   if (!unitTitle) return title;
-  return title.replace(` · ${unitTitle}`, '').trim() || title;
+  const suffix = ` · ${unitTitle}`;
+  const counter = title.endsWith(suffix) ? '' : title.match(/ \(\d+\)$/)?.[0] ?? '';
+  const name = title.slice(0, title.length - counter.length);
+  if (!name.endsWith(suffix)) return title;
+  return `${name.slice(0, -suffix.length)}${counter}`.trim() || title;
 }
 
 /** «los apuntes», «la ficha de refuerzo», «el resumen»… */
