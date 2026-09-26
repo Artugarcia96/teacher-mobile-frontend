@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { bug, expect, isMobile, MATES_2C, sheet, shot, test } from './alumnos-helpers';
+import { expect, isMobile, MATES_2C, sheet, shot, test } from './alumnos-helpers';
 
 // The student search: in Clases (phone and computer) and, on a computer, from any screen with «/», Ctrl+K or «Buscar»
 // in the sidebar. Accents do not matter («nunez» finds Núñez), classes are found by subject or group («2 eso b»),
@@ -10,20 +10,13 @@ const results = (page: Page, title: 'Alumnos' | 'Clases') =>
   page.locator('section.section').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
 
 /** Writes the search and presses Enter once the results are on screen, as a person reads them first. (Enter pressed
- *  in the same breath as the typing is dropped: BUG-ALUMNOS-07, alumnos-88; letters typed fast are lost in Clases:
- *  BUG-ALUMNOS-11, alumnos-112.) */
+ *  in the same breath as the typing: alumnos-88; letters typed fast: alumnos-112.) */
 async function typeAndEnter(page: Page, input: Locator, text: string, first: RegExp, opened: Locator) {
-  // The Clases box can take back an older value from the address right after it was cleared (BUG-ALUMNOS-11): write
-  // until the box holds the text.
-  await expect(async () => {
-    await input.fill(text);
-    await expect(input).toHaveValue(text, { timeout: 1000 });
-  }).toPass();
+  await input.fill(text);
+  await expect(input).toHaveValue(text);
   await expect(page.getByRole('button', { name: first }).first()).toBeVisible();
-  await expect(async () => {
-    if (await input.isVisible()) await input.press('Enter');
-    await expect(opened).toBeVisible({ timeout: 1000 });
-  }).toPass();
+  await input.press('Enter');
+  await expect(opened).toBeVisible();
 }
 
 test.describe('demo teacher (read only)', () => {
@@ -48,7 +41,6 @@ test.describe('demo teacher (read only)', () => {
   });
 
   test('alumnos-88 a name and Enter in one go opens the student, also on a slow network (Enter is not lost while the search answers)', async ({ page }) => {
-    bug('BUG-ALUMNOS-07', 'Enter pressed before the search has answered (160 ms debounce + the request) is dropped: nothing opens');
     // A school network: every search takes a second to answer.
     await page.route('**/api/search**', async (route) => {
       await new Promise((r) => setTimeout(r, 1000));
@@ -61,7 +53,6 @@ test.describe('demo teacher (read only)', () => {
   });
 
   test('alumnos-112 letters typed quickly in the Clases search are all kept', async ({ page }) => {
-    bug('BUG-ALUMNOS-11', 'the Clases search box takes its value from the address (?q=): letters typed faster than a render are lost («hugo dominguez» → «hgo domingez»), and a term written right after clearing the box can be replaced by the older one');
     await page.goto('/clases');
     await box(page).click();
     await page.keyboard.type('hugo dominguez'); // key after key with no pause, as a fast thumb or a paste-like burst

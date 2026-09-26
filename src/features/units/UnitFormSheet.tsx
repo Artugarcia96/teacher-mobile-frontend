@@ -8,6 +8,8 @@ export const TERM_OPTIONS = [
   { value: 2, label: '2.ª' },
   { value: 3, label: '3.ª' },
 ];
+/** «Sin evaluación» in the selector (a unit whose term is null), offered while editing such a unit. */
+const NO_TERM = 0;
 
 export interface UnitFormSheetProps {
   open: boolean;
@@ -31,7 +33,9 @@ function UnitForm({ open, onClose, courseId, unit, term }: UnitFormSheetProps) {
   const create = useCreateUnit(courseId);
   const patch = usePatchUnit(courseId);
   const [title, setTitle] = useState(unit?.title ?? '');
-  const [t, setT] = useState<number>(unit?.term ?? term ?? me?.school_year.current_term ?? 1);
+  // Editing keeps the unit's evaluación, none included: «Renombrar» never moves it.
+  const [t, setT] = useState<number>(unit ? unit.term ?? NO_TERM : term ?? me?.school_year.current_term ?? 1);
+  const options = unit?.term === null ? [...TERM_OPTIONS, { value: NO_TERM, label: 'Sin evaluación' }] : TERM_OPTIONS;
   const busy = create.isPending || patch.isPending;
   const clean = title.trim();
 
@@ -40,7 +44,7 @@ function UnitForm({ open, onClose, courseId, unit, term }: UnitFormSheetProps) {
     if (!clean || busy) return;
     try {
       if (unit) {
-        await patch.mutateAsync({ id: unit.id, title: clean, term: t });
+        await patch.mutateAsync({ id: unit.id, title: clean, term: t === NO_TERM ? null : t });
         toast('Unidad actualizada');
       } else {
         await create.mutateAsync({ title: clean, term: t });
@@ -59,7 +63,7 @@ function UnitForm({ open, onClose, courseId, unit, term }: UnitFormSheetProps) {
         <TextField label="Título" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Por ejemplo: Fracciones" maxLength={200} />
         <div className="field">
           <span className="field__label">Evaluación</span>
-          <Segmented full label="Evaluación" value={t} options={TERM_OPTIONS} onChange={setT} />
+          <Segmented full label="Evaluación" value={t} options={options} onChange={setT} />
         </div>
       </form>
     </Sheet>

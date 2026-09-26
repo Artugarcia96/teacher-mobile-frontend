@@ -1,11 +1,11 @@
 import { Books, CaretDown, Plus } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useArchivedCourses, useCourses, usePatchCourse, useSearch } from '../../api/core';
+import { useArchivedCourses, useCourses, usePatchCourse } from '../../api/core';
 import { useDay } from '../../api/today';
 import type { CourseSummary } from '../../api/types';
 import NewCourseSheet from '../../features/course/NewCourseSheet';
-import { firstResultPath, SearchResults } from '../../features/students/StudentSearch';
+import { SearchResults, useEnterOpensFirst } from '../../features/students/StudentSearch';
 import { useAuth, useToday } from '../../lib/auth';
 import { courseLabel, plural, sessionText } from '../../lib/format';
 import { Button, Chip, Dot, EmptyState, List, Page, Row, SearchField, Segmented, SkeletonList, useFeedback } from '../../ui';
@@ -63,6 +63,30 @@ function usePending(today: string, enabled: boolean): Map<string, Pending> {
   }, [day.data]);
 }
 
+/** The search box of Clases, kept in the address (?q=) so that opening a result and coming back finds it again. The box
+ *  holds what is typed and writes it to the address at every key, without reading it back (the address lags a render
+ *  behind: letters typed fast were lost); a change of the address from elsewhere (a link, «Nueva clase») reaches it. */
+function useAddressSearch(): [string, (q: string) => void] {
+  const [params, setParams] = useSearchParams();
+  const inAddress = params.get('q') ?? '';
+  const [q, setQ] = useState(inAddress);
+  const written = useRef<string[]>([]); // what the box wrote and the address has not shown yet
+  useEffect(() => {
+    const i = written.current.indexOf(inAddress);
+    if (i >= 0) written.current = written.current.slice(i + 1);
+    else {
+      written.current = [];
+      setQ(inAddress);
+    }
+  }, [inAddress]);
+  const change = (v: string) => {
+    setQ(v);
+    written.current.push(v);
+    setParams((p) => { if (v) p.set('q', v); else p.delete('q'); return p; }, { replace: true });
+  };
+  return [q, change];
+}
+
 /** /clases — search (students and classes, ?q=), the classes, archived ones last; or (?vista=materiales) all the
  * teacher's materials. ?nueva=1 opens the new-class sheet. */
 export default function CoursesPage() {
@@ -71,12 +95,12 @@ export default function CoursesPage() {
   const today = useToday();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  // The search lives in the address (?q=): opening a result and coming back finds it again.
-  const q = params.get('q') ?? '';
-  const setQ = (v: string) => setParams((p) => { if (v) p.set('q', v); else p.delete('q'); return p; }, { replace: true });
-  const search = useSearch(q);
+  const [q, setQ] = useAddressSearch();
+  const onSearchKey = useEnterOpensFirst(q, navigate);
   const creating = params.get('nueva') === '1';
   const pending = usePending(today, !!data?.length);
+  // With no active class, the archived ones are still there to recover («puedes recuperarla desde Clases»).
+  const archivedOnly = useArchivedCourses(data?.length === 0);
   const view = params.get('vista') === 'materiales' ? 'materials' : 'classes';
 
   const openNew = () => setParams({ nueva: '1' });
@@ -99,15 +123,18 @@ export default function CoursesPage() {
       action={<Button variant="tinted" onClick={() => refetch()}>Reintentar</Button>} />;
   } else if (!data?.length) {
     body = (
-      <div className="list">
-        <EmptyState icon={<Books size={26} />} title="Crea tu primera clase"
-          text={<ol className="courses__steps">
-            <li>Materia y grupo, por ejemplo «Matemáticas · 2.º ESO B».</li>
-            <li>Pega la lista de alumnos.</li>
-            <li>Marca el horario y la verás cada día en Hoy.</li>
-          </ol>}
-          action={<Button onClick={openNew}>Crear clase</Button>} />
-      </div>
+      <>
+        <div className="list">
+          <EmptyState icon={<Books size={26} />} title="Crea tu primera clase"
+            text={<ol className="courses__steps">
+              <li>Materia y grupo, por ejemplo «Matemáticas · 2.º ESO B».</li>
+              <li>Pega la lista de alumnos.</li>
+              <li>Marca el horario y la verás cada día en Hoy.</li>
+            </ol>}
+            action={<Button onClick={openNew}>Crear clase</Button>} />
+        </div>
+        {!!archivedOnly.data?.length && <Archived />}
+      </>
     );
   } else if (q.trim()) {
     body = <SearchResults q={q} onOpen={navigate} />;
@@ -143,11 +170,7 @@ export default function CoursesPage() {
       actions={data?.length ? <Button size="sm" variant="plain" icon={<Plus size={16} weight="bold" />} onClick={openNew}>Nueva clase</Button> : undefined}>
       {!!data?.length && (
         <div className="courses__search">
-          <SearchField value={q} onChange={setQ} placeholder="Buscar alumno o clase" label="Buscar alumno o clase"
-            onKeyDown={(e) => {
-              const path = e.key === 'Enter' && !search.isPlaceholderData ? firstResultPath(search.data) : null;
-              if (path) navigate(path);
-            }} />
+          <SearchField value={q} onChange={setQ} placeholder="Buscar alumno o clase" label="Buscar alumno o clase" onKeyDown={onSearchKey} />
         </div>
       )}
       {body}

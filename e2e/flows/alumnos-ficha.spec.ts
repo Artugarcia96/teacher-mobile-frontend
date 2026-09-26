@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import {
-  bug, demoCourse, DEMO_2B, demoStudent, expect, isMobile, MATES_2C, openFile, section, shot, test,
+  demoCourse, DEMO_2B, demoStudent, expect, isMobile, MATES_2C, openFile, section, shot, test,
   toast, type CourseSpec,
 } from './alumnos-helpers';
 
@@ -254,7 +254,6 @@ test.describe('the order of groups and classes', () => {
   });
 
   test('alumnos-37 the ficha lists her groups and classes in the order of the class list', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-04', 'the student file lists groups (eyebrow) and classes (Notas, Asistencia) in database order, not in the class-list order');
     const marta = teacher.courses[0].students[0];
     for (const c of teacher.courses.slice(1)) await teacher.api.post(`/groups/${c.groupId}/students`, { student_ids: [marta.id] });
     await openFile(page, marta.id, 'Marta Alonso Gil');

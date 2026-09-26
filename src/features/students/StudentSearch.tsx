@@ -1,8 +1,8 @@
 /** Buscador de alumnos y clases: resultados (Clases, en móvil) y hoja con atajo "/" o Ctrl+K (escritorio). */
 import { MagnifyingGlass } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSearch } from '../../api/core';
+import { useSearch, useSearchNow } from '../../api/core';
 import type { CourseRef, SearchResult } from '../../api/types';
 import { courseLabel, ordinals } from '../../lib/format';
 import { Callout, Dot, EmptyState, List, Row, SearchField, Section, Sheet, SkeletonList } from '../../ui';
@@ -16,10 +16,30 @@ function whereText(courses: CourseRef[]): string {
 }
 
 /** First result's path (Enter in the search box opens it). */
-export function firstResultPath(r: SearchResult | undefined): string | null {
+function firstResultPath(r: SearchResult | undefined): string | null {
   if (r?.students.length) return `/alumnos/${r.students[0].student.id}`;
   if (r?.courses.length) return `/clases/${r.courses[0].id}`;
   return null;
+}
+
+/** The search box's onKeyDown: Enter opens the first result of what is typed, even pressed at once after typing or on a
+ *  slow network (it is asked for then, never taken from the earlier search still on screen), unless the teacher has
+ *  typed on or left before it answers. */
+export function useEnterOpensFirst(q: string, onOpen: (path: string) => void) {
+  const searchNow = useSearchNow();
+  const typed = useRef<string | null>(q);
+  useEffect(() => {
+    typed.current = q;
+    return () => { typed.current = null; };
+  }, [q]);
+  return (e: KeyboardEvent<HTMLInputElement>) => {
+    const term = q.trim();
+    if (e.key !== 'Enter' || !term) return;
+    searchNow(term).then((r) => {
+      const path = typed.current?.trim() === term ? firstResultPath(r) : null;
+      if (path) onOpen(path);
+    }, () => {}); // the list below says the search failed
+  };
 }
 
 /** Results for `q`. `onOpen` navigates (and closes the sheet, if any). */
@@ -73,16 +93,12 @@ export function SearchSheet({ open, onClose }: { open: boolean; onClose: () => v
 function SearchSheetBody({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
-  const { data, isPlaceholderData } = useSearch(q);
   const go = (path: string) => { onClose(); navigate(path); };
+  const onKeyDown = useEnterOpensFirst(q, go);
   return (
     <Sheet open onClose={onClose} title="Buscar" size="large">
       <div className="search-sheet">
-        <SearchField value={q} onChange={setQ} placeholder="Alumno o clase" label="Buscar alumno o clase" autoFocus
-          onKeyDown={(e) => {
-            const path = e.key === 'Enter' && !isPlaceholderData ? firstResultPath(data) : null;
-            if (path) go(path);
-          }} />
+        <SearchField value={q} onChange={setQ} placeholder="Alumno o clase" label="Buscar alumno o clase" autoFocus onKeyDown={onKeyDown} />
         {q.trim()
           ? <SearchResults q={q} onOpen={go} />
           : <p className="muted search-sheet__hint">Escribe el nombre o el apellido (sin tildes también vale) o el grupo, como «2 ESO B».</p>}

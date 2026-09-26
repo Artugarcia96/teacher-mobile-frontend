@@ -80,7 +80,6 @@ test.describe('the first list of a new class', () => {
   });
 
   test('alumnos-24 the preview shows each name whole on a phone, since the split is what the teacher checks', async ({ page, teacher }, info) => {
-    bug('BUG-ALUMNOS-09', 'long names are cut with «…» in the preview («García López, María del Car…»), hiding the split to check');
     test.skip(!isMobile(info), 'a phone-width layout');
     const [c] = teacher.courses;
     const s = await openAdd(page, c.id);
@@ -112,15 +111,17 @@ test.describe('the first list of a new class', () => {
     await expect(s.getByRole('button', { name: 'Añadir 2 alumnos' })).toBeEnabled();
   });
 
-  test('alumnos-13 a name typed after rows copied from Séneca is kept, or at least the teacher is told', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-01', 'a plain line after tab-separated rows is dropped from the preview without any warning');
+  test('alumnos-13 a line typed after rows copied from Séneca is never dropped in silence', async ({ page, teacher }) => {
     const [c] = teacher.courses;
     const s = await openAdd(page, c.id);
+    // Numbered rows: a line without a row number is read as a header or footer, as in a list of plain lines, and said.
     await listField(s).fill('1\tAbad García, Alejandro\t21/02/2014\tNo\tOrdinaria\n2\tBenítez Ruiz, Lucía\t03/05/2014\tSí\tRepite\nCastro León, Marta');
-    await expect(previewNames(s).first()).toHaveText('Abad García, Alejandro');
-    const kept = previewNames(s).filter({ hasText: 'Castro León, Marta' });
-    const told = s.locator('.callout').filter({ hasText: 'Castro León, Marta' });
-    await expect(kept.or(told)).toBeVisible();
+    await expect(previewNames(s)).toHaveText(['Abad García, Alejandro', 'Benítez Ruiz, Lucía']);
+    await expect(s.locator('.callout')).toContainText('Línea 3 ignorada: «Castro León, Marta»');
+    // Rows without numbers (Apellidos | Nombre): the name typed on its own line joins the list.
+    await listField(s).fill('Apellidos\tNombre\nAbad García\tAlejandro\nBenítez Ruiz\tLucía\nCastro León, Marta');
+    await expect(previewNames(s)).toHaveText(['Abad García, Alejandro', 'Benítez Ruiz, Lucía', 'Castro León, Marta']);
+    await expect(s.getByRole('button', { name: 'Añadir 3 alumnos' })).toBeEnabled();
   });
 
   test('alumnos-14 correct the preview: fix a split, drop a line; «Hecho» needs the first name', async ({ page, teacher }, info) => {
@@ -353,12 +354,10 @@ test.describe('a class that already has its list', () => {
     await expect(rosterRow(page, 'Navarro Gil, Iker')).toBeVisible();
     await expect(rosterRow(page, 'Pardo Sanz, Lola')).toBeVisible();
 
-    // Still in 2.º ESO D; the ficha names both groups (their order: BUG-ALUMNOS-04, alumnos-24).
+    // Still in 2.º ESO D; the ficha names both groups, in the order of the class list (alumnos-37).
     expect(await names(teacher.api, d.groupId)).toEqual(['Navarro Gil, Iker', 'Ortiz Vela, Noa', 'Pardo Sanz, Lola']);
     await rosterRow(page, 'Navarro Gil, Iker').click();
-    await expect(page.locator('.page-head .eyebrow')).toHaveText(/^2\.º ESO [CD] · 2\.º ESO [CD]$/);
-    await expect(page.locator('.page-head .eyebrow')).toContainText('2.º ESO C');
-    await expect(page.locator('.page-head .eyebrow')).toContainText('2.º ESO D');
+    await expect(page.locator('.page-head .eyebrow')).toHaveText('2.º ESO C · 2.º ESO D');
 
     // Back in the sheet, only Noa is left to bring; after her, nobody.
     await page.goto(`/clases/${c.id}/alumnos?anadir=1`);

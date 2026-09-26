@@ -253,10 +253,8 @@ test('marco-46 · escritorio: «Buscar», «/» y Ctrl+K abren el buscador; Intr
   await expect(sheet.getByRole('button', { name: /Domínguez Marín, Hugo/ })).toContainText('2.º ESO B');
   await shot(page, info, 'buscar');
   // With the result on screen, Enter opens it (pressed at once after typing is marco-47).
-  await expect(async () => {
-    if (await box.isVisible()) await box.press('Enter');
-    await expect(page).toHaveURL(new RegExp(`/alumnos/${ids.student.id}$`), { timeout: 1_000 });
-  }).toPass();
+  await box.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/alumnos/${ids.student.id}$`));
   await expect(heading(page, ids.student.name)).toBeVisible();
   await expect(sheet).toHaveCount(0);
   await page.goBack();
@@ -267,9 +265,6 @@ test('marco-46 · escritorio: «Buscar», «/» y Ctrl+K abren el buscador; Intr
 
 test('marco-47 · escritorio: Intro nada más escribir en el buscador abre el primer resultado en cuanto llega', async ({ page, demo }, info) => {
   test.skip(!isDesktop(info), 'the search sheet is the computer\'s');
-  // BUG marco-B6 (same cause as BUG-CLASES-01 in Clases): Enter reads the sheet's own debounced search, which is
-  // still empty for 160 ms after typing, so it is ignored while the results are already on screen or on their way.
-  bug('marco-B6', 'Enter right after typing in the search sheet is ignored');
   const ids = await demoIds(demo);
   // A school network: each search takes 0,8 s to answer. The teacher does not wait for the list to press Enter.
   await page.route((url) => url.pathname === '/api/search', async (route) => {

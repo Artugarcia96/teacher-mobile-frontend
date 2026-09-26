@@ -2,7 +2,7 @@
  *  - one `keys` object per area
  *  - `useX` = useQuery, `useXMutation` = useMutation that invalidates the right keys. */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type {
   CourseDetail, CourseSummary, GroupOut, Job, Me, Period, Region, SchoolYear, SearchResult, StudentFile, StudentRef, StudentRow, Teacher,
@@ -161,6 +161,7 @@ export function useUnenroll() {
       qc.invalidateQueries({ queryKey: keys.courses });
       qc.invalidateQueries({ queryKey: keys.groups });
       qc.invalidateQueries({ queryKey: keys.student(v.studentId) });
+      qc.invalidateQueries({ queryKey: ['search'] });
       invalidateDay(qc);
     },
   });
@@ -171,7 +172,9 @@ export function useRegions() {
   return useQuery({ queryKey: keys.regions, queryFn: () => api.get<Region[]>('/regions'), staleTime: Infinity });
 }
 
-/** Students of the class with adaptation measures (to prepare adapted versions of an exam). */
+const searchFor = (term: string) => api.get<SearchResult>(`/search?q=${encodeURIComponent(term)}`);
+const SEARCH_FRESH = 30_000;
+
 /** Search students (accent-insensitive) and classes. Debounced; keeps the previous results while typing. */
 export function useSearch(q: string) {
   const [term, setTerm] = useState(q.trim());
@@ -180,9 +183,17 @@ export function useSearch(q: string) {
     return () => clearTimeout(t);
   }, [q]);
   return useQuery({
-    queryKey: keys.search(term), queryFn: () => api.get<SearchResult>(`/search?q=${encodeURIComponent(term)}`),
-    enabled: term.length > 0, placeholderData: keepPreviousData, staleTime: 30_000,
+    queryKey: keys.search(term), queryFn: () => searchFor(term),
+    enabled: term.length > 0, placeholderData: keepPreviousData, staleTime: SEARCH_FRESH,
   });
+}
+
+/** The results of `term` right now, without the debounce (Enter in a search box): from the cache while fresh, or asked
+ *  at once, sharing the request with the list if it is already on its way. */
+export function useSearchNow() {
+  const qc = useQueryClient();
+  return useCallback(
+    (term: string) => qc.fetchQuery({ queryKey: keys.search(term), queryFn: () => searchFor(term), staleTime: SEARCH_FRESH }), [qc]);
 }
 
 export function useSendFeedback() {
@@ -197,6 +208,7 @@ export function useAddStudents(groupId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses });
       qc.invalidateQueries({ queryKey: keys.groups }); qc.invalidateQueries({ queryKey: ['student'] });
+      qc.invalidateQueries({ queryKey: ['search'] });
       invalidateDay(qc);
     },
   });
@@ -206,7 +218,11 @@ export function useRemoveStudent(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (studentId: string) => api.delete(`/groups/${groupId}/students/${studentId}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses }); invalidateDay(qc); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course'] }); qc.invalidateQueries({ queryKey: keys.courses });
+      qc.invalidateQueries({ queryKey: ['search'] });
+      invalidateDay(qc);
+    },
   });
 }
 

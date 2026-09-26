@@ -88,11 +88,11 @@ export default function CourseSettingsSheet({ open, onClose, course }: { open: b
       footer={<Button full onClick={save} loading={patch.isPending && !patch.variables?.archived} disabled={!!blocker}>{blocker ?? 'Guardar cambios'}</Button>}>
       <div className="form">
         <div className="form-row">
-          <TextField label="Materia" value={d.subject} onChange={(e) => set('subject', e.target.value)} />
+          <TextField label="Materia" value={d.subject} maxLength={80} onChange={(e) => set('subject', e.target.value)} />
           <TextField label="Abreviatura" placeholder="Mates" value={d.short} maxLength={24}
             onChange={(e) => set('short', e.target.value)} />
         </div>
-        <TextField label="Aula" placeholder="204" value={d.room} onChange={(e) => set('room', e.target.value)} />
+        <TextField label="Aula" placeholder="204" value={d.room} maxLength={40} onChange={(e) => set('room', e.target.value)} />
         <div className="chips-field">
           <span className="field__label">Color</span>
           <ColorSwatches value={d.color} onChange={(c) => set('color', c)} />

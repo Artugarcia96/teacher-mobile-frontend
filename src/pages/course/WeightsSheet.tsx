@@ -28,7 +28,8 @@ export default function WeightsSheet({ open, onClose, course }: { open: boolean;
   const setCat = (i: number, c: Partial<Category>) => setCats(cats.map((x, j) => (j === i ? { ...x, ...c } : x)));
   const total = cats.reduce((s, c) => s + (Number(c.weight) || 0), 0);
   const blocker = cats.some((c) => !c.label.trim()) ? 'Pon nombre a cada categoría'
-    : total <= 0 ? 'Los pesos deben sumar más de 0' : null;
+    : cats.some((c) => c.weight < 0 || c.weight > 100) ? 'Cada peso va de 0 a 100'
+      : total <= 0 ? 'Los pesos deben sumar más de 0' : null;
 
   const save = async () => {
     setError(null);
@@ -58,7 +59,7 @@ export default function WeightsSheet({ open, onClose, course }: { open: boolean;
         <div className="weights">
           {cats.map((c, i) => (
             <div key={c.key} className="weight-row">
-              <input className="input" aria-label="Categoría" placeholder="Categoría" value={c.label}
+              <input className="input" aria-label="Categoría" placeholder="Categoría" value={c.label} maxLength={60}
                 onChange={(e) => setCat(i, { label: e.target.value })} />
               <label className="weight-pct">
                 <input className="input" type="number" inputMode="decimal" min={0} max={100} aria-label={`Peso de ${c.label}`}
