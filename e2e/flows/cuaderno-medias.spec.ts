@@ -112,6 +112,17 @@ test.describe('cuaderno · medias', () => {
     await page.locator('.back-btn').click();
     await expect(page).toHaveURL(new RegExp(`/clases/${world.id}/cuaderno`));
     await expect(page.getByRole('group', { name: 'Evaluación' }).getByRole('button', { name: '1.ª' })).toHaveAttribute('aria-pressed', 'true');
+    // opened from the Cuaderno on the 2.ª and switched to the 1.ª: going back opens the Cuaderno on the 1.ª
+    await openCuaderno(page, world.id, 2);
+    await classMenu(page, 'Evaluar la 2.ª');
+    await expect(page).toHaveURL(new RegExp(`/clases/${world.id}/evaluacion/2`));
+    await expect(page.getByRole('heading', { name: 'Segunda evaluación' })).toBeVisible();
+    await page.getByRole('group', { name: 'Evaluación' }).getByRole('button', { name: '1.ª' }).click();
+    await expect(page.getByRole('heading', { name: 'Primera evaluación' })).toBeVisible();
+    await expect(page.locator('.back-btn')).toHaveText('2.º ESO C');
+    await page.locator('.back-btn').click();
+    await expect(page).toHaveURL(new RegExp(`/clases/${world.id}/cuaderno\\?term=1`));
+    await expect(page.getByRole('group', { name: 'Evaluación' }).getByRole('button', { name: '1.ª' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('cuaderno-75 · 1.ª / 2.ª / 3.ª / Final: the term is in the address, survives a reload, and an empty one says what to do', async ({ page, world }) => {

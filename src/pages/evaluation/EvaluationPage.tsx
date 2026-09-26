@@ -14,7 +14,7 @@ import { useAuth, useToday } from '../../lib/auth';
 import { addDays, formatAverage, formatPercent, formatProposal, longDate, plural, TERM_LABEL, TERM_SHORT } from '../../lib/format';
 import {
   AIBadge, Button, Callout, Chip, Dot, EmptyState, Grade, GradePill, IconButton, List, Menu, Page, Progress, Row, Section, Segmented,
-  Sheet, SkeletonList, useFeedback,
+  Sheet, SkeletonList, useFeedback, type Origin,
 } from '../../ui';
 import DepartmentReportSheet from '../inbox/DepartmentReportSheet';
 import EvalStudentSheet from './EvalStudentSheet';
@@ -131,6 +131,10 @@ export default function EvaluationPage() {
   const data = ev.data?.term === term ? ev.data : undefined;
   return (
     <Page title={title} eyebrow={eyebrow} back={`/clases/${courseId}/cuaderno?term=${term}`} backLabel="Cuaderno" backToOrigin
+      originTarget={(o) => {
+        const left = cuadernoTerm(o, courseId, me?.school_year.current_term);
+        return left !== null && left !== term ? `/clases/${courseId}/cuaderno?term=${term}` : undefined;
+      }}
       actions={course.data && data && !closed && (
         <EvalMenu course={course.data} data={data} running={!!jobId} onJob={setJobId} onRecovery={() => setRecovery(true)} />
       )}
@@ -158,6 +162,13 @@ export default function EvaluationPage() {
       )}
     </Page>
   );
+}
+
+/** The term the class Cuaderno was showing when Evaluación was opened from it, or null if it was opened elsewhere
+ *  (going back follows the term chosen here: Cuaderno on the 2.ª, Evaluación switched to the 1.ª → Cuaderno on the 1.ª). */
+function cuadernoTerm(o: Origin, courseId: string | undefined, currentTerm: number | undefined): number | null {
+  if (o.path !== `/clases/${courseId}` && o.path !== `/clases/${courseId}/cuaderno`) return null;
+  return Number(new URLSearchParams(o.search).get('term')) || currentTerm || 1;
 }
 
 /** The session is still ahead: a recovery is not what comes next, so it waits in the menu (from the session's day it

@@ -29,8 +29,9 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
   const unsaved = (): DepartmentRow[] => (q.data?.term === term ? q.data.subjects.flatMap((x) => x.rows) : [])
     .filter((r) => texts[r.course.id] !== undefined && texts[r.course.id].trim() !== r.notes);
 
-  // Saves of a line, by term and class: the same text is sent once (leaving the field by pressing «Descargar» saves it
-  // on blur and again before the download: the second waits for the first).
+  // Saves in flight, by term and class: the same text is sent once while it is on its way (leaving the field by
+  // pressing «Descargar» saves it on blur and again before the download: the second waits for the first). Once it
+  // settles, a later save always reaches the server.
   const sent = useRef<Record<string, { text: string; done: Promise<unknown> }>>({});
   const isSent = (r: DepartmentRow, text: string) => sent.current[`${term}:${r.course.id}`]?.text === text;
   const store = (r: DepartmentRow, text: string) => {
@@ -38,7 +39,8 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
     if (isSent(r, text)) return sent.current[key].done;
     const done = save.mutateAsync({ courseId: r.course.id, text });
     sent.current[key] = { text, done };
-    done.catch(() => { if (sent.current[key]?.done === done) delete sent.current[key]; });
+    const settle = () => { if (sent.current[key]?.done === done) delete sent.current[key]; };
+    done.then(settle, settle);
     return done;
   };
 
