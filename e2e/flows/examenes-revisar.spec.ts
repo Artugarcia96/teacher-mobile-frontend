@@ -1,5 +1,5 @@
 import {
-  answer, correction, dialog, esc, expect, fitsTheScreen, isMobile, openActivity, shot, stepHead, stepRow, test, toast,
+  answer, bug, correction, dialog, esc, expect, fitsTheScreen, isMobile, openActivity, shot, stepHead, stepRow, test, toast,
   type Api, type Page,
 } from './examenes-helpers';
 
@@ -9,7 +9,11 @@ import {
 // accept, points per question, comment, NP, names to confirm or change, «Aceptar todas», keyboard on a computer, the
 // whole sheet on a phone). The AI is not called: the drafts are the seeded ones.
 
-interface Grade { status: string; score: number | null; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null }
+interface Grade {
+  status: string; score: number | null; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null;
+  /** Questions the AI did not score («Sin corregir»): the suggestion has no grade until the teacher scores them. */
+  unscored?: string[];
+}
 interface Row { student: { id: string; name: string; first_name: string; last_name: string; sort_name: string }; paper_id: string | null;
   match_status: string | null; detected_name: string | null; pages: unknown[]; flags: { code: string }[]; grade: Grade | null;
   missed: { absent: boolean; repeat_id: string | null } | null }
@@ -20,10 +24,13 @@ async function state(api: Api, id: string) {
   const c = await correction(api, id);
   const rows: Row[] = c.students;
   const drafts = rows.filter((s) => s.grade?.status === 'suggested');
-  const plain = drafts.filter((s) => s.match_status !== 'suggested' && !s.flags.some((f) => ATTENTION.includes(f.code)));
+  const toConfirm = drafts.filter((s) => s.match_status === 'suggested');
+  const unscored = drafts.filter((s) => s.match_status !== 'suggested' && (s.grade?.unscored?.length ?? 0) > 0);
+  // Ready to accept as they are: named, nothing to look at, every question scored.
+  const plain = drafts.filter((s) => s.match_status !== 'suggested' && !s.flags.some((f) => ATTENTION.includes(f.code))
+    && !s.grade?.unscored?.length);
   return {
-    c, rows, drafts, plain,
-    toConfirm: drafts.filter((s) => s.match_status === 'suggested'),
+    c, rows, drafts, plain, toConfirm, unscored,
     confirmed: rows.filter((s) => s.grade?.status === 'confirmed' && s.paper_id),
     absent: rows.find((s) => s.missed?.absent && !s.paper_id),
     noPaper: rows.find((s) => !s.paper_id && !s.missed),
@@ -280,6 +287,9 @@ test.describe('examenes · revisar', () => {
     const s = await state(demo, exam.id);
     for (const r of s.toConfirm) await demo.patch(`/papers/${r.paper_id}`, { student_id: r.student.id }); // names confirmed
     await demo.post(`/activities/${exam.id}/accept-all`);
+    // What «Aceptar todas» leaves out (questions the AI did not score) the teacher scores by hand.
+    const left = (await state(demo, exam.id)).drafts;
+    if (left.length) await demo.put(`/activities/${exam.id}/grades`, { grades: left.map((d) => ({ student_id: d.student.id, score: d.grade!.score ?? 5 })) });
     const last = s.plain[0];
     await demo.put(`/activities/${exam.id}/grades`, { grades: [{ student_id: last.student.id, score: last.grade!.score, status: 'suggested' }] });
     const r = await review(demo, exam.id, last.student.id);
@@ -298,26 +308,41 @@ test.describe('examenes · revisar', () => {
     expect((await correction(demo, exam.id)).stats.pending).toBe(0);
   });
 
-  test('examenes-54 · «Aceptar todas las sugerencias» (step menu) leaves out the names to confirm and says so', async ({ page, cloneExam, demo }) => {
+  test('examenes-54 · «Aceptar todas las sugerencias» (step menu) leaves out the names to confirm and the questions to score, and says so', async ({ page, cloneExam, demo }) => {
+    bug('EX-07', 'the server leaves out suggestions with a question the AI did not score («Sin corregir») but the review step does not know: «Aceptar N sugerencias» counts them and the notice does not say why fewer passed');
     const exam = await cloneExam('fracciones');
     const s = await state(demo, exam.id);
-    const ready = s.drafts.length - s.toConfirm.length;
     const held = s.toConfirm.length;
+    const open = s.unscored.length;
+    const ready = s.drafts.length - held - open;
+    const why = [held && `${held} hojas con el nombre por confirmar`, open && `${open} hojas con preguntas sin corregir`].filter(Boolean);
     await openActivity(page, exam.url, exam.title);
     await stepHead(page, 3, 'Revisar').locator('..').getByRole('button', { name: 'Más acciones' }).click();
     await page.getByRole('menuitem', { name: 'Aceptar todas las sugerencias' }).click();
     const ask = dialog(page, `Aceptar ${ready} sugerencias`);
-    await expect(ask.getByText(`Las notas de la IA pasan al cuaderno tal cual. Podrás cambiarlas después alumno a alumno. Quedan fuera ${held} hojas con el nombre por confirmar.`)).toBeVisible();
+    await expect(ask.getByText(`Las notas de la IA pasan al cuaderno tal cual. Podrás cambiarlas después alumno a alumno. Quedan fuera ${why.join(' y ')}.`)).toBeVisible();
     await answer(page, `Aceptar ${ready} sugerencias`, 'Aceptar todas');
-    await expect(toast(page, `${ready} notas pasadas al cuaderno · quedan ${held} hojas con el nombre por confirmar`)).toBeVisible();
-    await expect(page.getByRole('link', { name: `Revisar alumno a alumno · faltan ${held}` })).toBeVisible();
+    const rest = [held && `quedan ${held} hojas con el nombre por confirmar`, open && `quedan ${open} hojas con preguntas sin corregir`].filter(Boolean);
+    await expect(toast(page, [`${ready} notas pasadas al cuaderno`, ...rest].join(' · '))).toBeVisible();
+    await expect(page.getByRole('link', { name: `Revisar alumno a alumno · faltan ${held + open}` })).toBeVisible();
     const after = await state(demo, exam.id);
-    expect([after.drafts.length, after.toConfirm.length]).toEqual([held, held]);
+    expect([after.drafts.length, after.toConfirm.length]).toEqual([held + open, held]);
 
-    // Only names to confirm left: it says what to do instead.
+    // Nothing left to accept as it is: it says what to do instead.
     await stepHead(page, 3, 'Revisar').locator('..').getByRole('button', { name: 'Más acciones' }).click();
     await page.getByRole('menuitem', { name: 'Aceptar todas las sugerencias' }).click();
     await expect(toast(page, `Confirma antes ${held} nombres: son hojas con el nombre por confirmar.`)).toBeVisible();
+  });
+
+  test('examenes-54b · a question the AI did not score says «Sin corregir» and waits for the teacher: no 0 nobody gave', async ({ page, cloneExam, demo }) => {
+    bug('EX-07', 'the review shows a question the AI did not score as «0 / 1,5» and lets its paper be accepted with that 0');
+    const exam = await cloneExam('fracciones');
+    const s = await state(demo, exam.id);
+    const one = s.unscored[0];
+    test.skip(!one, 'the demo copy has no suggestion with a question the AI did not score');
+    await openReview(page, exam.url, one.student.id);
+    await expect(page.getByText('Sin corregir').first()).toBeVisible();
+    await expect(accept(page)).toHaveText(`Puntúa la pregunta ${one.grade!.unscored![0]}`);
   });
 
   test('examenes-55 · a student marked absent that day: only NP here (or a repeat exam from the exam page)', async ({ page, cloneExam, demo }) => {

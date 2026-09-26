@@ -13,7 +13,12 @@ const results = (page: Page, title: 'Alumnos' | 'Clases') =>
  *  in the same breath as the typing is dropped: BUG-ALUMNOS-07, alumnos-88; letters typed fast are lost in Clases:
  *  BUG-ALUMNOS-11, alumnos-112.) */
 async function typeAndEnter(page: Page, input: Locator, text: string, first: RegExp, opened: Locator) {
-  await input.fill(text);
+  // The Clases box can take back an older value from the address right after it was cleared (BUG-ALUMNOS-11): write
+  // until the box holds the text.
+  await expect(async () => {
+    await input.fill(text);
+    await expect(input).toHaveValue(text, { timeout: 1000 });
+  }).toPass();
   await expect(page.getByRole('button', { name: first }).first()).toBeVisible();
   await expect(async () => {
     if (await input.isVisible()) await input.press('Enter');
@@ -37,6 +42,7 @@ test.describe('demo teacher (read only)', () => {
     await box(page).fill('marin dominguez');
     await expect(results(page, 'Alumnos').getByRole('button')).toHaveText([/^Domínguez Marín, Hugo/]);
     await box(page).fill('');
+    await expect(page).toHaveURL(/\/clases$/); // the cleared box has reached the address
     await typeAndEnter(page, box(page), 'marin dominguez', /Domínguez Marín, Hugo/,
       page.getByRole('heading', { level: 1, name: 'Hugo Domínguez Marín' }));
   });
@@ -55,7 +61,7 @@ test.describe('demo teacher (read only)', () => {
   });
 
   test('alumnos-112 letters typed quickly in the Clases search are all kept', async ({ page }) => {
-    bug('BUG-ALUMNOS-11', 'the Clases search box takes its value from the address (?q=): letters typed faster than a render are lost («hugo dominguez» → «hgo domingez»)');
+    bug('BUG-ALUMNOS-11', 'the Clases search box takes its value from the address (?q=): letters typed faster than a render are lost («hugo dominguez» → «hgo domingez»), and a term written right after clearing the box can be replaced by the older one');
     await page.goto('/clases');
     await box(page).click();
     await page.keyboard.type('hugo dominguez'); // key after key with no pause, as a fast thumb or a paste-like burst
