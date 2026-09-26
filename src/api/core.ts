@@ -61,7 +61,8 @@ export function useSaveSchoolYear() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: Pick<SchoolYear, 'terms' | 'holidays'>) => api.put<SchoolYear>('/school-year', body),
-    onSuccess: () => qc.invalidateQueries(),
+    // Not awaited: «Guardar cambios» is done when the PUT is, not when every screen has refetched.
+    onSuccess: () => { void qc.invalidateQueries(); },
   });
 }
 

@@ -208,27 +208,30 @@ test('acceso-17 · un enlace a una pantalla de la app vuelve a esa pantalla desp
 });
 
 // On a phone a mistyped password is seen before it is sent (five wrong ones lock the account for a while, acceso-18).
-test('acceso-60 · «Mostrar contraseña» enseña lo escrito y «Ocultar contraseña» lo vuelve a tapar', async ({ page, request }, info) => {
+test('acceso-60 · «Mostrar contraseña» enseña lo escrito y, pulsado otra vez, lo vuelve a tapar', async ({ page, request }, info) => {
   const acc = await registerAccount(request, info, 'mostrar');
   await page.goto('/entrar');
   const password = page.getByLabel('Contraseña', { exact: true });
   await password.fill('clave-segura-1');
   await expect(password).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+  // A toggle: the name stays, aria-pressed says whether it is shown.
+  const toggle = page.getByRole('button', { name: 'Mostrar contraseña' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
   await expect(password).toHaveAttribute('type', 'text');
   await expect(password).toHaveValue('clave-segura-1');
-  const hide = page.getByRole('button', { name: 'Ocultar contraseña' });
-  await expect(hide).toHaveAttribute('aria-pressed', 'true');
-  const box = await hide.boundingBox();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const box = await toggle.boundingBox();
   expect(box!.width).toBeGreaterThanOrEqual(44);
   expect(box!.height).toBeGreaterThanOrEqual(44);
   await shot(page, info, 'acceso-60-password-shown');
-  await hide.click();
+  await toggle.click();
   await expect(password).toHaveAttribute('type', 'password');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   // Shown or not, «Entrar» sends what was typed.
   await page.getByLabel('Correo').fill(acc.email);
   await password.fill(acc.password);
-  await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+  await toggle.click();
   await submit(page).click();
   await expect(page).toHaveURL(/\/hoy$/);
 });

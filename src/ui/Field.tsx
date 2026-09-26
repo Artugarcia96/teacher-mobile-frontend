@@ -31,7 +31,7 @@ export function TextField({ label, hint, error, className, ...rest }: Wrap & Inp
   );
 }
 
-/** Password with «Mostrar contraseña»: on a phone a mistyped one is seen before it is sent. */
+/** Password with a «Mostrar contraseña» toggle (fixed name, pressed while shown): on a phone a mistyped one is seen before it is sent. */
 export function PasswordField({ label, hint, error, className, ...rest }: Wrap & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
   const id = useId();
   const [shown, setShown] = useState(false);
@@ -40,7 +40,7 @@ export function PasswordField({ label, hint, error, className, ...rest }: Wrap &
       <div className="password-field">
         <input id={id} type={shown ? 'text' : 'password'} className={`input${className ? ` ${className}` : ''}`}
           autoCapitalize="off" autoCorrect="off" spellCheck={false} {...rest} />
-        <IconButton type="button" className="password-field__toggle" label={shown ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        <IconButton type="button" className="password-field__toggle" label="Mostrar contraseña"
           aria-pressed={shown} onClick={() => setShown((v) => !v)}>
           {shown ? <EyeSlash size={20} /> : <Eye size={20} />}
         </IconButton>

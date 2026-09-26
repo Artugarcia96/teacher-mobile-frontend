@@ -34,7 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => setUnauthorizedHandler(() => {
     const { pathname, search, hash } = window.location;
-    // Several requests fail at once: the first one has already gone to /entrar with the screen to come back to.
+    // Several requests that fail at once may each sign out before the navigation commits: they all carry the same
+    // `from` and replace the same entry, so the screen to come back to is kept.
     if (pathname !== '/entrar') signOut({ pathname, search, hash });
   }), [signOut]);
 
