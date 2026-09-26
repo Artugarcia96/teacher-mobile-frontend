@@ -51,7 +51,7 @@ test.describe('cuaderno · columnas', () => {
     await expect(s.getByRole('button', { name: 'Deberes', exact: true })).toHaveCount(0); // derived from the homework checks
     await expect(s.getByRole('button', { name: 'Examen', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(s.getByText('jueves, 19 nov 2026')).toBeVisible();
-    await expect(s.getByText('Cuenta para la 1.ª evaluación')).toBeVisible();
+    await expect(s.getByText('1.ª evaluación (por la fecha)')).toBeVisible();
     // The unit in progress, until the title names another one
     await expect(s.getByRole('button', { name: 'Fracciones', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await s.getByRole('textbox', { name: 'Título' }).fill('Examen U3 · Potencias y raíces');
@@ -85,7 +85,8 @@ test.describe('cuaderno · columnas', () => {
     expect(a).toMatchObject({ kind: 'exam', category: 'exams', max_score: 10, weight: 1, counts_for: 'average', student_ids: null });
     expect(a!.unit_ids).toEqual([unitId(world, 'Potencias y raíces')]);
 
-    await page.getByRole('button', { name: 'Cuaderno' }).first().click();
+    // «‹» names where the activity was opened from: the class.
+    await page.getByRole('button', { name: '2.º ESO C', exact: true }).click();
     await expect(page).toHaveURL(/\/cuaderno/);
     const col = column(page, 'Examen U3 · Potencias y raíces');
     await expect(col).toContainText('hoy');
@@ -161,7 +162,7 @@ test.describe('cuaderno · columnas', () => {
     await s.getByRole('textbox', { name: 'Título' }).fill('Ficha de refuerzo');
     await s.getByRole('button', { name: 'Ficha', exact: true }).click();
     await s.getByRole('button', { name: 'Más opciones' }).click();
-    await expect(s.getByText('Alumnos · toda la clase')).toBeVisible();
+    await expect(s.getByRole('button', { name: 'Toda la clase' })).toHaveAttribute('aria-pressed', 'true');
     await s.getByRole('button', { name: 'Toda la clase' }).click();
     await expect(s.getByRole('button', { name: 'Elige algún alumno' })).toBeDisabled();
     await s.getByRole('button', { name: 'Marta Alonso', exact: true }).click();
@@ -187,7 +188,7 @@ test.describe('cuaderno · columnas', () => {
     await s.getByRole('button', { name: 'Oral', exact: true }).click();
     await s.getByLabel('Fecha').fill('2027-01-21');
     await expect(s.getByText('jueves, 21 ene 2027')).toBeVisible();
-    await expect(s.getByText('Cuenta para la 2.ª evaluación')).toBeVisible();
+    await expect(s.getByText('2.ª evaluación (por la fecha)')).toBeVisible();
     await s.getByRole('button', { name: 'Crear actividad' }).click();
     await expect(page).toHaveURL(/term=2/);
     await expect(terms(page).getByRole('button', { name: '2.ª' })).toHaveAttribute('aria-pressed', 'true');
@@ -231,7 +232,7 @@ test.describe('cuaderno · columnas', () => {
     await openCuaderno(page, world.id);
     const s = await openEdit(page, info, EMPTY);
     await s.getByLabel('Fecha').fill('2027-02-04');
-    await expect(s.getByText('Cuenta para la 2.ª evaluación')).toBeVisible();
+    await expect(s.getByText('2.ª evaluación (por la fecha)')).toBeVisible();
     await s.getByRole('button', { name: 'Guardar' }).click();
     await expect(toast(page, 'Actividad guardada')).toBeVisible();
     await expect(column(page, EMPTY)).toHaveCount(0);
@@ -298,13 +299,12 @@ test.describe('cuaderno · columnas', () => {
     await expect(page.getByText('Aún no hay actividades en la 1.ª evaluación')).toBeVisible();
   });
 
-  test('cuaderno-42 · a column header opens its activity, and «‹ Cuaderno» comes back to the same evaluación', async ({ page, world }, info) => {
-    bug('CUA-06', 'the activity page\'s «‹ Cuaderno» goes to /cuaderno without ?term=: from a 2.ª activity it lands on the 1.ª');
+  test('cuaderno-42 · a column header opens its activity, and «‹ 2.º ESO C» comes back to the same evaluación', async ({ page, world }, info) => {
     await openCuaderno(page, world.id, 2);
     await press(column(page, LATER).locator('.gb-head'), info);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(LATER);
     await expect(page).toHaveURL(new RegExp(`/actividades/${world.act[LATER]}`));
-    await page.getByRole('button', { name: 'Cuaderno' }).first().click();
+    await page.getByRole('button', { name: '2.º ESO C', exact: true }).click();
     await expect(terms(page).getByRole('button', { name: '2.ª' })).toHaveAttribute('aria-pressed', 'true');
     await expect(column(page, LATER)).toBeVisible();
   });

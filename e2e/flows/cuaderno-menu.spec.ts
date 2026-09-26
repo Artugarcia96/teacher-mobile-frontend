@@ -57,7 +57,7 @@ test.describe('cuaderno · menú y exportación', () => {
       return a == null ? '' : (Math.round(a * 10 + 1e-9) / 10).toFixed(1).replace('.', ',');
     };
     expect(lines).toEqual([
-      'Apellidos;Nombre;Trabajo · Estadística (/20);Examen U1 · Números enteros;Media;Propuesta', // oldest first, like paper
+      'Apellidos;Nombre;Trabajo · Estadística (/20);Examen U1 · Números enteros;Media;Nota', // oldest first, like paper
       `Alonso Gil;Marta;15;6,5;${avg(0)};7`,
       `Benítez Ruiz;Pablo;12,5;7;${avg(1)};7`,
       'Castro León;Lucía;;8;8,0;8',
@@ -73,7 +73,7 @@ test.describe('cuaderno · menú y exportación', () => {
     const [file] = await Promise.all([page.waitForEvent('download'), classMenu(page, 'Exportar cuaderno (CSV)')]);
     expect(file.suggestedFilename()).toBe('Cuaderno - Matematicas - 2o ESO C - Final.csv');
     const lines = readFileSync(await file.path(), 'utf8').slice(1).split('\r\n');
-    expect(lines[0]).toBe('Apellidos;Nombre;1.ª evaluación;2.ª evaluación;3.ª evaluación;Media;Propuesta');
+    expect(lines[0]).toBe('Apellidos;Nombre;1.ª evaluación;2.ª evaluación;3.ª evaluación;Media;Nota');
     expect(lines[3]).toBe('Castro León;Lucía;8,0;;;8,0;8');
   });
 

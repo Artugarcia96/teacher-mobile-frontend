@@ -52,7 +52,7 @@ test.describe('faltas · la pestaña (demo)', () => {
     expect(expected).toContain('2 retrasos');
   });
 
-  test('faltas-03 · other terms: nobody has missed a class yet, and back to the 1.ª', async ({ page, demo }) => {
+  test('faltas-03 · other terms: no list taken yet, and back to the 1.ª', async ({ page, demo }) => {
     const c = await demoCourse(demo, 'Matemáticas · 2.º ESO B');
     await openFaltas(page, c.id);
     const terms = page.getByRole('group', { name: 'Evaluación' });
@@ -61,7 +61,7 @@ test.describe('faltas · la pestaña (demo)', () => {
       await terms.getByRole('button', { name: t }).click();
       await expect(terms.getByRole('button', { name: t })).toHaveAttribute('aria-pressed', 'true');
       const body = section(page, 'Por alumno');
-      await expect(body).toContainText('Nadie ha faltado ni llegado tarde');
+      await expect(body).toContainText('Aún no has pasado lista');
       await expect(body).toContainText(label);
       await expect(body.getByRole('link')).toHaveCount(0);
       await expect(headings(page)).toHaveText(['Por alumno']);
@@ -120,7 +120,7 @@ test.describe('faltas · la pestaña (demo)', () => {
     await expect(rosterLine).toContainText(`${top.absent} faltas sin justificar`);
 
     await page.goto(`/clases/${c.id}/evaluacion/1`);
-    const evalRow = page.getByRole('button', { name: `${top.student.name}: editar nota final y comentario` });
+    const evalRow = page.getByRole('button', { name: `${top.student.name}: editar nota y comentario` });
     await expect(evalRow).toContainText(plural(n, 'falta', 'faltas'));
   });
 
@@ -133,7 +133,7 @@ test.describe('faltas · la pestaña (demo)', () => {
     const row = todayRow(page, '08:30–09:25');
     await expect(row).toContainText('Lista pasada');
     await row.getByRole('button', { name: 'Editar lista' }).click();
-    const sheet = await listSheet(page, c.label);
+    const sheet = await listSheet(page);
     const rows = saved.students as { student: { sort_name: string }; status: string }[];
     await expect(sheet.getByRole('listitem')).toHaveCount(rows.length);
     const LABELS: Record<string, string> = { present: 'Presente', absent: 'Falta', late: 'Retraso', justified: 'Justificada' };
@@ -185,12 +185,11 @@ test.describe('faltas · un aula que no es un número', () => {
   test.use({ worldSpec: { courses: [{ ...CLASS, subject: 'Física y Química', group: '3º ESO A', room: 'Lab. 1' }] } });
 
   test('faltas-07 · the list says where the class is: «Lab. 1», not «Aula Lab. 1»', async ({ page, world }) => {
-    bug('FALTAS-BUG-04', 'the list sheet prefixes every room with «Aula», so a lab reads «Aula Lab. 1» (the class header says «Lab. 1»)');
     const c = world.courses[0];
     await openFaltas(page, c.id);
     await expect(page.getByText(/^8 alumnos · Lab\. 1 · /)).toBeVisible(); // the class header
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = await listSheet(page, c.label);
+    const sheet = await listSheet(page);
     await expect(sheet.getByText('10:20–11:15 · Lab. 1', { exact: true })).toBeVisible();
   });
 });
@@ -237,7 +236,7 @@ test.describe('faltas · clases sin horario o sin alumnos', () => {
       const course = await world.api.get(`/courses/${c.id}`);
       expect(course.schedule).toEqual([expect.objectContaining({ weekday: THU, start: '10:20', end: '11:15' })]);
       await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();
-      await expect((await listSheet(page, LABEL)).getByRole('listitem')).toHaveCount(8);
+      await expect((await listSheet(page)).getByRole('listitem')).toHaveCount(8);
     });
   });
 });
@@ -245,17 +244,23 @@ test.describe('faltas · clases sin horario o sin alumnos', () => {
 test.describe('faltas · la cabecera de la clase', () => {
   test.use({ worldSpec: { courses: [CLASS] } });
 
-  test('faltas-14 · «Pasar lista» in the class header while the class is on; once taken it goes away and Faltas says so', async ({ page, world }) => {
+  test('faltas-14 · «Pasar lista» in the class header while the class is on (Faltas has it in its list row); once taken it goes away and Faltas says so', async ({ page, world }) => {
     const c = world.courses[0];
     await openFaltas(page, c.id);
     const header = page.locator('.topbar').getByRole('button', { name: 'Pasar lista' });
+    // Faltas offers today's list in its own row: the header does not repeat it there.
+    await expect(todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' })).toBeVisible();
+    await expect(header).toHaveCount(0);
+    const tabs = page.getByRole('group', { name: 'Secciones de la clase' });
+    await tabs.getByRole('button', { name: 'Alumnos' }).click();
     await expect(header).toBeVisible();
     await header.click();
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await tapTo(sheet, 6, 'Falta');
     await sheet.getByRole('button', { name: 'Cerrar lista' }).click();
     await expect(page.locator('.toasts .toast').filter({ hasText: 'Lista pasada · 7 presentes · 1 falta' })).toBeVisible();
     await expect(header).toHaveCount(0);
+    await tabs.getByRole('button', { name: 'Faltas' }).click();
     await expect(todayRow(page, '10:20–11:15')).toContainText('Lista pasada');
     await expect(studentRow(page, 'Fuentes Vera, Adrián')).toContainText('1 falta sin justificar');
   });
@@ -279,7 +284,7 @@ test.describe('faltas · teclado (ordenador)', () => {
     const take = todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' });
     await take.focus();
     await page.keyboard.press('Enter');
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await rosterRow(sheet, 2).focus();
     await page.keyboard.press('Space');
     await expect(rosterRow(sheet, 2)).toHaveAccessibleName(/: Falta\./);

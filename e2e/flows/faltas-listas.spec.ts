@@ -19,10 +19,10 @@ test.describe('faltas · listas de hoy', () => {
     await openFaltas(page, c.id);
     await expect(todayRow(page, '10:20–11:15')).toContainText('Lista sin pasar');
     await expect(todayRow(page, '12:40–13:35')).toContainText('Lista sin pasar');
-    await expect(section(page, 'Por alumno')).toContainText('Nadie ha faltado ni llegado tarde');
+    await expect(section(page, 'Por alumno')).toContainText('Aún no has pasado lista');
 
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await expect(sheet.getByText('10:20–11:15 · Aula 112', { exact: true })).toBeVisible();
     await expect(sheet.getByText('8 presentes', { exact: true })).toBeVisible();
     await expect(sheet.getByRole('listitem')).toHaveCount(8);
@@ -65,7 +65,7 @@ test.describe('faltas · listas de hoy', () => {
     await openFaltas(page, c.id);
     const later = todayRow(page, '12:40–13:35');
     await later.getByRole('button', { name: 'Pasar lista' }).click();
-    let sheet = await listSheet(page, LABEL);
+    let sheet = await listSheet(page);
     await sheet.getByRole('button', { name: 'Cerrar', exact: true }).click();
     await expect(sheet).toBeHidden();
     await expect(page.locator('.toasts .toast')).toHaveCount(0);
@@ -74,7 +74,7 @@ test.describe('faltas · listas de hoy', () => {
     expect((await list(world.api, c.id, TODAY, '12:40')).taken).toBe(false);
 
     await later.getByRole('button', { name: 'Pasar lista' }).click();
-    sheet = await listSheet(page, LABEL);
+    sheet = await listSheet(page);
     await sheet.getByRole('button', { name: 'Cerrar lista' }).click();
     await expect(toast(page, 'Lista pasada · 8 presentes')).toBeVisible();
     await expect(later).toContainText('Lista pasada');
@@ -90,7 +90,7 @@ test.describe('faltas · listas de hoy', () => {
       ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Servicio no disponible' }) })
       : route.continue()));
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await tapTo(sheet, 4, 'Falta');
     await expect(sheet.getByText('No se ha podido guardar', { exact: true })).toBeVisible();
     await sheet.getByRole('button', { name: 'Cerrar lista' }).click();
@@ -116,7 +116,7 @@ test.describe('faltas · volver atrás y datos al día', () => {
     const c = world.courses[0];
     await openFaltas(page, c.id);
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await tapTo(sheet, 3, 'Falta');
     await page.goBack();
     await expect(sheet).toBeHidden();
@@ -134,7 +134,7 @@ test.describe('faltas · volver atrás y datos al día', () => {
     await page.getByRole('link', { name: 'Hoy', exact: true }).first().click();
     await expect(page).toHaveURL(/\/hoy$/);
     await page.getByRole('region', { name: /^Ahora/ }).getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await tapTo(sheet, 1, 'Retraso');
     await sheet.getByRole('button', { name: 'Cerrar lista' }).click();
     await expect(toast(page, 'Lista pasada · 7 presentes · 1 retraso')).toBeVisible();
@@ -163,7 +163,7 @@ test.describe('faltas · editar una lista pasada', () => {
       'Alonso Gil, Marta1 falta sin justificar', 'Castro León, Lucía1 justificada', 'Benítez Ruiz, Pablo1 retraso',
     ]);
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Editar lista' }).click();
-    const sheet = await listSheet(page, LABEL);
+    const sheet = await listSheet(page);
     await expect(rosterRow(sheet, 1)).toHaveAccessibleName('1. Alonso Gil, Marta: Falta. Toca para cambiar');
     await expect(rosterRow(sheet, 1)).toContainText('Médico');
     await expect(rosterRow(sheet, 2)).toHaveAccessibleName(/: Retraso\./);
@@ -206,7 +206,7 @@ test.describe('faltas · un alumno nuevo', () => {
     const [nuria] = await world.api.post(`/groups/${c.groupId}/students`, { students: [{ first_name: 'Nuria', last_name: 'Zamora Paz' }] });
     await openFaltas(page, c.id);
     await todayRow(page, '10:20–11:15').getByRole('button', { name: 'Pasar lista' }).click();
-    let sheet = await listSheet(page, LABEL);
+    let sheet = await listSheet(page);
     await expect(sheet.getByRole('listitem')).toHaveCount(9);
     await expect(rosterRow(sheet, 9)).toHaveAccessibleName('9. Zamora Paz, Nuria: Presente. Toca para cambiar');
     await sheet.getByRole('button', { name: 'Cerrar', exact: true }).click();
@@ -217,7 +217,7 @@ test.describe('faltas · un alumno nuevo', () => {
     await page.locator('section.section').filter({ has: page.getByRole('heading', { name: 'Agenda' }) })
       .getByRole('button', { name: /^09:25/ }).click();
     await dialog(page, LABEL).getByRole('button', { name: /^Pasar lista/ }).click();
-    sheet = await listSheet(page, LABEL);
+    sheet = await listSheet(page);
     await expect(sheet.getByText('viernes, 13 de noviembre · 09:25–10:20 · Aula 112')).toBeVisible();
     await expect(sheet.getByRole('listitem')).toHaveCount(8);
     await expect(sheet.getByText('Zamora Paz, Nuria')).toHaveCount(0);
@@ -251,7 +251,7 @@ test.describe('faltas · listas sin pasar (demo)', () => {
 
     const day = past.missing[1];
     await missingRow(page, day).getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = await listSheet(page, c.label);
+    const sheet = await listSheet(page);
     await expect(sheet.getByText(`${longDate(day)} · ${past.start}–${past.end} · Aula 301`, { exact: true })).toBeVisible();
     const size = await sheet.getByRole('listitem').count();
     await tapTo(sheet, 1, 'Falta');
@@ -344,7 +344,7 @@ test.describe('faltas · listas sin pasar (demo)', () => {
     const agenda = page.locator('section.section').filter({ has: page.getByRole('heading', { name: 'Agenda' }) });
     await agenda.getByRole('button', { name: new RegExp(`^${past.start}`) }).click();
     await dialog(page, c.label).getByRole('button', { name: /^Editar lista.*Lista pasada · 1 falta/ }).click();
-    const sheet = await listSheet(page, c.label);
+    const sheet = await listSheet(page);
     await expect(sheet.getByText(`${longDate(day)} · ${past.start}–${past.end} · Aula 301`, { exact: true })).toBeVisible();
     await expect(rosterRow(sheet, 2)).toHaveAccessibleName(/: Falta\./);
     const two = await rowOptions(page, info, rosterRow(sheet, 2));
@@ -405,7 +405,7 @@ test.describe('faltas · listas sin pasar (demo)', () => {
     const taken = page.locator('main .row').filter({ hasText: longDate(day) });
     await expect(taken).toHaveCount(1, { timeout: 5_000 });
     await taken.getByRole('button').first().click();
-    const sheet = await listSheet(page, c.label);
+    const sheet = await listSheet(page);
     await expect(sheet.getByText(`${longDate(day)} · ${past.start}–${past.end}`)).toBeVisible();
     await expect(rosterRow(sheet, 1)).toHaveAccessibleName(/: Falta\./);
   });

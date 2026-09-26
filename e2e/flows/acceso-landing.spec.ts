@@ -104,10 +104,8 @@ test('acceso-05 · privacidad y aviso legal: se abren desde la landing, enlazan 
   await expect(page.getByRole('heading', { level: 1, name: 'Privacidad' })).toBeVisible();
 });
 
-// BUG acceso-B05: the published legal pages still show the owner's to-do box («Pendiente del titular antes de
-// publicar: …»): the teacher who reads the privacy policy before creating an account sees that it is unfinished.
+// The published legal pages never show the owner's to-do notes («Pendiente del titular antes de publicar: …»).
 test('acceso-06 · las páginas legales no muestran notas pendientes del titular', async ({ page }) => {
-  test.fail(true, 'acceso-B05: privacidad.html y aviso-legal.html muestran «Pendiente del titular antes de publicar»');
   for (const path of ['/landing/privacidad.html', '/landing/aviso-legal.html']) {
     await page.goto(path);
     expect(await page.getByRole('main').innerText(), path).not.toContain('Pendiente del titular');

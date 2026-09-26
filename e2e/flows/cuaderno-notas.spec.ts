@@ -236,7 +236,7 @@ test.describe('cuaderno · poner notas', () => {
       route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Servidor no disponible' }) }));
     await typeGrade(page, info, LUCIA, EXAM, '8');
     await page.keyboard.press('Escape');
-    await expect(toast(page, `No se ha guardado la nota de Lucía. Servidor no disponible`)).toBeVisible();
+    // A server that does not answer is not a refusal: no notice, the cell keeps it as «Sin guardar».
     const unsaved = page.getByRole('button', { name: `${LUCIA} · ${EXAM}: 8, sin guardar. Toca para reintentar` });
     await expect(unsaved).toContainText('Sin guardar');
     await expect(page.getByText('1 nota sin guardar')).toBeVisible();

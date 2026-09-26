@@ -277,9 +277,11 @@ export const toast = (page: Page, text: string | RegExp) => page.locator('.toast
 export const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
 export const dialog = (page: Page, name: string) => page.getByRole('dialog', { name, exact: true });
 
-/** The «Pasar lista» sheet of a class, once its students are on screen. */
-export async function listSheet(page: Page, label: string) {
-  const sheet = dialog(page, label);
+/** The «Pasar lista» sheet, once its students are on screen. It has no accessible name (BUG-HOY-07, hoy-79): found by
+ *  the list it holds. */
+export async function listSheet(page: Page) {
+  const list = page.getByRole('list', { name: /Lista de la clase/ });
+  const sheet = page.getByRole('dialog').filter({ has: list });
   await expect(sheet.getByRole('list', { name: /Lista de la clase/ })).toBeVisible();
   return sheet;
 }
