@@ -26,8 +26,12 @@ export interface ActivityHead {
   id: string; title: string; kind: ActivityKind; category: string; date: string; term: number; max_score: number; course: CourseRef;
   repeat_of: string | null; student_ids: string[] | null;
 }
+/** `unscored`: questions nobody has scored yet («Sin corregir»). In a suggestion, those the AI did not score: it has no
+ * grade (`score` null) until the teacher scores them. In a confirmed grade, those it counted as 0 without anyone
+ * scoring them: to look at again. Empty once the teacher sets the grade. */
 export interface CorrectionGrade {
   score: number | null; status: GradeStatus; ai_score: number | null; item_scores: Record<string, number> | null; comment?: string | null;
+  unscored: string[];
 }
 /** One scanned page. `id` is the stable handle for page operations (`index` = its position, for display).
  * `back`: the written back of the page before it (duplex scan). `maybe_written`: discarded, but with a little ink. */
@@ -99,7 +103,8 @@ export interface PageOpResult {
   paper: Paper | null; resuggest: string[]; graded: string[]; page_id: string | null; tray: Tray | null; from_paper_id: string | null;
 }
 
-export interface AIItem { id: string; points: number; feedback: string; confidence: number }
+/** `points` null: the AI did not score this question («Sin corregir»). */
+export interface AIItem { id: string; points: number | null; feedback: string; confidence: number }
 /** Where one question's answer is: `index` into Review.pages, the band as fractions of the image. */
 export interface Crop { page_id: string; index: number; x0: number; y0: number; x1: number; y1: number }
 /** `pending`: students of the sequence still without a final grade (this one included). `match_status` "suggested":
@@ -247,9 +252,11 @@ export function useSuggest(activityId: string) {
     api.post<JobRef>(`/activities/${activityId}/suggest`, { student_ids: studentIds ?? null }));
 }
 
-/** Confirms every AI suggestion except those whose paper's name is still to confirm (`skipped`). */
+/** Confirms every AI suggestion except those whose paper's name is still to confirm (`skipped`) and those with a
+ * question still to score (`unscored`). */
 export function useAcceptAll(activityId: string, courseId?: string) {
-  return useCorrectionMutation(activityId, () => api.post<{ count: number; skipped: number }>(`/activities/${activityId}/accept-all`), courseId);
+  return useCorrectionMutation(activityId,
+    () => api.post<{ count: number; skipped: number; unscored: number }>(`/activities/${activityId}/accept-all`), courseId);
 }
 
 export function useReview(activityId: string | undefined, studentId: string | null | undefined) {

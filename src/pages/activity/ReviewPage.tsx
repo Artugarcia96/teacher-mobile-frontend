@@ -11,7 +11,7 @@ import StudentPickerSheet from '../../features/papers/StudentPickerSheet';
 import { flagLabel, isAttention, pageCaption, pageTag } from '../../features/papers/pageLabels';
 import { cameFromActivity } from '../../features/papers/reviewLink';
 import { fileUrl } from '../../lib/api';
-import { formatGrade, formatNumber, formatScore, gradeTone, parseGradeInput, shortDate } from '../../lib/format';
+import { formatGrade, formatNumber, formatScore, gradeTone, listed, parseGradeInput, shortDate } from '../../lib/format';
 import {
   AIBadge, Button, Callout, CropImage, DESKTOP, EmptyState, IconButton, Lightbox, Menu, RichText, Skeleton, Stepper, TextField,
   useFeedback, useMediaQuery, useSettled, type MenuItem,
@@ -22,6 +22,8 @@ import './review.css';
 const pts = (v: number) => formatNumber(v, 2);
 const LOW = 0.7;
 const FINAL = ['confirmed', 'absent', 'exempt'];
+/** "la pregunta 2" · "las preguntas 1 y 3" */
+const questions = (labels: string[]) => (labels.length === 1 ? `la pregunta ${labels[0]}` : `las preguntas ${listed(labels)}`);
 
 /** "7 de 24 · faltan 18 · Modelo B" (the version last: on a phone the end of the line may be cut). */
 function progress(r: Review): string {
@@ -155,8 +157,12 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const assign = useAssignPaper(activityId);
   const correction = useCorrection(activityId);
   const aiById = useMemo(() => new Map((r.ai?.items ?? []).map((i) => [i.id, i])), [r.ai]);
+  // «Sin corregir»: questions nobody has scored yet start empty (no 0 nobody gave) and must be scored to accept.
+  const unscored = useMemo(() => r.grade?.unscored ?? [], [r.grade]);
+  const recheck = r.grade?.status === 'confirmed' && unscored.length > 0; // accepted with those at 0: look again
   const initialScores = () => Object.fromEntries(
-    r.items.map((it) => [it.id, r.grade?.status === 'confirmed' && r.grade.item_scores ? r.grade.item_scores[it.id] ?? 0 : aiById.get(it.id)?.points ?? 0]),
+    r.items.filter((it) => !unscored.includes(it.id)).map((it) => [it.id,
+      r.grade?.status === 'confirmed' && r.grade.item_scores ? r.grade.item_scores[it.id] ?? 0 : aiById.get(it.id)?.points ?? 0]),
   );
   const [scores, setScores] = useState<Record<string, number>>(initialScores);
   const [touched, setTouched] = useState(false);
@@ -171,15 +177,16 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const scroller = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Low-confidence AI items first: those are the ones the teacher must look at.
+  // Questions without a score and low-confidence AI items first: those are the ones the teacher must look at.
   const items = useMemo(() => {
-    const low = r.items.filter((it) => (aiById.get(it.id)?.confidence ?? 1) < LOW);
+    const low = r.items.filter((it) => unscored.includes(it.id) || (aiById.get(it.id)?.confidence ?? 1) < LOW);
     return [...low, ...r.items.filter((it) => !low.includes(it))];
-  }, [r.items, aiById]);
+  }, [r.items, aiById, unscored]);
   const [focus, setFocus] = useState<string | null>(() => items[0]?.id ?? null);
 
   const hasItems = r.items.length > 0;
   const sum = Object.values(scores).reduce((a, b) => a + b, 0);
+  const left = r.items.filter((it) => scores[it.id] === undefined).map((it) => it.label || it.id); // still to score
   const manualValue = parseGradeInput(manual);
   const toConfirm = r.match_status === 'suggested';
   const missed = onlyNp(r) && r.grade?.status !== 'absent'; // only NP can go here (the server says so too)
@@ -219,6 +226,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const accept = () => {
     if (!settled || confirmReview.isPending) return;
     if (missed) { onNp(); return; }
+    if (hasItems && left.length) { toast(`Puntúa ${questions(left)} antes de aceptar.`, { tone: 'error' }); return; }
     let payload: { item_scores?: Record<string, number>; score?: number } = {};
     if (hasItems) payload = { item_scores: scores };
     else if (typeof manualValue === 'number') payload = { score: manualValue };
@@ -273,9 +281,14 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
   const caption = (i: number) => (r.pages[i] ? pageCaption(r.pages[i]) : `Página ${i + 1}`);
   // Before confirming: is the paper complete and only this student's? (after confirming, the grade is never touched)
   const warnings = r.flags.filter((f) => isAttention(f) || f.code === 'pagina_nueva_tras_nota');
-  const tone = gradeTone(r.rubric_total ? (sum / r.rubric_total) * 10 : null);
+  const tone = gradeTone(r.rubric_total && !left.length ? (sum / r.rubric_total) * 10 : null);
   const then = last ? 'terminar' : 'siguiente';
-  const acceptLabel = toConfirm ? 'Confirma el nombre' : missed ? 'Marcar NP' : zero ? `Poner 0 y ${then}` : `Aceptar y ${then}`;
+  const toScore = hasItems && !missed && left.length > 0;
+  const acceptLabel = toConfirm ? 'Confirma el nombre' : missed ? 'Marcar NP' : toScore ? `Puntúa ${questions(left)}`
+    : zero ? `Poner 0 y ${then}` : `Aceptar y ${then}`;
+  const unscoredLabels = r.items.filter((it) => unscored.includes(it.id)).map((it) => it.label || it.id);
+  const one = unscoredLabels.length === 1;
+  const pronoun = one ? 'la' : 'las';
 
   return (
     <div ref={body} className="review-body">
@@ -336,6 +349,14 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
             </span>
           </Callout>
         )}
+        {unscoredLabels.length > 0 && !missed && (
+          <Callout tone="warn" icon={<Warning size={18} weight="fill" />}>
+            <span><b>{one ? 'Pregunta' : 'Preguntas'} {listed(unscoredLabels)} sin corregir.</b>{' '}
+              {recheck ? `Esta nota se aceptó con ${one ? 'esa pregunta' : 'esas preguntas'} a 0 sin que nadie ${pronoun} corrigiera: puntúa${pronoun} y vuelve a aceptar.`
+                : `La IA no ${pronoun} ha puntuado. Hasta que ${pronoun} puntúes, esta hoja no tiene nota.`}
+            </span>
+          </Callout>
+        )}
         {warnings.length > 0 && (
           <Callout tone="warn" icon={<Warning size={18} weight="fill" />}>
             <span>{warnings.map(flagLabel).join(' · ')}. </span>
@@ -362,8 +383,10 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
           <div className="list review-items">
             {items.map((it) => {
               const ai = aiById.get(it.id);
-              const low = !!ai && ai.confidence < LOW;
-              const changed = !!ai && Math.abs((scores[it.id] ?? 0) - ai.points) > 1e-9;
+              const open = unscored.includes(it.id); // «Sin corregir»
+              const low = open || (!!ai && ai.confidence < LOW);
+              const score = scores[it.id] ?? null;
+              const changed = ai?.points != null && score !== null && Math.abs(score - ai.points) > 1e-9;
               const crops = r.crops[it.id] ?? [];
               return (
                 <div key={it.id} className={`ritem${low ? ' ritem--low' : ''}${desktop && focus === it.id ? ' ritem--focus' : ''}`}
@@ -383,7 +406,12 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
                     <Button variant="tinted" size="sm" icon={<Images size={16} />} className="ritem__sheet"
                       onClick={() => setViewer(r.page_hints[it.id] ?? 0)}>Ver hoja</Button>
                   )}
-                  {ai?.feedback && (
+                  {open ? (
+                    <div className="ritem__ai">
+                      <Warning size={16} weight="fill" className="ritem__warn" aria-hidden />
+                      <span><b>{recheck ? 'Contó 0 sin corregir.' : 'Sin corregir.'}</b>{ai?.feedback && <> <RichText text={ai.feedback} /></>}</span>
+                    </div>
+                  ) : ai?.feedback && (
                     <div className="ritem__ai">
                       {low && <Warning size={16} weight="fill" className="ritem__warn" aria-label="Revisa esta pregunta" />}
                       <RichText text={ai.feedback} />
@@ -394,8 +422,8 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
                       {solution[it.id] ? 'Ocultar solución' : 'Solución'}
                     </Button>
                     <div className="ritem__score">
-                      {changed && <span className="ritem__was num" title="Puntos que propuso la IA">IA: {pts(ai!.points)}</span>}
-                      <Stepper label={`Puntos de la pregunta ${it.label || it.id}`} value={scores[it.id] ?? 0} min={0} max={it.points} step={0.25}
+                      {changed && <span className="ritem__was num" title="Puntos que propuso la IA">IA: {pts(ai!.points!)}</span>}
+                      <Stepper label={`Puntos de la pregunta ${it.label || it.id}`} value={score} min={0} max={it.points} step={0.25}
                         format={pts} onChange={(v) => { setTouched(true); setScores((s) => ({ ...s, [it.id]: v })); }} />
                       <span className="ritem__max num">/ {pts(it.points)}</span>
                     </div>
@@ -422,7 +450,8 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
               <span className="muted">Total</span>
               <span className={`review-total__value grade grade--${tone}`}>{pts(sum)}</span>
               <span className="muted num">/ {pts(r.rubric_total)}</span>
-              {r.grade?.status === 'confirmed' && <span className="review-total__note muted">Revisado</span>}
+              {left.length > 0 ? <span className="review-total__note muted">Sin {questions(left)}</span>
+                : r.grade?.status === 'confirmed' && <span className="review-total__note muted">Revisado</span>}
               {r.grade?.status === 'absent' && <span className="review-total__note muted">Marcado NP</span>}
             </div>
           )}
@@ -431,7 +460,7 @@ function ReviewStudent({ review: r, activityId, courseId, desktop, onGo, onDone,
               <Button variant="neutral" icon={<CaretLeft size={18} weight="bold" />} aria-label="Alumno anterior" className="review-foot__nav"
                 disabled={!r.prev_student_id} onClick={() => r.prev_student_id && onGo(r.prev_student_id)} />
             )}
-            <Button onClick={accept} loading={confirmReview.isPending || (missed && busy)} disabled={toConfirm || (busy && !missed) || !settled}
+            <Button onClick={accept} loading={confirmReview.isPending || (missed && busy)} disabled={toConfirm || toScore || (busy && !missed) || !settled}
               className="review-accept">{acceptLabel}</Button>
             {!desktop && (
               <Button variant="neutral" icon={<CaretRight size={18} weight="bold" />} aria-label="Alumno siguiente, sin aceptar" className="review-foot__nav"

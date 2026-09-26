@@ -177,7 +177,7 @@ function cellLabel(cell: GradeCell | undefined): string {
   if (cell.status === 'absent') return 'no presentado';
   if (cell.status === 'exempt') return 'exento';
   const n = formatScore(cell.score);
-  if (cell.status === 'suggested') return `${n}, borrador de la IA sin revisar`;
+  if (cell.status === 'suggested') return cell.score == null ? 'borrador de la IA con preguntas sin corregir' : `${n}, borrador de la IA sin revisar`;
   return cell.repeat ? `${n}, nota de la repesca` : n;
 }
 
