@@ -18,6 +18,9 @@ interface Props {
 
 export interface OutlineEntry { id: string; label: string; exercises: number[] }
 
+/** A level of a ficha is named by its level, as the PDF prints it; any other section by its title. */
+const sectionTitle = (sec: DocSection) => (sec.level ? LEVEL_LABEL[sec.level] : sec.title);
+
 /** The sections of the document in the order DocView shows them, with the numbers of their exercises (the desktop
  *  outline beside the material). */
 export function docOutline(doc: ContentDoc): OutlineEntry[] {
@@ -27,7 +30,7 @@ export function docOutline(doc: ContentDoc): OutlineEntry[] {
   let numbered = 0;
   return order.map((sec) => {
     const number = doc.kind === 'teoria' && sec !== activities ? ++numbered : 0;
-    const title = sec.title || (sec.level ? LEVEL_LABEL[sec.level] : '');
+    const title = sectionTitle(sec);
     return {
       id: sec.id, label: number ? `${number}. ${title}` : title,
       exercises: sec.blocks.flatMap((b) => (b.type === 'exercise' ? [++n] : [])),
@@ -35,7 +38,22 @@ export function docOutline(doc: ContentDoc): OutlineEntry[] {
   });
 }
 
-/** Apuntes, ficha, resumen or lectura fácil on paper, in the order and with the labels of the PDF. */
+/** How the document names an element: «Ejercicio 4» (numbered as printed), «Diapositiva 13», «Ejemplo»… */
+export function elementLabel(doc: ContentDoc, id: string, name: string): string {
+  const slide = doc.slides.findIndex((s) => s.id === id);
+  if (slide >= 0) return `Diapositiva ${slide + 2}`;
+  const activities = doc.kind === 'teoria' ? doc.sections.find((s) => s.id === 'actividades') : undefined;
+  let n = 0;
+  for (const sec of [...doc.sections.filter((s) => s !== activities), ...(activities ? [activities] : [])]) {
+    for (const b of sec.blocks) {
+      if (b.type === 'exercise') n += 1;
+      if (b.id === id) return b.type === 'exercise' ? `Ejercicio ${n}` : name;
+    }
+  }
+  return name;
+}
+
+/** Apuntes, ficha, resumen or lectura sencilla on paper, in the order and with the labels of the PDF. */
 export default function DocView({ doc, figures, solutions, editing, busy, onAction, noAI }: Props) {
   let n = 0;
   let numbered = 0;
@@ -54,13 +72,13 @@ export default function DocView({ doc, figures, solutions, editing, busy, onActi
         {newSession != null && <div className="doc__session">Sesión {newSession}</div>}
         <h2>
           {number > 0 && <span className="doc__n num">{number}</span>}
-          <RichText text={sec.title || (sec.level ? LEVEL_LABEL[sec.level] : '')} />
+          <RichText text={sectionTitle(sec)} />
         </h2>
         {sec.blocks.map((b) => {
           const num = b.type === 'exercise' ? ++n : 0;
           const isBusy = busy.has(b.id);
           return (
-            <div key={b.id} id={num ? `ex-${num}` : undefined}
+            <div key={b.id} id={num ? `ex-${num}` : undefined} data-element={b.id}
               className={`element${editing ? ' element--editing' : ''}${isBusy ? ' element--busy' : ''}`}>
               <BlockView block={b} number={num} figures={figures} solutions={solutions} levels={levels.size > 1} />
               {editing && !isBusy && <div className="element__menu"><ElementMenu el={b} doc={doc} onAction={onAction} noAI={noAI} /></div>}

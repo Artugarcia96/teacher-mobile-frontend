@@ -88,13 +88,19 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
   const anchor = useRef<HTMLSpanElement>(null);
   const menu = useRef<HTMLDivElement>(null);
 
-  // Keep the whole menu on screen: open upwards when there is no room below (rows near the bottom).
+  // Keep the whole menu on screen: open upwards when there is no room below (rows near the bottom), and move it right
+  // when it is wider than the room left of its trigger (a button at the left edge of a phone).
   useLayoutEffect(() => {
     const h = menu.current?.offsetHeight ?? 0;
-    if (!pos || !h || pos.top + h <= window.innerHeight - 8) return;
-    const up = pos.above - 6 - h;
-    const top = up >= 8 ? up : Math.max(8, window.innerHeight - 8 - h);
-    if (top !== pos.top) setPos({ ...pos, top });
+    const w = menu.current?.offsetWidth ?? 0;
+    if (!pos || !h) return;
+    let { top, right } = pos;
+    if (top + h > window.innerHeight - 8) {
+      const up = pos.above - 6 - h;
+      top = up >= 8 ? up : Math.max(8, window.innerHeight - 8 - h);
+    }
+    if (window.innerWidth - right - w < 8) right = Math.max(8, window.innerWidth - 8 - w);
+    if (top !== pos.top || right !== pos.right) setPos({ ...pos, top, right });
   }, [pos]);
 
   useEffect(() => {

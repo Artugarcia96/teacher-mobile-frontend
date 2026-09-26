@@ -6,7 +6,7 @@ import { longDate } from '../../lib/format';
 import { Button, Callout, EmptyState, Fullscreen, Sheet, Spinner, useFeedback } from '../../ui';
 import { publicOrigin, shortUrl } from './open';
 
-type Shareable = Pick<Material, 'id' | 'title' | 'kind' | 'shared' | 'audience' | 'reviewed' | 'status'>;
+type Shareable = Pick<Material, 'id' | 'title' | 'kind' | 'shared' | 'audience' | 'reviewed' | 'status' | 'extra_url'>;
 
 /** Compartir con alumnos: public read-only link + QR, "Proyectar" for the class, "Dejar de compartir".
  *  Creating the link is a deliberate step (it publishes the file and moves it to "Para alumnos"); a material that
@@ -78,7 +78,7 @@ export default function ShareSheet({ material, onClose }: { material: Shareable;
           Se creará un enlace de solo lectura que tus alumnos abren sin iniciar sesión, con el enlace o con un código QR.
           Funciona 60 días y se alarga cada vez que lo vuelves a abrir aquí.
         </p>
-        {material.kind === 'worksheet' && <Callout>Se comparte la ficha sin el solucionario.</Callout>}
+        {material.extra_url && <Callout>Se comparte sin las soluciones: el solucionario es solo para ti.</Callout>}
         {material.audience !== 'alumnos' && <Callout tone="warn">El material pasará a «Para alumnos».</Callout>}
       </div>
     );

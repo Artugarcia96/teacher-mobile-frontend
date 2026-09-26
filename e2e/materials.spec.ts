@@ -6,6 +6,7 @@ import { shot, trackErrors } from './helpers';
 const API = process.env.API || 'http://127.0.0.1:8000';
 
 interface MaterialRef { id: string; title: string }
+interface SlideRef { notes: string; question: { answer: string; explanation: string } | null; image: { description: string } | null }
 
 async function fractions(request: APIRequestContext) {
   const r = await request.post(`${API}/api/auth/login`, { data: { email: 'demo@sepia.es', password: 'sepia1234' } });
@@ -17,7 +18,9 @@ async function fractions(request: APIRequestContext) {
   const unit = units.find((u) => u.title === 'Fracciones')!;
   const { materials }: { materials: MaterialRef[] } = await get(`/units/${unit.id}`);
   const material = (title: string) => `/clases/${course.id}/unidades/${unit.id}/materiales/${materials.find((m) => m.title === title)!.id}`;
-  return { course, material };
+  const slides = async (title: string): Promise<SlideRef[]> =>
+    (await get(`/materials/${materials.find((m) => m.title === title)!.id}`)).content.slides;
+  return { course, material, slides };
 }
 
 async function editStatement(page: Page, text: (old: string) => string) {
@@ -51,20 +54,30 @@ test('ficha: editar el enunciado de un ejercicio la deja como borrador', async (
   expect(errors).toEqual([]);
 });
 
-test('presentación: proyectar, pasar, notas y salir con el teclado', async ({ page, request }, info) => {
+// Text of a note without its formulas and bold marks: what would show if it were projected.
+const said = (t: string) => t.replace(/\$[^$]*\$/g, ' ').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+
+test('presentación: proyectar y pasar con el teclado, sin notas del orador en la pantalla', async ({ page, request }, info) => {
   const errors = trackErrors(page);
-  const { material } = await fractions(request);
+  const { material, slides } = await fractions(request);
+  const deck = await slides('Presentación · Fracciones');
   await page.goto(material('Presentación · Fracciones'));
   await page.getByRole('button', { name: 'Proyectar' }).click();
   const presenter = page.getByRole('dialog', { name: /^Proyectar:/ });
   await expect(presenter).toBeVisible();
   const count = presenter.locator('.presenter__count');
   await expect(count).toHaveText(/^1 \/ \d+$/);
-  await page.keyboard.press('ArrowRight');
-  await expect(count).toHaveText(/^2 \/ \d+$/);
-  await page.keyboard.press('n');
-  await expect(presenter.locator('.presenter__notes')).toBeVisible();
-  await shot(page, info, 'material-presenter');
+  await expect(presenter.getByRole('button', { name: /notas del orador/i })).toHaveCount(0);
+  for (const [k, slide] of deck.entries()) {  // every slide: what the class sees never carries notes, answers or reminders
+    await page.keyboard.press('ArrowRight');
+    await expect(count).toHaveText(new RegExp(`^${k + 2} / \\d+$`));
+    await page.keyboard.press('n');  // no key shows the notes
+    const shown = (await presenter.innerText()).replace(/\s+/g, ' ');
+    for (const note of [slide.notes, slide.question?.explanation ?? '', slide.image?.description ?? '']) {
+      if (said(note).length >= 12) expect(shown, `diapositiva ${k + 2}`).not.toContain(said(note));
+    }
+    if (k === 0) await shot(page, info, 'material-presenter');
+  }
   await page.keyboard.press('Escape');
   await expect(presenter).toHaveCount(0);
   expect(errors).toEqual([]);

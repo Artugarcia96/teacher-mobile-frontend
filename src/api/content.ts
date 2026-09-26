@@ -60,7 +60,7 @@ export interface ContentDoc {
   kind: ContentKind; title: string; subtitle: string; subject: string; level: string; unit: string;
   intro: string; objectives: string[]; instructions: string;
   sections: DocSection[]; slides: Slide[];
-  /** Teoría: key ideas. Lectura fácil: `glossary`. */
+  /** Teoría: key ideas. Lectura sencilla: `glossary`. */
   summary: string[]; glossary: { term: string; definition: string }[];
   sessions: string[];
 }
@@ -76,4 +76,5 @@ export function isContentDoc(c: unknown): c is ContentDoc {
   return !!d && KINDS.includes(d.kind as ContentKind) && Array.isArray(d.sections) && Array.isArray(d.slides);
 }
 
-export const LEVEL_LABEL: Record<Level, string> = { refuerzo: 'Refuerzo', basico: 'Básico', avanzado: 'Avanzado' };
+/** One name for each level, the same in the app, the PDF, the solucionario and the rubric. */
+export const LEVEL_LABEL: Record<Level, string> = { refuerzo: 'Refuerzo', basico: 'Básica', avanzado: 'Ampliación' };

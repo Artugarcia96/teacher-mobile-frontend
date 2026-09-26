@@ -26,7 +26,7 @@ export default function SlidesView({ doc, kicker, figures, showNotes, editing, b
         const isBusy = busy.has(s.id);
         const key = slideKey(s);
         return (
-          <figure key={s.id} className={`slide-card element${editing ? ' element--editing' : ''}${isBusy ? ' element--busy' : ''}`}>
+          <figure key={s.id} data-element={s.id} className={`slide-card element${editing ? ' element--editing' : ''}${isBusy ? ' element--busy' : ''}`}>
             <SlideFace slide={s} figure={figures[s.id]} n={i + 2} />
             {s.figure && !figures[s.id] && (
               <Callout tone="warn" icon={<WarningCircle size={20} />}>

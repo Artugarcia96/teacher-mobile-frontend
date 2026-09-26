@@ -137,7 +137,7 @@ function defaultTerm(units: Unit[], terms: number[], current: number): number {
   return terms.includes(current) ? current : terms[0] ?? 1;
 }
 
-const HAS: Partial<Record<GenKind, string>> = { notes: 'apuntes', worksheet: 'ficha', slides: 'presentación', summary: 'resumen', adapted: 'lectura fácil' };
+const HAS: Partial<Record<GenKind, string>> = { notes: 'apuntes', worksheet: 'ficha', slides: 'presentación', summary: 'resumen', adapted: 'lectura sencilla' };
 
 /** What the AI has for a unit (its files, or only its temario or title) and which chosen kinds it already has. */
 function unitInfo(u: Unit, materials: Material[] | undefined, kinds: GenKind[]): { text: string; warn: boolean } {

@@ -28,9 +28,11 @@ export function CoverSlide({ title, kicker, n }: { title: string; kicker: string
   );
 }
 
-/** One slide of a ContentDoc drawn from its layout, at any size (sizes in container units). */
-export function SlideFace({ slide: s, figure, n }: { slide: Slide; figure?: string; n?: number }) {
-  const text = s.bullets.length > 0 || !!(s.subtitle || s.left || s.example || s.question || s.image);
+/** One slide of a ContentDoc drawn from its layout, at any size (sizes in container units). `projected`: what the class
+ *  sees, without the teacher's reminder of a picture to insert (it stays on the card and in the notes). */
+export function SlideFace({ slide: s, figure, n, projected = false }: { slide: Slide; figure?: string; n?: number; projected?: boolean }) {
+  const image = projected ? null : s.image;
+  const text = s.bullets.length > 0 || !!(s.subtitle || s.left || s.example || s.question || image);
   // A wide drawing (a timeline, a long table) goes under the text at full width; a compact one beside it.
   const layout = !figure || !text ? '' : svgAspect(figure) > 1.9 ? ' slide__body--stack' : ' slide__body--split';
   const style = { '--fit': fit(s, layout ? 240 : 420) } as CSSProperties;
@@ -89,8 +91,8 @@ export function SlideFace({ slide: s, figure, n }: { slide: Slide; figure?: stri
               )}
             </>
           )}
-          {s.image && (
-            <div className="slide__image"><ImageSquare size={20} /><span>Imagen sugerida: {s.image.description}</span></div>
+          {image && (
+            <div className="slide__image"><ImageSquare size={20} /><span>Imagen sugerida: {image.description}</span></div>
           )}
         </div>}
         {figure && <div className="slide__figure"><Figure svg={figure} caption={s.caption} fill /></div>}

@@ -23,7 +23,7 @@ export function useUnits(courseId: string | undefined) {
 
 // ── Material types (mirror app/schemas/units.py) ─────────────────────────────
 export type MaterialKind = 'upload' | 'link' | 'notes' | 'slides' | 'summary' | 'adapted' | 'worksheet';
-/** What «Crear con IA» makes: apuntes, presentación, resumen, lectura fácil, ficha (the content pipeline). */
+/** What «Crear con IA» makes: apuntes, presentación, resumen, lectura sencilla, ficha (the content pipeline). */
 export type GenKind = Exclude<MaterialKind, 'upload' | 'link'>;
 export type Audience = 'alumnos' | 'profesor';
 export type LinkKind = 'youtube' | 'drive' | 'genially' | 'canva' | 'wordwall' | 'web';
@@ -51,6 +51,17 @@ export interface GroundingSource {
 }
 export interface Grounding { sources: GroundingSource[]; reading: { id: string; title: string }[] }
 
+/** Told by the verification of a generated material: an element it withdrew (`withdrawn`), or a problem it could not
+ *  fix in an element that stays as written (`unfixed`, until the teacher edits, rewrites or removes it). */
+export interface ReviewNote {
+  kind: 'withdrawn' | 'unfixed'; id: string | null;
+  /** «Ejercicio», «Ejemplo», «Comprueba», «Diapositiva», «Apartado». */
+  element: string;
+  /** The element in a few words. */
+  text: string;
+  reason: string;
+}
+
 export interface MaterialDetail extends Material {
   /** Generated: the ContentDoc (anything else is content that could not be converted: shown read-only). */
   content: ContentDoc | Record<string, unknown> | null;
@@ -60,6 +71,8 @@ export interface MaterialDetail extends Material {
   figure_errors: string[];
   /** What prints broken in the PDF («p. 2: fórmula sin componer (…)»). */
   render_issues: string[];
+  /** What the verification withdrew or could not fix (an `unfixed` one points at its element by `id`). */
+  review: ReviewNote[];
   course: CourseRef; unit_title?: string | null;
 }
 export interface UnitDetail {
