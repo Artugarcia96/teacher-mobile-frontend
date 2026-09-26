@@ -1,5 +1,5 @@
 import {
-  average, bug, cell, cellInput, CLASS, column, expect, isMobile, NAMES, openCuaderno, press, sheet, shot, STUDENTS, test, toast,
+  average, cell, cellInput, CLASS, column, expect, isMobile, NAMES, openCuaderno, press, sheet, shot, STUDENTS, test, toast,
   typeGrade, type CourseSpec,
 } from './cuaderno-helpers';
 
@@ -217,7 +217,6 @@ test.describe('cuaderno · poner notas', () => {
   });
 
   test('cuaderno-19 · an exempt student shows «Ex.»; looking at the cell and leaving it keeps it exempt', async ({ page, world }, info) => {
-    bug('CUA-01', 'opening an «Ex.» cell and leaving it without typing deletes the exemption (the input starts empty and blur saves it)');
     await openCuaderno(page, world.id);
     await expect(cell(page, HUGO, EXAM)).toHaveText('Ex.');
     await expect(cell(page, HUGO, EXAM)).toHaveAccessibleName(`${HUGO} · ${EXAM}: exento`);
@@ -265,7 +264,6 @@ test.describe('cuaderno · poner notas', () => {
   });
 
   test('cuaderno-25 · a student who joins today: nothing before today is «sin nota» in their average', async ({ page, world }, info) => {
-    bug('CUA-09', 'the gradebook ignores enrollment_since: a student added today gets cells in earlier activities and «Cómo se calcula» lists them as «sin nota» (PRODUCT §4.1: nada anterior le falta)');
     const [nuria] = await world.api.post(`/groups/${world.groupId}/students`, { students: [{ first_name: 'Nuria', last_name: 'Vidal Ruiz' }] });
     await openCuaderno(page, world.id);
     await press(average(page, 'Nuria Vidal Ruiz'), info);

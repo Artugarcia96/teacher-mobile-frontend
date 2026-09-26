@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import {
-  bug, classMenu, CLASS, column, expect, gradebook, isMobile, openCuaderno, press, test, toast, type CourseSpec, type Page,
+  classMenu, CLASS, column, expect, gradebook, isMobile, openCuaderno, press, test, toast, type CourseSpec, type Page,
 } from './cuaderno-helpers';
 
 // El menú «···» de la clase en el Cuaderno, la exportación CSV y los estados de la pestaña (docs/PRODUCT.md §4.5, §4.9):
@@ -74,7 +74,7 @@ test.describe('cuaderno · menú y exportación', () => {
     expect(file.suggestedFilename()).toBe('Cuaderno - Matematicas - 2o ESO C - Final.csv');
     const lines = readFileSync(await file.path(), 'utf8').slice(1).split('\r\n');
     expect(lines[0]).toBe('Apellidos;Nombre;1.ª evaluación;2.ª evaluación;3.ª evaluación;Media;Nota');
-    expect(lines[3]).toBe('Castro León;Lucía;8,0;;;8,0;8');
+    expect(lines[3]).toBe('Castro León;Lucía;8,0;;;8,0;'); // no final «Nota» until the 3.ª has an average, like the grid
   });
 
   test('cuaderno-113 · a failed export says so', async ({ page, world }) => {
@@ -109,7 +109,6 @@ test.describe('cuaderno · menú y exportación', () => {
   });
 
   test('cuaderno-117 · the highlight of a column opened from a link fades after a moment', async ({ page, world }) => {
-    bug('CUA-07', 'the column highlight (gb-flash) never clears: GradebookTab\'s focus effect calls onFocusDone(), re-runs and its cleanup cancels the 2,4 s timer');
     await page.goto(`/clases/${world.id}/cuaderno?term=1&a=${world.act[TASK]}`);
     await expect(column(page, TASK)).toHaveClass(/gb-flash/);
     await expect(column(page, TASK)).not.toHaveClass(/gb-flash/, { timeout: 6000 });

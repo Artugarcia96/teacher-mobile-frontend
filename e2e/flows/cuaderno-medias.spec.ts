@@ -1,5 +1,5 @@
 import {
-  average, bug, classMenu, CLASS, column, confirmDialog, expect, gradebook, isMobile, NAMES, openCuaderno, press, shot, test, terms, toast,
+  average, classMenu, CLASS, column, confirmDialog, expect, gradebook, isMobile, NAMES, openCuaderno, press, shot, test, terms, toast,
   type CourseSpec, type Page,
 } from './cuaderno-helpers';
 
@@ -107,9 +107,11 @@ test.describe('cuaderno · medias', () => {
     await openCuaderno(page, world.id);
     await classMenu(page, 'Evaluar la 1.ª');
     await expect(page.getByRole('heading', { name: 'Primera evaluación' })).toBeVisible();
-    // Evaluación's «‹ Cuaderno» comes back to the same term
-    await page.getByRole('button', { name: 'Cuaderno' }).first().click();
-    await expect(page).toHaveURL(/cuaderno\?term=1/);
+    // Evaluación's «Volver» names where it was opened from (the class) and goes back there, on the same term
+    await expect(page.locator('.back-btn')).toHaveText('2.º ESO C');
+    await page.locator('.back-btn').click();
+    await expect(page).toHaveURL(new RegExp(`/clases/${world.id}/cuaderno`));
+    await expect(page.getByRole('group', { name: 'Evaluación' }).getByRole('button', { name: '1.ª' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('cuaderno-75 · 1.ª / 2.ª / 3.ª / Final: the term is in the address, survives a reload, and an empty one says what to do', async ({ page, world }) => {
@@ -161,7 +163,6 @@ test.describe('cuaderno · nota final', () => {
   test.use({ worldSpec: MEDIAS });
 
   test('cuaderno-82 · Final gives no final grade until the 3.ª evaluación has an average, like the student file', async ({ page, world }, info) => {
-    bug('CUA-11', 'Cuaderno › Final shows a final «Nota» (5 SU) in November; the student file shows «—» until the 3.ª has an average (StudentPage gradeOf): two numbers for the same thing');
     const file = await world.api.get(`/students/${world.students[0].id}`);
     const fin = file.courses[0].terms.find((t: { term: number }) => t.term === 4);
     expect(fin.final ?? null).toBeNull(); // nothing set by the teacher; the file prints «—»
@@ -248,13 +249,13 @@ test.describe('cuaderno · ponderaciones', () => {
   });
 
   test('cuaderno-81 · the activities of a removed category stop counting, as the confirmation said', async ({ page, world }, info) => {
-    bug('CUA-08', 'grading.compute_term puts activities of a removed category into the FIRST category (Exámenes): Actitud counts as an exam at 60 %');
     await world.api.patch(`/courses/${world.id}`, { categories: [{ key: 'exams', label: 'Exámenes', weight: 60 }, { key: 'work', label: 'Trabajos y fichas', weight: 30 }] });
     await openCuaderno(page, world.id);
     // Marta without Observación: (4,25 × 60 + 5,69 × 30) / 90 = 4,73
     await press(average(page, MARTA), info);
     await expect(why(page, MARTA).locator('.row').filter({ hasText: 'Exámenes' })).toContainText('4,25');
     await expect(average(page, MARTA)).toHaveAccessibleName(`Media de ${MARTA}: 4,7`);
+    await expect(why(page, MARTA).locator('.avg-breakdown__out li')).toContainText(['Actitud: sin categoría']);
   });
 
   test('cuaderno-80 · what cannot be saved says why; a failed save keeps the sheet with the error', async ({ page, world }) => {

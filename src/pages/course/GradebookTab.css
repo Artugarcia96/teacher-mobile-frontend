@@ -12,6 +12,8 @@ html:has(.gb-scroll) { scroll-padding-bottom: calc(96px + env(safe-area-inset-bo
 
 .gb-pending { margin-top: calc(-1 * var(--s-2)); }
 .gb-pending .ai-badge { white-space: nowrap; }
+/* What is pending is said in the title («Faltó 1 alumno a Examen U2 · Fracciones»): it wraps, never cut. */
+.gb-pending .row__title > span, .gb-pending-list .row__title > span { white-space: normal; }
 /* One summary row (opens a sheet) instead of one row per column: on phones from 2 items, everywhere from 3 */
 .gb-pending--compact { display: none; }
 .gb-pending--compact-all { display: block; }

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Poin
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ActivityBrief, GradeInput } from '../../api/activities';
 import {
-  rejectedByServer, useGradebook, useSaveCell, useUnsavedCells, type CellSave, type Gradebook, type GradebookActivity, type GradebookRow,
+  hasCell, rejectedByServer, useGradebook, useSaveCell, useUnsavedCells, type CellSave, type Gradebook, type GradebookActivity, type GradebookRow,
   type GradeCell,
 } from '../../api/gradebook';
 import type { CourseDetail } from '../../api/types';
@@ -101,14 +101,20 @@ interface Pending { key: string; lead: ReactNode; title: string; sub: string; to
 
 /** One row per column that needs something while they are few (one on phones, two on desktop); beyond that one summary
  * row ("18 por revisar" · "2 faltas en exámenes") that opens them in a sheet, so the grid keeps the screen.
- * A scheduled repesca needs nothing until its date: not listed. */
+ * A scheduled repesca needs nothing until its date; once past, still without a grade or NP, it is listed again. */
 function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data: Gradebook; onAbsences: (id: string) => void }) {
+  const today = useToday();
   const [open, setOpen] = useState(false);
   const missedNames = (a: GradebookActivity) => data.students
     .filter((r) => r.grades[a.id]?.status === 'pending_absent' && !r.grades[a.id]?.activity_id)
     .map((r) => r.student.sort_name);
+  const lateRepeats = (a: GradebookActivity) => data.students.filter((r) => {
+    const c = r.grades[a.id];
+    return c?.status === 'pending_absent' && !!c.activity_id && !!c.repeat_date && c.repeat_date < today;
+  });
+  const listed = (names: string[]) => `${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` y ${names.length - 3} más` : ''}`;
   const items: Pending[] = [];
-  let drafts = 0; let missed = 0; let conflicts = 0;
+  let drafts = 0; let missed = 0; let late = 0; let conflicts = 0;
   for (const a of data.activities) {
     if (a.suggested > 0) {
       drafts += a.suggested;
@@ -118,10 +124,17 @@ function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data:
     const names = missedNames(a);
     if (names.length) {
       missed += names.length;
-      const who = `${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` y ${names.length - 3} más` : ''}`;
       items.push({ key: `m-${a.id}`, lead: <RowIcon tone="warn"><UserMinus size={18} /></RowIcon>, onClick: () => onAbsences(a.id),
         title: `${names.length === 1 ? 'Faltó 1 alumno' : `Faltaron ${names.length} alumnos`} a ${a.short_title}`,
-        sub: `${who} · programar repesca o poner NP` });
+        sub: `${listed(names)} · programar repesca o poner NP` });
+    }
+    const overdue = lateRepeats(a);
+    if (overdue.length) {
+      late += overdue.length;
+      items.push({ key: `r-${a.id}`, lead: <RowIcon tone="warn"><UserMinus size={18} /></RowIcon>,
+        to: `/clases/${course.id}/actividades/${overdue[0].grades[a.id].activity_id}`,
+        title: `${overdue.length === 1 ? 'Repesca sin nota' : `${overdue.length} repescas sin nota`} de ${a.short_title}`,
+        sub: `${listed(overdue.map((r) => r.student.sort_name))} · poner la nota o NP` });
     }
     if (a.attendance_conflicts > 0) {
       conflicts += a.attendance_conflicts;
@@ -138,6 +151,7 @@ function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data:
   const parts = [
     drafts > 0 && `${drafts} por revisar`,
     missed > 0 && `${plural(missed, 'falta', 'faltas')} en exámenes`,
+    late > 0 && plural(late, 'repesca sin nota', 'repescas sin nota'),
     conflicts > 0 && plural(conflicts, 'aviso de lista', 'avisos de lista'),
   ].filter((p): p is string => !!p);
   const summary = parts.join(' · ');
@@ -153,7 +167,7 @@ function PendingWork({ course, data, onAbsences }: { course: CourseDetail; data:
               sub={parts.slice(1).join(' · ') || undefined} onClick={() => setOpen(true)} aria-label={`Pendiente en esta evaluación: ${summary}`} />
           </List>
           <Sheet open={open} onClose={() => setOpen(false)} title="Pendiente en esta evaluación" subtitle={summary}>
-            <List>{rows(() => setOpen(false))}</List>
+            <List className="gb-pending-list">{rows(() => setOpen(false))}</List>
           </Sheet>
         </>
       )}
@@ -200,6 +214,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   const [editing, setEditingState] = useState<Pos | null>(null);
   const editingRef = useRef<Pos | null>(null);
   const [draft, setDraft] = useState('');
+  const typed = useRef(false); // the teacher changed what the cell showed when it opened
   const [avgRow, setAvgRow] = useState<GradebookRow | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [more, setMore] = useState(false);
@@ -207,11 +222,12 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
   const final = data.term === 4;
   const acts = data.activities;
   const rows = data.students;
-  const inScope = (r: number, c: number) => { const ids = acts[c]?.student_ids; return !ids || ids.includes(rows[r]?.student.id); };
+  const inScope = (r: number, c: number) => !!acts[c] && !!rows[r] && hasCell(acts[c], rows[r]);
 
   const setEditing = useCallback((p: Pos | null) => {
     editingRef.current = p;
     setEditingState(p);
+    typed.current = false;
     if (p) setDraft(cellText(rows[p.r]?.grades[acts[p.c]?.id]));
   }, [rows, acts]);
 
@@ -258,12 +274,21 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
       if (r >= 0) setEditing({ r, c });
     }
     onFocusDone();
-    const t = setTimeout(() => setFlash(null), 2400);
-    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus, acts, onFocusDone, setEditing]);
 
-  const commit = (pos: Pos, next: Pos | null, raw = draft) => {
+  // The highlighted column fades after a moment (its own effect: clearing `focus` must not cancel the timer).
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 2400);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  /** Saves what the cell holds (`raw`: a quick button) and moves on. A cell only looked at saves nothing: an AI draft
+   *  stays a draft and an exemption stays. */
+  const commit = (pos: Pos, next: Pos | null, raw?: string) => {
+    if (raw === undefined && !typed.current) { setEditing(next); return; }
+    raw ??= draft;
     const row = rows[pos.r];
     const act = acts[pos.c];
     const cell = row.grades[act.id];
@@ -370,7 +395,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     const cell = row.grades[a.id];
                     const label = `${row.student.name} · ${a.title}`;
                     if (!inScope(r, c)) {
-                      return <td key={a.id} className="gb-cell gb-cell--na" aria-label={`${label}: no hace esta actividad`} />;
+                      return <td key={a.id} className="gb-cell gb-cell--na" aria-label={`${label}: ${row.since && a.date < row.since ? 'aún no estaba en la clase' : 'no hace esta actividad'}`} />;
                     }
                     const isEditing = editing?.r === r && editing.c === c;
                     const failed = unsaved.find((u) => u.term === data.term && u.columnId === a.id && u.grade.student_id === row.student.id);
@@ -378,7 +403,7 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
                     return (
                       <td key={a.id} className={cls}>
                         {isEditing ? (
-                          <CellInput value={draft} onChange={setDraft}
+                          <CellInput value={draft} onChange={(v) => { typed.current = true; setDraft(v); }}
                             onKeyDown={(e) => onKey(e, { r, c })}
                             onBlur={() => { const p = editingRef.current; if (p && p.r === r && p.c === c) commit(p, null); }}
                             onQuick={(v) => commit({ r, c }, step(r, c, 1), v)}

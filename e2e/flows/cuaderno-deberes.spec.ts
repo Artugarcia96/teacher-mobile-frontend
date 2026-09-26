@@ -1,5 +1,5 @@
 import {
-  average, bug, cell, CLASS, column, expect, gradebook, NAMES, openCuaderno, openEdit, press, sheet, STUDENTS, test, toast, typeGrade,
+  average, cell, CLASS, column, expect, gradebook, NAMES, openCuaderno, openEdit, press, sheet, STUDENTS, test, toast, typeGrade,
   type CourseSpec, type World,
 } from './cuaderno-helpers';
 
@@ -56,7 +56,6 @@ test.describe('cuaderno · deberes', () => {
   });
 
   test('cuaderno-92 · emptying a typed grade gives the cell back to the formula', async ({ page, world }, info) => {
-    bug('CUA-04', 'emptying a «Deberes» cell leaves it empty («—») until the next homework check; PRODUCT §4.5 says it goes back to the formula');
     await world.api.put(`/activities/${await hwId(world)}/grades`, { grades: [{ student_id: world.students[1].id, score: 5 }] });
     await openCuaderno(page, world.id);
     await expect(cell(page, PABLO, HW)).toHaveText('5');
@@ -82,7 +81,6 @@ test.describe('cuaderno · deberes', () => {
   });
 
   test('cuaderno-94 · its explanation does not ask to confirm grades that already count', async ({ page, world }, info) => {
-    bug('CUA-05', 'the «Deberes» edit sheet says «Confírmala en el cuaderno» although its grades count at once (PRODUCT §4.2: sin paso de confirmación)');
     await openCuaderno(page, world.id);
     const s = await openEdit(page, info, HW);
     await expect(s.getByText(/Nota calculada con las revisiones de deberes/)).toBeVisible();

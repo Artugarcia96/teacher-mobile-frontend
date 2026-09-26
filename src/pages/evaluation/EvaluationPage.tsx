@@ -130,7 +130,7 @@ export default function EvaluationPage() {
 
   const data = ev.data?.term === term ? ev.data : undefined;
   return (
-    <Page title={title} eyebrow={eyebrow} back={`/clases/${courseId}/cuaderno?term=${term}`} backLabel="Cuaderno"
+    <Page title={title} eyebrow={eyebrow} back={`/clases/${courseId}/cuaderno?term=${term}`} backLabel="Cuaderno" backToOrigin
       actions={course.data && data && !closed && (
         <EvalMenu course={course.data} data={data} running={!!jobId} onJob={setJobId} onRecovery={() => setRecovery(true)} />
       )}
@@ -160,9 +160,10 @@ export default function EvaluationPage() {
   );
 }
 
-/** The session is still ahead: a recovery is not what comes next, so it waits in the menu. */
+/** The session is still ahead: a recovery is not what comes next, so it waits in the menu (from the session's day it
+ *  is a button of the page). */
 function beforeSession(data: Evaluation, today: string): boolean {
-  return !!data.session && today <= data.session.date;
+  return !!data.session && today < data.session.date;
 }
 
 function RecoverySheet({ open, onClose, course, data }: { open: boolean; onClose: () => void; course: CourseDetail; data: Evaluation }) {
@@ -176,7 +177,7 @@ function RecoverySheet({ open, onClose, course, data }: { open: boolean; onClose
       initial={{
         title: data.term === 4 ? `Recuperación ${finalRec}` : `Recuperación de la ${TERM_LABEL[data.term]}`, kind: 'exam',
         counts_for: 'recovery', recovers_term: data.term, student_ids: failing.map((r) => r.student.id),
-        ...(data.session && beforeSession(data, today) ? { date: addDays(data.session.date, 1) } : {}),
+        ...(data.session && today <= data.session.date ? { date: addDays(data.session.date, 1) } : {}), // never before the session is over
       }} />
   );
 }
@@ -372,9 +373,9 @@ function IncompleteGrades({ course, data, onOpen }: { course: CourseDetail; data
     <Callout tone="warn" icon={<Warning size={20} />}>
       <b>Notas incompletas.</b>{' '}
       {parts.map((p, i) => (
-        <span key={p.key}>{i > 0 && ' · '}<Link className="link-btn" to={p.to}>{p.text}</Link></span>
+        <span key={p.key} className="ev-incomplete">{i > 0 && <span className="ev-incomplete__sep"> · </span>}<Link className="link-btn" to={p.to}>{p.text}</Link></span>
       ))}
-      {data.pending_absent > 0 && <span>{parts.length > 0 && ' · '}
+      {data.pending_absent > 0 && <span className="ev-incomplete">{parts.length > 0 && <span className="ev-incomplete__sep"> · </span>}
         {absent.length === 1
           ? <button type="button" className="link-btn" onClick={() => onOpen(absent[0])}>{pending}</button>
           : absent.length > 1 ? <Link className="link-btn" to={column(data.rows[absent[0]].pending_exams[0].id)}>{pending}</Link>

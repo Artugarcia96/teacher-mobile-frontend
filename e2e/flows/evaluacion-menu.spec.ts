@@ -1,5 +1,5 @@
 import {
-  BASE, bug, confirmDialog, evalMenu, evalMenuItems, evaluation, expect, NAMES, openEvaluation, shot, studentRow,
+  BASE, confirmDialog, evalMenu, evalMenuItems, evaluation, expect, NAMES, openEvaluation, shot, studentRow,
   STUDENTS, terms, test, toast, type Api, type CourseSpec, type Page, type WorldSpec,
 } from './evaluacion-helpers';
 
@@ -216,7 +216,6 @@ test.describe('el día de la sesión de evaluación', () => {
   test.use({ worldSpec: { events: [{ ...SESSION, date: '2026-11-19' }], courses: [BASE] } });
 
   test('evaluacion-68 desde el día de la sesión, «Crear recuperación (2)» es un botón de la página', async ({ page, world }) => {
-    bug('EVA-02', 'on the day of the evaluation session «Crear recuperación» is still in the menu (docs/PRODUCT.md §4.6: visible from the session day)');
     await openEvaluation(page, world.c.id);
     await expect(page.getByRole('button', { name: 'Crear recuperación (2)' })).toBeVisible();
     expect(await evalMenuItems(page)).not.toContain('Crear recuperación (2)');
