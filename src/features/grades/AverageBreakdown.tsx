@@ -1,4 +1,4 @@
-import type { Gradebook, GradebookActivity, GradebookRow, GradeCell } from '../../api/gradebook';
+import { hasCell, type Gradebook, type GradebookActivity, type GradebookRow, type GradeCell } from '../../api/gradebook';
 import { useToday } from '../../lib/auth';
 import { formatAverage, formatNumber } from '../../lib/format';
 import { Grade, List, Row } from '../../ui';
@@ -11,8 +11,9 @@ const RULE_TEXT: Record<Gradebook['recovery_rule'], string> = {
 };
 
 /** Why a grade of the term does not count, in the teacher's words; null = it counts (or it is not there yet). */
-function leftOut(a: GradebookActivity, cell: GradeCell | undefined, today: string): string | null {
+function leftOut(a: GradebookActivity, cell: GradeCell | undefined, today: string, categories: Set<string>): string | null {
   if (a.counts_for === 'recovery') return null; // explained in its own line
+  if (a.counts_for === 'average' && !categories.has(a.category) && cell?.status === 'confirmed') return 'sin categoría';
   if (cell?.status === 'suggested') return 'borrador IA';
   if (cell?.status === 'pending_absent') return 'faltó, pendiente';
   if (cell?.status === 'absent') return 'NP';
@@ -37,8 +38,9 @@ export default function AverageBreakdown({ row, data }: { row: GradebookRow; dat
   const formula = final
     ? `(${used.map((c) => two(row.categories[c.key])).join(' + ')}) / ${used.length}`
     : `(${used.map((c) => `${two(row.categories[c.key])} × ${formatNumber(c.weight, 0)}`).join(' + ')}) / ${formatNumber(totalW, 0)}`;
+  const keys = new Set(categories.map((c) => c.key));
   const out = data.activities
-    .map((a) => ({ a, why: leftOut(a, row.grades[a.id], today) }))
+    .map((a) => ({ a, why: hasCell(a, row) ? leftOut(a, row.grades[a.id], today, keys) : null }))
     .filter((x): x is { a: GradebookActivity; why: string } => !!x.why)
     .reverse(); // oldest first, like the notebook on paper
 

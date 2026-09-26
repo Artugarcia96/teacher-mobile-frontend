@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import {
-  BASE, bug, csvRows, downloaded, evalMenu, expect, openEvaluation, pdfText, shot, STUDENTS, terms, test, toast, type Api,
+  BASE, csvRows, downloaded, evalMenu, expect, openEvaluation, pdfText, shot, STUDENTS, terms, test, toast, type Api,
   type CourseSpec, type Locator, type Page,
 } from './evaluacion-helpers';
 
@@ -168,7 +168,6 @@ test.describe('el informe de un profesor de Matemáticas y Física y Química', 
   });
 
   test('evaluacion-89 escribir y descargar sin salir del campo: la línea se guarda una vez y entra en el archivo', async ({ page }) => {
-    bug('EVA-04', 'leaving the field by pressing «Descargar» (or a term) saves the same new line twice at once; the second save can fail with a 500 (UNIQUE department_notes) and then no file is downloaded');
     const puts: string[] = [];
     // A save that takes a moment to answer (a phone on the school's Wi-Fi): the download must not save the line again.
     await page.route('**/api/courses/*/evaluation/1/department-note', async (r) => {

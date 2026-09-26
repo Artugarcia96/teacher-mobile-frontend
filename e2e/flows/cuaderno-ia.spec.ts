@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import {
-  average, bug, cell, cellInput, column, expect, openCuaderno, press, shot, test, type Api, type Gb, type Page, type TestInfo,
+  average, cell, cellInput, column, expect, openCuaderno, press, shot, test, type Api, type Gb, type Page, type TestInfo,
 } from './cuaderno-helpers';
 
 // Borradores de la IA en el Cuaderno (docs/PRODUCT.md §4.3, §4.5), on the demo's 2.º ESO B: «Examen U2 · Fracciones» was
@@ -125,7 +125,6 @@ test.describe('cuaderno · borradores de la IA (demo)', () => {
   });
 
   test('cuaderno-103 · looking at a draft and leaving the cell keeps it a draft', async ({ page, demo }, info) => {
-    bug('CUA-03', 'opening an AI-draft cell and tapping elsewhere confirms the AI grade (blur saves the pre-filled value): the AI writes a definitive grade');
     const { id, gb, u2 } = await demoClass(demo);
     const ainhoa = draftOf(gb, u2.id, 'Díaz Serrano, Ainhoa');
     try {

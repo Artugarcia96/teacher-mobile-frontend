@@ -50,3 +50,10 @@
 .ev-sheet__facts { display: grid; gap: 4px; font-size: var(--fs-footnote); color: var(--ink-2); }
 .ev-sheet__facts .btn--plain { height: 24px; padding: 0 6px; }
 .ev-row__final .grade-pill { align-items: center; }
+
+/* «Notas incompletas» on a touch screen: one link per line, each with its own 44 px, so the enlarged tap area of a
+   link never covers the one on the line above. */
+@media (pointer: coarse) {
+  .ev-incomplete { display: flex; align-items: center; min-height: 44px; }
+  .ev-incomplete__sep { display: none; }
+}

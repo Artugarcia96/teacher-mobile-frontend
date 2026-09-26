@@ -1,5 +1,5 @@
 export { Button, IconButton, Spinner } from './Button';
-export { Page, Section, ActionBar } from './Page';
+export { Page, Section, ActionBar, type Origin } from './Page';
 export { List, Row, RowIcon } from './List';
 export { Sheet } from './Sheet';
 export { ErrorBoundary } from './ErrorBoundary';

@@ -113,7 +113,7 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
         data-autofocus={autoFocus || undefined} onChange={(e) => set({ title: e.target.value })} />
       {derived ? (
         <p className="muted">
-          Nota calculada con las revisiones de deberes: 10 × (hechos + 0,5 · incompletos) / revisiones. Confírmala en el cuaderno.
+          Nota calculada con las revisiones de deberes: 10 × (hechos + 0,5 · incompletos) / revisiones. Cuenta ya en la media; si escribes otra nota, cuenta la tuya.
         </p>
       ) : (
         <div className="field">

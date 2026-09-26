@@ -29,11 +29,28 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
   const unsaved = (): DepartmentRow[] => (q.data?.term === term ? q.data.subjects.flatMap((x) => x.rows) : [])
     .filter((r) => texts[r.course.id] !== undefined && texts[r.course.id].trim() !== r.notes);
 
+  // Saves in flight, by term and class: the same text is sent once while it is on its way (leaving the field by
+  // pressing «Descargar» saves it on blur and again before the download: the second waits for the first). Once it
+  // settles, a later save always reaches the server.
+  const sent = useRef<Record<string, { text: string; done: Promise<unknown> }>>({});
+  const isSent = (r: DepartmentRow, text: string) => sent.current[`${term}:${r.course.id}`]?.text === text;
+  const store = (r: DepartmentRow, text: string) => {
+    const key = `${term}:${r.course.id}`;
+    if (isSent(r, text)) return sent.current[key].done;
+    const done = save.mutateAsync({ courseId: r.course.id, text });
+    sent.current[key] = { text, done };
+    const settle = () => { if (sent.current[key]?.done === done) delete sent.current[key]; };
+    done.then(settle, settle);
+    return done;
+  };
+
   /** Save every changed line; resolves when all are stored. */
   const flush = async (silent = false) => {
     for (const r of unsaved()) {
-      await save.mutateAsync({ courseId: r.course.id, text: texts[r.course.id] });
-      if (!silent) toast(`Guardado: ${r.course.label}`);
+      const text = texts[r.course.id];
+      const fresh = !isSent(r, text);
+      await store(r, text);
+      if (!silent && fresh) toast(`Guardado: ${r.course.label}`);
     }
   };
 
@@ -44,11 +61,8 @@ function Report({ onClose, initialTerm }: { onClose: () => void; initialTerm: nu
 
   const commit = (r: DepartmentRow) => {
     const text = texts[r.course.id];
-    if (text === undefined || text.trim() === r.notes) return;
-    save.mutate({ courseId: r.course.id, text }, {
-      onSuccess: () => toast(`Guardado: ${r.course.label}`),
-      onError: (e) => toast(e.message, { tone: 'error' }),
-    });
+    if (text === undefined || text.trim() === r.notes || isSent(r, text)) return;
+    store(r, text).then(() => toast(`Guardado: ${r.course.label}`), (e: Error) => toast(e.message, { tone: 'error' }));
   };
 
   const pickTerm = async (t: number) => {

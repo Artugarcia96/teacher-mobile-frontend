@@ -1,5 +1,5 @@
 import {
-  average, bug, cell, CLASS, column, confirmDialog, expect, gradebook, isMobile, NAMES, openCuaderno, press, sheet, shot, STUDENTS, test,
+  average, cell, CLASS, column, confirmDialog, expect, gradebook, isMobile, NAMES, openCuaderno, press, sheet, shot, STUDENTS, test,
   toast, typeGrade, type CourseSpec, type Page, type TestInfo, type World,
 } from './cuaderno-helpers';
 
@@ -125,7 +125,6 @@ test.describe('cuaderno · faltas en exámenes y repescas', () => {
   });
 
   test('cuaderno-58 · a repesca whose day has passed without a grade shows up again as pending', async ({ page, world }) => {
-    bug('CUA-10', 'PendingWork drops every student with a repesca (cell.activity_id) for good: after the repesca\'s day, still without a grade, the Cuaderno never flags him again');
     await world.api.post(`/activities/${world.act[EXAM]}/repeat`, { date: '2026-11-17', student_ids: [world.students[1].id] });
     await openCuaderno(page, world.id);
     await expect(cell(page, PABLO, EXAM)).toHaveText('Pendiente');

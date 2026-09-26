@@ -27,6 +27,8 @@ export interface GradeCell {
   /** Set when the grade lives in (and is edited through) a repeat exam. */
   activity_id?: string | null;
   repeat?: boolean;
+  /** Date of that repeat exam (with `activity_id`). */
+  repeat_date?: string | null;
 }
 export interface GradebookRow {
   student: StudentRef;
@@ -41,6 +43,14 @@ export interface GradebookRow {
   qualitative: string | null;
   recovery: { before: number | null; score: number; activity_id: string } | null;
   drafts: number;
+  /** Joined the class mid-year (ISO date): the activities before have no cell, except «Deberes». */
+  since: string | null;
+}
+
+/** Whether the student has a cell in the activity: the subset of a recovery or repeat, and nothing before they joined. */
+export function hasCell(a: GradebookActivity, row: GradebookRow): boolean {
+  if (a.student_ids && !a.student_ids.includes(row.student.id)) return false;
+  return !row.since || a.kind === 'homework' || a.date >= row.since;
 }
 export interface Gradebook {
   term: number; term_label: string; stage: string; categories: Category[];

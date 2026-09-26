@@ -365,7 +365,6 @@ test.describe('clases · ponderaciones', () => {
   });
 
   test('clases-45b · an activity whose category was removed stops counting, as the confirmation said', async ({ page, teacher }) => {
-    bug('BUG-CLASES-02', 'grading.compute_term folds an activity of a removed category into the first category: it keeps counting');
     const [c] = teacher.courses;
     const sheet = await openWeights(page, c.id);
     await sheet.getByRole('button', { name: 'Quitar Exámenes' }).click();

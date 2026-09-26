@@ -152,7 +152,6 @@ test.describe('una evaluación con notas', () => {
   });
 
   test('evaluacion-26 volver desde una evaluación abierta desde Evaluar: «‹ Evaluar» y vuelve a la bandeja', async ({ page, world }) => {
-    bug('EVA-01', 'Evaluación opened from Evaluar says «‹ Cuaderno» and goes to the Cuaderno (docs/PRODUCT.md §3: Volver names its origin)');
     await page.goto('/evaluar');
     await evaluarClass(page, /^2\.º ESO C · Matemáticas/).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Primera evaluación');
@@ -213,7 +212,6 @@ test.describe('una evaluación con todo lo que puede decir una fila', () => {
   });
 
   test('evaluacion-76 cada enlace de «Notas incompletas» abre lo suyo: la actividad por revisar y la columna sin notas', async ({ page, world }, info) => {
-    bug('EVA-06', 'on a phone each «Notas incompletas» link that wraps is covered by the enlarged tap area of the next one: tapping «Examen U2 · Fracciones: 1 por revisar» opens «Trabajo · Proyecto», and that one opens Irene\'s sheet', isMobile(info));
     await openEvaluation(page, world.c.id, 1);
     const callout = page.locator('.callout').filter({ hasText: 'Notas incompletas.' });
     // A finger lands where the link is drawn, whatever is on top (force: no waiting for the link to be the target).
