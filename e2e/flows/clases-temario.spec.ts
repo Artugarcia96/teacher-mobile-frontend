@@ -144,7 +144,6 @@ test.describe('clases · temario', () => {
   });
 
   test('clases-51b · a reorder the server refuses goes back and says so', async ({ page, teacher }) => {
-    bug('BUG-CLASES-08', 'PlanTab passes onError to order.mutate(): it never fires, the row snaps back without a word');
     const [c] = teacher.courses;
     await page.route((url) => url.pathname === `/api/courses/${c.id}/units/order`, (route) =>
       route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
@@ -237,8 +236,7 @@ test.describe('clases · temario', () => {
     await expect(unitTitles(page, '1.ª evaluación')).toHaveText(['Números enteros', 'Potencias y raíces']);
   });
 
-  test('clases-54b · a unit without evaluación stays without it when renamed', async ({ page, teacher }) => {
-    bug('BUG-CLASES-06', 'UnitFormSheet starts the evaluación at the current term when the unit has none: «Renombrar» moves it to the 1.ª');
+  test('clases-54b · a unit without evaluación stays without it when renamed', async ({ page, teacher }, info) => {
     const [c] = teacher.courses;
     const loose = await teacher.api.post(`/courses/${c.id}/units`, { title: 'Repaso de verano', term: null });
     await openClass(page, c.id, 'programacion', '2.º ESO C');
@@ -248,6 +246,8 @@ test.describe('clases · temario', () => {
     await page.getByRole('button', { name: 'Más opciones' }).click();
     await page.getByRole('menuitem', { name: 'Renombrar' }).click();
     const sheet = dialog(page, 'Editar unidad');
+    await expect(sheet.getByRole('group', { name: 'Evaluación' }).getByRole('button', { name: 'Sin evaluación' })).toHaveAttribute('aria-pressed', 'true');
+    await shot(page, info, '54b-editar-sin-evaluacion');
     await sheet.getByRole('textbox', { name: 'Título' }).fill('Repaso de verano (cuadernillo)');
     await sheet.getByRole('button', { name: 'Guardar' }).click();
     await expect(toast(page, 'Unidad actualizada')).toBeVisible();
@@ -301,11 +301,11 @@ test.describe('clases · temario', () => {
   });
 
   test('clases-57b · a unit that does not exist says so once, and why', async ({ page, teacher }) => {
-    bug('BUG-CLASES-09', 'UnitPage shows the 404 message as the text under the title: «No se ha encontrado la unidad» twice, and no reason');
     const [c] = teacher.courses;
     await page.goto(`/clases/${c.id}/unidades/00000000-0000-0000-0000-000000000000`);
     await expect(page.getByText('No se ha encontrado la unidad', { exact: true })).toBeVisible();
     await expect(page.getByText(/No se ha encontrado la unidad/)).toHaveCount(1);
+    await expect(page.getByText('Puede que se haya eliminado.')).toBeVisible();
   });
 
   test('clases-62 · a failed load of the units says so', async ({ page, teacher }) => {

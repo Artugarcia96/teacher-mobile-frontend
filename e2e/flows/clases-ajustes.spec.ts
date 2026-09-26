@@ -66,17 +66,20 @@ test.describe('clases · ajustes de la clase', () => {
   });
 
   test('clases-37b · what the server does not accept is stopped in the form, in words the teacher understands', async ({ page, teacher }) => {
-    bug('BUG-CLASES-04', 'Aula (> 40) and Materia (> 80) reach the server and come back as «Revisa el campo «room»» / «subject»');
     const [c] = teacher.courses;
     const sheet = await openSettings(page, c.id);
+    // Like «Abreviatura», each field keeps to what the server stores: Aula 40 characters, Materia 80.
     const room = sheet.getByRole('textbox', { name: 'Aula' });
     await room.fill('Aula de Música del edificio antiguo, planta 2');
+    await expect(room).toHaveValue('Aula de Música del edificio antiguo, pla');
+    const subject = sheet.getByRole('textbox', { name: 'Materia' });
+    await subject.fill('M'.repeat(90));
+    await expect(subject).toHaveValue('M'.repeat(80));
+    await subject.fill('Matemáticas');
     await saveButton(sheet).click();
-    await expect(sheet.getByText(/Revisa el campo «/)).toHaveCount(0);
-    // Like «Abreviatura», the field keeps to what the server stores (40 characters).
-    expect((await room.inputValue()).length).toBeLessThanOrEqual(40);
-    await sheet.getByRole('textbox', { name: 'Materia' }).fill('M'.repeat(90));
-    expect((await sheet.getByRole('textbox', { name: 'Materia' }).inputValue()).length).toBeLessThanOrEqual(80);
+    await expect(toast(page, 'Cambios guardados')).toBeVisible();
+    await expect(page.getByText(/Revisa el campo «/)).toHaveCount(0);
+    expect((await teacher.api.get(`/courses/${c.id}`)).room).toBe('Aula de Música del edificio antiguo, pla');
   });
 
   test('clases-38 · the timetable is edited on the grid; past lists are kept', async ({ page, teacher }, info) => {
@@ -146,7 +149,6 @@ test.describe('clases · ajustes de la clase', () => {
   });
 
   test('clases-41b · archiving the only class: Clases still offers it back', async ({ page, teacher }) => {
-    bug('BUG-CLASES-07', 'with no active class, Clases shows only «Crea tu primera clase»: the archived ones cannot be seen nor recovered');
     const [c] = teacher.courses;
     const sheet = await openSettings(page, c.id);
     await sheet.getByRole('button', { name: 'Archivar clase' }).click();
@@ -321,7 +323,6 @@ test.describe('clases · ponderaciones', () => {
   });
 
   test('clases-44b · a weight over 100 is stopped with a reason, not sent to the server', async ({ page, teacher }) => {
-    bug('BUG-CLASES-04', 'a weight of 150 is sent and the sheet shows «Revisa el campo «categories.0.weight».»');
     const [c] = teacher.courses;
     const sheet = await openWeights(page, c.id);
     await sheet.getByRole('spinbutton', { name: 'Peso de Exámenes' }).fill('150');

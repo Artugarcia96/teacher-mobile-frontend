@@ -1,5 +1,5 @@
 import {
-  bug, classRow, DEMO_1A, DEMO_1BACH, DEMO_2B, DEMO_3A, demoCourse, dialog, expect, isMobile, MATES_2C, shot, test, toast,
+  classRow, DEMO_1A, DEMO_1BACH, DEMO_2B, DEMO_3A, demoCourse, dialog, expect, isMobile, MATES_2C, shot, test, toast,
 } from './clases-helpers';
 
 // Clases (docs/PRODUCT.md §3, §4.9): the list with its facts and pending chips, the search (students and classes, Enter
@@ -93,12 +93,12 @@ test.describe('clases · lista (demo)', () => {
   test('clases-06 · Enter in the search box opens the first result', async ({ page }) => {
     await page.goto('/clases');
     const box = page.getByRole('searchbox', { name: 'Buscar alumno o clase' });
-    // Enter once the results are on screen, as a person reads them first (an Enter pressed while the search is still
-    // answering is lost: BUG-CLASES-01, clases-06b).
-    const enterOpens = async (opened: ReturnType<typeof page.getByRole>) => expect(async () => {
-      if (await box.isVisible()) await box.press('Enter');
-      await expect(opened).toBeVisible({ timeout: 1000 });
-    }).toPass();
+    // Enter once the results are on screen, as a person reads them first (pressed while the search is still answering:
+    // clases-06b).
+    const enterOpens = async (opened: ReturnType<typeof page.getByRole>) => {
+      await box.press('Enter');
+      await expect(opened).toBeVisible();
+    };
     await box.fill('dominguez marin');
     await expect(page.getByRole('button', { name: /^Domínguez Marín, Hugo/ })).toBeVisible();
     await enterOpens(page.getByRole('heading', { level: 1, name: /Hugo/ }));
@@ -111,7 +111,6 @@ test.describe('clases · lista (demo)', () => {
   });
 
   test('clases-06b · Enter pressed right after typing opens the first result of what was typed', async ({ page, demo }) => {
-    bug('BUG-CLASES-01', 'Enter uses the debounced previous search: opens the previous first result, or nothing while it loads');
     const fyq = await demoCourse(demo, DEMO_3A);
     const hugo = (await demo.get('/search?q=dominguez%20marin')).students[0].student;
     // A school network: each search takes 0,8 s to answer. The teacher does not wait for the list to press Enter.

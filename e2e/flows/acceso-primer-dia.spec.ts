@@ -259,10 +259,9 @@ test('acceso-33 · la lista desde un archivo (Excel y CSV) llena la misma vista 
   expect(errors).toEqual([]);
 });
 
-// BUG acceso-B03: rows copied from a table (Séneca, Raíces, a spreadsheet: tab-separated) skip the title line without a
-// word, while the same list pasted as plain lines says «Línea 1 ignorada: …» (docs/PRODUCT.md §4.1).
+// Rows copied from a table (Séneca, Raíces, a spreadsheet: tab-separated) say which title line they skip, as the same
+// list pasted as plain lines does: «Línea 1 ignorada: …» (docs/PRODUCT.md §4.1).
 test('acceso-34 · filas copiadas de una tabla (con tabuladores) avisan de la línea de título que se salta', async ({ page, request }, info) => {
-  test.fail(true, 'acceso-B03: roster.parse_rows salta las líneas de título sin aviso');
   const acc = await registerAccount(request, info, 'tabla');
   const course = await createCourse(acc, request);
   await openAs(page, acc, `/clases/${course.id}/alumnos?anadir=1`);

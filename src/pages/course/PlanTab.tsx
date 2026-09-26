@@ -165,7 +165,7 @@ function UnitRow({ unit, courseId, all, first, last }: { unit: Unit; courseId: s
     }
   };
 
-  const move = (dir: -1 | 1) => {
+  const move = async (dir: -1 | 1) => {
     const same = all.filter((u) => u.term === unit.term);
     const i = same.findIndex((u) => u.id === unit.id);
     const other = same[i + dir];
@@ -174,7 +174,11 @@ function UnitRow({ unit, courseId, all, first, last }: { unit: Unit; courseId: s
     const a = ids.indexOf(unit.id);
     const b = ids.indexOf(other.id);
     [ids[a], ids[b]] = [ids[b], ids[a]];
-    order.mutate(ids, { onError: (e) => toast((e as Error).message, { tone: 'error' }) });
+    try {
+      await order.mutateAsync(ids); // the row moves at once and goes back if the server refuses
+    } catch (e) {
+      toast((e as Error).message, { tone: 'error' });
+    }
   };
 
   const remove = async () => {

@@ -94,7 +94,7 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
       footer={<Button full onClick={submit} loading={create.isPending} disabled={!!blocker}>{blocker ?? 'Crear clase'}</Button>}>
       <div className="form">
         <div className="chips-field">
-          <TextField label="Materia" placeholder="Matemáticas" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <TextField label="Materia" placeholder="Matemáticas" value={subject} maxLength={80} onChange={(e) => setSubject(e.target.value)} />
           <div className="chip-row">
             {SUBJECTS.map(([label, full]) => (
               <Chip key={full} selected={subject === full} onClick={() => setSubject(full)}>{label}</Chip>
@@ -114,7 +114,7 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
           )}
           {isNew && (
             <div className="new-group">
-              <TextField aria-label="Nombre del grupo" placeholder="2.º ESO B" value={groupName}
+              <TextField aria-label="Nombre del grupo" placeholder="2.º ESO B" value={groupName} maxLength={80}
                 onChange={(e) => onGroupName(e.target.value)} />
               <Select aria-label="Etapa" value={stage} onChange={(e) => { setStage(e.target.value as GroupRef['stage']); setTouched(true); }}>
                 {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -142,7 +142,7 @@ export default function NewCourseSheet({ open, onClose }: { open: boolean; onClo
           <ScheduleEditor value={schedule} onChange={setSchedule} />
         </div>
 
-        <TextField label="Aula" placeholder="204" value={room} onChange={(e) => setRoom(e.target.value)} />
+        <TextField label="Aula" placeholder="204" value={room} maxLength={40} onChange={(e) => setRoom(e.target.value)} />
 
         <div className="chips-field">
           <span className="field__label">Color</span>

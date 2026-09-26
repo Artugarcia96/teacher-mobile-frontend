@@ -61,7 +61,7 @@ export default function UnitPage() {
     return (
       <Page title="Unidad" back={planPath} backLabel="Temario">
         <EmptyState icon={<WarningCircle size={24} />} title={missing ? 'No se ha encontrado la unidad' : 'No se ha podido cargar la unidad'}
-          text={(error as Error).message}
+          text={missing ? 'Puede que se haya eliminado.' : (error as Error).message}
           action={missing
             ? <Button variant="neutral" to={planPath}>Volver al temario</Button>
             : <Button variant="tinted" onClick={() => refetch()}>Reintentar</Button>} />

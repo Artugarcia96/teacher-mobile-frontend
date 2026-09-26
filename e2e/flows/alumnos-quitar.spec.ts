@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import {
-  bug, confirmSheet, expect, fileMenu, MATES_2C, openFile, openRoster, rosterRow, section, sheet, shot, test, toast,
+  confirmSheet, expect, fileMenu, MATES_2C, openFile, openRoster, rosterRow, section, sheet, shot, test, toast,
 } from './alumnos-helpers';
 
 // Quitar a un alumno de un grupo (ficha › «···»): it asks first, the student and his grades are kept, the roster and
@@ -107,7 +107,6 @@ test.describe('two groups', () => {
   });
 
   test('alumnos-72 the search knows at once that a removed student is in no class', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-06', 'removing (or adding) a student does not refresh the search: for 30 s the same search still shows the old classes');
     await search(page, 'marta');
     const hit = page.getByRole('button', { name: /Alonso Gil, Marta/ });
     await expect(hit).toContainText('2.º ESO C · Mates');
