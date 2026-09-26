@@ -1,4 +1,4 @@
-/** Asistencia de la clase por evaluación: listas de hoy, listas sin pasar (últimos 14 días lectivos) y faltas por alumno. */
+/** Asistencia de la clase por evaluación: listas de hoy, listas sin pasar y pasadas (últimos 14 días lectivos) y faltas por alumno. */
 import { CalendarBlank, Check, DotsThree, ListChecks, WarningCircle, XCircle } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useAttendanceSummary, useBulkTaken, type SessionSlot } from '../../api/attendance';
@@ -109,6 +109,24 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
             </List>
           )}
         </Section>}
+        {s.past_lists.length > 0 && (
+          <Section title="Listas pasadas" footer="Últimos 14 días lectivos.">
+            <List>
+              {s.past_lists.map((l) => {
+                const marks = [
+                  l.absent > 0 && plural(l.absent, 'falta sin justificar', 'faltas sin justificar'),
+                  l.justified > 0 && plural(l.justified, 'justificada', 'justificadas'),
+                  l.late > 0 && plural(l.late, 'retraso', 'retrasos'),
+                ].filter(Boolean);
+                return (
+                  <Row key={`${l.date}-${l.start}`} title={longDate(l.date)}
+                    sub={[`${l.start}–${l.end}`, marks.length ? marks.join(' · ') : 'Todos presentes'].join(' · ')}
+                    trail={<Button size="sm" variant="tinted" onClick={() => setSheet(l)}>Editar lista</Button>} />
+                );
+              })}
+            </List>
+          </Section>
+        )}
       </>
     );
   }

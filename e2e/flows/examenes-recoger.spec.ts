@@ -134,7 +134,6 @@ test.describe('examenes · recoger', () => {
     if (isMobile(info)) {
       await expect(add.getByRole('button', { name: 'Hacer fotos' })).toBeVisible();
     } else {
-      bug('EX-01', '«Hacer fotos» shows on a computer: .btn overrides .dropzone__camera { display: none }');
       await expect(add.getByRole('button', { name: 'Hacer fotos' })).toBeHidden();
     }
   });
@@ -386,7 +385,6 @@ test.describe('examenes · recoger', () => {
     const foreign = p.c.unplaced.find((x: { exam_code: string | null }) => x.exam_code && codes.has(x.exam_code) && codes.get(x.exam_code) !== exam.title);
     if (!foreign) throw new Error('The demo pile has no page of another exam: reseed the demo');
     // Its marker was read (a Sepia code of another exam of this teacher), even when the AI took the page for «another document».
-    if (foreign.reason === 'otro') bug('EX-04', 'a page carrying the marker of another exam of the teacher, classified «other» by the AI, is shown as «Otro documento»: papers.sort_pile only looks the code up for exam pages');
     await openCollect(page, exam.url, exam.title);
     await expect(section(page, /^Páginas por colocar/)).toContainText(`Del examen «${codes.get(foreign.exam_code)}» · 2.º ESO B`);
   });

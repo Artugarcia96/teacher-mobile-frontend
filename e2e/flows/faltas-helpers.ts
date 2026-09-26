@@ -155,7 +155,7 @@ function weekdaysBefore(weekday: number): string[] {
 export interface PastLists { start: string; end: string; missing: string[]; restore: (api: Api) => Promise<void> }
 /** Gives a demo class (created in September) a slot nobody has taken a list of (by default on Wednesday afternoon):
  *  its lists of the last weeks are due («Listas sin pasar»), the real state of a teacher who forgot them. On Thursday
- *  early in the morning (`{ weekday: THU, from: 6 * 60 }`) today's list is one of them: ended and still due.
+ *  early in the morning (`{ weekday: THU, from: 6 * 60 }`) today's list has ended too and is still due (under «Hoy»).
  *  `restore(api)` removes the slot and undoes what the test did to those lists (marks back to present, cancellations). */
 export async function pastLists(demo: Api, c: DemoCourse, { weekday = WED, from = 16 * 60 } = {}): Promise<PastLists> {
   const dates = weekday === THU ? [TODAY, ...weekdaysBefore(weekday)] : weekdaysBefore(weekday);

@@ -1,5 +1,5 @@
 import {
-  bug, CLASS, closed, countListSaves, demoCourse, dialog, expect, LABEL, list, listSheet, longDate, mark, missingRow, openFaltas,
+  CLASS, closed, countListSaves, demoCourse, dialog, expect, LABEL, list, listSheet, longDate, mark, missingRow, openFaltas,
   pastLists, rosterRow, rowOptions, section, shot, studentRow, summary, tapTo, test, toast, todayRow, TODAY, type Api,
   type DemoCourse, type PastLists,
 } from './faltas-helpers';
@@ -397,14 +397,13 @@ test.describe('faltas · listas sin pasar (demo)', () => {
   });
 
   test('faltas-26 · the tab keeps the lists already taken, and one of a past day opens from there', async ({ page, demo }) => {
-    bug('FALTAS-BUG-03', 'Faltas only shows today\'s lists and the ones still due: a list taken on an earlier day cannot be seen or edited from the tab (PRODUCT §2: «Listas pasadas, faltas y retrasos de la clase»)');
     const day = past.missing[0];
     const students = (await demo.get(`/courses/${c.id}/attendance?date=${day}&start=${past.start}`)).students.map((r: { student: unknown }) => r.student);
     await mark(demo, c.id, day, past.start, [{ student: students[0], status: 'absent' }]);
     await openFaltas(page, c.id);
-    const taken = page.locator('main .row').filter({ hasText: longDate(day) });
-    await expect(taken).toHaveCount(1, { timeout: 5_000 });
-    await taken.getByRole('button').first().click();
+    const taken = section(page, 'Listas pasadas').locator('.row').filter({ hasText: longDate(day) }).filter({ hasText: `${past.start}–${past.end}` });
+    await expect(taken).toContainText('1 falta sin justificar');
+    await taken.getByRole('button', { name: 'Editar lista' }).click();
     const sheet = await listSheet(page);
     await expect(sheet.getByText(`${longDate(day)} · ${past.start}–${past.end}`)).toBeVisible();
     await expect(rosterRow(sheet, 1)).toHaveAccessibleName(/: Falta\./);

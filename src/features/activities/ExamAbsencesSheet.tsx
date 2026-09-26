@@ -23,13 +23,13 @@ export default function ExamAbsencesSheet({ activityId, onClose, course, missing
       </Sheet>
     );
   }
-  return <Absences key={q.data.id} activity={q.data} onClose={onClose} course={course} missing={missing} received={received} />;
+  return <Absences key={q.data.id} activity={q.data} fetching={q.isFetching} onClose={onClose} course={course} missing={missing} received={received} />;
 }
 
 type Absent = ActivityDetail['absent_students'][number];
 
-function Absences({ activity, onClose, course, missing, received }: {
-  activity: ActivityDetail; onClose: () => void; course: CourseDetail; missing: StudentRef[]; received: number | null;
+function Absences({ activity, fetching, onClose, course, missing, received }: {
+  activity: ActivityDetail; fetching: boolean; onClose: () => void; course: CourseDetail; missing: StudentRef[]; received: number | null;
 }) {
   const today = useToday();
   const { toast, confirm } = useFeedback();
@@ -44,7 +44,18 @@ function Absences({ activity, onClose, course, missing, received }: {
   }));
   const everyone = [...activity.absent_students, ...noPaper];
   const pending = everyone.filter((a) => a.pending);
-  const [picked, setPicked] = useState<string[]>(() => pending.filter((a) => !a.repeat_id).map((a) => a.student.id));
+  // Chosen by default: whoever is still to decide. When the activity comes back changed (a repesca just scheduled
+  // lands after the sheet reopened), only those who left or joined that group change; the teacher's own picks stay.
+  const undecided = pending.filter((a) => !a.repeat_id).map((a) => a.student.id);
+  const [picked, setPicked] = useState<string[]>(undecided);
+  const [pickedFor, setPickedFor] = useState(undecided);
+  if (pickedFor.join() !== undecided.join()) {
+    setPickedFor(undecided);
+    setPicked((p) => [
+      ...p.filter((id) => undecided.includes(id) || !pickedFor.includes(id)),
+      ...undecided.filter((id) => !pickedFor.includes(id) && !p.includes(id)),
+    ]);
+  }
   const nextDate = course.next_session?.date && course.next_session.date > today ? course.next_session.date : addDays(today, 7);
   const [date, setDate] = useState(nextDate);
   const chosen = pending.filter((a) => picked.includes(a.student.id));
@@ -94,8 +105,11 @@ function Absences({ activity, onClose, course, missing, received }: {
         : `${longDate(activity.date)} · según la lista de ese día`}
       footer={chosen.length > 0 ? (
         <>
-          <Button variant="neutral" onClick={markNP} loading={np.isPending}>Poner NP ({chosen.length})</Button>
-          <Button onClick={schedule} loading={repeat.isPending}>Programar repesca ({chosen.length})</Button>
+          {/* Until the activity is fresh, a student may already have a repesca the sheet does not show yet. */}
+          <Button variant="neutral" onClick={markNP} loading={np.isPending} disabled={fetching}
+            title={fetching ? 'Actualizando las faltas' : undefined}>Poner NP ({chosen.length})</Button>
+          <Button onClick={schedule} loading={repeat.isPending} disabled={fetching}
+            title={fetching ? 'Actualizando las faltas' : undefined}>Programar repesca ({chosen.length})</Button>
         </>
       ) : undefined}>
       <div className="form">

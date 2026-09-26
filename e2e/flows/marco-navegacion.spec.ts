@@ -242,9 +242,6 @@ test('marco-07 · direcciones con ids que no existen (o de otro profesor) lo dic
 });
 
 test('marco-11 · la revisión de un examen que ya no existe lo dice con una frase y vuelve al examen', async ({ page, demo }) => {
-  // BUG marco-B5: the review asks for the activity, gets «No se ha encontrado la actividad.» (404) and never says so:
-  // the page stays on its loading placeholder under «‹ Examen» for good.
-  bug('marco-B5', 'the review of an activity that does not exist stays on its loading placeholder forever');
   const ids = await demoIds(demo);
   const c = `/clases/${ids.course}`;
   await page.goto(`${c}/actividades/borrada/revisar`);

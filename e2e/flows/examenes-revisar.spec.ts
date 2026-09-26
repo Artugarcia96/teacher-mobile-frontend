@@ -526,3 +526,15 @@ test.describe('examenes · revisar sin rúbrica', () => {
   });
 });
 
+
+test.describe('examenes · revisar una clase sin alumnos', () => {
+  test.use({ worldSpec: { students: [], activities: [{ title: 'Examen U1 · Números', date: '2026-11-17' }] } });
+
+  test('examenes-88 · the review of an exam with nobody to review says so and goes back to the exam', async ({ page, world }) => {
+    const id = world.act['Examen U1 · Números'];
+    await page.goto(`/clases/${world.id}/actividades/${id}/revisar`);
+    await expect(page.getByText('No hay alumnos que revisar')).toBeVisible();
+    await page.getByRole('button', { name: 'Volver al examen' }).click();
+    await expect(page).toHaveURL(new RegExp(`/actividades/${id}$`));
+  });
+});

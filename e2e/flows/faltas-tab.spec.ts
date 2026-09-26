@@ -1,5 +1,5 @@
 import {
-  bug, CLASS, closed, countListSaves, demoCourse, dialog, expect, headings, isMobile, listSheet, missingRow, openFaltas, pastLists, plural,
+  CLASS, closed, countListSaves, demoCourse, dialog, expect, headings, isMobile, listSheet, missingRow, openFaltas, pastLists, plural,
   rosterRow, section, shortDay, shot, studentRow, summary, tapTo, test, todayRow, TODAY, THU,
 } from './faltas-helpers';
 
@@ -16,7 +16,7 @@ test.describe('faltas · la pestaña (demo)', () => {
     const terms = page.getByRole('group', { name: 'Evaluación' });
     await expect(terms.getByRole('button')).toHaveText(['1.ª', '2.ª', '3.ª']);
     await expect(terms.getByRole('button', { name: '1.ª' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(headings(page)).toHaveText(['Hoy', 'Por alumno']);
+    await expect(headings(page)).toHaveText(['Hoy', 'Por alumno', 'Listas pasadas']);
     const [today] = (await summary(demo, c.id)).today; // 10:20–11:15, on now
     expect(today.start).toBe('10:20');
     await expect(todayRow(page, '10:20–11:15')).toContainText(today.taken ? 'Lista pasada' : 'Lista sin pasar');
@@ -26,7 +26,7 @@ test.describe('faltas · la pestaña (demo)', () => {
 
     await page.reload();
     await expect(page.getByRole('group', { name: 'Secciones de la clase' }).getByRole('button', { name: 'Faltas' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(headings(page)).toHaveText(['Hoy', 'Por alumno']);
+    await expect(headings(page)).toHaveText(['Hoy', 'Por alumno', 'Listas pasadas']);
   });
 
   test('faltas-02 · «Por alumno»: the server\'s students and counts, most unjustified absences first', async ({ page, demo }) => {
@@ -68,7 +68,7 @@ test.describe('faltas · la pestaña (demo)', () => {
     }
     await terms.getByRole('button', { name: '1.ª' }).click();
     await expect(section(page, 'Por alumno').getByRole('link')).toHaveCount(count);
-    await expect(headings(page)).toHaveText(['Hoy', 'Por alumno']);
+    await expect(headings(page)).toHaveText(['Hoy', 'Por alumno', 'Listas pasadas']);
   });
 
   test('faltas-04 · a student opens her file unfolded at Asistencia, with the same absences dated; back returns to Faltas', async ({ page, demo }, info) => {
@@ -164,17 +164,16 @@ test.describe('faltas · la pestaña (demo)', () => {
 
 test.describe('faltas · una lista del día que ya terminó (demo)', () => {
   test('faltas-08 · a list ended today and still due is shown once, not in «Hoy» and again in «Listas sin pasar»', async ({ page, demo }, info) => {
-    bug('FALTAS-BUG-01', 'today\'s ended list is listed twice: in «Hoy» and in «Listas sin pasar» (same date and time)');
     const c = await demoCourse(demo, 'Matemáticas I · 1.º Bach B');
     const early = await pastLists(demo, c, { weekday: THU, from: 6 * 60 }); // ended at dawn, nobody took it
     try {
-      expect(early.missing).toContain(TODAY);
+      expect(early.missing).not.toContain(TODAY); // the lists still due are the Thursdays before
       await openFaltas(page, c.id);
-      await expect(todayRow(page, `${early.start}–${early.end}`)).toContainText('Lista sin pasar');
-      await shot(page, info, '08-twice');
-      // Today's list, in «Hoy» or among the lists still due (whose other rows are the Thursdays before), but not in both.
       const times = `${early.start}–${early.end}`;
-      await expect.poll(async () => (await todayRow(page, times).count()) + (await missingRow(page, TODAY).filter({ hasText: times }).count())).toBe(1);
+      await expect(todayRow(page, times)).toContainText('Lista sin pasar');
+      await shot(page, info, '08-once');
+      await expect(missingRow(page, early.missing[0]).filter({ hasText: times })).toHaveCount(1);
+      await expect(missingRow(page, TODAY).filter({ hasText: times })).toHaveCount(0);
     } finally {
       await early.restore(demo);
     }

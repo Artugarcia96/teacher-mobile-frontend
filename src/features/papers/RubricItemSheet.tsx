@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { RubricItem } from '../../api/papers';
 import { formatNumber } from '../../lib/format';
 import { Button, RichText, Sheet, Stepper, TextArea, useFeedback } from '../../ui';
@@ -19,12 +19,17 @@ export default function RubricItemSheet({ item, isNew, onClose, onSave, onDelete
   const [answer, setAnswer] = useState('');
   const [points, setPoints] = useState(1);
 
-  useEffect(() => {
-    if (!item) return;
-    setText(item.text);
-    setAnswer(item.answer);
-    setPoints(item.points);
-  }, [item]);
+  // The draft starts from the question when its sheet opens; the rubric coming back from the server meanwhile does not
+  // touch what is being typed.
+  const [openFor, setOpenFor] = useState<string | null>(null);
+  if ((item?.id ?? null) !== openFor) {
+    setOpenFor(item?.id ?? null);
+    if (item) {
+      setText(item.text);
+      setAnswer(item.answer);
+      setPoints(item.points);
+    }
+  }
 
   const dirty = !!item && (text !== item.text || answer !== item.answer || points !== item.points);
   const remove = async () => {

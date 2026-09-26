@@ -9,9 +9,9 @@
 .dropzone__title { font-weight: 600; }
 .dropzone__hint { color: var(--ink-2); font-size: var(--fs-footnote); margin-top: 2px; }
 .dropzone__actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.dropzone__camera { display: none; }
+.dropzone__actions > .dropzone__camera { display: none; } /* .btn sets display: only a touch screen has the camera */
 @media (pointer: coarse) {
-  .dropzone__camera { display: inline-flex; }
+  .dropzone__actions > .dropzone__camera { display: inline-flex; }
   .dropzone__actions { width: 100%; }
   .dropzone__actions > .btn { flex: 1; }
 }

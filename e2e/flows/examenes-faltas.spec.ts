@@ -1,5 +1,5 @@
 import {
-  answer, bug, detail, dialog, esc, expect, NAMES, openActivity, shot, stepHead, test, toast,
+  answer, detail, dialog, esc, expect, NAMES, openActivity, shot, stepHead, test, toast,
 } from './examenes-helpers';
 
 // Who missed the exam (docs/PRODUCT.md §4.3 · asistencia del día del examen): the attendance list of the exam day marks
@@ -225,7 +225,6 @@ test.describe('examenes · la hoja de faltas justo después de programar una rep
   test.use({ worldSpec: { activities: [{ title: EXAM, date: DAY }], absences: [{ date: DAY, start: '11:45', student: 1 }, { date: DAY, start: '11:45', student: 2 }] } });
 
   test('examenes-82 · reopened at once (a slow connection), the sheet does not choose again the student who now has a repesca', async ({ page, world }) => {
-    bug('EX-03', 'ExamAbsencesSheet picks its students once, from the activity as cached: reopened before the refetch lands, it keeps choosing the student who now has a repesca («Poner NP (2)»), and never updates');
     const id = world.act[EXAM];
     await openActivity(page, `/clases/${world.id}/actividades/${id}`, EXAM);
     // The school Wi-Fi: the activity takes a while to come back after the repesca is scheduled.
@@ -241,6 +240,8 @@ test.describe('examenes · la hoja de faltas justo después de programar una rep
     await sheet.getByRole('button', { name: 'Programar repesca (1)' }).click();
     await expect(toast(page, /^Repesca el /)).toBeVisible();
     await page.getByRole('button', { name: /^Faltaron 2 alumnos/ }).click();
+    // Until the activity is back, nothing can be decided from the old list.
+    await expect(sheet.getByRole('button', { name: /^Poner NP/ })).toBeDisabled();
     // Pablo has his repesca: only Lucía is still to decide.
     await expect(sheet.getByRole('button', { name: 'Poner NP (1)' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Pablo Benítez' })).toHaveAttribute('aria-pressed', 'false');
