@@ -28,7 +28,6 @@
   --ink: #1C1C1E;
   --ink-2: #6B6A67;
   --line: rgba(40, 36, 30, 0.10);
-  --line-strong: rgba(40, 36, 30, 0.18);
   --fill: rgba(40, 36, 30, 0.05);
   --accent: #0E6B63;
   --accent-hover: #0B5C55;
@@ -66,7 +65,6 @@
     --ink: #F2F1EE;
     --ink-2: #A09E99;
     --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.14);
     --fill: rgba(255, 255, 255, 0.06);
     --accent: #4FB8AC;
     --accent-hover: #63C6BA;
@@ -307,6 +305,5 @@ h2 { font-size: 32px; line-height: 1.08; letter-spacing: -0.015em; }
 .legal li::marker { color: var(--accent); }
 .legal b { color: var(--ink); }
 .legal a { color: var(--accent); text-underline-offset: 3px; }
-.legal__pending { margin-top: 20px; padding: 2px 0 2px 16px; border-left: 2px solid var(--line-strong); font-size: 15px; }
 @media (min-width: 768px) { .legal__sheet { padding: 20px 48px 44px; } }
 @media (min-width: 1024px) { .legal { padding-top: 80px; } }
