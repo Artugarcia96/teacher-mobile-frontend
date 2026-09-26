@@ -48,7 +48,7 @@ test.describe('hoy · a vigilar', () => {
     await nowCard(page).getByRole('button', { name: 'Anotar', exact: true }).click();
     const note = page.getByRole('dialog', { name: 'Anotar' });
     await note.getByRole('group', { name: 'Tipo' }).getByRole('button', { name: 'Incidencia' }).click();
-    await note.getByRole('button', { name: 'Hugo Díaz' }).click();
+    await note.getByRole('button', { name: 'Díaz, Hugo' }).click();
     await note.getByRole('textbox', { name: 'Texto' }).fill('Se ha levantado sin permiso');
     await note.getByRole('button', { name: 'Guardar' }).click();
     await expect(toast(page, 'Incidencia guardada')).toBeVisible();
@@ -151,12 +151,12 @@ test.describe('hoy · a vigilar según el día', () => {
     await expect(watchRow(page, 'Marta Alonso Gil')).toContainText('1.º ESO D · 2 incidencias en 7 días');
   });
 
-  test('hoy-66 · a day the teacher is away: «Este día faltas»', async ({ page, world }) => {
+  test('hoy-66 · a day the teacher is away: «Este día no estás»', async ({ page, world }) => {
     const [maths] = world.courses;
     await world.api.post('/absences', { reason: null, sessions: [{ course_id: maths.id, date: '2026-11-20', start: '09:25', task: 'Ficha 3', material_ids: [] }] });
     await openHoy(page, '2026-11-20');
     const watch = section(page, 'A vigilar');
-    await expect(watch.getByText('Este día faltas')).toBeVisible();
+    await expect(watch.getByText('Este día no estás')).toBeVisible();
     await expect(watch.getByText('Hay 1 en otras clases.')).toBeVisible();
     await expect(nowCard(page)).toHaveCount(0); // nothing to teach that day
   });

@@ -102,6 +102,9 @@ export const CLASS: CourseSpec = {
   logs: [{ date: TODAY, start: '08:30', done: 'Suma de fracciones con distinto denominador', next: 'Problemas de la p. 34', homework: 'p. 33, ej. 15-18' }],
 };
 export const LABEL = 'Matemáticas · 2.º ESO C';
+/** The class as Hoy's card, the agenda and the class sheets name it: group first (the demo's have a short subject:
+ *  «2.º ESO B · Mates»). */
+export const SHORT = '2.º ESO C · Matemáticas';
 
 async function createWorld(ctx: APIRequestContext, spec: WorldSpec): Promise<World> {
   const email = `hoy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@e2e.sepia.es`;
@@ -231,6 +234,13 @@ export const nowCard = (page: Page) =>
   page.getByRole('region', { name: /^(Ahora|Acaba de terminar|Siguiente|Primera clase|Última clase)/ });
 
 export const toast = (page: Page, text: string | RegExp) => page.locator('.toasts .toast').filter({ hasText: text });
+
+/** The «Pasar lista» sheet. It has no accessible name (BUG-HOY-07, hoy-79): found by what it says. */
+export const listSheet = (page: Page) =>
+  page.getByRole('dialog').filter({ hasText: /Toca a quien falte\. Otro toque: retraso\.|Esta clase aún no tiene alumnos\./ });
+
+/** The «Revisar deberes» sheet, found by what it says (no accessible name either: BUG-HOY-07). */
+export const homeworkSheet = (page: Page) => page.getByRole('dialog').filter({ hasText: 'Toca: sin hacer. Otro toque: incompleto.' });
 
 /** An agenda row by its start time. */
 export const agendaRow = (page: Page, start: string) =>

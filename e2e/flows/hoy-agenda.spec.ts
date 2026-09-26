@@ -3,7 +3,7 @@ import {
 } from './hoy-helpers';
 
 // The agenda's own entries and «Voy a faltar» (docs/PRODUCT.md §4.2): events (add, edit, move, delete) and the hoja
-// de guardia for jefatura (sessions marked «Faltas», its PDF, «Ya no falto»). The Spanish date and 24 h times of
+// de guardia for jefatura (sessions marked «Ausente», its PDF, «Ya no falto»). The Spanish date and 24 h times of
 // «Añadir evento» and back-to-close are in e2e/sheets.spec.ts. Each test is a teacher of its own (demo materials left
 // to the substitute: hoy-78 in hoy.spec.ts).
 
@@ -19,16 +19,18 @@ test.describe('hoy · eventos', () => {
     await expect(dot).toHaveCount(0);
     await hoyMenu(page, 'Añadir evento');
     const sheet = page.getByRole('dialog', { name: 'Añadir evento' });
-    const add = sheet.getByRole('button', { name: 'Añadir' });
+    // The main button says what is missing while it cannot add.
+    const add = sheet.locator('.sheet__foot').getByRole('button');
     await expect(add).toBeDisabled();
-    await expect(add).toHaveAttribute('title', 'Escribe un título');
+    await expect(add).toHaveText('Escribe un título');
     await sheet.getByLabel('Título').fill('Claustro');
     await sheet.getByLabel('Inicio').fill('17:00');
     await sheet.getByLabel('Fin').fill('16:30');
-    await expect(sheet.getByText('La hora de fin debe ser posterior a la de inicio')).toBeVisible();
+    await expect(sheet.getByText('La hora de fin debe ser posterior a la de inicio').first()).toBeVisible();
     await expect(add).toBeDisabled();
     await sheet.getByLabel('Fin').fill('18:30');
     await expect(add).toBeEnabled();
+    await expect(add).toHaveText('Añadir');
     await sheet.getByLabel('Tipo').selectOption({ label: 'Otro' });
     await sheet.getByLabel('Clase').selectOption({ label: LABEL });
     await shot(page, info, '70-event');
@@ -38,7 +40,7 @@ test.describe('hoy · eventos', () => {
 
     const rows = section(page, 'Agenda').getByRole('button');
     await expect(rows.last()).toContainText('Claustro');
-    await expect(agendaRow(page, '17:00')).toContainText(`Otro · ${LABEL}`);
+    await expect(agendaRow(page, '17:00')).toContainText(`Claustro${LABEL}`); // «Otro» is not said: only the kinds with a name
     await expect(dot).toHaveCount(1);
     const day = await world.api.get(`/today?date=${TODAY}`);
     expect(day.events).toMatchObject([{ title: 'Claustro', start: '17:00', end: '18:30', kind: 'other', course: { label: LABEL } }]);
@@ -108,23 +110,19 @@ test.describe('hoy · eventos', () => {
 test.describe('hoy · voy a faltar', () => {
   test.use({ worldSpec: { courses: [CLASS] } });
 
-  test('hoy-74 · leave the task of today’s remaining classes: «Faltas» in the agenda, the PDF, «Ya no falto»', async ({ page, context, world }, info) => {
+  test('hoy-74 · leave the task of today’s classes still to come: «Ausente» in the agenda, the PDF, «Ya no falto»', async ({ page, context, world }, info) => {
     await openHoy(page);
     await hoyMenu(page, 'Voy a faltar');
     const sheet = page.getByRole('dialog', { name: 'Voy a faltar' });
     await expect(sheet.getByText('Deja la tarea de cada clase para el profesorado de guardia.')).toBeVisible();
     await expect(sheet.getByText('19 nov 2026')).toHaveCount(2); // Desde and Hasta: today
-    await expect(sheet.getByRole('heading', { name: 'Sesiones · 2 de 2' })).toBeVisible(); // the 08:30 class is over
-    await expect(sheet.getByText('Jue 19 nov, 10:20–11:15 · Aula 112')).toBeVisible();
+    // The 08:30 class is over and the 10:20 one is on: only 12:40 can still be left to the substitute.
+    await expect(sheet.getByRole('heading', { name: 'Sesiones · 1 de 1' })).toBeVisible();
     await expect(sheet.getByText('Jue 19 nov, 12:40–13:35 · Aula 112')).toBeVisible();
-    const tasks = sheet.getByRole('textbox', { name: 'Tarea' });
-    await expect(tasks).toHaveCount(2);
-    for (const i of [0, 1]) await expect(tasks.nth(i)).toHaveValue('Problemas de la p. 34. Deberes: p. 33, ej. 15-18.'); // what the last closing planned
+    const task = sheet.getByRole('textbox', { name: 'Tarea' });
+    await expect(task).toHaveValue(/^Problemas de la p\. 34\./); // what the last closing planned
     await sheet.getByLabel('Motivo').fill('Formación del profesorado');
-    await sheet.getByRole('switch', { name: `Incluir ${LABEL} 12:40` }).click();
-    await expect(sheet.getByRole('heading', { name: 'Sesiones · 1 de 2' })).toBeVisible();
-    await expect(tasks).toHaveCount(1);
-    await tasks.first().fill('Ficha de repaso de fracciones, ejercicios 1 a 10.');
+    await task.fill('Ficha de repaso de fracciones, ejercicios 1 a 10.');
     await shot(page, info, '74-absence');
     await sheet.getByRole('button', { name: 'Crear hoja de guardia (1)' }).click();
     await expect(toast(page, '1 sesión con hoja de guardia')).toBeVisible();
@@ -135,11 +133,11 @@ test.describe('hoy · voy a faltar', () => {
     expect((await pdf.body()).subarray(0, 4).toString()).toBe('%PDF');
     await sheet.getByRole('button', { name: 'Cerrar', exact: true }).click();
 
-    await expect(agendaRow(page, '10:20')).toContainText('Faltas');
-    await expect(nowCard(page)).toHaveAccessibleName('Siguiente · 12:40');
-    await agendaRow(page, '10:20').click();
+    await expect(agendaRow(page, '12:40')).toContainText('Ausente');
+    await expect(nowCard(page)).toHaveAccessibleName('Ahora · quedan 35 min'); // the class on now is still hers
+    await agendaRow(page, '12:40').click();
     const session = page.getByRole('dialog', { name: LABEL });
-    await expect(session.getByText('Faltas · tarea: Ficha de repaso de fracciones, ejercicios 1 a 10.')).toBeVisible();
+    await expect(session.getByText('Ausente · tarea: Ficha de repaso de fracciones, ejercicios 1 a 10.')).toBeVisible();
     await expect(session.getByRole('button', { name: /^Pasar lista/ })).toContainText('Con la hoja de la guardia');
     await expect(session.getByRole('button', { name: /^Cerrar clase/ })).toHaveCount(0);
     // A new tab loads the PDF (headless Chromium downloads it instead of showing it: look at the response).
@@ -156,8 +154,7 @@ test.describe('hoy · voy a faltar', () => {
     await expect(ask.getByText(/La sesión vuelve a ser una clase normal/)).toBeVisible();
     await ask.getByRole('button', { name: 'Ya no falto' }).click();
     await expect(toast(page, 'Vuelves a tener esta clase')).toBeVisible();
-    await expect(agendaRow(page, '10:20')).not.toContainText('Faltas');
-    await expect(nowCard(page)).toHaveAccessibleName('Ahora · quedan 35 min');
+    await expect(agendaRow(page, '12:40')).not.toContainText('Ausente');
     const day = await world.api.get(`/today?date=${TODAY}`);
     expect(day.sessions.map((s: { guardia: boolean }) => s.guardia)).toEqual([false, false, false]);
   });
@@ -166,17 +163,18 @@ test.describe('hoy · voy a faltar', () => {
     await openHoy(page);
     await hoyMenu(page, 'Voy a faltar');
     const sheet = page.getByRole('dialog', { name: 'Voy a faltar' });
-    const create = sheet.getByRole('button', { name: /^Crear hoja de guardia/ });
+    // Disabled, the button says why.
+    const create = sheet.locator('.sheet__foot').getByRole('button');
     await expect(create).toBeEnabled();
+    await expect(create).toHaveText('Crear hoja de guardia (1)');
     await sheet.getByRole('textbox', { name: 'Tarea' }).first().fill('');
     await expect(create).toBeDisabled();
-    await expect(create).toHaveAttribute('title', 'Escribe la tarea de cada sesión');
-    for (const start of ['10:20', '12:40']) await sheet.getByRole('switch', { name: `Incluir ${LABEL} ${start}` }).click();
-    await expect(create).toHaveAttribute('title', 'Elige al menos una sesión');
-    await expect(create).toHaveText('Crear hoja de guardia');
+    await expect(create).toHaveText('Escribe la tarea de cada sesión');
+    await sheet.getByRole('switch', { name: `Incluir ${LABEL} 12:40` }).click(); // the only one still to come today
+    await expect(create).toHaveText('Elige al menos una sesión');
 
     await sheet.getByLabel('Hasta').fill('2026-11-18');
-    await expect(sheet.getByText('La fecha final debe ser posterior')).toBeVisible();
+    await expect(sheet.getByText('La fecha final debe ser posterior').first()).toBeVisible();
     await expect(create).toBeDisabled();
     await sheet.getByLabel('Desde').fill('2026-11-21');
     await expect(sheet.getByText('Sin clases esos días')).toBeVisible();
@@ -186,7 +184,7 @@ test.describe('hoy · voy a faltar', () => {
     await expect(sheet.getByRole('button', { name: 'Crear hoja de guardia (4)' })).toBeEnabled();
   });
 
-  test('hoy-76 · from a day to come: that day is proposed, and it shows as «Faltas»', async ({ page, world }) => {
+  test('hoy-76 · from a day to come: that day is proposed, and it shows as «Ausente»', async ({ page, world }) => {
     await openHoy(page);
     await page.getByRole('button', { name: 'viernes, 20 de noviembre' }).click();
     await hoyMenu(page, 'Voy a faltar');
@@ -196,10 +194,10 @@ test.describe('hoy · voy a faltar', () => {
     await sheet.getByRole('button', { name: 'Crear hoja de guardia (1)' }).click();
     await expect(sheet.getByText('1 sesión con hoja de guardia')).toBeVisible();
     await sheet.getByRole('button', { name: 'Cerrar', exact: true }).click();
-    await expect(agendaRow(page, '09:25')).toContainText('Faltas');
+    await expect(agendaRow(page, '09:25')).toContainText('Ausente');
     await expect(nowCard(page)).toHaveCount(0);
     const friday = await world.api.get('/today?date=2026-11-20');
-    expect(friday.sessions[0]).toMatchObject({ guardia: true, cancel_note: 'Problemas de la p. 34. Deberes: p. 33, ej. 15-18.' });
+    expect(friday.sessions[0]).toMatchObject({ guardia: true, cancel_note: 'Problemas de la p. 34.' });
   });
 
   test('hoy-77 · a server refusal is shown and the sheet keeps what was written', async ({ page }) => {

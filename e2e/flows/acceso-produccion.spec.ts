@@ -27,11 +27,11 @@ test('acceso-62 · «/» es la landing; «Entrar» abre la app, que entra por el
   const landing = await page.goto(at('/'));
   expect(landing?.headers()['cache-control']).toBe('no-cache');
   await expect(page).toHaveTitle('Sepia · El cuaderno del profesor');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Lista, notas y');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Que el montón de exámenes');
   // The brand of the landing stays on the landing.
   await page.getByRole('banner').getByRole('link', { name: 'Sepia, inicio' }).click();
   await expect(page).toHaveURL(at('/'));
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Lista, notas y');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Que el montón de exámenes');
 
   await page.getByRole('banner').getByRole('link', { name: 'Entrar' }).click();
   await expect(page).toHaveURL(at('/entrar'));
@@ -98,10 +98,11 @@ test('acceso-62d · caché y rutas de nginx: la app nunca se queda vieja, los bu
   expect(js.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
   expect(js.headers()['content-type']).toContain('javascript');
 
-  // Files copied as they are from public/assets are cached for an hour only; the landing's files too.
-  const icon = await request.get(at('/assets/icon/squid.svg'));
+  // Files copied as they are from public/ (the icon, the manifest) are served as they are; the landing's are cached for an
+  // hour only.
+  const icon = await request.get(at('/squid.svg'));
   expect(icon.status()).toBe(200);
-  expect(icon.headers()['cache-control']).toBe('public, max-age=3600');
+  expect(icon.headers()['content-type']).toContain('image/svg+xml');
   expect((await request.get(at('/landing/landing.css'))).headers()['cache-control']).toBe('public, max-age=3600');
   expect((await request.get(at('/manifest.json'))).status()).toBe(200);
 

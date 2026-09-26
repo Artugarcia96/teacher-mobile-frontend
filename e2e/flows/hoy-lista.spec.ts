@@ -1,6 +1,6 @@
 import {
-  agendaRow, bug, CLASS, expect, isMobile, LABEL, nowCard, openHoy, rosterRow, rowOptions, section, shot, tapTo, test,
-  toast, TODAY, type World,
+  agendaRow, bug, CLASS, expect, isMobile, LABEL, listSheet, nowCard, openHoy, rosterRow, rowOptions, section, SHORT, shot, tapTo,
+  test, toast, TODAY, type World,
 } from './hoy-helpers';
 
 // Pasar lista from Hoy (docs/PRODUCT.md §4.2): all present by default, tap = falta, another = retraso, another = presente;
@@ -16,7 +16,7 @@ const marks = async (world: World, start = '10:20') => {
 };
 const openList = async (page: import('@playwright/test').Page) => {
   await nowCard(page).getByRole('button', { name: /Pasar lista|Editar lista$/ }).click();
-  const sheet = page.getByRole('dialog', { name: LABEL });
+  const sheet = listSheet(page);
   await expect(sheet.getByRole('list', { name: /Lista de la clase/ })).toBeVisible();
   return sheet;
 };
@@ -70,7 +70,6 @@ test.describe('hoy · pasar lista', () => {
     await expect(note).toBeHidden();
     await expect(rosterRow(sheet, 1)).toContainText('Médico, avisó la familia');
     await expect(sheet.getByText('9 presentes · 1 falta · 1 retraso · 1 justificada')).toBeVisible();
-    await expect(sheet.getByText('Falta: Alonso Gil, Marta · Retraso: Benítez Ruiz, Pablo · Justificada: Castro León, Lucía')).toBeVisible();
     await shot(page, info, '31-marks');
 
     // Saved on the way, before closing.
@@ -202,7 +201,7 @@ test.describe('hoy · pasar lista', () => {
     const session = page.getByRole('dialog', { name: LABEL });
     await expect(session.getByRole('button', { name: /^Pasar lista/ })).toContainText('Todos presentes por defecto');
     await session.getByRole('button', { name: /^Pasar lista/ }).click();
-    const sheet = page.getByRole('dialog', { name: LABEL });
+    const sheet = listSheet(page);
     await expect(sheet.getByText('08:30–09:25 · Aula 112')).toBeVisible();
     await tapTo(sheet, 2, 'Falta');
     await sheet.getByRole('button', { name: 'Cerrar lista' }).click();
@@ -214,13 +213,27 @@ test.describe('hoy · pasar lista', () => {
   });
 });
 
+test.describe('hoy · la hoja de la lista se anuncia', () => {
+  test.use({ worldSpec: { courses: [CLASS] } });
+
+  test('hoy-79 · the list and the homework check are announced with the class (a screen reader says what opened)', async ({ page }) => {
+    bug('BUG-HOY-07', 'Sheet only sets aria-label when its title is a string: «Pasar lista» and «Revisar deberes» (titles in a span) open as unnamed dialogs');
+    await openHoy(page);
+    await nowCard(page).getByRole('button', { name: 'Pasar lista' }).click();
+    await expect(page.getByRole('dialog', { name: SHORT })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await nowCard(page).getByRole('button', { name: 'Revisar' }).click();
+    await expect(page.getByRole('dialog', { name: `Deberes · ${SHORT}` })).toBeVisible();
+  });
+});
+
 test.describe('hoy · pasar lista en una clase sin alumnos', () => {
   test.use({ worldSpec: { courses: [{ ...CLASS, students: [], logs: [] }] } });
 
   test('hoy-38 · no list to take: «Añadir alumnos» instead', async ({ page, world }) => {
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Pasar lista' }).click();
-    const sheet = page.getByRole('dialog', { name: LABEL });
+    const sheet = listSheet(page);
     await expect(sheet.getByText('Esta clase aún no tiene alumnos.')).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Cerrar lista' })).toHaveCount(0);
     await sheet.getByRole('button', { name: 'Añadir alumnos' }).click();
@@ -229,11 +242,9 @@ test.describe('hoy · pasar lista en una clase sin alumnos', () => {
   });
 
   test('hoy-39 · the agenda does not ask for a list a class without students cannot have', async ({ page }) => {
-    // sessionChips() marks every started session without a list as «Lista sin pasar», also in a class without
-    // students, which has no list («Una clase sin alumnos no tiene lista»): the server says pending=false.
-    bug('BUG-HOY-03', 'the agenda flags lists that are not due');
+    // A class without students has no list («Una clase sin alumnos no tiene lista»): nothing is owed.
     await openHoy(page);
-    await expect(agendaRow(page, '10:20')).toContainText(LABEL);
+    await expect(agendaRow(page, '10:20')).toContainText(SHORT);
     await expect(agendaRow(page, '10:20')).not.toContainText('Lista sin pasar', { timeout: 2000 });
   });
 });

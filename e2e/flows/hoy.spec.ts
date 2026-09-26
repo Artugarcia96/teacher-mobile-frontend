@@ -1,6 +1,6 @@
 import {
-  agendaRow, bug, CLASS, demoCourse, expect, extraSlot, FRI, hoyMenu, isMobile, LABEL, MON, nowCard, openHoy, section,
-  shot, test, THU, TODAY,
+  agendaRow, bug, CLASS, demoCourse, expect, extraSlot, FRI, homeworkSheet, hoyMenu, isMobile, LABEL, listSheet, MON, nowCard,
+  openHoy, section, SHORT, shot, test, THU, TODAY,
 } from './hoy-helpers';
 
 // Hoy (docs/PRODUCT.md §4.2): the day at a glance, other days, the header menu, Pendiente and its links, the materials
@@ -20,11 +20,12 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     // Ahora: the class in progress with its unit, materials, what the last closing left, and the three actions.
     const card = nowCard(page);
     await expect(card).toHaveAccessibleName('Ahora · quedan 35 min');
-    await expect(card.getByRole('link', { name: 'Matemáticas · 2.º ESO B' })).toBeVisible();
+    await expect(card.getByRole('link', { name: '2.º ESO B · Mates' })).toBeVisible();
     await expect(card.getByText('Aula 204 · 10:20–11:15 · Fracciones')).toBeVisible();
     const mats = card.getByLabel('Materiales de la unidad').getByRole('button');
     const now = day.sessions.find((s: { status: string }) => s.status === 'now');
-    await expect(mats).toHaveText(now.materials.map((m: { title: string }) => m.title));
+    // Each chip says the material without the unit, which the card already names.
+    await expect(mats).toHaveText(now.materials.map((m: { title: string }) => m.title.replace(/ · Fracciones$/, '')));
     await expect(mats.first()).toHaveText(/^Presentación/); // the presentation first
     await expect(card.getByText('Toca: Problemas de la p. 34')).toBeVisible();
     await expect(card.getByText('Deberes: p. 33, ej. 15-18')).toBeVisible();
@@ -35,10 +36,10 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     // Agenda: every session and event by time, with its state in the same place.
     const agenda = section(page, 'Agenda');
     await expect(agenda.getByRole('button')).toHaveCount(day.sessions.length + day.events.length);
-    await expect(agendaRow(page, '08:30')).toContainText('Física y Química · 3.º ESO A');
+    await expect(agendaRow(page, '08:30')).toContainText('3.º ESO A · FyQ');
     await expect(agendaRow(page, '08:30')).toContainText('Lista pasada');
     await expect(agendaRow(page, '09:25')).toContainText('Lista sin pasar');
-    await expect(agendaRow(page, '10:20')).toContainText('Lista sin pasar');
+    await expect(agendaRow(page, '10:20')).not.toContainText('Lista'); // on now: not owed yet
     await expect(agendaRow(page, '12:40')).not.toContainText('Lista');
     await expect(agendaRow(page, '16:00')).toContainText('Reunión de departamento');
     await expect(agendaRow(page, '16:00')).toContainText('Reunión');
@@ -145,8 +146,9 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     await expect(page.getByText('No hay clases.')).toBeVisible();
     await expect(section(page, 'Agenda')).toHaveCount(0);
     await expect(section(page, 'Pendiente de hoy').getByRole('button').first()).toContainText('Lista sin pasar'); // always today's
-    await expect(section(page, 'A vigilar').getByText('Este día no tienes clases')).toBeVisible();
-    await expect(section(page, 'A vigilar').getByText(`Hay ${watch_total} en tus clases.`)).toBeVisible();
+    // No class that day: A vigilar only offers the whole list.
+    await expect(section(page, 'A vigilar').getByRole('button', { name: `Ver todos (${watch_total})` })).toBeVisible();
+    await expect(section(page, 'A vigilar').locator('.list')).toHaveCount(0);
     await shot(page, info, '05-weekend');
     await page.getByRole('button', { name: 'Ver el lunes 23' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Lunes 23');
@@ -169,13 +171,13 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Mañana');
     const card = nowCard(page);
     await expect(card).toHaveAccessibleName('Primera clase · 08:30');
-    await expect(card.getByRole('link', { name: 'Matemáticas · 2.º ESO B' })).toBeVisible();
+    await expect(card.getByRole('link', { name: '2.º ESO B · Mates' })).toBeVisible();
     await expect(card.getByText('Toca: Problemas de la p. 34')).toBeVisible();
     await expect(card.getByText('Deberes: p. 33, ej. 15-18')).toBeVisible();
     await expect(card.getByRole('button', { name: 'Revisar' })).toHaveCount(0); // homework is checked on the day
     await expect(card.getByRole('button', { name: 'Pasar lista' })).toHaveCount(0);
     await expect(card.getByRole('button', { name: 'Cerrar clase' })).toHaveCount(0);
-    await expect(card.getByRole('button', { name: 'Anotar', exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Anotar', exact: true })).toHaveCount(0);
     await expect(agendaRow(page, '08:30')).not.toContainText('Lista');
     await expect(agendaRow(page, '17:00')).toContainText('Tutoría con la familia de Gonzalo');
     const rows = section(page, 'A vigilar').locator('.list').getByRole('button');
@@ -192,10 +194,9 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     await expect(sheet.getByRole('button', { name: /^Editar lista/ })).toContainText('Lista pasada · 2 faltas · 1 retraso');
     await expect(sheet.getByRole('button', { name: /^Clase cerrada/ })).toContainText('Para la próxima: Corregir los ejercicios 12 a 15');
     await sheet.getByRole('button', { name: /^Editar lista/ }).click();
-    const list = page.getByRole('dialog', { name: 'Matemáticas · 1.º ESO A' });
+    const list = listSheet(page);
     await expect(list.getByText('miércoles, 18 de noviembre · 10:20–11:15 · Aula 105')).toBeVisible();
     await expect(list.getByText('22 presentes · 1 falta · 1 retraso · 1 justificada')).toBeVisible();
-    await expect(list.getByText('Falta: Gil Castillo, Lola · Retraso: Cano Álvarez, Laia · Justificada: Navarro Lozano, Ainhoa')).toBeVisible();
     await list.getByRole('button', { name: 'Cerrar', exact: true }).click();
     await expect(list).toBeHidden();
     await expect(page.locator('.toasts .toast')).toHaveCount(0);
@@ -208,7 +209,7 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     const sheet = page.getByRole('dialog', { name: 'Matemáticas · 2.º ESO B' });
     await expect(sheet.getByText('Deberes: p. 32, ej. 11-14')).toBeVisible();
     await sheet.getByRole('button', { name: '3 sin hacer · 1 incompleto' }).click();
-    const check = page.getByRole('dialog', { name: 'Deberes · Matemáticas · 2.º ESO B' });
+    const check = homeworkSheet(page);
     await expect(check.getByText('p. 32, ej. 11-14')).toBeVisible();
     await expect(check.getByText(/hechos · 3 sin hacer · 1 incompleto/)).toBeVisible();
     await expect(check.getByRole('button', { name: /: Faltó$/ })).toHaveCount(2); // the two absent that day do not count
@@ -226,7 +227,7 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
 
   test('hoy-11 · the class name in «Ahora» opens the class, and back returns to Hoy', async ({ page }) => {
     await openHoy(page);
-    await nowCard(page).getByRole('link', { name: 'Matemáticas · 2.º ESO B' }).click();
+    await nowCard(page).getByRole('link', { name: '2.º ESO B · Mates' }).click();
     await expect(page).toHaveURL(/\/clases\/[^/]+$/);
     await expect(page.getByRole('heading', { level: 1, name: '2.º ESO B' })).toBeVisible();
     await page.getByRole('button', { name: 'Hoy', exact: true }).click();
@@ -235,37 +236,30 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
 
   test('hoy-12 · a material chip opens the material (from «Ahora» and from the session)', async ({ page }) => {
     await openHoy(page);
-    await nowCard(page).getByRole('button', { name: 'Apuntes · Fracciones' }).click();
+    await nowCard(page).getByRole('button', { name: 'Apuntes', exact: true }).click();
     await expect(page).toHaveURL(/\/unidades\/[^/]+\/materiales\/[^/?]+$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Apuntes · Fracciones' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Apuntes' })).toBeVisible();
     await page.goBack();
     await agendaRow(page, '10:20').click();
-    await page.getByRole('dialog', { name: 'Matemáticas · 2.º ESO B' }).getByRole('button', { name: 'Ficha de refuerzo · Fracciones' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Ficha de refuerzo · Fracciones' })).toBeVisible();
+    await page.getByRole('dialog', { name: 'Matemáticas · 2.º ESO B' }).getByRole('button', { name: 'Ficha de refuerzo', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Ficha de refuerzo' })).toBeVisible();
   });
 
   test('hoy-68 · back from an activity or a material opened in Hoy says «Hoy» and returns there', async ({ page }) => {
-    // ActivityPage and MaterialPage always go back to their parent («‹ Cuaderno», «‹ Fracciones»): opened from Hoy
-    // between classes, back leaves the teacher in the class instead of Hoy («Volver nombra siempre el origen»,
-    // docs/PRODUCT.md §3; CoursePage, StudentPage and Ajustes use Page's backToOrigin, these two do not).
-    bug('BUG-HOY-06', 'back from a page opened in Hoy does not return to Hoy');
     await openHoy(page);
     await section(page, 'Pendiente').getByRole('button', { name: /Examen U2 · Fracciones/ }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Examen U2 · Fracciones' })).toBeVisible();
     await page.getByRole('button', { name: 'Hoy', exact: true }).click({ timeout: 3000 });
     await expect(page).toHaveURL(/\/hoy$/);
-    await nowCard(page).getByRole('button', { name: 'Apuntes · Fracciones' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Apuntes · Fracciones' })).toBeVisible();
+    await nowCard(page).getByRole('button', { name: 'Apuntes', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Apuntes' })).toBeVisible();
     await page.getByRole('button', { name: 'Hoy', exact: true }).click({ timeout: 3000 });
     await expect(page).toHaveURL(/\/hoy$/);
   });
 
   test('hoy-13 · the presentation chip opens straight in projection mode', async ({ page }) => {
-    // MaterialPage ignores ?presentar=1 (src/features/materials/open.ts says it handles it; nothing does), so the
-    // teacher lands on the material page with the slide cards, not on a full-screen presentation.
-    bug('BUG-HOY-01', 'the presentation chip does not open the projection mode');
     await openHoy(page);
-    await nowCard(page).getByRole('button', { name: 'Presentación · Fracciones' }).click();
+    await nowCard(page).getByRole('button', { name: 'Presentación', exact: true }).click();
     await expect(page).toHaveURL(/\/materiales\/[^/]+\?presentar=1$/);
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 }); // full-screen presentation
   });
@@ -290,7 +284,7 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     await page.goBack();
 
     await pending.getByRole('button', { name: /Lista sin pasar · 1\.º ESO A/ }).click();
-    const list = page.getByRole('dialog', { name: 'Matemáticas · 1.º ESO A' });
+    const list = listSheet(page);
     await expect(list.getByText('09:25–10:20 · Aula 105')).toBeVisible();
     await expect(list.getByText(/^\d+ presentes$/)).toBeVisible();
     await list.getByRole('button', { name: 'Cerrar', exact: true }).click(); // looked at, not taken
@@ -318,15 +312,15 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
       await shot(page, info, '15-pending-lists');
 
       await todays.click();
-      const list = page.getByRole('dialog', { name: 'Física y Química · 3.º ESO A' });
-      await expect(list.getByText(`${slot.start}–${slot.end} · Aula Lab. 1`)).toBeVisible();
+      const list = listSheet(page);
+      await expect(list.getByText(`${slot.start}–${slot.end} · Lab. 1`)).toBeVisible();
       await list.getByRole('button', { name: 'Cerrar lista' }).click();
       await expect(page.getByText(/^Lista pasada · \d+ presentes$/)).toBeVisible();
       await expect(todays).toHaveCount(0);
       await expect(agendaRow(page, slot.start)).toContainText('Lista pasada');
 
       await older.click();
-      await expect(list.getByText(`jueves, 12 de noviembre · ${slot.start}–${slot.end} · Aula Lab. 1`)).toBeVisible();
+      await expect(list.getByText(`jueves, 12 de noviembre · ${slot.start}–${slot.end} · Lab. 1`)).toBeVisible();
       await list.getByRole('button', { name: 'Cerrar lista' }).click();
       await expect(older).toHaveCount(0);
       const saved = await demo.get(`/courses/${fyq.id}/attendance?date=2026-11-12&start=${slot.start}`);
@@ -358,12 +352,18 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
 
   test('hoy-78 · demo: a unit material goes with the task to the substitute', async ({ page, demo }) => {
     const maths = await demoCourse(demo, 'Matemáticas · 2.º ESO B');
-    const bach = await demoCourse(demo, 'Matemáticas I · 1.º Bach B');
+    const FRIDAY = '2026-11-20'; // 2.º ESO B's first class, in «Fracciones» (a class already on cannot be left)
     try {
       await openHoy(page);
       await hoyMenu(page, 'Voy a faltar');
       const sheet = page.getByRole('dialog', { name: 'Voy a faltar' });
-      await sheet.getByRole('switch', { name: 'Incluir Matemáticas I · 1.º Bach B 12:40' }).click();
+      await sheet.getByLabel('Desde').fill(FRIDAY);
+      await expect(sheet.getByLabel('Hasta')).toHaveValue(FRIDAY);
+      const mine = sheet.getByRole('switch', { name: 'Incluir Matemáticas · 2.º ESO B 08:30' });
+      await expect(mine).toBeChecked();
+      for (const other of await sheet.getByRole('switch').all()) {
+        if (await other.getAttribute('aria-label') !== 'Incluir Matemáticas · 2.º ESO B 08:30' && await other.isChecked()) await other.click();
+      }
       await expect(sheet.getByText('Material de «Fracciones»')).toBeVisible();
       const chip = sheet.getByRole('button', { name: 'Apuntes · Fracciones' });
       await chip.click();
@@ -373,9 +373,7 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
       const pdf = await page.request.get((await sheet.getByRole('link', { name: 'Descargar PDF' }).getAttribute('href'))!);
       expect(pdf.ok()).toBe(true);
     } finally {
-      for (const [c, start] of [[maths, '10:20'], [bach, '12:40']] as const) {
-        await demo.del(`/courses/${c.id}/sessions/cancel?date=${TODAY}&start=${start}`);
-      }
+      await demo.del(`/courses/${maths.id}/sessions/cancel?date=${FRIDAY}&start=08:30`);
     }
   });
 
@@ -465,7 +463,7 @@ for (const m of MOMENTS) {
       await openHoy(page);
       const card = nowCard(page);
       await expect(card).toHaveAccessibleName(m.eyebrow);
-      await expect(card.getByRole('link', { name: LABEL })).toBeVisible();
+      await expect(card.getByRole('link', { name: SHORT })).toBeVisible();
       await expect(card.getByRole('button', { name: 'Pasar lista' })).toBeVisible();
       await expect(card.getByRole('button', { name: 'Cerrar clase' })).toHaveCount(m.close ? 1 : 0);
       await shot(page, info, `20-${m.name.replace(/\W+/g, '-')}`);
@@ -481,10 +479,10 @@ test.describe(() => {
     await context.route(`${LINK}*`, (route) => route.fulfill({ contentType: 'text/html', body: '<title>Vídeo</title>' }));
     await openHoy(page);
     const mats = nowCard(page).getByLabel('Materiales de la unidad').getByRole('button');
-    await expect(mats).toHaveText(['problemas-p34', 'Vídeo · Fracciones equivalentes'].map((t) => new RegExp(t)));
+    await expect(mats).toHaveText([/problemas-p34/, /^Vídeo/]);
 
     const video = context.waitForEvent('page');
-    await mats.filter({ hasText: 'Vídeo · Fracciones equivalentes' }).click();
+    await mats.filter({ hasText: /^Vídeo/ }).click();
     await expect.poll(async () => (await video).url()).toBe(LINK);
     await (await video).close();
 
@@ -501,15 +499,22 @@ test.describe(() => {
 });
 
 test.describe(() => {
+  test.use({ worldSpec: { courses: [{ ...CLASS, links: [{ url: LINK, title: 'Vídeo · Fracciones equivalentes' }] }] } });
+  test('hoy-80 · a material chip keeps its own title: only the unit\'s name at its end is left out', async ({ page }) => {
+    bug('BUG-HOY-08', 'shortTitle() removes « · <unit>» anywhere in the title: «Vídeo · Fracciones equivalentes» reads «Vídeo equivalentes»');
+    await openHoy(page);
+    await expect(nowCard(page).getByLabel('Materiales de la unidad').getByRole('button')).toHaveText(['Vídeo · Fracciones equivalentes']);
+  });
+});
+
+test.describe(() => {
   test.use({ worldSpec: { courses: [] } });
   test('hoy-21 · a teacher without classes: «Aún no tienes clases» and «Crear clase»', async ({ page }, info) => {
     await openHoy(page);
     await expect(page.getByText('Aún no tienes clases')).toBeVisible();
     await expect(page.getByText('Crea tu primera clase con su horario y aparecerá aquí.')).toBeVisible();
-    await expect(section(page, 'Pendiente').getByText('Todo al día')).toBeVisible();
-    await expect(section(page, 'Pendiente').getByText('No hay listas, correcciones ni comentarios pendientes.')).toBeVisible();
-    await expect(section(page, 'A vigilar').getByText('Este día no tienes clases')).toBeVisible();
-    await expect(section(page, 'Agenda')).toHaveCount(0);
+    // Nothing else to say yet: no Pendiente, A vigilar or agenda.
+    for (const title of ['Pendiente', 'A vigilar', 'Agenda']) await expect(section(page, title)).toHaveCount(0);
     await shot(page, info, '21-no-classes');
     await page.getByRole('button', { name: 'Crear clase' }).click();
     await expect(page).toHaveURL(/\/clases$/);
@@ -522,13 +527,13 @@ test.describe(() => {
     await openHoy(page);
     await expect(page.getByText('Sin clases este día')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Volver a hoy' })).toHaveCount(0);
-    await expect(section(page, 'A vigilar').getByText('Este día no tienes clases')).toBeVisible();
+    await expect(section(page, 'A vigilar')).toHaveCount(0); // nobody to watch, no class that day: nothing to say
     await page.getByRole('button', { name: 'viernes, 20 de noviembre' }).click();
     await expect(page.getByText('Sin clases este día')).toBeVisible();
     await page.getByRole('button', { name: 'Volver a hoy' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hoy');
     await page.getByRole('button', { name: 'lunes, 16 de noviembre' }).click();
-    await expect(agendaRow(page, '08:30')).toContainText(LABEL);
+    await expect(agendaRow(page, '08:30')).toContainText(SHORT);
   });
 });
 
@@ -544,14 +549,11 @@ test.describe(() => {
   });
 
   test('hoy-26 · the agenda follows Pendiente’s rule: no «Lista sin pasar» for a session over before the class existed', async ({ page, world }) => {
-    // sessionChips() (src/pages/today/parts.tsx) marks «Lista sin pasar» from the status alone and ignores the
-    // server's `pending` flag, so the 08:30 class that ended before the teacher created the class at 10:40 is flagged
-    // in warning tone although Pendiente and the week dot rightly leave it out.
-    bug('BUG-HOY-03', 'the agenda flags lists that are not due');
+    // The 08:30 class ended before the teacher created the class at 10:40: its list is not owed.
     const day = await world.api.get(`/today?date=${TODAY}`);
     expect(day.sessions[0].pending).toBe(false);
     await openHoy(page);
-    await expect(agendaRow(page, '10:20')).toContainText(LABEL);
+    await expect(agendaRow(page, '10:20')).toContainText(SHORT);
     await expect(agendaRow(page, '08:30')).not.toContainText('Lista sin pasar', { timeout: 2000 });
   });
 });

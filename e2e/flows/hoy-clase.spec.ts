@@ -1,5 +1,5 @@
 import {
-  agendaRow, bug, CLASS, expect, LABEL, nowCard, openHoy, rosterRow, shot, tapTo, test, toast,
+  agendaRow, bug, CLASS, expect, homeworkSheet, LABEL, listSheet, nowCard, openHoy, rosterRow, SHORT, shot, tapTo, test, toast,
   TODAY, type World,
 } from './hoy-helpers';
 
@@ -27,17 +27,16 @@ test.describe('hoy · revisar deberes', () => {
     const card = nowCard(page);
     await expect(card.getByText('Deberes: p. 33, ej. 15-18')).toBeVisible();
     await card.getByRole('button', { name: 'Revisar' }).click();
-    const sheet = page.getByRole('dialog', { name: `Deberes · ${LABEL}` });
+    const sheet = homeworkSheet(page);
     await expect(sheet.getByText('p. 33, ej. 15-18', { exact: true })).toBeVisible();
-    await expect(sheet.getByText('12 hechos · 0 sin hacer')).toBeVisible();
-    await expect(sheet.getByText('Toca a quien no los haya hecho. Otro toque: incompleto.')).toBeVisible();
+    await expect(sheet.getByText('12 hechos', { exact: true })).toBeVisible();
+    await expect(sheet.getByText('Toca: sin hacer. Otro toque: incompleto.')).toBeVisible();
     await expect(rosterRow(sheet, 1)).toHaveAccessibleName('1. Alonso Gil, Marta: Hecho. Toca para cambiar');
     await tapTo(sheet, 1, 'Sin hacer');
     await tapTo(sheet, 2, 'Incompleto');
     await tapTo(sheet, 3, 'Sin hacer');
     await tapTo(sheet, 3, 'Hecho'); // round again: undone
     await expect(sheet.getByText('10 hechos · 1 sin hacer · 1 incompleto')).toBeVisible();
-    await expect(sheet.getByText('Sin hacer: Alonso Gil, Marta · Incompleto: Benítez Ruiz, Pablo')).toBeVisible();
     await shot(page, info, '40-homework');
     await sheet.getByRole('button', { name: 'Terminar revisión' }).click();
     await expect(toast(page, 'Deberes revisados · 10 hechos · 1 sin hacer · 1 incompleto')).toBeVisible();
@@ -54,7 +53,7 @@ test.describe('hoy · revisar deberes', () => {
     await tapTo(sheet, 1, 'Hecho');
     await tapTo(sheet, 2, 'Hecho');
     await sheet.getByRole('button', { name: 'Terminar revisión' }).click();
-    await expect(toast(page, 'Deberes revisados · 12 hechos · 0 sin hacer')).toBeVisible();
+    await expect(toast(page, 'Deberes revisados · 12 hechos')).toBeVisible();
     await expect(card.getByRole('button', { name: 'Todos hechos' })).toBeVisible();
     expect(await homeworkGrades(world)).toMatchObject({ 'Alonso Gil, Marta': 10, 'Benítez Ruiz, Pablo': 10 });
   });
@@ -64,10 +63,10 @@ test.describe('hoy · revisar deberes', () => {
     await world.api.put(`/courses/${c.id}/attendance`, { date: TODAY, start: '10:20', marks: [{ student_id: c.students[4].id, status: 'absent' }] });
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Revisar' }).click();
-    const sheet = page.getByRole('dialog', { name: `Deberes · ${LABEL}` });
+    const sheet = homeworkSheet(page);
     await expect(rosterRow(sheet, 5)).toHaveAccessibleName('5. Esteban Mora, Irene: Faltó');
     await expect(rosterRow(sheet, 5)).toBeDisabled();
-    await expect(sheet.getByText('11 hechos · 0 sin hacer')).toBeVisible();
+    await expect(sheet.getByText('11 hechos', { exact: true })).toBeVisible();
     await tapTo(sheet, 6, 'Sin hacer');
     await sheet.getByRole('button', { name: 'Terminar revisión' }).click();
     await expect(toast(page, 'Deberes revisados · 10 hechos · 1 sin hacer')).toBeVisible();
@@ -75,14 +74,14 @@ test.describe('hoy · revisar deberes', () => {
 
     // Adrián turns out to have been absent: the list says so and his homework mark stops counting.
     await nowCard(page).getByRole('button', { name: /Editar lista$/ }).click();
-    const list = page.getByRole('dialog', { name: LABEL });
+    const list = listSheet(page);
     await tapTo(list, 6, 'Falta');
     await list.getByRole('button', { name: 'Cerrar lista' }).click();
     await expect(toast(page, /^Lista pasada/)).toBeVisible();
     await expect.poll(async () => (await homeworkGrades(world))['Fuentes Vera, Adrián']).toBeNull();
     await nowCard(page).getByRole('button', { name: /sin hacer|Todos hechos/ }).click();
     await expect(rosterRow(sheet, 6)).toHaveAccessibleName('6. Fuentes Vera, Adrián: Faltó');
-    await expect(sheet.getByText('10 hechos · 0 sin hacer')).toBeVisible();
+    await expect(sheet.getByText('10 hechos', { exact: true })).toBeVisible();
   });
 
   test('hoy-59 · the tally on the card leaves out who missed the class too', async ({ page, world }) => {
@@ -96,7 +95,7 @@ test.describe('hoy · revisar deberes', () => {
     await world.api.put(`/courses/${c.id}/attendance`, { date: TODAY, start: '10:20', marks: [{ student_id: adrian.id, status: 'absent' }] });
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: /sin hacer|Todos hechos/ }).click();
-    await expect(page.getByRole('dialog', { name: `Deberes · ${LABEL}` }).getByText('11 hechos · 0 sin hacer')).toBeVisible();
+    await expect(homeworkSheet(page).getByText('11 hechos', { exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(nowCard(page).getByRole('button', { name: 'Todos hechos' })).toBeVisible({ timeout: 2000 });
   });
@@ -104,7 +103,7 @@ test.describe('hoy · revisar deberes', () => {
   test('hoy-42 · a homework save that fails keeps the sheet open', async ({ page, world }) => {
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Revisar' }).click();
-    const sheet = page.getByRole('dialog', { name: `Deberes · ${LABEL}` });
+    const sheet = homeworkSheet(page);
     await page.route('**/api/courses/*/homework', (route) => (route.request().method() === 'PUT'
       ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: { message: 'Servidor no disponible' } }) })
       : route.fallback()));
@@ -127,7 +126,7 @@ test.describe('hoy · cerrar clase', () => {
     const [c] = world.courses;
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Cerrar clase' }).click();
-    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${LABEL}` });
+    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${SHORT}` });
     await expect(sheet.getByText('10:20–11:15', { exact: true })).toBeVisible();
     await expect(sheet.getByRole('textbox', { name: 'Hecho hoy' })).toHaveValue('Problemas de la p. 34');
     await expect(sheet.getByRole('textbox', { name: 'Para la próxima' })).toHaveValue('');
@@ -157,7 +156,7 @@ test.describe('hoy · cerrar clase', () => {
     await world.api.put(`/courses/${c.id}/sessions/log`, { date: TODAY, start: '10:20', done: 'Problemas 1 a 5', next: 'Problemas 6 a 10', homework: 'p. 36' });
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Clase cerrada' }).click();
-    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${LABEL}` });
+    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${SHORT}` });
     await expect(sheet.getByRole('textbox', { name: 'Hecho hoy' })).toHaveValue('Problemas 1 a 5');
     await expect(sheet.getByRole('textbox', { name: 'Para la próxima' })).toHaveValue('Problemas 6 a 10');
     await expect(sheet.getByRole('textbox', { name: 'Deberes' })).toHaveValue('p. 36');
@@ -185,7 +184,7 @@ test.describe('hoy · cerrar clase', () => {
   test('hoy-45 · nothing written: the button says why; something typed asks before being discarded', async ({ page, world }) => {
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Cerrar clase' }).click();
-    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${LABEL}` });
+    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${SHORT}` });
     await sheet.getByRole('textbox', { name: 'Hecho hoy' }).fill('');
     await expect(sheet.getByRole('button', { name: 'Escribe qué habéis hecho' })).toBeDisabled();
     await sheet.getByRole('textbox', { name: 'Deberes' }).fill('Terminar la ficha');
@@ -205,7 +204,7 @@ test.describe('hoy · cerrar clase', () => {
     await openHoy(page);
     await expect(nowCard(page).getByText('Aula 112 · 10:20–11:15 · Fracciones')).toBeVisible();
     await nowCard(page).getByRole('button', { name: 'Cerrar clase' }).click();
-    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${LABEL}` });
+    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${SHORT}` });
     await sheet.getByRole('switch', { name: 'Unidad terminada' }).click();
     await expect(sheet.getByRole('switch', { name: 'Unidad terminada' })).toHaveAttribute('aria-checked', 'true');
     await sheet.getByRole('button', { name: 'Guardar' }).click();
@@ -222,7 +221,7 @@ test.describe('hoy · cerrar clase', () => {
     const closed = session.getByRole('button', { name: /^Clase cerrada/ });
     await expect(closed).toContainText('Para la próxima: Problemas de la p. 34');
     await closed.click();
-    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${LABEL}` });
+    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${SHORT}` });
     await expect(sheet.getByText('08:30–09:25', { exact: true })).toBeVisible();
     await expect(sheet.getByRole('textbox', { name: 'Hecho hoy' })).toHaveValue('Suma de fracciones con distinto denominador');
     await expect(sheet.getByRole('textbox', { name: 'Para la próxima' })).toHaveValue('Problemas de la p. 34');
@@ -235,7 +234,7 @@ test.describe('hoy · cerrar clase', () => {
   test('hoy-48 · a closing that cannot be saved keeps what was written', async ({ page }) => {
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Cerrar clase' }).click();
-    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${LABEL}` });
+    const sheet = page.getByRole('dialog', { name: `Cerrar clase · ${SHORT}` });
     await sheet.getByRole('textbox', { name: 'Para la próxima' }).fill('Repaso');
     await page.route('**/api/courses/*/sessions/log', (route) => (route.request().method() === 'PUT'
       ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: { message: 'Servidor no disponible' } }) })
@@ -259,8 +258,8 @@ test.describe('hoy · anotar', () => {
     await expect(sheet.getByRole('button', { name: 'Cambiar' })).toHaveCount(0); // the class comes from the session
     const text = sheet.getByRole('textbox', { name: 'Texto' });
     await expect(text).toBeFocused();
-    await expect(sheet.getByRole('button', { name: 'Guardar' })).toBeDisabled();
-    await expect(sheet.getByRole('button', { name: 'Guardar' })).toHaveAttribute('title', 'Escribe la observación');
+    // Disabled, the button says why.
+    await expect(sheet.getByRole('button', { name: 'Escribe la observación' })).toBeDisabled();
     const kind = sheet.getByRole('group', { name: 'Tipo' });
     await expect(kind.getByRole('button', { name: 'Observación' })).toHaveAttribute('aria-pressed', 'true');
     await kind.getByRole('button', { name: 'Incidencia' }).click();
@@ -268,17 +267,17 @@ test.describe('hoy · anotar', () => {
 
     await expect(sheet.getByText('Alumnos (opcional)')).toBeVisible();
     await sheet.getByRole('textbox', { name: 'Buscar alumno' }).fill('Díaz');
-    await expect(sheet.locator('.chip-row').getByRole('button')).toHaveText(['Hugo Díaz']);
-    await sheet.getByRole('button', { name: 'Hugo Díaz' }).click();
+    await expect(sheet.locator('.chip-row').getByRole('button')).toHaveText(['Díaz, Hugo']);
+    await sheet.getByRole('button', { name: 'Díaz, Hugo' }).click();
     await sheet.getByRole('textbox', { name: 'Buscar alumno' }).fill('zzz');
     await expect(sheet.getByText('Ningún alumno coincide.')).toHaveCount(0); // the selected one stays in view
     await sheet.getByRole('textbox', { name: 'Buscar alumno' }).fill('');
-    await sheet.getByRole('button', { name: 'Marta Alonso' }).click();
+    await sheet.getByRole('button', { name: 'Alonso, Marta' }).click();
     await expect(sheet.getByText('2 alumnos')).toBeVisible();
     await sheet.getByRole('button', { name: 'Quitar todos' }).click();
     await expect(sheet.getByText('Alumnos (opcional)')).toBeVisible();
-    await sheet.getByRole('button', { name: 'Hugo Díaz' }).click();
-    await sheet.getByRole('button', { name: 'Marta Alonso' }).click();
+    await sheet.getByRole('button', { name: 'Díaz, Hugo' }).click();
+    await sheet.getByRole('button', { name: 'Alonso, Marta' }).click();
     await text.fill('Ha tirado el estuche de un compañero');
     await shot(page, info, '49-note');
     await sheet.getByRole('button', { name: 'Guardar' }).click();
@@ -344,7 +343,7 @@ test.describe('hoy · anotar', () => {
     await nowCard(page).getByRole('button', { name: 'Anotar', exact: true }).click();
     const sheet = page.getByRole('dialog', { name: 'Anotar' });
     await sheet.getByRole('textbox', { name: 'Buscar alumno' }).fill('diaz');
-    await expect(sheet.getByRole('button', { name: 'Hugo Díaz' })).toBeVisible({ timeout: 2000 });
+    await expect(sheet.getByRole('button', { name: 'Díaz, Hugo' })).toBeVisible({ timeout: 2000 });
   });
 });
 
@@ -363,7 +362,7 @@ test.describe('hoy · la sesión desde la agenda', () => {
     await expect(sheet.getByRole('button', { name: 'No hay clase' })).toBeVisible();
     await shot(page, info, '54-session');
     await sheet.getByRole('button', { name: 'Revisar' }).click();
-    await expect(page.getByRole('dialog', { name: `Deberes · ${LABEL}` })).toBeVisible();
+    await expect(homeworkSheet(page)).toBeVisible();
     await page.keyboard.press('Escape');
     await agendaRow(page, '10:20').click();
     await sheet.getByRole('link', { name: 'Abrir clase' }).click();

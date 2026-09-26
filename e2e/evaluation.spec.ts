@@ -20,7 +20,9 @@ test('review report comments: accept a draft, then a grade that no longer matche
   const drafts = new Set((await rows()).filter((r) => r.comment_source === 'ai' && r.comment_status !== 'final').map((r) => r.student.id));
   try {
     await page.goto('/evaluar');
-    await page.getByRole('link', { name: /2\.º ESO B/ }).last().click();
+    // Inside the term's section: on a computer the sidebar lists the classes with the same name.
+    const term = page.locator('section').filter({ has: page.getByRole('heading', { name: '1.ª evaluación', exact: true }) });
+    await term.getByRole('link', { name: /2\.º ESO B/ }).click();
     await expect(page.getByRole('heading', { name: 'Primera evaluación' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Exportar notas (CSV)' })).toBeVisible();
 
