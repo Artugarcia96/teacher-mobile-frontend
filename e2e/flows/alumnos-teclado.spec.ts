@@ -2,9 +2,9 @@ import type { Locator, Page } from '@playwright/test';
 import { bug, expect, isMobile, MATES_2C, openFile, openRoster, rosterRow, section, sheet, test, toast } from './alumnos-helpers';
 
 // Alumnos with the keyboard only: the Tab order of Clase › Alumnos (tabs of the class, rows, «Añadir alumnos») and of
-// the student file (back, «···», Anotar, Preparar tutoría, «Ver N notas» on a phone, the attendance
-// row and its absences, the menus of the observations), and that Intro/Esc do on each what a tap does. A phone runs it
-// too (a keyboard paired to it). A teacher of its own; no AI («Preparar tutoría» is only reached, not opened).
+// the student file (back, «···», Anotar, «Ver N notas» on a phone, the attendance row and its absences, the menus of
+// the observations), and that Intro/Esc do on each what a tap does. A phone runs it too (a keyboard paired to it). A
+// teacher of its own; no AI.
 
 /** Tab once and expect the focus on `target`. */
 async function tabTo(page: Page, target: Locator) {
@@ -67,14 +67,13 @@ test('alumnos-111 Clase › Alumnos with Tab: the class tabs, each row in list o
   await expect(page.getByRole('heading', { level: 1, name: 'Pablo Benítez Ruiz' })).toBeVisible();
 });
 
-test('alumnos-111 the student file with Tab: back, «···», Anotar, Preparar tutoría, the notes, the absences, each observation', async ({ page, teacher }, info) => {
+test('alumnos-111 the student file with Tab: back, «···», Anotar, the notes, the absences, each observation', async ({ page, teacher }, info) => {
   const [c] = teacher.courses;
   const marta = c.students[0];
   await openFile(page, marta.id, 'Marta Alonso Gil');
   await page.getByRole('button', { name: '2.º ESO C', exact: true }).focus();
   await tabTo(page, page.getByRole('button', { name: 'Más opciones', exact: true }));
   await tabTo(page, page.getByRole('button', { name: 'Anotar' }));
-  await tabTo(page, page.getByRole('button', { name: 'Preparar tutoría' }));
   // On a phone the grades are folded under «Ver 2 notas»; a computer shows them (rows, not stops).
   const more = page.getByRole('button', { name: 'Ver 2 notas' });
   if (isMobile(info)) await tabTo(page, more);

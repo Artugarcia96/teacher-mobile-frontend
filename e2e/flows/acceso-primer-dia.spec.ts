@@ -230,7 +230,7 @@ test('acceso-33 · la lista desde un archivo (Excel y CSV) llena la misma vista 
   const course = await createCourse(acc, request);
   await openAs(page, acc, `/clases/${course.id}/alumnos?anadir=1`);
   const sheet = addSheet(page);
-  await expect(sheet.getByText('(CSV, TXT o Excel)')).toBeVisible();
+  await expect(sheet.getByText('(PDF, Excel, CSV o TXT)')).toBeVisible();
 
   // Excel from the school platform: a title, an empty row, a header with «Alumno/a», dates and «Repite».
   const chooser = page.waitForEvent('filechooser');
@@ -246,7 +246,7 @@ test('acceso-33 · la lista desde un archivo (Excel y CSV) llena la misma vista 
   // Typing replaces the file's preview; choosing a CSV (Excel in Spanish: «;», BOM) replaces it again.
   await sheet.getByLabel('Un alumno por línea').fill('Vidal Ruiz, Nuria');
   await expect(sheet.getByText('1 alumno · Apellidos, Nombre')).toBeVisible();
-  await expect(sheet.getByText('(CSV, TXT o Excel)')).toBeVisible();
+  await expect(sheet.getByText('(PDF, Excel, CSV o TXT)')).toBeVisible();
   const chooser2 = page.waitForEvent('filechooser');
   await sheet.getByRole('button', { name: 'o elige un archivo' }).click();
   await (await chooser2).setFiles(`${FIXTURES}alumnado-2eso-b.csv`);

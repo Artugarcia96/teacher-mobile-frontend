@@ -2,7 +2,8 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import { shot, trackErrors } from './helpers';
 
 // Materials of the seeded demo (Matemáticas 2.º ESO B · Fracciones): edit an exercise by hand, project the
-// presentación, and the choices of «Preparar el trimestre». Nothing here calls the AI.
+// presentación, the solucionario of apuntes and lectura sencilla, and the choices of «Preparar el trimestre». Nothing
+// here calls the AI.
 const API = process.env.API || 'http://127.0.0.1:8000';
 
 interface MaterialRef { id: string; title: string }
@@ -80,6 +81,31 @@ test('presentación: proyectar y pasar con el teclado, sin notas del orador en l
   }
   await page.keyboard.press('Escape');
   await expect(presenter).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('apuntes y lectura sencilla: el PDF es el de los alumnos, el solucionario va aparte y no se comparte', async ({ page, request }) => {
+  const errors = trackErrors(page);
+  const { material } = await fractions(request);
+  for (const [title, name] of [['Apuntes · Fracciones', 'Apuntes'], ['Lectura sencilla · Fracciones', 'Lectura sencilla']]) {
+    await page.goto(material(title));
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
+    await page.getByRole('button', { name: 'Descargar', exact: true }).click();
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitem')).toHaveText(['Descargar PDF', 'Descargar solucionario']);
+    // The whole menu on screen, also when its button sits at the left edge of a phone.
+    const box = (await menu.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await page.getByRole('button', { name: 'Más opciones' }).click();
+    await page.getByRole('menuitem', { name: 'Compartir con alumnos' }).click();
+    const share = page.getByRole('dialog', { name: 'Compartir con alumnos' });
+    await expect(share.getByText('Se comparte sin las soluciones: el solucionario es solo para ti.')).toBeVisible();
+    await share.getByRole('button', { name: 'Cerrar' }).click();
+    await expect(share).toHaveCount(0);
+  }
   expect(errors).toEqual([]);
 });
 

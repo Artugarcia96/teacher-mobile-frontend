@@ -364,7 +364,9 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
       for (const other of await sheet.getByRole('switch').all()) {
         if (await other.getAttribute('aria-label') !== 'Incluir Matemáticas · 2.º ESO B 08:30' && await other.isChecked()) await other.click();
       }
-      await expect(sheet.getByText('Material de «Fracciones»')).toBeVisible();
+      // Only what prints behind the sheet (a PDF) is offered: never the unit's link.
+      await expect(sheet.getByText('Se imprime detrás · «Fracciones»')).toBeVisible();
+      await expect(sheet.getByRole('button', { name: 'Khan Academy · Operaciones con fracciones' })).toHaveCount(0);
       const chip = sheet.getByRole('button', { name: 'Apuntes · Fracciones' });
       await chip.click();
       await expect(chip).toHaveAttribute('aria-pressed', 'true');
@@ -555,6 +557,35 @@ test.describe(() => {
     await openHoy(page);
     await expect(agendaRow(page, '10:20')).toContainText(SHORT);
     await expect(agendaRow(page, '08:30')).not.toContainText('Lista sin pasar', { timeout: 2000 });
+  });
+});
+
+// A class that cannot be used yet is never «Todo al día»: Pendiente ends in one line with the verb of its next step.
+test.describe(() => {
+  test.use({ worldSpec: { courses: [{ ...CLASS, slots: [], logs: [] }] } });
+  test('hoy-81 · a class without a timetable: «Añadir horario» instead of «Todo al día», and it opens the class settings', async ({ page, world }) => {
+    await openHoy(page);
+    const pending = section(page, 'Pendiente');
+    await expect(pending.getByText('Todo al día')).toHaveCount(0);
+    const step = pending.getByRole('button', { name: /^Añadir horario/ });
+    await expect(step).toContainText(`${SHORT} aún no tiene horario: no sale en Hoy ni se pasa lista.`);
+    await step.click();
+    await expect(page).toHaveURL(new RegExp(`/clases/${world.courses[0].id}/cuaderno\\?ajustes=1$`));
+    await expect(page.getByRole('dialog', { name: 'Ajustes de la clase' })).toBeVisible();
+  });
+});
+
+test.describe(() => {
+  test.use({ worldSpec: { courses: [{ ...CLASS, students: [], logs: [] }] } });
+  test('hoy-82 · a class without students: «Añadir alumnos» instead of «Todo al día», and it opens «Añadir alumnos»', async ({ page, world }) => {
+    await openHoy(page);
+    const pending = section(page, 'Pendiente');
+    await expect(pending.getByText('Todo al día')).toHaveCount(0);
+    const step = pending.getByRole('button', { name: /^Añadir alumnos/ });
+    await expect(step).toContainText(`${SHORT} aún no tiene alumnos: no hay lista ni notas.`);
+    await step.click();
+    await expect(page).toHaveURL(new RegExp(`/clases/${world.courses[0].id}/alumnos\\?anadir=1$`));
+    await expect(page.getByRole('dialog', { name: 'Añadir alumnos' })).toBeVisible();
   });
 });
 

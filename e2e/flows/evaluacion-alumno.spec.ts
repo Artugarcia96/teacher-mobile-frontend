@@ -1,13 +1,14 @@
 import {
   BASE, commentBox, confirmDialog, csvRows, DETAILS, downloaded, evalRow, evaluation, expect, isMobile, NAMES,
-  openEvaluation, press, sheetInHistory, sheetOf, shot, stepperValue, studentRow, STUDENTS, test, toast, type Api,
+  openEvaluation, pdfText, press, sheetInHistory, sheetOf, shot, stepperValue, studentRow, STUDENTS, test, toast, type Api,
   type Page,
 } from './evaluacion-helpers';
 
 // La hoja del alumno en Evaluación (docs/PRODUCT.md §4.6): nota (± y «Usar la propuesta»), «Cómo se calcula», lo que le
 // falta, el comentario de boletín, «Aceptar y siguiente» (sin aviso salvo el último, y sin aceptar el siguiente con un
 // doble toque), ✕ / Esc / atrás (con cambios, preguntan antes de descartarlos), un comentario que ya no cuadra con la
-// nota («Escrito para un 7 · nota 8») y «Usar 8» de una recuperación. What the AI writes is in evaluacion-ia.spec.ts.
+// nota («Escrito para un 7 · nota 8») o que nombra otra calificación («Dice «un bien» · nota 7») y «Usar 8» de una
+// recuperación. What the AI writes is in evaluacion-ia.spec.ts.
 
 /** Every PUT of an evaluation row the page sends, from now on. */
 function rowSaves(page: Page): string[] {
@@ -362,6 +363,52 @@ test.describe('un comentario que ya no cuadra con la nota', () => {
     expect(await evalRow(world.api, world.c.id, STUDENTS[5])).toMatchObject({
       comment_status: 'final', comment_source: 'manual', comment_grade: 8, comment_stale: false, final_grade: 8,
     });
+  });
+});
+
+test.describe('un comentario que nombra otra calificación', () => {
+  // Adrián's grade is a 7 (NT), and his comment says «un bien»; Marta's matches hers.
+  const CLASH = 'Ha obtenido un bien: trabaja con constancia y participa en clase.';
+  const FINE = 'Muy buen trimestre; sigue así.';
+  test.use({ worldSpec: { courses: [{ ...BASE, evaluation: [{ student: 5, comment: CLASH }, { student: 0, comment: FINE, accept: true }] }] } });
+
+  test('evaluacion-58 «Dice «un bien» · nota 7»: no sale de Sepia ni se puede aceptar hasta corregir la calificación', async ({ page, world, context }, info) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await openEvaluation(page, world.c.id);
+    await expect(studentRow(page, NAMES[5]).locator('.ev-row__comment')).toHaveText('Dice «un bien» · nota 7');
+    await expect(page.locator('.ev-count')).toHaveText('4 por redactar · 1 no cuadra con la nota');
+    expect(await evalRow(world.api, world.c.id, STUDENTS[5])).toMatchObject({ comment: CLASH, comment_clash: 'un bien' });
+
+    // The CSV leaves it empty and the notice says what it does not carry; «Copiar» leaves it out too.
+    const { body } = await downloaded(page, () => page.getByRole('button', { name: 'Exportar notas (CSV)' }).click());
+    expect(csvRows(body)[1][4]).toBe(FINE);
+    expect(csvRows(body)[6]).toEqual(['Fuentes Vera', 'Adrián', '7', 'NT', '']);
+    await expect(toast(page, 'Notas descargadas. No llevan 1 comentario: sin revisar o que no cuadran con la nota.')).toBeVisible();
+    const acta = await downloaded(page, () => page.getByRole('button', { name: 'Acta (PDF)' }).click());
+    await expect(toast(page, 'Acta descargada. No lleva 1 comentario: sin revisar o que no cuadran con la nota.')).toBeVisible();
+    const printed = pdfText(acta.body);
+    expect(printed).toContain('No se imprime 1 comentario: 1 que no cuadra con la nota.');
+    expect(printed).toContain(FINE);
+    expect(printed).not.toContain('un bien');
+    await page.getByRole('button', { name: 'Más acciones' }).click();
+    await page.getByRole('menuitem', { name: 'Copiar todos los comentarios' }).click();
+    await expect(toast(page, '1 comentario copiado. Sin copiar 1 comentario: sin revisar o que no cuadran con la nota.')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`Alonso Gil, Marta\n${FINE}`);
+
+    // The sheet says what clashes and only offers to correct it or draft it again.
+    const sheet = await openSheet(page, 5, info);
+    await expect(sheet.locator('.callout').filter({ hasText: 'El comentario dice «un bien» y la nota es un 7. Corrígelo o redáctalo de nuevo.' })).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'El comentario dice otra nota' })).toBeDisabled();
+    await expect(sheet.getByRole('button', { name: /^Aceptar/ })).toHaveCount(0);
+
+    // Correcting the grade in the text lets it be accepted.
+    await commentBox(sheet).fill('Ha obtenido un notable: trabaja con constancia y participa en clase.');
+    await expect(sheet.getByText(/Corrígelo o redáctalo de nuevo/)).toHaveCount(0);
+    await sheet.getByRole('button', { name: 'Aceptar', exact: true }).click();
+    await expect(toast(page, 'Aceptado: Adrián')).toBeVisible();
+    await expect(studentRow(page, NAMES[5]).locator('.ev-row__comment')).toHaveText('Ha obtenido un notable: trabaja con constancia y participa en clase.');
+    await expect(page.locator('.ev-count')).toHaveText('4 por redactar');
+    expect(await evalRow(world.api, world.c.id, STUDENTS[5])).toMatchObject({ comment_status: 'final', comment_clash: null });
   });
 });
 

@@ -153,7 +153,7 @@ test.describe('hoy · a vigilar según el día', () => {
 
   test('hoy-66 · a day the teacher is away: «Este día no estás»', async ({ page, world }) => {
     const [maths] = world.courses;
-    await world.api.post('/absences', { reason: null, sessions: [{ course_id: maths.id, date: '2026-11-20', start: '09:25', task: 'Ficha 3', material_ids: [] }] });
+    await world.api.post('/absences', { sessions: [{ course_id: maths.id, date: '2026-11-20', start: '09:25', task: 'Ficha 3', material_ids: [] }] });
     await openHoy(page, '2026-11-20');
     const watch = section(page, 'A vigilar');
     await expect(watch.getByText('Este día no estás')).toBeVisible();

@@ -2,22 +2,18 @@ import { expect, request, test as base, type APIRequestContext, type Locator, ty
 import { shot as baseShot } from '../helpers';
 
 // Shared pieces of the Alumnos flows (e2e/flows/alumnos-*.spec.ts): Clase › Alumnos, «Añadir alumnos», the student file
-// (notas, asistencia, observaciones, «A vigilar», apoyos, quitar del grupo), the student search and «Preparar tutoría».
+// (notas, asistencia, observaciones, «A vigilar», apoyos, quitar del grupo) and the student search.
 //
 // The backend runs with «today» frozen on Thursday 19 Nov 2026 at 10:40 (SEPIA_TODAY / SEPIA_NOW). Two kinds of tests:
 // - `demo`: the seeded demo teacher, to look at rich real data (AI drafts, NP, adapted versions, «A vigilar»). Nothing
 //   is left changed there: what a test touches is put back in a `finally`.
 // - `teacher`: a teacher registered for that test alone with the classes, students, grades, absences and notes it
 //   needs. Every flow that adds, edits or removes runs there, so no test depends on another one nor on their order.
-//
-// AI flows carry «@ai» in their title (`npx playwright test --grep @ai`) and run with the real AI (claude_cli).
 
 export const API = process.env.API || 'http://127.0.0.1:8000';
 export const APP = process.env.APP || 'http://127.0.0.1:5173';
 export const TODAY = '2026-11-19'; // Thursday; the backend's «now» is 10:40
 export const MON = 0, TUE = 1, WED = 2, THU = 3, FRI = 4;
-/** Up to 4 minutes per AI step, waiting on the progress UI. */
-export const AI_STEP = 4 * 60_000;
 
 // ── API ─────────────────────────────────────────────────────────────────────
 export class Api {

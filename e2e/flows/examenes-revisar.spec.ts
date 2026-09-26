@@ -1,5 +1,5 @@
 import {
-  answer, bug, correction, dialog, esc, expect, fitsTheScreen, isMobile, openActivity, shot, stepHead, stepRow, test, toast,
+  answer, correction, dialog, esc, expect, fitsTheScreen, isMobile, openActivity, shot, stepHead, stepRow, test, toast,
   type Api, type Page,
 } from './examenes-helpers';
 
@@ -43,6 +43,11 @@ const accept = (page: Page) => page.locator('.review-accept');
 const who = (page: Page) => page.locator('.review-bar__title strong');
 const progress = (page: Page) => page.locator('.review-bar__title .num');
 const points = (page: Page, n: string) => page.getByRole('group', { name: `Puntos de la pregunta ${n}` });
+/** What the accept button of a suggestion asks for: first the questions the AI did not score («Sin corregir»). */
+const toScore = (g: Grade | null) => {
+  const open = g?.unscored ?? [];
+  return open.length === 1 ? `Puntúa la pregunta ${open[0]}` : `Puntúa las preguntas ${open.slice(0, -1).join(', ')} y ${open[open.length - 1]}`;
+};
 async function openReview(page: Page, url: string, sid?: string) {
   await page.goto(`${url}/revisar${sid ? `?alumno=${sid}` : ''}`);
   await expect(who(page)).toBeVisible();
@@ -236,6 +241,13 @@ test.describe('examenes · revisar', () => {
     await page.getByRole('button', { name: 'Es correcto' }).click();
     await expect(toast(page, 'Nombre confirmado')).toBeVisible();
     await expect(page.getByText(/^Nombre por confirmar/)).toHaveCount(0);
+    // A question the AI did not score («Sin corregir») still waits for its points; then the grade can be accepted.
+    const open = one.grade!.unscored ?? [];
+    if (open.length) {
+      await expect(accept(page)).toHaveText(toScore(one.grade));
+      await expect(accept(page)).toBeDisabled();
+      for (const q of open) await points(page, q).getByRole('button', { name: 'Más' }).click();
+    }
     await expect(accept(page)).toHaveText('Aceptar y siguiente');
     await expect(accept(page)).toBeEnabled();
     expect((await state(demo, exam.id)).by(one.student.id).match_status).toBe('confirmed');
@@ -255,10 +267,11 @@ test.describe('examenes · revisar', () => {
     await expect(toast(page, `Hoja asignada a ${to.student.name}`)).toBeVisible();
     await expect(who(page)).toHaveText(to.student.name);
     await expect(page).toHaveURL(new RegExp(`alumno=${to.student.id}`));
-    await expect(accept(page)).toHaveText(/^Aceptar y /);
+    // The AI's grading goes with the paper, its questions «Sin corregir» too.
+    await expect(accept(page)).toHaveText(one.grade!.unscored?.length ? toScore(one.grade) : /^Aceptar y /);
     const after = await state(demo, exam.id);
     expect([after.by(one.student.id).paper_id, after.by(to.student.id).paper_id]).toEqual([null, one.paper_id]);
-    expect(after.by(to.student.id).grade).toMatchObject({ status: 'suggested', score: one.grade!.score });
+    expect(after.by(to.student.id).grade).toMatchObject({ status: 'suggested', score: one.grade!.score, unscored: one.grade!.unscored ?? [] });
   });
 
   test('examenes-52 · «Cambiar» to a student already reviewed joins the papers; the warnings lead to «Ordenar páginas»', async ({ page, cloneExam, demo }, info) => {
@@ -309,7 +322,6 @@ test.describe('examenes · revisar', () => {
   });
 
   test('examenes-54 · «Aceptar todas las sugerencias» (step menu) leaves out the names to confirm and the questions to score, and says so', async ({ page, cloneExam, demo }) => {
-    bug('EX-07', 'the server leaves out suggestions with a question the AI did not score («Sin corregir») but the review step does not know: «Aceptar N sugerencias» counts them and the notice does not say why fewer passed');
     const exam = await cloneExam('fracciones');
     const s = await state(demo, exam.id);
     const held = s.toConfirm.length;
@@ -335,7 +347,6 @@ test.describe('examenes · revisar', () => {
   });
 
   test('examenes-54b · a question the AI did not score says «Sin corregir» and waits for the teacher: no 0 nobody gave', async ({ page, cloneExam, demo }) => {
-    bug('EX-07', 'the review shows a question the AI did not score as «0 / 1,5» and lets its paper be accepted with that 0');
     const exam = await cloneExam('fracciones');
     const s = await state(demo, exam.id);
     const one = s.unscored[0];

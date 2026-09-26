@@ -48,8 +48,9 @@ test.describe('a student with a bit of everything', () => {
     const t1 = file.courses[0].terms[0];
     await openFile(page, marta.id, 'Marta Alonso Gil');
     await expect(page.locator('.page-head .eyebrow')).toHaveText('2.º ESO C');
+    // «Anotar» is the file's one action: «Preparar tutoría» is withdrawn until what it says is checked.
     await expect(page.getByRole('button', { name: 'Anotar' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Preparar tutoría' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Preparar tutoría' })).toHaveCount(0);
 
     const notas = section(page, 'Notas');
     // One class: no class row. The terms: the proposal (integer) with the average under it; the rest «—».

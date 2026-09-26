@@ -300,7 +300,7 @@ export interface EvalRow {
   student: StudentRef; average: number | null; proposed: number | null; qualitative: string | null; final_grade: number | null;
   final: number | null; stale_adjustment: boolean; final_qualitative: string | null; comment: string | null;
   comment_status: 'draft' | 'final' | null; comment_source: 'ai' | 'manual' | null; comment_grade: number | null;
-  comment_stale: boolean; absences: number; justified: number;
+  comment_stale: boolean; comment_clash: string | null; absences: number; justified: number;
   recovery: { before: number | null; before_proposed: number | null; score: number } | null;
   pending_exams: { title: string }[]; missing_grades: { title: string }[]; adapted: boolean;
 }

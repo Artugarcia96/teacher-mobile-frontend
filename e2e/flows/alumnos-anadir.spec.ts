@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 import { bug, expect, isMobile, MATES_2C, openRoster, rosterRow, settle, sheet, shot, STUDENTS, test, toast } from './alumnos-helpers';
 
-// «Añadir alumnos» (Clase › Alumnos): paste a list in any of the usual shapes, or pick a CSV/TXT/Excel file, check and
-// correct the preview, add; or bring students from another group. What is added is checked in the roster and through
+// «Añadir alumnos» (Clase › Alumnos): paste a list in any of the usual shapes, or pick a PDF, Excel, CSV or TXT file,
+// check and correct the preview, add; or bring students from another group. What is added is checked in the roster and through
 // the API. No AI. (A student added after the first list joins today: e2e/new-student.spec.ts checks Evaluar for that.)
 
 const XLSX = new URL('./fixtures/alumnos-lista.xlsx', import.meta.url);
@@ -17,6 +17,30 @@ async function openAdd(page: Page, courseId: string) {
   await page.goto(`/clases/${courseId}/alumnos?anadir=1`);
   await expect(addSheet(page)).toBeVisible();
   return addSheet(page);
+}
+
+/** A class list as jefatura sends it: a one-page PDF with text (Helvetica, accents in WinAnsi), one printed line per row
+ *  and each cell in its own column. Without rows, a page with no text: what a scanned list looks like to the server. */
+function listPdf(rows: string[][]): Buffer {
+  const esc = (t: string) => t.replace(/[\\()]/g, '\\$&');
+  const text = rows.flatMap((cells, i) => cells.map((c, j) => `BT /F1 11 Tf ${60 + 200 * j} ${780 - 18 * i} Td (${esc(c)}) Tj ET`)).join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${Buffer.byteLength(text, 'latin1')} >>\nstream\n${text}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = objects.map((o, i) => {
+    const at = Buffer.byteLength(pdf, 'latin1');
+    pdf += `${i + 1} 0 obj\n${o}\nendobj\n`;
+    return at;
+  });
+  const xref = Buffer.byteLength(pdf, 'latin1');
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
 }
 
 async function names(api: { get: (p: string) => Promise<any> }, groupId: string): Promise<string[]> {
@@ -142,7 +166,7 @@ test.describe('the first list of a new class', () => {
     const s = await openAdd(page, c.id);
     await listField(s).fill('Pablo Ruiz Serrano');
     await expect(previewNames(s)).toHaveText(['Ruiz Serrano, Pablo']);
-    await expect(s.getByText('(CSV, TXT o Excel)')).toBeVisible();
+    await expect(s.getByText('(PDF, Excel, CSV o TXT)')).toBeVisible();
 
     const chooser = page.waitForEvent('filechooser');
     await s.getByRole('button', { name: 'o elige un archivo' }).click();
@@ -164,6 +188,28 @@ test.describe('the first list of a new class', () => {
     await s.getByRole('button', { name: 'Añadir 2 alumnos' }).click();
     await expect(toast(page, '2 alumnos añadidos')).toBeVisible();
     expect(await names(teacher.api, c.groupId)).toEqual(['Ortega Blanco, Jorge', 'Prieto Sanz, Lucía']);
+  });
+
+  test('alumnos-26 the list jefatura sends as a PDF: its text fills the preview; a scanned one says what to do', async ({ page, teacher }) => {
+    const [c] = teacher.courses;
+    const s = await openAdd(page, c.id);
+    const chooser = page.waitForEvent('filechooser');
+    await s.getByRole('button', { name: 'o elige un archivo' }).click();
+    await (await chooser).setFiles({ name: 'Relación 2C.pdf', mimeType: 'application/pdf', buffer: listPdf([
+      ['IES La Alborada - Sevilla'], ['Relación de alumnos del grupo 2º ESO C'], ['Apellidos', 'Nombre'],
+      ['Ortega Blanco', 'Jorge'], ['Prieto Sanz', 'Lucía'], ['Quintana Ríos', 'María José'], ['Página 1 de 1'],
+    ]) });
+    await expect(s.getByText('· Relación 2C.pdf')).toBeVisible();
+    // The title, the header and the page footer are not students.
+    await expect(previewNames(s)).toHaveText(['Ortega Blanco, Jorge', 'Prieto Sanz, Lucía', 'Quintana Ríos, María José']);
+
+    // A scan has no text to read: the reason under the field and nothing to add, never unreadable names.
+    const scan = page.waitForEvent('filechooser');
+    await s.getByRole('button', { name: 'o elige un archivo' }).click();
+    await (await scan).setFiles({ name: 'Escaneo 2C.pdf', mimeType: 'application/pdf', buffer: listPdf([]) });
+    await expect(s.getByRole('alert')).toHaveText('Este PDF es una imagen escaneada y no tiene texto que leer. Descarga la lista en PDF o en Excel desde la plataforma del centro, o copia y pega los nombres.');
+    await expect(previewNames(s)).toHaveCount(0);
+    await expect(s.getByRole('button', { name: 'Pega al menos un nombre' })).toBeDisabled();
   });
 
   test('alumnos-16 an Excel sheet (.xlsx) with a title and a header row', async ({ page, teacher }, info) => {

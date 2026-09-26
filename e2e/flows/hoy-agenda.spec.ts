@@ -116,13 +116,20 @@ test.describe('hoy · voy a faltar', () => {
     const sheet = page.getByRole('dialog', { name: 'Voy a faltar' });
     await expect(sheet.getByText('Deja la tarea de cada clase para el profesorado de guardia.')).toBeVisible();
     await expect(sheet.getByText('19 nov 2026')).toHaveCount(2); // Desde and Hasta: today
-    // The 08:30 class is over and the 10:20 one is on: only 12:40 can still be left to the substitute.
+    await expect(sheet.getByLabel('Motivo')).toHaveCount(0); // no reason is asked: the sheet goes round the classroom
+    // The 08:30 class is over and the 10:20 one is on (she is giving it): only 12:40 can still be left to the substitute.
     await expect(sheet.getByRole('heading', { name: 'Sesiones · 1 de 1' })).toBeVisible();
     await expect(sheet.getByText('Jue 19 nov, 12:40–13:35 · Aula 112')).toBeVisible();
-    const task = sheet.getByRole('textbox', { name: 'Tarea' });
-    await expect(task).toHaveValue(/^Problemas de la p\. 34\./); // what the last closing planned
-    await sheet.getByLabel('Motivo').fill('Formación del profesorado');
+    await expect(sheet.getByText(/10:20–11:15/)).toHaveCount(0);
+    // Three parts that never mix: what they bring done (the homework the 08:30 closing set, not editable here), the
+    // session's task (what that closing planned, without the homework) and «Para casa» (empty).
+    await expect(sheet.getByText('Traían hecho p. 33, ej. 15-18')).toBeVisible();
+    const task = sheet.getByRole('textbox', { name: 'Tarea de la sesión' });
+    await expect(task).toHaveValue('Problemas de la p. 34.');
+    const homework = sheet.getByRole('textbox', { name: 'Para casa' });
+    await expect(homework).toHaveValue('');
     await task.fill('Ficha de repaso de fracciones, ejercicios 1 a 10.');
+    await homework.fill('Terminar la ficha de repaso.');
     await shot(page, info, '74-absence');
     await sheet.getByRole('button', { name: 'Crear hoja de guardia (1)' }).click();
     await expect(toast(page, '1 sesión con hoja de guardia')).toBeVisible();
@@ -132,6 +139,11 @@ test.describe('hoy · voy a faltar', () => {
     expect(pdf.ok()).toBe(true);
     expect((await pdf.body()).subarray(0, 4).toString()).toBe('%PDF');
     await sheet.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    // Saved as written: the task and «Para casa»; what they bring done still comes from the closing.
+    expect((await world.api.get(`/absences/sessions?from=${TODAY}`)).sessions).toEqual([expect.objectContaining({
+      start: '12:40', guardia: true, task: 'Ficha de repaso de fracciones, ejercicios 1 a 10.', homework: 'Terminar la ficha de repaso.',
+      due: 'p. 33, ej. 15-18',
+    })]);
 
     await expect(agendaRow(page, '12:40')).toContainText('Ausente');
     await expect(nowCard(page)).toHaveAccessibleName('Ahora · quedan 35 min'); // the class on now is still hers
@@ -167,7 +179,7 @@ test.describe('hoy · voy a faltar', () => {
     const create = sheet.locator('.sheet__foot').getByRole('button');
     await expect(create).toBeEnabled();
     await expect(create).toHaveText('Crear hoja de guardia (1)');
-    await sheet.getByRole('textbox', { name: 'Tarea' }).first().fill('');
+    await sheet.getByRole('textbox', { name: 'Tarea de la sesión' }).fill('');
     await expect(create).toBeDisabled();
     await expect(create).toHaveText('Escribe la tarea de cada sesión');
     await sheet.getByRole('switch', { name: `Incluir ${LABEL} 12:40` }).click(); // the only one still to come today
@@ -204,11 +216,13 @@ test.describe('hoy · voy a faltar', () => {
     await openHoy(page);
     await hoyMenu(page, 'Voy a faltar');
     const sheet = page.getByRole('dialog', { name: 'Voy a faltar' });
-    await sheet.getByLabel('Motivo').fill('Médico');
+    await sheet.getByRole('textbox', { name: 'Tarea de la sesión' }).fill('Ficha de repaso.');
+    await sheet.getByRole('textbox', { name: 'Para casa' }).fill('Terminar la ficha.');
     await page.route('**/api/absences', (route) => route.fulfill({ status: 400, contentType: 'application/json',
-      body: JSON.stringify({ detail: { message: 'La sesión de las 10:20 ya ha terminado.' } }) }));
+      body: JSON.stringify({ detail: { message: 'La sesión de las 12:40 ya ha empezado.' } }) }));
     await sheet.getByRole('button', { name: /^Crear hoja de guardia/ }).click();
-    await expect(toast(page, 'La sesión de las 10:20 ya ha terminado.')).toBeVisible();
-    await expect(sheet.getByLabel('Motivo')).toHaveValue('Médico');
+    await expect(toast(page, 'La sesión de las 12:40 ya ha empezado.')).toBeVisible();
+    await expect(sheet.getByRole('textbox', { name: 'Tarea de la sesión' })).toHaveValue('Ficha de repaso.');
+    await expect(sheet.getByRole('textbox', { name: 'Para casa' })).toHaveValue('Terminar la ficha.');
   });
 });

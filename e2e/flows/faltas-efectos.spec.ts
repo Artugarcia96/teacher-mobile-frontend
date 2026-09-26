@@ -51,7 +51,7 @@ test.describe('faltas · sesiones sin clase y guardias', () => {
 
   test('faltas-42 · a session left to the substitute: out of Faltas › Hoy; its list, taken later, counts; «Ya no falto» brings it back', async ({ page, world }) => {
     const c = world.courses[0];
-    await world.api.post('/absences', { reason: 'Médico', sessions: [{ course_id: c.id, date: TODAY, start: '12:40', task: 'Problemas de la p. 34.' }] });
+    await world.api.post('/absences', { sessions: [{ course_id: c.id, date: TODAY, start: '12:40', task: 'Problemas de la p. 34.' }] });
     await openFaltas(page, c.id);
     await expect(todayTimes(page)).toHaveText(['10:20–11:15']);
 

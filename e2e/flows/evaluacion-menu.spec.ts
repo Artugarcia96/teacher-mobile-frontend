@@ -33,7 +33,7 @@ test.describe('el menú de una evaluación sin sesión en el calendario', () => 
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await openEvaluation(page, world.c.id);
     await evalMenu(page, 'Copiar todos los comentarios');
-    await expect(toast(page, 'Todavía no hay comentarios que copiar')).toBeVisible();
+    await expect(toast(page, 'Todavía no hay comentarios revisados que copiar')).toBeVisible();
 
     const [marta, , lucia] = world.c.students;
     await world.api.put(`/courses/${world.c.id}/evaluation/1/students/${lucia.id}`, { comment: 'Trabaja bien en clase.' });
