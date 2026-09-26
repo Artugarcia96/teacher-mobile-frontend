@@ -240,6 +240,8 @@ test.describe('examenes · la hoja de faltas justo después de programar una rep
     await sheet.getByRole('button', { name: 'Programar repesca (1)' }).click();
     await expect(toast(page, /^Repesca el /)).toBeVisible();
     await page.getByRole('button', { name: /^Faltaron 2 alumnos/ }).click();
+    // Until the activity is back, nothing can be decided from the old list.
+    await expect(sheet.getByRole('button', { name: /^Poner NP/ })).toBeDisabled();
     // Pablo has his repesca: only Lucía is still to decide.
     await expect(sheet.getByRole('button', { name: 'Poner NP (1)' })).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Pablo Benítez' })).toHaveAttribute('aria-pressed', 'false');

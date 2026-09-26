@@ -136,6 +136,9 @@ export default function ReviewPage() {
       {review.error || (!studentId && correction.error) ? (
         <EmptyState icon={<FileX size={24} />} title={review.error ? 'No se ha podido abrir la revisión' : 'No se ha podido abrir la actividad'}
           text={(review.error ?? correction.error)?.message} action={<Button variant="tinted" onClick={back}>Volver al examen</Button>} />
+      ) : !studentId && c ? (
+        <EmptyState icon={<FileX size={24} />} title="No hay alumnos que revisar" text="Esta actividad no tiene alumnos."
+          action={<Button variant="tinted" onClick={back}>Volver al examen</Button>} />
       ) : !r ? (
         <div className="review-body"><div className="review-pages"><Skeleton h={480} r={14} /></div><div className="review-panel"><Skeleton h={300} r={20} /></div></div>
       ) : (

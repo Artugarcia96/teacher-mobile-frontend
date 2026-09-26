@@ -402,7 +402,7 @@ test.describe('faltas · listas sin pasar (demo)', () => {
     await mark(demo, c.id, day, past.start, [{ student: students[0], status: 'absent' }]);
     await openFaltas(page, c.id);
     const taken = section(page, 'Listas pasadas').locator('.row').filter({ hasText: longDate(day) }).filter({ hasText: `${past.start}–${past.end}` });
-    await expect(taken).toContainText('1 falta');
+    await expect(taken).toContainText('1 falta sin justificar');
     await taken.getByRole('button', { name: 'Editar lista' }).click();
     const sheet = await listSheet(page);
     await expect(sheet.getByText(`${longDate(day)} · ${past.start}–${past.end}`)).toBeVisible();

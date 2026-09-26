@@ -114,12 +114,13 @@ export default function AttendanceTab({ course }: { course: CourseDetail }) {
             <List>
               {s.past_lists.map((l) => {
                 const marks = [
-                  l.absent + l.justified > 0 && plural(l.absent + l.justified, 'falta', 'faltas'),
+                  l.absent > 0 && plural(l.absent, 'falta sin justificar', 'faltas sin justificar'),
+                  l.justified > 0 && plural(l.justified, 'justificada', 'justificadas'),
                   l.late > 0 && plural(l.late, 'retraso', 'retrasos'),
                 ].filter(Boolean);
                 return (
                   <Row key={`${l.date}-${l.start}`} title={longDate(l.date)}
-                    sub={[l.end ? `${l.start}–${l.end}` : l.start, marks.length ? marks.join(' · ') : 'Todos presentes'].join(' · ')}
+                    sub={[`${l.start}–${l.end}`, marks.length ? marks.join(' · ') : 'Todos presentes'].join(' · ')}
                     trail={<Button size="sm" variant="tinted" onClick={() => setSheet(l)}>Editar lista</Button>} />
                 );
               })}

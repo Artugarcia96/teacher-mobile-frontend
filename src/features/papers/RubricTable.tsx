@@ -22,18 +22,20 @@ export function RubricTable({ activityId, rubric, maxScore, generated, versionKe
   const rendered = generated || !!versionKey;
   const { toast } = useFeedback();
   const [items, setItems] = useState<RubricItem[]>(rubric.items);
-  const [editing, setEditing] = useState<number | null>(null);
+  const [editing, setEditing] = useState<string | null>(null); // id of the question whose sheet is open
   const [adding, setAdding] = useState(false);
   const queued = useRef<{ items: RubricItem[]; label: string } | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const saving = useRef(false);
   const source = JSON.stringify(rubric.items);
-  // Follow the server, except while a change of the teacher's is on its way (it would come back without it) or a
-  // question's sheet is open (the row it edits, maybe a new one, must stay); once it closes, catch up.
-  const open = editing !== null;
+  // Follow the server, except while a change of the teacher's is on its way (it would come back without it). A question
+  // being added (not saved yet) stays at the end; the sheet keeps its own draft, so an open sheet is no reason to wait.
   useEffect(() => {
-    if (!open && !queued.current && !saving.current) setItems(JSON.parse(source) as RubricItem[]);
-  }, [source, open]);
+    if (queued.current || saving.current) return;
+    const server = JSON.parse(source) as RubricItem[];
+    setItems((list) => (adding ? [...server, list[list.length - 1]] : server));
+  }, [source, adding]);
+  const at = items.findIndex((it) => it.id === editing);
 
   const total = items.reduce((s, i) => s + i.points, 0);
   const off = Math.abs(total - maxScore) > 0.001;
@@ -78,7 +80,7 @@ export function RubricTable({ activityId, rubric, maxScore, generated, versionKe
     while (ids.has(String(n))) n += 1;
     setItems((list) => [...list, { id: String(n), label: String(n), text: '', points: 1, answer: '', steps: [] }]);
     setAdding(true);
-    setEditing(items.length);
+    setEditing(String(n));
   };
   const close = () => { // a question added and never finished is not kept
     if (adding) setItems((list) => list.slice(0, -1));
@@ -86,20 +88,20 @@ export function RubricTable({ activityId, rubric, maxScore, generated, versionKe
     setEditing(null);
   };
   const onSave = (patch: Partial<RubricItem>) => {
-    if (editing === null) return;
-    const it = items[editing];
+    if (at < 0) return;
+    const it = items[at];
     const changed = adding || (Object.keys(patch) as (keyof RubricItem)[]).some((k) => patch[k] !== it[k]);
     if (changed) {
-      saveNow(items.map((x, i) => (i === editing ? { ...x, ...patch } : x)),
+      saveNow(items.map((x, i) => (i === at ? { ...x, ...patch } : x)),
         `Pregunta ${name(it)} ${adding ? 'añadida' : 'guardada'}`);
     }
     setAdding(false);
     setEditing(null);
   };
   const onDelete = () => {
-    if (editing === null) return;
-    const it = items[editing];
-    if (!adding) saveNow(items.filter((_, i) => i !== editing), `Pregunta ${name(it)} quitada`);
+    if (at < 0) return;
+    const it = items[at];
+    if (!adding) saveNow(items.filter((_, i) => i !== at), `Pregunta ${name(it)} quitada`);
     else setItems((list) => list.slice(0, -1));
     setAdding(false);
     setEditing(null);
@@ -114,11 +116,11 @@ export function RubricTable({ activityId, rubric, maxScore, generated, versionKe
         {items.map((it, i) => (
           <div key={it.id} className="rubric__row">
             <span className="rubric__n num">{name(it)}</span>
-            <button type="button" className="rubric__text" onClick={() => setEditing(i)} aria-label={`Editar pregunta ${name(it)}`}>
+            <button type="button" className="rubric__text" onClick={() => setEditing(it.id)} aria-label={`Editar pregunta ${name(it)}`}>
               <RichText className="clamp-2" text={it.text || 'Sin enunciado'} />
               <span className="rubric__sol-inline muted clamp-1"><RichText text={it.answer ? `Solución: ${it.answer}` : 'Sin solución'} /></span>
             </button>
-            <button type="button" className="rubric__sol muted" onClick={() => setEditing(i)}>
+            <button type="button" className="rubric__sol muted" onClick={() => setEditing(it.id)}>
               <RichText className="clamp-2" text={it.answer || '—'} />
             </button>
             <Stepper label={`Puntos de la pregunta ${name(it)}`} value={it.points} min={0.25} max={100} step={0.25} format={pts}
@@ -136,7 +138,7 @@ export function RubricTable({ activityId, rubric, maxScore, generated, versionKe
         </Callout>
       )}
       <RubricItemSheet
-        item={editing !== null ? items[editing] ?? null : null}
+        item={items[at] ?? null}
         isNew={adding}
         onClose={close}
         onSave={onSave}

@@ -227,6 +227,35 @@ test.describe('examenes · rúbrica escrita por el profesor', () => {
     await expect(toast(page, /^Pregunta 4 añadida$/)).toBeVisible();
   });
 
+  test('examenes-87 · a question added while the edited one comes back keeps the server\'s version of it (no old steps)', async ({ page, world }) => {
+    const id = world.act[EXAM];
+    await openActivity(page, `/clases/${world.id}/actividades/${id}`, EXAM);
+    let slow = false;
+    await page.route(`**/api/activities/${id}/correction`, async (route) => {
+      if (slow) await new Promise((r) => setTimeout(r, 2500));
+      await route.fallback();
+    });
+    // Question 1 comes with the AI's steps; a new statement drops them on the server.
+    expect((await correction(world.api, id)).rubric.items[0].steps).toEqual(RUBRIC[0].steps);
+    await page.getByRole('button', { name: 'Editar pregunta 1' }).click();
+    await dialog(page, 'Pregunta 1').getByLabel('Enunciado').fill('Simplifica $\\frac{18}{24}$.');
+    slow = true;
+    const back = page.waitForResponse((r) => r.url().endsWith(`/api/activities/${id}/correction`) && r.request().method() === 'GET');
+    await dialog(page, 'Pregunta 1').getByRole('button', { name: 'Hecho' }).click();
+    await expect(toast(page, /^Pregunta 1 guardada$/)).toBeVisible();
+    // Before the saved rubric is back, another question is added; it lands while its sheet is open.
+    await page.getByRole('button', { name: 'Añadir pregunta' }).click();
+    const sheet = dialog(page, 'Pregunta 4');
+    await sheet.getByLabel('Enunciado').fill('Calcula $\\frac{2}{3}$ de 90.');
+    await back;
+    await expect(sheet.getByLabel('Enunciado')).toHaveValue('Calcula $\\frac{2}{3}$ de 90.');
+    await sheet.getByRole('button', { name: 'Hecho' }).click();
+    await expect(toast(page, /^Pregunta 4 añadida$/)).toBeVisible();
+    await expect.poll(async () => (await correction(world.api, id)).rubric.items.length).toBe(4);
+    const items = (await correction(world.api, id)).rubric.items;
+    expect(items[0]).toMatchObject({ text: 'Simplifica $\\frac{18}{24}$.', steps: [] });
+  });
+
   test('examenes-17 · a typed rubric prints only its solutions: «Soluciones» from the step and from «···»', async ({ page, world }) => {
     await openActivity(page, `/clases/${world.id}/actividades/${world.act[EXAM]}`, EXAM);
     const key = await opensPdf(page, () => row(page, 'Soluciones').click());
