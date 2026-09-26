@@ -1,5 +1,5 @@
 import { request as newRequest } from '@playwright/test';
-import { API, APP, bug, demoIds, expect, heading, shot, test, textPdf, toast } from './marco.helpers';
+import { API, APP, demoIds, expect, heading, shot, test, textPdf, toast } from './marco.helpers';
 
 // Marco · ficheros: what the teacher opens through a signed link (an uploaded file, the exam's PDFs), what a signed
 // link says once it has expired or was altered, and the public page of a material shared with the students
@@ -8,9 +8,6 @@ import { API, APP, bug, demoIds, expect, heading, shot, test, textPdf, toast } f
 // (Headless Chromium has no PDF viewer: what the browser would show is checked on the response it gets.)
 
 test('marco-50 · abrir un archivo subido a la unidad lo muestra en una pestaña nueva por su enlace firmado', async ({ page, demo }) => {
-  // BUG marco-B2: the server sends an uploaded file as an attachment, so «Abrir» leaves a blank tab and downloads it
-  // instead of showing it (exam PDFs open inline in the browser's viewer).
-  bug('marco-B2', '«Abrir» on an uploaded file leaves a blank tab and downloads it (served as an attachment)');
   const ids = await demoIds(demo);
   await page.goto(`/clases/${ids.course}/unidades/${ids.unit.id}`);
   await expect(heading(page, 'Fracciones')).toBeVisible();
@@ -23,7 +20,9 @@ test('marco-50 · abrir un archivo subido a la unidad lo muestra en una pestaña
   expect(r.url()).toMatch(/\/api\/files\/.+\?exp=\d+&sig=[0-9a-f]+/);
   expect(r.headers()['content-type']).toBe('application/pdf');
   expect(r.headers()['content-disposition']).toMatch(/^inline;/);
-  await expect.poll(() => tab.url(), { timeout: 3_000 }).toContain('/api/files/');
+  // The new tab opened it as a page (headless Chromium has no viewer to show it in, so it is not the tab's URL).
+  expect(r.frame().page()).toBe(tab);
+  expect(r.request().isNavigationRequest()).toBe(true);
 });
 
 test('marco-51 · «Soluciones» y «Examen para imprimir» se abren en el visor con un nombre legible', async ({ page, demo }) => {
@@ -48,8 +47,6 @@ test('marco-51 · «Soluciones» y «Examen para imprimir» se abren en el visor
 });
 
 test('marco-52 · un enlace firmado caducado o alterado lo dice con una frase, no con datos técnicos', async ({ page, demo }) => {
-  // BUG marco-B3: the server answers the browser with raw JSON: {"detail":{"message":"El enlace ha caducado…","code":…}}.
-  bug('marco-B3', 'an expired or altered signed link shows raw JSON');
   const ids = await demoIds(demo);
   const { url } = await demo.get<{ url: string }>(`/materials/${ids.upload.id}/file`);
   const expired = url.replace(/exp=\d+/, 'exp=1000');

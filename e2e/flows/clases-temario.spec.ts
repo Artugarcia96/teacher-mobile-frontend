@@ -178,7 +178,6 @@ test.describe('clases · temario', () => {
   });
 
   test('clases-52b · the delete question says «su material» for one material', async ({ page, teacher }) => {
-    bug('BUG-CLASES-03', 'PlanTab/UnitPage say «Se borrarán también sus 1 material» (plural with one)');
     const [c] = teacher.courses;
     await openClass(page, c.id, 'programacion', '2.º ESO C');
     await unitMenu(page, 'Fracciones', 'Eliminar');

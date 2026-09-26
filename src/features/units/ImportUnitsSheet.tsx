@@ -1,5 +1,6 @@
 import { CaretDown, FileArrowUp, X } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
+import { useAIUnavailable } from '../../api/core';
 import { useBulkUnits, useImportUnits, useImportUnitsFile, type UnitProposal } from '../../api/units';
 import { plural } from '../../lib/format';
 import { Button, Callout, IconButton, Sheet, TextArea, useFeedback } from '../../ui';
@@ -20,6 +21,7 @@ export default function ImportUnitsSheet({ open, onClose, courseId }: { open: bo
 
 function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: string }) {
   const { toast } = useFeedback();
+  const noAI = useAIUnavailable();
   const parse = useImportUnits(courseId);
   const parseFile = useImportUnitsFile(courseId);
   const bulk = useBulkUnits(courseId);
@@ -67,16 +69,17 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
     return (
       <Sheet open onClose={onClose} title="Importar temario" size="large"
         subtitle="Sepia propone las unidades y reparte las evaluaciones. Podrás revisarlas antes de crearlas."
-        footer={<Button full onClick={propose} loading={reading} disabled={text.trim().length < 3 || reading}>
-          {reading ? 'Leyendo el temario…' : text.trim().length < 3 ? 'Pega el índice o elige el archivo' : 'Proponer unidades'}
+        footer={<Button full onClick={propose} loading={reading} disabled={!!noAI || text.trim().length < 3 || reading}>
+          {reading ? 'Leyendo el temario…' : !noAI && text.trim().length < 3 ? 'Pega el índice o elige el archivo' : 'Proponer unidades'}
         </Button>}>
         <div className="form">
-          <Button variant="neutral" icon={<FileArrowUp size={18} />} loading={parseFile.isPending} disabled={reading}
+          {noAI && <Callout tone="warn">{noAI}</Callout>}
+          <Button variant="neutral" icon={<FileArrowUp size={18} />} loading={parseFile.isPending} disabled={!!noAI || reading}
             onClick={() => fileInput.current?.click()}>Elegir el archivo de la programación</Button>
           <input ref={fileInput} type="file" hidden accept=".pdf,.docx,.pptx,.txt,.md"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void fromFile(f); }} />
           <TextArea label="O pega el índice del libro o de tu programación" value={text} onChange={(e) => setText(e.target.value)}
-            placeholder={PLACEHOLDER} className="import-text" />
+            placeholder={PLACEHOLDER} className="import-text" disabled={!!noAI} />
         </div>
       </Sheet>
     );

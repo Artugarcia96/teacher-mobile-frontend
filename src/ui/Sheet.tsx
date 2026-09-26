@@ -1,5 +1,5 @@
 import { X } from '@phosphor-icons/react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { IconButton } from './Button';
 import { useFeedback } from './feedback';
@@ -105,21 +105,85 @@ function onPop(e: PopStateEvent) {
   scheduleSync();
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('popstate', onPop);
-  import.meta.hot?.dispose(() => window.removeEventListener('popstate', onPop));
+/** A reload keeps the history entries of the sheets that were open, but not the sheets: step back onto the page
+ *  entry, so the first back leaves the page instead of dropping an invisible sheet. */
+function dropStaleMarks() {
+  if (mark()) go(-1, dropStaleMarks);
 }
 
+// The element focused before the current one: a control inside a sheet may take the focus as the sheet mounts
+// (autoFocus), before the sheet can note what opened it. And the control last pressed: Safari does not focus a
+// clicked button, so after a click the focus may still be on an element left minutes ago elsewhere on the page.
+let focused: Element | null = null;
+let focusedAt = 0;
+let focusedBefore: Element | null = null;
+let focusedBeforeAt = 0;
+let pressed: Element | null = null;
+let pressedAt = 0;
+const onFocusIn = (e: FocusEvent) => {
+  focusedBefore = focused; focusedBeforeAt = focusedAt;
+  focused = e.target as Element; focusedAt = performance.now();
+};
+const onPointerDown = (e: PointerEvent) => {
+  pressed = e.target instanceof Element ? e.target.closest(FOCUSABLE) : null;
+  pressedAt = performance.now();
+};
+
+/** What opened the sheet `root`: the control pressed, or what had the focus if the focus moved after that press. */
+function opener(root: HTMLElement | null): HTMLElement | null {
+  const now = document.activeElement;
+  const took = !!root && !!now && root.contains(now);
+  const [el, at] = took ? [focusedBefore, focusedBeforeAt] : [now, focusedAt];
+  const from = pressedAt > at ? pressed : el;
+  return from instanceof HTMLElement && from !== document.body ? from : null;
+}
+
+if (typeof window !== 'undefined') {
+  document.addEventListener('focusin', onFocusIn);
+  document.addEventListener('pointerdown', onPointerDown, true);
+  import.meta.hot?.dispose(() => {
+    document.removeEventListener('focusin', onFocusIn);
+    document.removeEventListener('pointerdown', onPointerDown, true);
+  });
+  window.addEventListener('popstate', onPop);
+  import.meta.hot?.dispose(() => window.removeEventListener('popstate', onPop));
+  dropStaleMarks();
+}
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), '
+  + 'textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+const TYPING = 'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="file"]), textarea, select, [contenteditable="true"]';
+
+const focusables = (root: HTMLElement) =>
+  [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
+
 /** Focus `[data-autofocus]` when the sheet opens; on touch screens only `[data-autofocus="always"]` (a note, a
- *  search), so the keyboard does not cover steppers and buttons. */
+ *  search), so the keyboard does not cover steppers and buttons. Without one, the first control that does not
+ *  bring up a keyboard (✕ at worst), so the focus is always inside the sheet. */
 function autofocus(root: HTMLElement | null) {
+  if (!root) return;
   const touch = window.matchMedia('(pointer: coarse)').matches;
-  root?.querySelector<HTMLElement>(touch ? '[data-autofocus="always"]' : '[data-autofocus]')?.focus({ preventScroll: true });
+  const target = root.querySelector<HTMLElement>(touch ? '[data-autofocus="always"]' : '[data-autofocus]')
+    ?? focusables(root).find((el) => !el.matches(TYPING) && !el.closest('.sheet__head'))
+    ?? root.querySelector<HTMLElement>('.sheet__head button');
+  target?.focus({ preventScroll: true });
+}
+
+/** Tab and Shift+Tab go round the controls of a modal sheet instead of walking out to the page behind. */
+function trapTab(root: HTMLElement, e: KeyboardEvent) {
+  const all = focusables(root);
+  if (!all.length) return;
+  const at = all.indexOf(document.activeElement as HTMLElement);
+  const next = at < 0 ? (e.shiftKey ? all.length - 1 : 0) : at + (e.shiftKey ? -1 : 1);
+  if (next >= 0 && next < all.length && at >= 0) return; // the browser moves within the sheet
+  e.preventDefault();
+  all[(next + all.length) % all.length].focus();
 }
 
 /** Bottom sheet on phones, centered glass panel on tablet/desktop (or a side panel). Esc, back and scrim close it. */
 export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', wide, side, dirty, children }: SheetProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const panel = useMediaQuery(DESKTOP) && !!side;
   const { confirm } = useFeedback();
   // Latest close without re-running the open effect (it would steal focus from inputs on every render).
@@ -137,13 +201,21 @@ export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', w
     const me = self.current;
     openSheets.push(me);
     scheduleSync();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && openSheets[openSheets.length - 1] === me && closeRef.current();
+    const from = opener(ref.current);
+    const onKey = (e: KeyboardEvent) => {
+      if (openSheets[openSheets.length - 1] !== me) return;
+      if (e.key === 'Escape') closeRef.current();
+      else if (e.key === 'Tab' && ref.current?.getAttribute('aria-modal') === 'true') trapTab(ref.current, e);
+    };
     document.addEventListener('keydown', onKey);
     autofocus(ref.current);
     return () => {
       document.removeEventListener('keydown', onKey);
       openSheets.splice(openSheets.indexOf(me), 1);
       scheduleSync();
+      // Give the focus back to what opened the sheet, unless something else has taken it meanwhile.
+      const lost = !document.activeElement || document.activeElement === document.body || !document.activeElement.isConnected;
+      if (lost && from?.isConnected) from.focus({ preventScroll: true });
     };
   }, [open]);
 
@@ -158,11 +230,11 @@ export function Sheet({ open, onClose, title, subtitle, footer, size = 'auto', w
   return createPortal(
     <>
       {!panel && <div className="sheet-scrim" onClick={dirty ? undefined : onClose} />}
-      <div ref={ref} role="dialog" aria-modal={!panel} aria-label={typeof title === 'string' ? title : undefined}
+      <div ref={ref} role="dialog" aria-modal={!panel} aria-labelledby={titleId}
         className={`sheet${size === 'large' ? ' sheet--large' : ''}${wide ? ' sheet--wide' : ''}${side ? ' sheet--side' : ''}`}>
         <div className="sheet__grab" />
         <div className="sheet__head">
-          <div className="sheet__title">{title}</div>
+          <div id={titleId} className="sheet__title">{title}</div>
           <IconButton label="Cerrar" size="sm" onClick={() => closeRef.current()}><X size={18} /></IconButton>
         </div>
         {subtitle && <div className="sheet__sub">{subtitle}</div>}

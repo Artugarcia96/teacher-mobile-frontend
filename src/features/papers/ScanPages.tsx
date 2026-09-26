@@ -100,7 +100,7 @@ export function ScanPages({ correction, blocked, busy, onJob }: Props) {
   const discardPaper = (paperId: string) => {
     if (ops.lock) return toast(ops.lock);
     removePaper.mutate(paperId, {
-      onSuccess: (r) => toast(`Hoja descartada: ${plural(r.count, 'su página está', 'sus páginas están')} en «Páginas descartadas».`),
+      onSuccess: (r) => toast(`Hoja descartada: ${r.count === 1 ? 'su página está' : `sus ${r.count} páginas están`} en «Páginas descartadas».`),
       onError,
     });
   };

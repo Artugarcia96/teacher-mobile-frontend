@@ -1,6 +1,6 @@
 /** Hoy: qué clase tengo ahora, pasar lista, deberes, anotar, cerrar la clase, agenda, pendiente y a vigilar. Determinista. */
 import { CalendarBlank, CalendarPlus, CalendarX, DotsThree, GearSix, Sun, WarningCircle } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCourses } from '../../api/core';
 import { useCalendar, useDay, type PendingItem, type TodayEvent, type TodaySession, type WatchItem } from '../../api/today';
@@ -13,7 +13,7 @@ import AbsenceSheet from '../../features/session/AbsenceSheet';
 import CloseSessionSheet from '../../features/session/CloseSessionSheet';
 import HomeworkCheckSheet from '../../features/session/HomeworkCheckSheet';
 import { useToday } from '../../lib/auth';
-import { addDays, courseShortLabel, dayNumber, longDate, mondayOf, parseDate } from '../../lib/format';
+import { addDays, courseShortLabel, dayNumber, isIsoDate, longDate, mondayOf, parseDate } from '../../lib/format';
 import { Button, EmptyState, IconButton, Menu, Page, Section, Skeleton, SkeletonList, WeekStrip } from '../../ui';
 import { Agenda, dayNeedsAttention, NowCard, PendingList, pickFocus, setupStep, WatchRows, type SetupStep } from './parts';
 import { MonthSheet, nextMonday, SessionSheet, WatchSheet } from './sheets';
@@ -39,7 +39,12 @@ export default function TodayPage() {
   const today = useToday();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const date = params.get('dia') || today;
+  const dia = params.get('dia');
+  const date = isIsoDate(dia) ? dia : today;
+  // A link with a date that does not exist opens today, without the parameter.
+  useEffect(() => {
+    if (dia !== null && !isIsoDate(dia)) setParams({}, { replace: true });
+  }, [dia, setParams]);
   const monday = mondayOf(date);
   const day = useDay(date);
   const week = useCalendar(monday, addDays(monday, 4));

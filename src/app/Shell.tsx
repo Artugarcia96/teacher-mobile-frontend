@@ -1,13 +1,13 @@
-import { Books, CheckSquareOffset, GearSix, MagnifyingGlass, SunHorizon } from '@phosphor-icons/react';
+import { Books, CheckSquareOffset, GearSix, MagnifyingGlass, SunHorizon, WifiSlash } from '@phosphor-icons/react';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useCourses } from '../api/core';
+import { useCourses, useMe } from '../api/core';
 import { useInboxCount } from '../api/inbox';
 import { JobWatcher } from '../features/materials/watch';
 import { SearchSheet } from '../features/students/StudentSearch';
 import { useAuth } from '../lib/auth';
 import { courseLabel, courseShortLabel } from '../lib/format';
-import { Avatar, Dot, ErrorBoundary, Logo } from '../ui';
+import { Avatar, Button, Dot, EmptyState, ErrorBoundary, Logo, SkeletonList } from '../ui';
 import './shell.css';
 
 const NAV = [
@@ -47,6 +47,7 @@ function useSearchShortcut(open: () => void) {
 /** App frame: glass sidebar on desktop, floating glass tab capsule on phones. */
 export function Shell() {
   const { me } = useAuth();
+  const meQuery = useMe();
   const courses = useCourses();
   const inbox = useInboxCount();
   const { pathname } = useLocation();
@@ -103,9 +104,15 @@ export function Shell() {
         </NavLink>
       </aside>
       <main className="shell__main">
-        <ErrorBoundary resetKey={pathname}>
-          <Outlet />
-        </ErrorBoundary>
+        {/* The pages count on the server's «today» and school year: they wait for the first /me instead of
+            starting from the device's date. */}
+        {me ? <ErrorBoundary resetKey={pathname}><Outlet /></ErrorBoundary>
+          : meQuery.isError ? (
+            <div className="shell__wait">
+              <EmptyState icon={<WifiSlash size={24} />} title="No se ha podido cargar tu cuenta" text={meQuery.error.message}
+                action={<Button variant="tinted" onClick={() => meQuery.refetch()}>Reintentar</Button>} />
+            </div>
+          ) : <div className="shell__wait" aria-busy="true"><SkeletonList /></div>}
       </main>
       <SearchSheet open={searching} onClose={() => setSearching(false)} />
       <nav className="tabcap glass" aria-label="Navegación">

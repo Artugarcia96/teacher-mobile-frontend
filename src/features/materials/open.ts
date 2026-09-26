@@ -19,7 +19,7 @@ export function useOpenMaterial() {
       return;
     }
     if (m.kind === 'upload' || m.kind === 'link' || !m.unit_id) {
-      void openSigned(() => api.get<{ url: string }>(`/materials/${m.id}/file`), (msg) => toast(msg, { tone: 'error' }));
+      void openSigned(() => api.get<{ url: string }>(`/materials/${m.id}/file?inline=1`), (msg) => toast(msg, { tone: 'error' }));
       return;
     }
     const q = opts?.present && m.kind === 'slides' ? '?presentar=1' : '';

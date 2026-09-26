@@ -436,9 +436,8 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
   });
 
   test('hoy-19 · the first paint is the server’s day, never the device’s', async ({ page }) => {
-    // Before /api/me answers, Hoy asks for (and shows) the device's date — in the demo, «viernes, 25 de septiembre»
-    // flashes before «jueves, 19 de noviembre»: useToday() (src/lib/auth.tsx) falls back to the device date.
-    bug('BUG-HOY-02', 'Hoy loads the device day before the server day');
+    // The Shell waits for /api/me before rendering Hoy: the device's date (in the demo, «viernes, 25 de septiembre»)
+    // is never asked for nor shown.
     const days: string[] = [];
     page.on('request', (r) => { const m = r.url().match(/\/api\/today\?date=([\d-]+)/); if (m) days.push(m[1]); });
     await page.route('**/api/me', async (route) => { await new Promise((r) => setTimeout(r, 800)); await route.continue(); });

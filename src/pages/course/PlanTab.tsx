@@ -27,8 +27,9 @@ export default function PlanTab({ course }: { course: CourseDetail }) {
   const [sheet, setSheet] = useState<SheetName>(null);
   const [newTerm, setNewTerm] = useState<number | undefined>();
   const close = () => setSheet(null);
+  const noAI = useAIUnavailable();
   useCourseMenu([
-    { label: 'Importar temario', icon: <UploadSimple size={18} />, onSelect: () => setSheet('import') },
+    { label: 'Importar temario', icon: <UploadSimple size={18} />, onSelect: () => setSheet('import'), disabledReason: noAI ?? undefined },
     { label: 'Copiar de otra clase', icon: <Copy size={18} />, onSelect: () => setSheet('copy') },
   ]);
 
@@ -184,7 +185,7 @@ function UnitRow({ unit, courseId, all, first, last }: { unit: Unit; courseId: s
   const remove = async () => {
     const ok = await confirm({
       title: `¿Eliminar «${unit.title}»?`,
-      text: unit.material_count ? `Se borrarán también sus ${plural(unit.material_count, 'material', 'materiales')}. No se puede deshacer.` : 'No se puede deshacer.',
+      text: unit.material_count ? `${unit.material_count === 1 ? 'Se borrará también su material' : `Se borrarán también sus ${unit.material_count} materiales`}. No se puede deshacer.` : 'No se puede deshacer.',
       confirm: 'Eliminar', danger: true,
     });
     if (!ok) return;

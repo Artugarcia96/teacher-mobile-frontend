@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { bug, expect, isMobile, MATES_2C, openFile, openRoster, rosterRow, section, sheet, test, toast } from './alumnos-helpers';
+import { expect, isMobile, MATES_2C, openFile, openRoster, rosterRow, section, sheet, test, toast } from './alumnos-helpers';
 
 // Alumnos with the keyboard only: the Tab order of Clase › Alumnos (tabs of the class, rows, «Añadir alumnos») and of
 // the student file (back, «···», Anotar, «Ver N notas» on a phone, the attendance row and its absences, the menus of
@@ -135,7 +135,6 @@ test('alumnos-111 the student file with Tab: back, «···», Anotar, the notes
 });
 
 test('alumnos-111 the menus of the student file with the keyboard: «···» and an observation\'s options reach their items', async ({ page, teacher }) => {
-  bug('marco-B1', 'a menu opened with the keyboard keeps the focus on «···»: «Editar datos y apoyos», «Quitar de…» and an observation\'s «Editar»/«Eliminar» cannot be reached');
   const marta = teacher.courses[0].students[0];
   await openFile(page, marta.id, 'Marta Alonso Gil');
   const trigger = page.getByRole('button', { name: 'Más opciones', exact: true });
@@ -159,7 +158,6 @@ test('alumnos-111 the menus of the student file with the keyboard: «···» an
 });
 
 test('alumnos-111 a sheet opened with the keyboard takes the focus, keeps Tab inside and gives it back on close', async ({ page, teacher }) => {
-  bug('BUG-ALUMNOS-10', 'Sheet: «Añadir alumnos» opened with Intro leaves the focus on the row behind; Tab walks out of an open modal sheet («Anotar» → the page behind); closing a sheet drops the focus on <body> instead of the button that opened it');
   const [c] = teacher.courses;
   // «Añadir alumnos»: the focus goes into the sheet, and back to the row on Esc.
   await openRoster(page, c.id);

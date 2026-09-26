@@ -16,7 +16,7 @@ import CreateMaterialSheet from '../../features/units/CreateMaterialSheet';
 import UnitFormSheet from '../../features/units/UnitFormSheet';
 import { ApiError } from '../../lib/api';
 import { useToday } from '../../lib/auth';
-import { addDays, ordinals, plural, TERM_LABEL } from '../../lib/format';
+import { addDays, ordinals, TERM_LABEL } from '../../lib/format';
 import {
   Button, Callout, Chip, Dot, DropTarget, EmptyState, IconButton, List, Menu, Page, Progress, Row, RowIcon, Section, SkeletonList,
   Spinner, useFeedback,
@@ -105,7 +105,7 @@ export default function UnitPage() {
   const removeUnit = async () => {
     const ok = await confirm({
       title: `¿Eliminar «${unit.title}»?`,
-      text: materials.length ? `Se borrarán también sus ${plural(materials.length, 'material', 'materiales')}. No se puede deshacer.` : 'No se puede deshacer.',
+      text: materials.length ? `${materials.length === 1 ? 'Se borrará también su material' : `Se borrarán también sus ${materials.length} materiales`}. No se puede deshacer.` : 'No se puede deshacer.',
       confirm: 'Eliminar', danger: true,
     });
     if (!ok) return;

@@ -1,4 +1,4 @@
-import { bug, classMenuPick, dialog, expect, MATES_2C, openClass, shot, test, toast, type Page } from './clases-helpers';
+import { classMenuPick, dialog, expect, MATES_2C, openClass, shot, test, toast, type Page } from './clases-helpers';
 
 // «Importar temario» (docs/PRODUCT.md §4.1.4): paste the index of the book or the programación, the AI proposes units
 // with their evaluación, the teacher corrects them and creates them. The @ai tests run the real AI (claude_cli in
@@ -133,7 +133,6 @@ test.describe('clases · importar temario', () => {
   });
 
   test('clases-66 · a server without AI says so before the teacher pastes anything', async ({ page, teacher }) => {
-    bug('BUG-CLASES-05', 'ImportUnitsSheet ignores useAIUnavailable: «Proponer unidades» is enabled and only a 503 toast explains it');
     const [c] = teacher.courses;
     await page.route((url) => url.pathname === '/api/me', async (route) => {
       const r = await route.fetch();
@@ -143,12 +142,12 @@ test.describe('clases · importar temario', () => {
     await page.route((url) => url.pathname === `/api/courses/${c.id}/units/import`, (route) => { sent = true; return route.fallback(); });
     await openClass(page, c.id, 'programacion', '2.º ESO C');
     await page.getByRole('button', { name: 'Importar temario' }).click();
-    await expect(page.getByText('La IA no está configurada en este servidor.')).toBeVisible();
     const sheet = dialog(page, 'Importar temario');
-    if (await sheet.isVisible()) {
-      await sheet.getByLabel('Pega el índice del libro o de tu programación').fill(PROGRAMACION);
-      await expect(sheet.locator('.sheet__foot').getByRole('button')).toBeDisabled();
-    }
+    await expect(sheet.getByText('La IA no está configurada en este servidor.')).toBeVisible();
+    await expect(sheet.getByLabel('Pega el índice del libro o de tu programación')).toBeDisabled();
+    await expect(sheet.getByRole('button', { name: 'Elegir el archivo de la programación' })).toBeDisabled();
+    await expect(sheet.locator('.sheet__foot').getByRole('button')).toHaveText('Proponer unidades');
+    await expect(sheet.locator('.sheet__foot').getByRole('button')).toBeDisabled();
     expect(sent).toBe(false);
   });
 });
