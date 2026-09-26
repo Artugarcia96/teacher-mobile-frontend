@@ -61,7 +61,7 @@ function Preview({ parsed, onChange }: { parsed: ParsedStudents; onChange: (stud
   );
 }
 
-/** "Añadir alumnos": paste a list (or pick a CSV/TXT/Excel file, same preview), or reuse students from another group. */
+/** "Añadir alumnos": paste a list (or pick a PDF/Excel/CSV/TXT file, same preview), or reuse students from another group. */
 export default function AddStudentsSheet({ open, onClose, course }: { open: boolean; onClose: () => void; course: CourseDetail }) {
   const { toast } = useFeedback();
   const groupId = course.group.id;
@@ -152,11 +152,11 @@ export default function AddStudentsSheet({ open, onClose, course }: { open: bool
           <>
             <TextArea label="Un alumno por línea" hint="Vale «Apellidos, Nombre» y «Nombre Apellidos», también copiado de Séneca, Raíces o un PDF. Los repetidos se añaden una vez."
               placeholder={PLACEHOLDER} rows={7} value={text} onChange={(e) => onText(e.target.value)} />
-            <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            <input ref={fileRef} type="file" accept=".pdf,.csv,.txt,.xlsx,application/pdf,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
             <p className="add-st__file">
               <button type="button" className="add-st__link" onClick={() => fileRef.current?.click()}>o elige un archivo</button>
-              <span className="faint">{fileName ? ` · ${fileName}` : ' (CSV, TXT o Excel)'}</span>
+              <span className="faint">{fileName ? ` · ${fileName}` : ' (PDF, Excel, CSV o TXT)'}</span>
             </p>
             {importFile.isPending && <SkeletonList rows={3} />}
             {parsed && <Preview key={fileName ?? 'text'} parsed={parsed} onChange={editParsed} />}

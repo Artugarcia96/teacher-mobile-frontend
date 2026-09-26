@@ -27,13 +27,19 @@ export interface HomeworkInput { date: string; start: string; homework?: string 
 export interface MaterialRef { id: string; title: string; kind: string }
 export interface AbsenceSession {
   course: CourseRef; date: string; start: string; end: string; room?: string | null;
+  /** `materials`: those that print with the sheet (PDF), never a link. */
   unit?: UnitRef | null; materials: MaterialRef[];
-  /** Already marked as «Guardia» (task = what was saved). */
-  guardia: boolean; task?: string | null;
+  /** Already marked as «Guardia» (task and homework = what was saved). */
+  guardia: boolean;
+  /** «Tarea de la sesión»: saved, or what the last class log planned. */
+  task?: string | null;
+  /** «Traían hecho»: the homework the last class log set, due at this session (from the log, not editable here). */
+  due?: string | null;
+  /** «Para casa»: new homework left with the guardia. */
+  homework?: string | null;
 }
 export interface AbsenceInput {
-  reason?: string | null;
-  sessions: { course_id: string; date: string; start: string; task: string; material_ids: string[] }[];
+  sessions: { course_id: string; date: string; start: string; task: string; homework: string | null; material_ids: string[] }[];
 }
 
 export const sessionKeys = {

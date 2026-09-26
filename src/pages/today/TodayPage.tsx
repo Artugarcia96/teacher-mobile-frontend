@@ -15,7 +15,7 @@ import HomeworkCheckSheet from '../../features/session/HomeworkCheckSheet';
 import { useToday } from '../../lib/auth';
 import { addDays, courseShortLabel, dayNumber, longDate, mondayOf, parseDate } from '../../lib/format';
 import { Button, EmptyState, IconButton, Menu, Page, Section, Skeleton, SkeletonList, WeekStrip } from '../../ui';
-import { Agenda, dayNeedsAttention, NowCard, PendingList, pickFocus, WatchRows } from './parts';
+import { Agenda, dayNeedsAttention, NowCard, PendingList, pickFocus, setupStep, WatchRows, type SetupStep } from './parts';
 import { MonthSheet, nextMonday, SessionSheet, WatchSheet } from './sheets';
 import './today.css';
 
@@ -76,6 +76,10 @@ export default function TodayPage() {
       setAttendance({ courseId: p.course_id, date: p.date, start: p.start, label: c ? courseShortLabel(c) : p.title, room: c?.room });
     }
   };
+
+  // A class still to set up: its settings (timetable) or «Añadir alumnos», straight from Hoy.
+  const openSetup = ({ course, need }: SetupStep) => navigate(need === 'schedule'
+    ? `/clases/${course.id}/cuaderno?ajustes=1` : `/clases/${course.id}/alumnos?anadir=1`);
 
   const d = day.data;
   const hasCourses = (courses.data?.length ?? 1) > 0;
@@ -167,7 +171,8 @@ export default function TodayPage() {
             {pendingAll ? 'Ver menos' : `Ver todo (${pending.length})`}
           </button>
         )}>
-        <PendingList items={pendingAll ? pending : pending.slice(0, PENDING_VISIBLE)} onOpen={openPending} />
+        <PendingList items={pendingAll ? pending : pending.slice(0, PENDING_VISIBLE)} onOpen={openPending}
+          setup={setupStep(courses.data)} onSetup={openSetup} />
       </Section>
       {!(noSessions && !watchTotal) && (
         <Section title="A vigilar"

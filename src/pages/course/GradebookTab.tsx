@@ -227,6 +227,24 @@ function Grid({ course, data, focus, onFocusDone, onEdit }: {
     return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
   }, [acts.length]);
 
+  // The table scrolls inside itself: when it scrolls down, the page follows until the table's end (the last students and
+  // «Media de la clase») rests above the tab capsule, never under it (html's scroll-padding-bottom keeps that room).
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    let top = el.scrollTop;
+    const follow = () => {
+      const down = el.scrollTop > top;
+      top = el.scrollTop;
+      if (!down) return;
+      const room = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom) || 0;
+      const below = el.getBoundingClientRect().bottom - (window.innerHeight - room);
+      if (below > 1) window.scrollBy(0, below);
+    };
+    el.addEventListener('scroll', follow, { passive: true });
+    return () => el.removeEventListener('scroll', follow);
+  }, []);
+
   // Scroll to a column (created now or linked from Evaluar) and optionally start typing in it.
   useEffect(() => {
     if (!focus) return;
