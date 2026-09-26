@@ -123,14 +123,14 @@ export default function TodayPage() {
     if (!d.sessions.length) {
       if (!hasCourses) {
         empty = <EmptyState icon={<CalendarBlank size={24} />} title="Aún no tienes clases" text="Crea tu primera clase con su horario y aparecerá aquí."
-          action={<Button onClick={() => navigate('/clases')}>Crear clase</Button>} />;
+          action={<Button onClick={() => navigate('/clases?nueva=1')}>Crear clase</Button>} />;
       } else if (weekend) {
         const mon = nextMonday(date);
         empty = <EmptyState icon={<Sun size={24} />} title="Fin de semana" text="No hay clases."
           action={<Button variant="tinted" onClick={() => go(mon)}>Ver el lunes {dayNumber(mon)}</Button>} />;
       } else if (!d.lective) {
         empty = <EmptyState icon={<Sun size={24} />} title={`Sin clases · ${d.holiday ?? 'día no lectivo'}`} text="Día no lectivo en tu calendario escolar."
-          action={<Button variant="tinted" onClick={() => go(today)}>Volver a hoy</Button>} />;
+          action={date !== today ? <Button variant="tinted" onClick={() => go(today)}>Volver a hoy</Button> : undefined} />;
       } else {
         empty = <EmptyState icon={<CalendarBlank size={24} />} title="Sin clases este día"
           action={date !== today ? <Button variant="tinted" onClick={() => go(today)}>Volver a hoy</Button> : undefined} />;

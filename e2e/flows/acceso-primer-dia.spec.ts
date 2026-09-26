@@ -75,10 +75,8 @@ test('acceso-30 · cuenta nueva: Hoy, Clases y Evaluar vacíos llevan a crear la
   expect(errors).toEqual([]);
 });
 
-// BUG acceso-B06: Hoy's empty state says «Crear clase» but only goes to Clases, where the same button has to be tapped
-// again to open «Nueva clase».
+// Hoy's empty state says «Crear clase» and opens «Nueva clase» at once (no second «Crear clase» in Clases).
 test('acceso-43 · «Crear clase» en el Hoy vacío abre directamente «Nueva clase»', async ({ page, request }, info) => {
-  test.fail(true, 'acceso-B06: TodayPage navega a /clases en vez de /clases?nueva=1');
   const acc = await registerAccount(request, info, 'crearhoy');
   await openAs(page, acc, '/hoy');
   await page.getByRole('button', { name: 'Crear clase' }).click();
@@ -297,10 +295,9 @@ test('acceso-35 · «Añadir alumnos» no pierde la lista pegada por un toque fu
   await expect(addSheet(page).getByLabel('Un alumno por línea')).toHaveValue(/Núñez Castro, Iker/);
 });
 
-// BUG acceso-B02 (same): «Nueva clase» holds the subject, the group and a timetable tapped cell by cell; Esc, the back
-// gesture or a tap on the scrim closes it without asking and all of it is gone.
+// «Nueva clase» holds the subject, the group and a timetable tapped cell by cell: Esc, the back gesture or a tap on the
+// scrim ask first («Descartar los cambios»), like «Añadir alumnos».
 test('acceso-42 · «Nueva clase» no pierde la materia, el grupo y el horario por un toque fuera, Esc o atrás', async ({ page, request }, info) => {
-  test.fail(true, 'acceso-B02: NewCourseSheet no pasa `dirty` a Sheet');
   const acc = await registerAccount(request, info, 'perderclase');
   await openAs(page, acc, '/clases?nueva=1');
   const sheet = page.getByRole('dialog', { name: 'Nueva clase' });
@@ -356,11 +353,9 @@ test('acceso-36 · con horario y alumnos, Hoy ya sirve: la clase de ahora, su li
   expect(errors).toEqual([]);
 });
 
-// BUG acceso-B04 (P1): «Pasar lista» of a class without students, then «Añadir alumnos», then «Pasar lista» again for
-// the same session: the sheet starts from the cached empty list, the refetch brings the new students and the whole
-// app goes blank (TypeError: Cannot read properties of undefined (reading 'status'), TakeAttendanceSheet.tsx).
+// «Pasar lista» of a class without students, then «Añadir alumnos», then «Pasar lista» again for the same session: the
+// cached empty list is not what the sheet shows; the students added meanwhile are there, all present.
 test('acceso-37 · una clase sin alumnos: «Pasar lista» lleva a añadirlos y, al volver, la lista ya los tiene', async ({ page, request }, info) => {
-  test.fail(true, 'acceso-B04: TakeAttendanceSheet no incorpora los alumnos que llegan después de la primera carga y la app se queda en blanco');
   const errors = trackErrors(page);
   const acc = await registerAccount(request, info, 'sinlista');
   await createCourse(acc, request);
@@ -521,10 +516,8 @@ test('acceso-40 · curso escolar de la cuenta nueva: evaluaciones y festivos de 
   expect(errors).toEqual([]);
 });
 
-// BUG acceso-B10: when today itself is a holiday, Hoy's empty state offers «Volver a hoy», which does nothing (the
-// «Sin clases este día» state already hides it on today).
+// When today itself is a holiday, Hoy's empty state offers no «Volver a hoy»: it is already today.
 test('acceso-44 · un festivo hoy no ofrece «Volver a hoy» estando ya en hoy', async ({ page, request }, info) => {
-  test.fail(true, 'acceso-B10: TodayPage muestra «Volver a hoy» en un día no lectivo aunque sea hoy');
   const acc = await registerAccount(request, info, 'festivohoy');
   const api = apiAs(request, acc.access_token);
   await createCourse(acc, request);
@@ -546,7 +539,7 @@ test('acceso-41 · recorrido completo: de la landing a pasar la primera lista, s
   await page.getByRole('group', { name: 'Acceso' }).getByRole('button', { name: 'Crear cuenta' }).click();
   await page.getByLabel('Nombre').fill('Marta Ruiz Ortega');
   await page.getByLabel('Correo').fill(email);
-  await page.getByLabel('Contraseña').fill('clave-segura-1');
+  await page.getByLabel('Contraseña', { exact: true }).fill('clave-segura-1');
   await page.locator('form').getByRole('button', { name: 'Crear cuenta' }).click();
 
   const sheet = page.getByRole('dialog', { name: 'Nueva clase' });

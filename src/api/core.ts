@@ -55,11 +55,13 @@ export function usePatchMe() {
   });
 }
 
+/** Terms and holidays shape nearly every screen (Hoy and its week, each class's next session, lists owed, the terms of
+ *  the gradebook and Evaluación): everything is refreshed. */
 export function useSaveSchoolYear() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: Pick<SchoolYear, 'terms' | 'holidays'>) => api.put<SchoolYear>('/school-year', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
+    onSuccess: () => qc.invalidateQueries(),
   });
 }
 

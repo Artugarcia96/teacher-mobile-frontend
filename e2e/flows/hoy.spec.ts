@@ -503,7 +503,6 @@ test.describe(() => {
 test.describe(() => {
   test.use({ worldSpec: { courses: [{ ...CLASS, links: [{ url: LINK, title: 'Vídeo · Fracciones equivalentes' }] }] } });
   test('hoy-80 · a material chip keeps its own title: only the unit\'s name at its end is left out', async ({ page }) => {
-    bug('BUG-HOY-08', 'shortTitle() removes « · <unit>» anywhere in the title: «Vídeo · Fracciones equivalentes» reads «Vídeo equivalentes»');
     await openHoy(page);
     await expect(nowCard(page).getByLabel('Materiales de la unidad').getByRole('button')).toHaveText(['Vídeo · Fracciones equivalentes']);
   });
@@ -519,7 +518,8 @@ test.describe(() => {
     for (const title of ['Pendiente', 'A vigilar', 'Agenda']) await expect(section(page, title)).toHaveCount(0);
     await shot(page, info, '21-no-classes');
     await page.getByRole('button', { name: 'Crear clase' }).click();
-    await expect(page).toHaveURL(/\/clases$/);
+    await expect(page).toHaveURL(/\/clases\?nueva=1$/);
+    await expect(page.getByRole('dialog', { name: 'Nueva clase' })).toBeVisible();
   });
 });
 

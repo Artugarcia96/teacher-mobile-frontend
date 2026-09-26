@@ -56,12 +56,15 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
     for (const x of body.marks) saved.current[x.student_id] = { status: x.status, note: x.note ?? '' };
   }, (m: Marks) => api.keepalive('PUT', `/courses/${courseId}/attendance`, changes(m)));
 
-  // Initialise local state once from the server (later refetches must not overwrite taps in progress).
+  // Local state starts from the server; later refetches only bring in students it does not have yet (the list was
+  // opened from a cached copy, or someone was added meanwhile) and never overwrite taps in progress.
   useEffect(() => {
-    if (marks || !q.data) return;
-    const loaded = Object.fromEntries(q.data.students.map((r) => [r.student.id, { status: r.status, note: r.note ?? '' }]));
-    saved.current = { ...loaded };
-    setMarks(loaded);
+    if (!q.data) return;
+    const added = q.data.students.filter((r) => !marks?.[r.student.id]);
+    if (marks && added.length === 0) return;
+    const loaded = Object.fromEntries(added.map((r) => [r.student.id, { status: r.status, note: r.note ?? '' }]));
+    saved.current = { ...saved.current, ...loaded };
+    setMarks({ ...marks, ...loaded });
   }, [q.data, marks]);
 
   const update = (id: string, patch: Partial<Mark>, delay?: number) => {
@@ -71,8 +74,10 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
     autosave.schedule(next, delay);
   };
 
+  const local = marks ?? {};
+  const rows = (q.data?.students ?? []).filter((r) => local[r.student.id]);
   const counts = { present: 0, absent: 0, late: 0, justified: 0 };
-  for (const m of Object.values(marks ?? {})) counts[m.status]++;
+  for (const r of rows) counts[local[r.student.id].status]++;
   const summary = [
     counts.present > 0 && plural(counts.present, 'presente', 'presentes'), counts.absent > 0 && plural(counts.absent, 'falta', 'faltas'),
     counts.late > 0 && plural(counts.late, 'retraso', 'retrasos'), counts.justified > 0 && plural(counts.justified, 'justificada', 'justificadas'),
@@ -89,8 +94,9 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
     onClose();
   };
 
-  const rows = q.data?.students ?? [];
-  const empty = !!q.data && rows.length === 0;
+  // A cached empty list (the class had no students when it was last opened) waits for the server before saying so.
+  const loading = !marks || !q.data || (q.data.students.length === 0 && q.isFetching);
+  const empty = !loading && q.data?.students.length === 0;
   const when = [date !== today && longDate(date), q.data?.end ? `${start}–${q.data.end}` : start, room && roomLabel(room)]
     .filter(Boolean).join(' · ');
 
@@ -121,19 +127,19 @@ function AttendanceSheetBody({ onClose, courseId, date, start, label, room }: Ta
       <span tabIndex={-1} data-autofocus className="sr-only">Lista de la clase</span>
       {q.error ? (
         <p className="roster-head__err"><WarningCircle size={18} /> {(q.error as Error).message}</p>
-      ) : !marks || !q.data ? (
+      ) : loading ? (
         <SkeletonList rows={8} />
       ) : empty ? (
         <p className="muted">Esta clase aún no tiene alumnos.</p>
       ) : (
         <RosterList
-          rows={rows.map((r) => ({ id: r.student.id, name: r.student.sort_name, status: marks[r.student.id].status, note: marks[r.student.id].note }))}
+          rows={rows.map((r) => ({ id: r.student.id, name: r.student.sort_name, status: local[r.student.id].status, note: local[r.student.id].note }))}
           label={MARK_LABEL} tone={TONE}
-          onTap={(id) => { setEditing(null); update(id, { status: NEXT[marks[id].status] }); }}
+          onTap={(id) => { setEditing(null); update(id, { status: NEXT[local[id].status] }); }}
           options={(row) => options(row.id)}
           editor={editing ? {
             id: editing,
-            node: <input className="input" autoFocus placeholder="Motivo, hora de llegada…" value={marks[editing].note}
+            node: <input className="input" autoFocus placeholder="Motivo, hora de llegada…" value={local[editing].note}
               aria-label="Nota" onChange={(e) => update(editing, { note: e.target.value }, 1200)}
               onKeyDown={(e) => e.key === 'Enter' && setEditing(null)} onBlur={() => setEditing(null)} />,
           } : null}

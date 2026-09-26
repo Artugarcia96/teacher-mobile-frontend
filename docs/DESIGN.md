@@ -62,6 +62,8 @@ Regla: si es contenido que se lee o se edita, es papel, aunque flote (las hojas)
 - **`TextArea grow`**: la caja crece con su texto (sin barra interior) desde `rows` líneas: un comentario de boletín se lee entero mientras se revisa.
 - **`.link-btn`**: enlace o botón dentro de una frase (un aviso, una línea de estado): color de acento, sin relleno ni fondo, así la línea no se descoloca; en táctil conserva un área de toque invisible.
 - **`SearchField`**: lupa, borrar y Esc. `useMediaQuery(DESKTOP)` para lo que cambia entre móvil y escritorio (p. ej. notas desplegadas en la ficha).
+- **`PasswordField`**: contraseña con «Mostrar contraseña» / «Ocultar contraseña» (botón de 44 px dentro del campo): en el móvil se ve lo tecleado antes de enviarlo.
+- **`ErrorBoundary`** (en `Shell`, alrededor de la página): una pantalla que falla al pintarse muestra «No se ha podido mostrar esta pantalla» con «Volver a cargar» dentro del marco; la barra lateral y la cápsula siguen funcionando y cambiar de pantalla lo reintenta. Nunca una app en blanco.
 
 - **Materiales en papel**: el documento de un material se ve como el PDF (apartados, paneles de definición, ejemplo, «Ojo», «Comprueba», ejercicios numerados) y la presentación como tarjetas 16:9 con medidas en unidades de contenedor (la misma cara en la tarjeta y en «Proyectar»). Las figuras son el SVG del servidor mostrado como imagen; en modo oscuro las invierte el token `--figure-filter`.
 

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { bug, confirmSheet, expect, MATES_2C, openFile, section, settle, sheet, shot, test, toast } from './alumnos-helpers';
+import { confirmSheet, expect, MATES_2C, openFile, section, settle, sheet, shot, test, toast } from './alumnos-helpers';
 
 // Observaciones of the student file: «Anotar» (only her chip, «Añadir alumnos» for more, the four kinds), a student in
 // two classes chooses the class first; edit (text, kind, date) and delete (confirmation; a shared note goes for
@@ -119,7 +119,6 @@ test.describe('one class', () => {
   });
 
   test('alumnos-53 the student search of «Anotar» does not mind accents («benitez»)', async ({ page, teacher }) => {
-    bug('BUG-ALUMNOS-05', '«Buscar alumno» in «Anotar» is accent-sensitive: «benitez» does not find Benítez (the app search does)');
     const marta = teacher.courses[0].students[0];
     await openFile(page, marta.id, 'Marta Alonso Gil');
     await page.getByRole('button', { name: 'Anotar' }).click();

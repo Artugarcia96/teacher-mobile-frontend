@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useCourses, useCourseStudents } from '../../api/core';
 import { useCreateNote } from '../../api/notes';
 import type { NoteKind } from '../../api/types';
+import { fold } from '../../lib/format';
 import { Button, Chip, Dot, List, Row, Segmented, Sheet, SkeletonList, TextArea } from '../../ui';
 import { useFeedback } from '../../ui';
 import './notes.css';
@@ -74,10 +75,10 @@ function NoteSheetBody({ onClose, courseId: fixedCourse, courseIds, studentIds }
   const choices = courseIds ? courses.data?.filter((c) => courseIds.includes(c.id)) : courses.data;
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = fold(search.trim());
     const list = roster.data ?? [];
     if (!q) return list;
-    return list.filter((s) => s.name.toLowerCase().includes(q) || s.sort_name.toLowerCase().includes(q) || selected.includes(s.id));
+    return list.filter((s) => fold(s.name).includes(q) || fold(s.sort_name).includes(q) || selected.includes(s.id));
   }, [roster.data, search, selected]);
 
   const names = useMemo(() => chipNames(roster.data ?? []), [roster.data]);

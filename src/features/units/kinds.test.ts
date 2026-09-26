@@ -8,6 +8,9 @@ describe('material names', () => {
     expect(shortTitle('Ficha de refuerzo · El átomo (2)', 'El átomo')).toBe('Ficha de refuerzo (2)');
     expect(shortTitle('Mis apuntes de repaso', 'El átomo')).toBe('Mis apuntes de repaso');
     expect(shortTitle('Apuntes · El átomo', null)).toBe('Apuntes · El átomo');
+    expect(shortTitle('Vídeo · Fracciones equivalentes', 'Fracciones')).toBe('Vídeo · Fracciones equivalentes');
+    expect(shortTitle('Apuntes · Números (enteros)', 'Números (enteros)')).toBe('Apuntes');
+    expect(shortTitle('Apuntes · Tema (2)', 'Tema (2)')).toBe('Apuntes');
   });
 
   it('says when it is ready or failed, with the right agreement', () => {

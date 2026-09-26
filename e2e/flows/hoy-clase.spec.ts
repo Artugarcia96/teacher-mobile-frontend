@@ -1,5 +1,5 @@
 import {
-  agendaRow, bug, CLASS, expect, homeworkSheet, LABEL, listSheet, nowCard, openHoy, rosterRow, SHORT, shot, tapTo, test, toast,
+  agendaRow, CLASS, expect, homeworkSheet, LABEL, listSheet, nowCard, openHoy, rosterRow, SHORT, shot, tapTo, test, toast,
   TODAY, type World,
 } from './hoy-helpers';
 
@@ -85,10 +85,8 @@ test.describe('hoy · revisar deberes', () => {
   });
 
   test('hoy-59 · the tally on the card leaves out who missed the class too', async ({ page, world }) => {
-    // The server's HomeworkState (app/api/today.py › homework_state) counts every stored mark, also those of students the
-    // list marks absent, so the card says «1 sin hacer» while the check itself says «0 sin hacer» and the gradebook
-    // ignores it («Quien faltó ese día no cuenta», docs/PRODUCT.md §4.2).
-    bug('BUG-HOY-05', 'the homework tally counts absent students');
+    // A mark saved before the list says the student was absent counts on the card no more than in the check or the
+    // gradebook («Quien faltó ese día no cuenta», docs/PRODUCT.md §4.2).
     const [c] = world.courses;
     const adrian = c.students[5];
     await world.api.put(`/courses/${c.id}/homework`, { date: TODAY, start: '10:20', marks: [{ student_id: adrian.id, status: 'not_done' }] });
@@ -336,9 +334,8 @@ test.describe('hoy · anotar', () => {
   });
 
   test('hoy-53 · the student search ignores accents, as everywhere else', async ({ page }) => {
-    // QuickNoteSheet filters with a plain toLowerCase().includes(): «diaz» does not find Díaz nor «alvaro» Álvaro,
-    // while the app's search finds «nunez» → Núñez (docs/PRODUCT.md §3). Typing accents on a phone between classes is slow.
-    bug('BUG-HOY-04', 'Anotar’s student search needs the accents');
+    // «diaz» finds Díaz, like the app's search finds «nunez» → Núñez (docs/PRODUCT.md §3): nobody types accents on a
+    // phone between classes.
     await openHoy(page);
     await nowCard(page).getByRole('button', { name: 'Anotar', exact: true }).click();
     const sheet = page.getByRole('dialog', { name: 'Anotar' });

@@ -198,7 +198,9 @@ test.describe('clases · nueva clase', () => {
   test('clases-22 · ✕, Esc and back close the sheet; it opens clean again', async ({ page }) => {
     let sheet = await openNew(page);
     await sheet.getByRole('textbox', { name: 'Materia' }).fill('Música');
+    // Something typed: ✕ asks before discarding it.
     await sheet.getByRole('button', { name: 'Cerrar' }).click();
+    await dialog(page, 'Descartar los cambios').getByRole('button', { name: 'Descartar' }).click();
     await expect(sheet).toBeHidden();
     await expect(page).toHaveURL(/\/clases$/);
 

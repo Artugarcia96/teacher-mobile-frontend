@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from './app/Shell';
 import { ApiError } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -36,7 +36,8 @@ const queryClient = new QueryClient({
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { loggedIn } = useAuth();
-  return loggedIn ? <>{children}</> : <Navigate to="/entrar" replace />;
+  const location = useLocation();
+  return loggedIn ? <>{children}</> : <Navigate to="/entrar" replace state={{ from: location }} />;
 }
 
 function Loading() {

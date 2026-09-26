@@ -1,4 +1,4 @@
-import { actionBar, API, backButton, bug, expect, FRI, heading, isDesktop, sheetInHistory, shot, test, toast } from './marco.helpers';
+import { actionBar, API, backButton, expect, FRI, heading, isDesktop, sheetInHistory, shot, test, toast } from './marco.helpers';
 import type { Page } from '@playwright/test';
 
 // Marco · Ajustes: perfil (nombre, centro, comunidad autónoma), la cuenta, el curso escolar (evaluaciones y festivos)
@@ -170,9 +170,7 @@ test.describe('ajustes · un festivo vacía ese día en Hoy', () => {
   test.use({ teacherSpec: { course: { slots: [{ weekday: FRI, start: '09:25', end: '10:20' }], students: ['Alonso Gil, Marta', 'Benítez Ruiz, Pablo'] } } });
 
   test('marco-26 · un festivo guardado en Ajustes quita la clase de ese día en Hoy al momento', async ({ page, teacher }, info) => {
-    // BUG marco-B4: saving the school year only refreshes /me; Hoy keeps showing the class on the new holiday (and
-    // the week, the next session of each class) from its cache until it is reloaded.
-    bug('marco-B4', 'saving the school year does not refresh Hoy: the class still shows on the new holiday');
+    // Saving the school year refreshes Hoy (and its week, the next session of each class) without a reload.
     const main = page.getByRole('main');
     await page.goto('/hoy?dia=2026-11-20');
     await expect(heading(page, 'Mañana')).toBeVisible();

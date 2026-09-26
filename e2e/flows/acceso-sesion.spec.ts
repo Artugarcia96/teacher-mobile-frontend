@@ -42,10 +42,10 @@ test('acceso-51 · con las dos sesiones caducadas la app vuelve a /entrar y se e
   await shot(page, info, 'acceso-51-expired');
 
   await page.getByLabel('Correo').fill(acc.email);
-  await page.getByLabel('Contraseña').fill(acc.password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(acc.password);
   await page.locator('form').getByRole('button', { name: 'Entrar' }).click();
-  // Back in the app (whether it returns to Clases is acceso-17).
-  await expect(page).toHaveURL(/\/(hoy|clases)$/);
+  // Back where the session expired.
+  await expect(page).toHaveURL(/\/clases$/);
   expect(await storedTokens(page)).not.toBeNull();
   expect(errors).toEqual([]);
 });
