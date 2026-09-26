@@ -44,7 +44,15 @@ function Absences({ activity, onClose, course, missing, received }: {
   }));
   const everyone = [...activity.absent_students, ...noPaper];
   const pending = everyone.filter((a) => a.pending);
-  const [picked, setPicked] = useState<string[]>(() => pending.filter((a) => !a.repeat_id).map((a) => a.student.id));
+  // Chosen by default: whoever is still to decide. When the activity comes back changed (a repesca just scheduled
+  // lands after the sheet reopened), the choice starts again from the new state.
+  const undecided = pending.filter((a) => !a.repeat_id).map((a) => a.student.id);
+  const [picked, setPicked] = useState<string[]>(undecided);
+  const [pickedFor, setPickedFor] = useState(undecided.join());
+  if (pickedFor !== undecided.join()) {
+    setPickedFor(undecided.join());
+    setPicked(undecided);
+  }
   const nextDate = course.next_session?.date && course.next_session.date > today ? course.next_session.date : addDays(today, 7);
   const [date, setDate] = useState(nextDate);
   const chosen = pending.filter((a) => picked.includes(a.student.id));

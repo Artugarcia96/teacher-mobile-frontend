@@ -1,5 +1,5 @@
 import {
-  answer, bug, correction, dialog, esc, expect, fileName, headerMenu, openActivity, opensPdf, patchResponse, pdfText, RUBRIC, shot, stepHead, stepRow, test, toast,
+  answer, correction, dialog, esc, expect, fileName, headerMenu, openActivity, opensPdf, patchResponse, pdfText, RUBRIC, shot, stepHead, stepRow, test, toast,
   type Page,
 } from './examenes-helpers';
 
@@ -209,7 +209,6 @@ test.describe('examenes · rúbrica escrita por el profesor', () => {
   });
 
   test('examenes-86 · a question being added right after a save is not lost when the saved rubric comes back', async ({ page, world }) => {
-    bug('EX-06', 'RubricTable follows the server whenever the saved rubric comes back: a question added (or a sheet opened) before that refetch lands is dropped, and its sheet closes with what was typed');
     const id = world.act[EXAM];
     await openActivity(page, `/clases/${world.id}/actividades/${id}`, EXAM);
     // The school Wi-Fi: the exam takes a moment to come back after each save.

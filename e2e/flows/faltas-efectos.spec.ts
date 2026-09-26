@@ -79,15 +79,18 @@ test.describe('faltas · sesiones sin clase y guardias', () => {
 test.describe('faltas · una lista y luego «No hay clase»', () => {
   test.use({ worldSpec: { courses: [{ ...CLASS, lists: [{ date: TODAY, start: '10:20', marks: [{ student: 0, status: 'absent' }, { student: 1, status: 'late' }] }] }] } });
 
-  test('faltas-41 · the absences of a session that did not take place stop counting', async ({ page, world }) => {
-    bug('FALTAS-BUG-06', 'a session marked «No hay clase» after its list was taken keeps counting its absences and lates (Faltas, file, A vigilar, Evaluación, acta)');
+  test('faltas-41 · a session whose list was taken cannot become «No hay clase»: Hoy does not offer it, the server refuses, its absences keep counting', async ({ page, world }) => {
     const c = world.courses[0];
+    await page.goto('/hoy');
+    await agendaRow(page, '10:20').click();
+    const session = dialog(page, LABEL);
+    await expect(session.getByRole('button', { name: /Editar lista/ })).toBeVisible();
+    await expect(session.getByRole('button', { name: 'No hay clase' })).toHaveCount(0);
+    await expect(world.api.post(`/courses/${c.id}/sessions/cancel`, { date: TODAY, start: '10:20', note: 'Actividad del centro' }))
+      .rejects.toThrow(/409.*Ya pasaste lista en esta sesión/);
     await openFaltas(page, c.id);
+    await expect(todayTimes(page)).toHaveText(['10:20–11:15', '12:40–13:35']);
     await expect(studentRow(page, 'Alonso Gil, Marta')).toContainText('1 falta sin justificar');
-    await world.api.post(`/courses/${c.id}/sessions/cancel`, { date: TODAY, start: '10:20', note: 'Actividad del centro' }); // Hoy › session › «No hay clase»
-    await page.reload();
-    await expect(todayTimes(page)).toHaveText(['12:40–13:35']);
-    await expect(section(page, 'Por alumno').getByRole('link')).toHaveCount(0);
   });
 });
 
@@ -215,14 +218,13 @@ test.describe('faltas · alumnos, evaluación y acta', () => {
   });
 
   test('faltas-47 · a list ended before the class existed is not asked for (as in Hoy)', async ({ page, world }) => {
-    bug('FALTAS-BUG-02', 'Faltas asks for today\'s 08:30 list («Lista sin pasar», «Listas sin pasar · 1») of a class created at 10:40, which Hoy and Pendiente rightly leave out');
     const c = world.courses[0];
     const hoy = await world.api.get(`/today?date=${TODAY}`);
     const s830 = hoy.sessions.find((s: { start: string }) => s.start === '08:30');
     expect(s830.pending).toBe(false); // Hoy's rule: the session ended before the class was created
     await openFaltas(page, c.id);
     await expect(section(page, /^Listas sin pasar/)).toHaveCount(0);
-    await expect(todayRow(page, '08:30–09:25')).not.toContainText('Lista sin pasar');
+    await expect(todayRow(page, '08:30–09:25')).toHaveCount(0);
   });
 });
 

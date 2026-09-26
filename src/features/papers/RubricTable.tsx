@@ -28,10 +28,12 @@ export function RubricTable({ activityId, rubric, maxScore, generated, versionKe
   const timer = useRef<number | undefined>(undefined);
   const saving = useRef(false);
   const source = JSON.stringify(rubric.items);
-  // Follow the server, except while a change of the teacher's is on its way (it would come back without it).
+  // Follow the server, except while a change of the teacher's is on its way (it would come back without it) or a
+  // question's sheet is open (the row it edits, maybe a new one, must stay); once it closes, catch up.
+  const open = editing !== null;
   useEffect(() => {
-    if (!queued.current && !saving.current) setItems(JSON.parse(source) as RubricItem[]);
-  }, [source]);
+    if (!open && !queued.current && !saving.current) setItems(JSON.parse(source) as RubricItem[]);
+  }, [source, open]);
 
   const total = items.reduce((s, i) => s + i.points, 0);
   const off = Math.abs(total - maxScore) > 0.001;
