@@ -112,21 +112,39 @@ function dropStaleMarks() {
 }
 
 // The element focused before the current one: a control inside a sheet may take the focus as the sheet mounts
-// (autoFocus), before the sheet can note what opened it.
+// (autoFocus), before the sheet can note what opened it. And the control last pressed: Safari does not focus a
+// clicked button, so after a click the focus may still be on an element left minutes ago elsewhere on the page.
 let focused: Element | null = null;
+let focusedAt = 0;
 let focusedBefore: Element | null = null;
-const onFocusIn = (e: FocusEvent) => { focusedBefore = focused; focused = e.target as Element; };
+let focusedBeforeAt = 0;
+let pressed: Element | null = null;
+let pressedAt = 0;
+const onFocusIn = (e: FocusEvent) => {
+  focusedBefore = focused; focusedBeforeAt = focusedAt;
+  focused = e.target as Element; focusedAt = performance.now();
+};
+const onPointerDown = (e: PointerEvent) => {
+  pressed = e.target instanceof Element ? e.target.closest(FOCUSABLE) : null;
+  pressedAt = performance.now();
+};
 
-/** What had the focus when the sheet `root` opened. */
+/** What opened the sheet `root`: the control pressed, or what had the focus if the focus moved after that press. */
 function opener(root: HTMLElement | null): HTMLElement | null {
   const now = document.activeElement;
-  const el = root && now && root.contains(now) ? focusedBefore : now;
-  return el instanceof HTMLElement && el !== document.body ? el : null;
+  const took = !!root && !!now && root.contains(now);
+  const [el, at] = took ? [focusedBefore, focusedBeforeAt] : [now, focusedAt];
+  const from = pressedAt > at ? pressed : el;
+  return from instanceof HTMLElement && from !== document.body ? from : null;
 }
 
 if (typeof window !== 'undefined') {
   document.addEventListener('focusin', onFocusIn);
-  import.meta.hot?.dispose(() => document.removeEventListener('focusin', onFocusIn));
+  document.addEventListener('pointerdown', onPointerDown, true);
+  import.meta.hot?.dispose(() => {
+    document.removeEventListener('focusin', onFocusIn);
+    document.removeEventListener('pointerdown', onPointerDown, true);
+  });
   window.addEventListener('popstate', onPop);
   import.meta.hot?.dispose(() => window.removeEventListener('popstate', onPop));
   dropStaleMarks();

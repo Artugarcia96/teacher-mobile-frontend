@@ -70,15 +70,16 @@ function ImportUnits({ onClose, courseId }: { onClose: () => void; courseId: str
       <Sheet open onClose={onClose} title="Importar temario" size="large"
         subtitle="Sepia propone las unidades y reparte las evaluaciones. Podrás revisarlas antes de crearlas."
         footer={<Button full onClick={propose} loading={reading} disabled={!!noAI || text.trim().length < 3 || reading}>
-          {noAI ?? (reading ? 'Leyendo el temario…' : text.trim().length < 3 ? 'Pega el índice o elige el archivo' : 'Proponer unidades')}
+          {reading ? 'Leyendo el temario…' : !noAI && text.trim().length < 3 ? 'Pega el índice o elige el archivo' : 'Proponer unidades'}
         </Button>}>
         <div className="form">
+          {noAI && <Callout tone="warn">{noAI}</Callout>}
           <Button variant="neutral" icon={<FileArrowUp size={18} />} loading={parseFile.isPending} disabled={!!noAI || reading}
             onClick={() => fileInput.current?.click()}>Elegir el archivo de la programación</Button>
           <input ref={fileInput} type="file" hidden accept=".pdf,.docx,.pptx,.txt,.md"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void fromFile(f); }} />
           <TextArea label="O pega el índice del libro o de tu programación" value={text} onChange={(e) => setText(e.target.value)}
-            placeholder={PLACEHOLDER} className="import-text" />
+            placeholder={PLACEHOLDER} className="import-text" disabled={!!noAI} />
         </div>
       </Sheet>
     );

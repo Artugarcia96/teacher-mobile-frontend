@@ -20,7 +20,9 @@ test('marco-50 · abrir un archivo subido a la unidad lo muestra en una pestaña
   expect(r.url()).toMatch(/\/api\/files\/.+\?exp=\d+&sig=[0-9a-f]+/);
   expect(r.headers()['content-type']).toBe('application/pdf');
   expect(r.headers()['content-disposition']).toMatch(/^inline;/);
-  expect(r.frame().page()).toBe(tab); // the new tab asked for it (headless Chromium has no viewer to show it in)
+  // The new tab opened it as a page (headless Chromium has no viewer to show it in, so it is not the tab's URL).
+  expect(r.frame().page()).toBe(tab);
+  expect(r.request().isNavigationRequest()).toBe(true);
 });
 
 test('marco-51 · «Soluciones» y «Examen para imprimir» se abren en el visor con un nombre legible', async ({ page, demo }) => {

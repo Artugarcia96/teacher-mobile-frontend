@@ -142,12 +142,12 @@ test.describe('clases · importar temario', () => {
     await page.route((url) => url.pathname === `/api/courses/${c.id}/units/import`, (route) => { sent = true; return route.fallback(); });
     await openClass(page, c.id, 'programacion', '2.º ESO C');
     await page.getByRole('button', { name: 'Importar temario' }).click();
-    await expect(page.getByText('La IA no está configurada en este servidor.')).toBeVisible();
     const sheet = dialog(page, 'Importar temario');
-    if (await sheet.isVisible()) {
-      await sheet.getByLabel('Pega el índice del libro o de tu programación').fill(PROGRAMACION);
-      await expect(sheet.locator('.sheet__foot').getByRole('button')).toBeDisabled();
-    }
+    await expect(sheet.getByText('La IA no está configurada en este servidor.')).toBeVisible();
+    await expect(sheet.getByLabel('Pega el índice del libro o de tu programación')).toBeDisabled();
+    await expect(sheet.getByRole('button', { name: 'Elegir el archivo de la programación' })).toBeDisabled();
+    await expect(sheet.locator('.sheet__foot').getByRole('button')).toHaveText('Proponer unidades');
+    await expect(sheet.locator('.sheet__foot').getByRole('button')).toBeDisabled();
     expect(sent).toBe(false);
   });
 });

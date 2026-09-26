@@ -1,5 +1,5 @@
 import { CheckCircle, WarningCircle, X } from '@phosphor-icons/react';
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, IconButton } from './Button';
 import { Sheet } from './Sheet';
@@ -87,6 +87,7 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
   const [pos, setPos] = useState<{ top: number; right: number; above: number } | null>(null);
   const anchor = useRef<HTMLSpanElement>(null);
   const menu = useRef<HTMLDivElement>(null);
+  const id = useId();
 
   // Keep the whole menu on screen: open upwards when there is no room below (rows near the bottom), and move it right
   // when it is wider than the room left of its trigger (a button at the left edge of a phone).
@@ -117,7 +118,7 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
     const onResize = () => setPos(null);
     // Capture phase + stop: Escape closes only the menu, not the sheet it was opened from, and Tab stays in the menu.
     const onKey = (e: KeyboardEvent) => {
-      const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])];
+      const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
       const at = items.indexOf(document.activeElement as HTMLElement);
       const move = (i: number) => { e.preventDefault(); e.stopImmediatePropagation(); items[(i + items.length) % items.length]?.focus(); };
       if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); }
@@ -143,13 +144,18 @@ export function Menu({ trigger, items }: { trigger: (open: () => void) => ReactN
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 109 }} onClick={close} />
           <div ref={menu} className="menu" role="menu" tabIndex={-1} style={{ top: pos.top, right: pos.right }}>
-            {items.map((it) => (
+            {items.map((it, i) => (
               <div key={it.label}>
                 {it.separatorBefore && <div className="menu__sep" />}
-                <button role="menuitem" className={`menu__item${it.danger ? ' menu__item--danger' : ''}`} disabled={!!it.disabledReason}
-                  onClick={() => { close(); it.onSelect(); }}>
+                <button role="menuitem" className={`menu__item${it.danger ? ' menu__item--danger' : ''}`}
+                  aria-disabled={it.disabledReason ? true : undefined} aria-labelledby={`${id}-${i}`}
+                  aria-describedby={it.disabledReason ? `${id}-${i}-why` : undefined}
+                  onClick={it.disabledReason ? undefined : () => { close(); it.onSelect(); }}>
                   {it.icon}
-                  <span className="menu__label">{it.label}{it.disabledReason && <small className="menu__reason">{it.disabledReason}</small>}</span>
+                  <span className="menu__label">
+                    <span id={`${id}-${i}`}>{it.label}</span>
+                    {it.disabledReason && <small id={`${id}-${i}-why`} className="menu__reason">{it.disabledReason}</small>}
+                  </span>
                 </button>
               </div>
             ))}
