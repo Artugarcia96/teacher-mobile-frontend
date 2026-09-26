@@ -57,6 +57,22 @@ test('acceso-11 · entrar: el botón espera a los dos campos y los errores se di
   await expect(page.getByLabel('Nombre')).toHaveCount(0);
 });
 
+test('acceso-18 · muchas contraseñas mal seguidas: espera unos minutos, dicho en la pantalla, y ni la buena entra mientras', async ({ page, request }, info) => {
+  const acc = await registerAccount(request, info, 'bloqueo');
+  await page.goto('/entrar');
+  // Five wrong passwords from this device are answered as usual…
+  for (let i = 0; i < 5; i++) {
+    await signInWithForm(page, acc.email, `no-es-esta-${i}`);
+    await expect(page.getByRole('alert')).toHaveText('Correo o contraseña incorrectos.');
+    await page.getByLabel('Contraseña').fill('');
+  }
+  // …the next try waits, with how long, and the right password does not get in meanwhile.
+  await signInWithForm(page, acc.email, acc.password);
+  await expect(page.getByRole('alert')).toHaveText('Demasiados intentos fallidos. Espera 10 minutos y vuelve a intentarlo.');
+  await expect(page).toHaveURL(/\/entrar$/);
+  await shot(page, info, 'acceso-18-too-many');
+});
+
 test('acceso-12 · entrar solo con el teclado (correo con mayúsculas y espacios) abre Hoy con los datos del profesor', async ({ page }, info) => {
   const errors = trackErrors(page);
   await page.goto('/entrar');
