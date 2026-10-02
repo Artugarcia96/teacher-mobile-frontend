@@ -1,11 +1,10 @@
 import { ArrowsClockwise, ChartBar, DotsThree, PencilSimple, Trash } from '@phosphor-icons/react';
-import type { ContentDoc, Element, FigureSpec } from '../../api/content';
+import { isSlide, type ContentDoc, type Element, type FigureSpec } from '../../api/content';
 import { canEditFigure } from '../../features/materials/FigureSheet';
 import { IconButton, Menu, Spinner, type MenuItem } from '../../ui';
 
 export type ElementAction = 'edit' | 'figure' | 'solution_figure' | 'rewrite' | 'remove';
 
-const isSlide = (el: Element): boolean => 'layout' in el;
 const figureOf = (el: Element): FigureSpec | null => ('figure' in el ? (el.figure ?? null) : null);
 
 function onlyExercise(doc: ContentDoc, el: Element) {

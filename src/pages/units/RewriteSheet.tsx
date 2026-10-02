@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Element } from '../../api/content';
+import { isSlide, type Element } from '../../api/content';
 import { Button, Chip, Sheet, TextArea } from '../../ui';
 
 const QUICK = ['Más sencillo', 'Más corto', 'Cambia los datos', 'Añade un paso intermedio', 'Otro ejemplo de la vida diaria'];
@@ -11,7 +11,7 @@ export default function RewriteSheet({ el, sending, onSend, onClose }: {
 }) {
   const [text, setText] = useState('');
   const ok = text.trim().length >= 2;
-  const what = 'layout' in el ? 'esta diapositiva' : 'este apartado';
+  const what = isSlide(el) ? 'esta diapositiva' : 'este apartado';
   return (
     <Sheet open onClose={onClose} title="Reescribir con IA" dirty={!!text.trim()}
       subtitle={`La IA reescribe ${what} y comprueba las soluciones. Tarda menos de un minuto; puedes seguir trabajando.`}
