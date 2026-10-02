@@ -62,7 +62,7 @@ test.describe('examenes · revisar', () => {
     await expect(stepHead(page, 3, 'Revisar')).toBeVisible();
     await expect(page.getByRole('link', { name: `Revisar alumno a alumno · faltan ${stats.pending}` })).toBeVisible();
     const figures = page.locator('.review-stats');
-    await expect(figures).toContainText(`${String(Math.round(stats.average * 10) / 10).replace('.', ',')}Media`);
+    await expect(figures).toContainText(`${stats.average.toFixed(1).replace('.', ',')}Media`);
     await expect(figures).toContainText(`${stats.pass_rate} %Aprobados`);
     await expect(figures).toContainText(`${stats.confirmed} / ${stats.matched}Revisados`);
     await expect(page.getByText(`Provisional: incluye ${stats.provisional} notas sin revisar`)).toBeVisible();
@@ -91,6 +91,11 @@ test.describe('examenes · revisar', () => {
 
   test('examenes-44 · «Errores frecuentes»: each row unfolds who; «Crear ficha de refuerzo» opens «Crear con IA» in the exam\'s unit with those questions', async ({ page, cloneExam, demo }, info) => {
     const exam = await cloneExam('fracciones');
+    // How the AI scored the demo varies from seed to seed: make question 1 the one that went badly for everyone.
+    const scored = (await state(demo, exam.id)).rows.filter((r) => r.grade?.item_scores && Object.keys(r.grade.item_scores).length);
+    expect(scored.length).toBeGreaterThan(1);
+    await demo.put(`/activities/${exam.id}/grades`, { grades: scored.map((r) => ({
+      student_id: r.student.id, status: r.grade!.status, item_scores: { ...r.grade!.item_scores, [Object.keys(r.grade!.item_scores!)[0]]: 0 } })) });
     const { c, by } = await state(demo, exam.id);
     const errors = c.stats.frequent_errors;
     expect(errors.length).toBeGreaterThan(0);

@@ -178,7 +178,7 @@ test('acceso-32 · pegar la lista: se limpia, se corrige un nombre, se quita otr
     '6 Núñez Castro, Iker',
   ].join('\n'));
   await expect(sheet.getByText('5 alumnos · Apellidos, Nombre')).toBeVisible();
-  await expect(sheet.getByText('Línea 1 ignorada: «IES Miguel de Cervantes · 2º ESO B · Cur»')).toBeVisible();
+  await expect(sheet.getByText('Línea 1 ignorada: «IES Miguel de Cervantes · 2º ESO B ·…»')).toBeVisible();
   await expect(sheet.getByText('«Ana García López» aparece 2 veces; se añade una.')).toBeVisible();
   for (const n of ['García López, Ana', 'Ruiz Serrano, Pablo', 'Fernández Gil, María José', 'del Río Blanco, José María', 'Núñez Castro, Iker']) {
     await expect(sheet.getByRole('button', { name: new RegExp(n) })).toBeVisible();
