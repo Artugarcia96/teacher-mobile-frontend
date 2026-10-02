@@ -120,6 +120,8 @@ test.describe('registro cerrado (SEPIA_SIGNUP_EMAILS)', () => {
   let closed: ClosedApi | null = null;
   test.beforeAll(async () => { closed = await startClosedSignupApi(INVITED); });
   test.afterAll(() => closed?.stop());
+  // The app keeps loading after the last check: requests still on their way to that API are dropped, not failed.
+  test.afterEach(({ page }) => page.unrouteAll({ behavior: 'ignoreErrors' }));
 
   test('acceso-23 · solo los correos invitados pueden crear cuenta; el resto lo sabe', async ({ page }, info) => {
     test.skip(!closed, 'No backend checkout next to this one (set BACKEND_DIR) to start an API with closed sign-up');

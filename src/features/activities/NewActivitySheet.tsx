@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { KIND_CATEGORY, useCreateActivity, type ActivityBrief } from '../../api/activities';
+import { useUnits } from '../../api/units';
 import type { CourseDetail } from '../../api/types';
 import { useToday } from '../../lib/auth';
 import { Button, Sheet, useFeedback } from '../../ui';
@@ -24,6 +25,7 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
   const navigate = useNavigate();
   const { toast } = useFeedback();
   const create = useCreateActivity(course.id);
+  const units = useUnits(course.id); // the form preselects the activity's unit from them: wait for them to save
   const firstCat = course.categories[0]?.key ?? 'exams';
   const [value, setValue] = useState<ActivityFormValue>({
     title: '', kind: 'exam', date: today, max_score: 10, weight: 1, unit_ids: [],
@@ -34,7 +36,7 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
   const ready = value.title.trim().length > 0 && !noStudents;
 
   const submit = () => {
-    if (!ready || create.isPending) return; // Enter in a field submits too: never twice
+    if (!ready || create.isPending || units.isPending) return; // Enter in a field submits too: never twice
     create.mutate(toInput(value), {
       onSuccess: (a) => {
         toast(`«${a.title}» añadida al cuaderno`);
@@ -48,7 +50,7 @@ function NewActivityForm({ onClose, course, onCreated, initial, title, subtitle 
 
   return (
     <Sheet open onClose={onClose} dirty={value.title.trim() !== (initial?.title ?? '').trim()} title={title ?? 'Nueva actividad'} subtitle={subtitle ?? course.label}
-      footer={<Button full loading={create.isPending} disabled={!ready} onClick={submit}>
+      footer={<Button full loading={create.isPending || units.isPending} disabled={!ready} onClick={submit}>
         {ready ? 'Crear actividad' : noStudents ? 'Elige algún alumno' : 'Escribe un título'}
       </Button>}>
       <form onSubmit={(e) => { e.preventDefault(); submit(); }}>

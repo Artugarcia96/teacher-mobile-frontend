@@ -1,5 +1,5 @@
 import { CaretDown } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useCourseStudents } from '../../api/core';
 import { KIND_CATEGORY, type ActivityInput, type ActivityKind, type CountsFor } from '../../api/activities';
 import { finalRecoveryLabel } from '../../api/evaluation';
@@ -82,7 +82,8 @@ export function ActivityForm({ value, onChange, categories, courseId, stage, mor
   const termUnits = allUnits.filter(inTerm);
   const restUnits = allUnits.filter((u) => !inTerm(u));
 
-  useEffect(() => {
+  // Before paint, so a «Crear actividad» enabled by the units' arrival never saves without the preselected unit.
+  useLayoutEffect(() => {
     if (unitsTouched || !units.data?.length) return;
     const id = unitFor(units.data, value.title);
     const next = recovery ? recoveredUnits(units.data, value.recovers_term) : id ? [id] : [];
