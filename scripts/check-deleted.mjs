@@ -12,6 +12,8 @@ const DELETED = [
   ['src/api/content.ts', /'ojo' \| 'sabias' \| 'consejo'/, 'the note tones ojo, sabias, consejo'],
   ['src/api/content.ts', /\bsessions: string\[\]/, 'ContentDoc.sessions'],
   ['src/api/content.ts', /\bsession: number \| null/, 'DocSection.session'],
+  ['src/api/units.ts', /\bpptx_url\b/, 'Material.pptx_url (per-lesson files come from /file?variant=pptx&lesson=n)'],
+  ['src/api/units.ts', /\bsessions\?: number\b/, 'GenerateInput.sessions (now lessons)'],
   ['src/pages/units/SlideFace.tsx', /\bfunction (CoverSlide|slideKey)\b/, 'CoverSlide and slideKey'],
   ['src/pages/units/SlideFace.tsx', /Imagen sugerida/, 'the «Imagen sugerida» card line'],
   ['src/pages/units/EditElementSheet.tsx', /\.layout\b/, 'the per-layout slide fields'],

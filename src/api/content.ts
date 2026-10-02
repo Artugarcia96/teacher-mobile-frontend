@@ -78,7 +78,7 @@ export interface Column {
 /** A label on an image or figure: `anchor` is "mark:<n>", "fig:<anchor>" or "" (a side label). */
 export interface Callout { label: string; anchor: string }
 /** The teacher's script of a slide, field by field («Di», «Pregunta», «Respuesta esperada»…). The app shows the lines
- *  the server composes from them (`MaterialDetail.notes`). */
+ *  the server composes from them (`MaterialDetail.slide_notes`). */
 export interface SlideNotes {
   say: string; ask: string; expected: string; misconception: string; clicks: string[]; if_not: string; manage: string;
   source_note: string;
@@ -180,6 +180,8 @@ export interface ExerciseBlock {
   steps: string[]; item_answers: string[]; answer: string; space: 'lines' | 'grid' | 'box' | 'none'; lines: number;
   /** Práctica: computed so that the sheet adds up to 10. */
   points: number | null;
+  /** The skill it trains and the key content ids it covers. */
+  skill: string; contents: string[];
   /** Printed order (relacionar: the right column; ordenar: the elements), the same in the PDF and its key. */
   shown: number[];
   /** The programación's criterion codes, printed in the solucionario only. */
@@ -290,17 +292,27 @@ export interface SlotField {
   /** `choice`: the slot whose values it picks from. */
   from?: string;
 }
-export interface ArchetypeInfo { label: string; group: ArchetypeGroup; fields: SlotField[] }
+export interface ArchetypeInfo {
+  label: string; group: ArchetypeGroup;
+  /** False for slides the writer never makes (correccion, creditos, enlace); «Añadir diapositiva» offers enlace only as
+   *  «Enlace de la unidad». */
+  writer: boolean;
+  fields: SlotField[];
+}
 /** How the class answers at once («Ajustes de la clase»): the task slides' instruction follows it. */
 export type ResponseMode = 'cuaderno' | 'mini_pizarra' | 'tarjetas' | 'mano_alzada';
 export interface Archetypes {
   archetypes: Record<Archetype, ArchetypeInfo>;
   lesson_kinds: {
     labels: Record<LessonKind, string>;
+    /** Labels a family names differently (lengua: «Comentario de texto» for fuentes). */
+    labels_by_family: Record<string, Partial<Record<LessonKind, string>>>;
     /** family → stage → number of lessons → kinds. */
     defaults: Record<string, Record<string, Record<string, LessonKind[]>>>;
   };
   response_modes: Record<ResponseMode, string>;
+  /** The labels of the notes fields in «Editar texto» («Di», «Pregunta»…). */
+  notes_fields: Record<keyof SlideNotes, string>;
 }
 
 const KINDS: ContentKind[] = ['teoria', 'practica', 'presentacion', 'resumen', 'lectura_facil'];

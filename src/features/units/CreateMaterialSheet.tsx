@@ -79,7 +79,7 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
         kind, instructions: instructions.trim(),
         ...(guide ? { guide_material_id: guide } : {}),
         ...(kind === 'worksheet' ? { n_items: nItems, notebook, ...(level !== 'todos' ? { level } : {}) } : {}),
-        ...((kind === 'notes' || kind === 'slides') && sessions > 1 ? { sessions } : {}),
+        ...((kind === 'notes' || kind === 'slides') && sessions > 1 ? { lessons: sessions } : {}),
       });
       watchJob({
         job: job.id, kind: 'material', done: readyText(material, unit.title),

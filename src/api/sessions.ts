@@ -14,6 +14,8 @@ export interface SessionLog {
 }
 export interface SessionLogInput {
   date: string; start: string; done?: string | null; next?: string | null; homework?: string | null; finish_unit?: boolean;
+  /** The presentation lesson given in this session and whether it was finished («Terminada» / «A medias»). */
+  material_id?: string | null; lesson?: number | null; lesson_done?: boolean | null;
 }
 
 export type HomeworkStatus = 'done' | 'not_done' | 'partial';
