@@ -216,10 +216,21 @@ export function useBulkUnits(courseId: string) {
   });
 }
 
+/** `skipped`: presentations left out because some of their lessons are not ready. */
+export interface CopyUnitsResult { units: Unit[]; skipped: number }
+
+/** What the toast adds when a copy leaves presentations out. */
+export function skippedNote(skipped: number): string {
+  if (!skipped) return '';
+  return skipped === 1
+    ? '. Una presentación no se ha copiado: tiene sesiones sin preparar'
+    : `. ${skipped} presentaciones no se han copiado: tienen sesiones sin preparar`;
+}
+
 export function useCopyUnits(courseId: string) {
   const done = useInvalidateCourse(courseId);
   return useMutation({
-    mutationFn: (fromCourseId: string) => api.post<Unit[]>(`/courses/${courseId}/units/copy`, { from_course_id: fromCourseId }),
+    mutationFn: (fromCourseId: string) => api.post<CopyUnitsResult>(`/courses/${courseId}/units/copy`, { from_course_id: fromCourseId }),
     onSuccess: done,
   });
 }

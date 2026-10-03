@@ -38,7 +38,7 @@ export function lessonTexts(p: SessionPresentation, n: number, state: LessonStat
   if (state === 'none') return { done: '', next: '', homework: '' };
   const lesson = p.lessons.find((x) => x.n === n);
   const half = state === 'half';
-  const nextLesson = p.lessons.find((x) => x.n === n + 1);
+  const nextLesson = p.lessons.find((x) => x.n > n); // lessons that are not ready are not in the list
   return {
     done: `${lessonName(p, n)}${half && slide ? `, hasta la diapositiva ${slide}` : ''}`,
     next: half ? `Terminar la sesión ${n}` : nextLesson ? lessonName(p, nextLesson.n) : '',
@@ -46,11 +46,12 @@ export function lessonTexts(p: SessionPresentation, n: number, state: LessonStat
   };
 }
 
-/** The lesson row's first state: what was saved, else what the presenter recorded during this session. */
+/** The lesson row's first state: what was saved (with this presentation and one of its ready lessons), else what the
+ *  presenter recorded during this session. */
 export function initialLesson(d: SessionLog): { lesson: number; state: LessonState } {
   const p = d.presentation!;
   if (d.saved) {
-    if (!d.material_id || d.lesson == null) return { lesson: p.lesson, state: 'none' };
+    if (d.material_id !== p.id || d.lesson == null || !p.lessons.some((x) => x.n === d.lesson)) return { lesson: p.lesson, state: 'none' };
     return { lesson: d.lesson, state: d.lesson_done ? 'done' : 'half' };
   }
   const slides = p.lessons.find((x) => x.n === p.lesson)?.slides ?? 0;

@@ -22,6 +22,8 @@ describe('«Cerrar clase» lesson row', () => {
       done: 'Sesión 3 · La conquista (711-718), hasta la diapositiva 12', next: 'Terminar la sesión 3', homework: 'Actividades 4, 7 y 9 (p. 5)',
     });
     expect(lessonTexts(p, 4, 'done', null).next).toBe('');
+    const gap = { ...p, lessons: [p.lessons[0], { n: 5, title: 'El califato', homework: '', slides: 16 }] }; // 4 failed
+    expect(lessonTexts(gap, 3, 'done', null).next).toBe('Sesión 5 · El califato');
     expect(lessonTexts(p, 3, 'none', 12)).toEqual({ done: '', next: '', homework: '' });
   });
 
@@ -31,5 +33,7 @@ describe('«Cerrar clase» lesson row', () => {
     expect(initialLesson(log({ presentation: { ...p, slide: null } }))).toEqual({ lesson: 3, state: 'done' });
     expect(initialLesson(log({ saved: true, material_id: 'm1', lesson: 4, lesson_done: false }))).toEqual({ lesson: 4, state: 'half' });
     expect(initialLesson(log({ saved: true }))).toEqual({ lesson: 3, state: 'none' });
+    expect(initialLesson(log({ saved: true, material_id: 'm2', lesson: 4, lesson_done: true }))).toEqual({ lesson: 3, state: 'none' });
+    expect(initialLesson(log({ saved: true, material_id: 'm1', lesson: 2, lesson_done: true }))).toEqual({ lesson: 3, state: 'none' });
   });
 });

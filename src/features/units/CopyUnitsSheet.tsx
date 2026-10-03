@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCourses } from '../../api/core';
-import { useCopyUnits, useUnits } from '../../api/units';
+import { skippedNote, useCopyUnits, useUnits } from '../../api/units';
 import { plural } from '../../lib/format';
 import { Button, Callout, Select, Sheet, useFeedback } from '../../ui';
 
@@ -23,8 +23,8 @@ function CopyUnits({ onClose, courseId }: { onClose: () => void; courseId: strin
 
   const submit = async () => {
     try {
-      await copy.mutateAsync(source);
-      toast(`Programación copiada: ${plural(n, 'unidad', 'unidades')}`);
+      const { skipped } = await copy.mutateAsync(source);
+      toast(`Programación copiada: ${plural(n, 'unidad', 'unidades')}${skippedNote(skipped)}`);
       onClose();
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
