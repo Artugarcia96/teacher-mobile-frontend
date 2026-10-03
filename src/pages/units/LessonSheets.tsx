@@ -33,6 +33,15 @@ interface Props {
   onClose: () => void;
 }
 
+/** Where a slide added or moved to a lesson goes: after its last slide before the closing ones (the answer to the
+ *  question and the credits); null when that is the cover. */
+function beforeClosing(doc: ContentDoc, ids: string[]): string | null {
+  const closing = new Set(doc.slides.filter((s) => s.archetype === 'cierre' || s.archetype === 'creditos').map((s) => s.id));
+  const cut = ids.findIndex((id) => closing.has(id));
+  const body = cut < 0 ? ids : ids.slice(0, cut);
+  return body.length > 1 ? body[body.length - 1] : null;
+}
+
 const fail = (toast: ReturnType<typeof useFeedback>['toast']) => (e: unknown) => toast((e as Error).message, { tone: 'error' });
 
 /** The sheets and immediate actions of the slide and lesson menus (§1.7). Every change goes to the server, which
@@ -105,6 +114,7 @@ function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide
   const fields = info?.fields ?? [];
   const labels = table.data?.notes_fields;
   const [values, setValues] = useState<Record<string, string | string[]> | null>(null);
+  const [tried, setTried] = useState(false);  // refusals show under a field once it changed or a save was tried
   const [notes, setNotes] = useState<Record<string, string>>(() => Object.fromEntries(NOTES_ORDER.map((k) => [k, notesText(slide.notes, k)])));
   const initial = useRef<Record<string, string | string[]>>({});
   useEffect(() => {
@@ -122,6 +132,7 @@ function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide
   const blocked = fields.find((f) => checks[f.slot]?.error);
 
   const submit = () => {
+    setTried(true);
     if (!values || !dirty || blocked || save.isPending) return;
     const body = {
       id: slide.id,
@@ -149,7 +160,8 @@ function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide
           {fields.map((f, i) => {
             const value = values[f.slot] ?? '';
             const c = checks[f.slot] ?? {};
-            const note = c.error ?? c.warning;
+            const shown = tried || changed(f) ? c.error : undefined;
+            const note = shown ?? c.warning;
             const set = (v: string | string[]) => setValues({ ...values, [f.slot]: v });
             const auto = i === 0 ? { 'data-autofocus': true } : {};
             if (f.kind === 'columns') {
@@ -160,21 +172,21 @@ function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide
                       value={col} rows={Math.max(3, col.split('\n').length + 1)}
                       onChange={(e) => set((value as string[]).map((x, k) => (k === j ? e.target.value : x)))} />
                   ))}
-                  {note && <span className={c.error ? 'field__error' : 'field__hint'}>{note}</span>}
+                  {note && <span className={shown ? 'field__error' : 'field__hint'}>{note}</span>}
                 </div>
               );
             }
             if (f.kind === 'choice') {
               const opts = f.options ?? linesOf(f.from ?? '');
               return (
-                <Select key={f.slot} label={f.label} value={value as string} error={c.error} onChange={(e) => set(e.target.value)} {...auto}>
+                <Select key={f.slot} label={f.label} value={value as string} error={shown} onChange={(e) => set(e.target.value)} {...auto}>
                   <option value="">Elige…</option>
                   {opts.map((o) => <option key={o} value={o}>{o}</option>)}
                 </Select>
               );
             }
             const hint = c.warning ?? (f.syntax ? `Uno por línea: «${f.syntax}»` : f.kind === 'lines' ? 'Uno por línea' : undefined);
-            const common = { label: f.label, value: value as string, error: c.error, hint, onChange: (e: { target: { value: string } }) => set(e.target.value), ...auto };
+            const common = { label: f.label, value: value as string, error: shown, hint, onChange: (e: { target: { value: string } }) => set(e.target.value), ...auto };
             return (
               <div key={f.slot} className="edit-field">
                 {f.kind === 'text' && (f.words ?? 0) <= 8 || f.kind === 'number'
@@ -216,19 +228,14 @@ function RewriteSlide({ m, slide, path, onClose }: { m: MaterialDetail; slide: S
   );
 }
 
-/** «Mover a otra sesión…»: the slide goes to the end of the chosen lesson (before its credits). */
+/** «Mover a otra sesión…»: the slide goes to the end of the chosen lesson, before its closing slides. */
 function MoveSheet({ m, doc, slide, onClose }: { m: MaterialDetail; doc: ContentDoc; slide: Slide; onClose: () => void }) {
   const move = useMoveSlide(m.id);
   const { toast } = useFeedback();
   const targets = presentationLessons(m).filter((l) => l.n !== slide.lesson && l.status === 'ready');
   const [n, setN] = useState(targets[0]?.n ?? 0);
   const target = targets.find((l) => l.n === n);
-  const lastBeforeCredits = (ids: string[]) => {
-    const credits = new Set(doc.slides.filter((s) => s.archetype === 'creditos').map((s) => s.id));
-    const body = ids.filter((id) => !credits.has(id));
-    return body.length > 1 ? body[body.length - 1] : null;
-  };
-  const submit = () => target && move.mutate({ id: slide.id, lesson: n, after: lastBeforeCredits(target.slide_ids) }, {
+  const submit = () => target && move.mutate({ id: slide.id, lesson: n, after: beforeClosing(doc, target.slide_ids) }, {
     onSuccess: () => { toast(`Diapositiva movida a la sesión ${n}`); onClose(); },
     onError: fail(toast),
   });
@@ -238,7 +245,7 @@ function MoveSheet({ m, doc, slide, onClose }: { m: MaterialDetail; doc: Content
       {targets.length === 0 ? <p className="muted">Esta presentación no tiene otra sesión lista.</p> : (
         <List>
           {targets.map((l) => (
-            <Row key={l.n} title={`Sesión ${l.n} · ${l.title}`} sub="Al final, antes de los créditos" chevron={false}
+            <Row key={l.n} title={`Sesión ${l.n} · ${l.title}`} sub="Al final, antes de la respuesta a la pregunta" chevron={false}
               trail={n === l.n ? <span className="muted">Elegida</span> : undefined} onClick={() => setN(l.n)} aria-label={`Sesión ${l.n}`} />
           ))}
         </List>
@@ -326,10 +333,8 @@ function AddSlideSheet({ m, doc, n, after, onAdded, onClose }: {
   const unit = useUnit(m.unit_id ?? undefined);
   const { toast } = useFeedback();
   const lesson = presentationLessons(m).find((l) => l.n === n);
-  // By default at the end of the lesson, before its credits.
-  const credits = new Set(doc.slides.filter((s) => s.archetype === 'creditos').map((s) => s.id));
-  const body = (lesson?.slide_ids ?? []).filter((id) => !credits.has(id));
-  const where = after ?? (body.length > 1 ? body[body.length - 1] : null);
+  // By default at the end of the lesson, before its closing slides.
+  const where = after ?? beforeClosing(doc, lesson?.slide_ids ?? []);
   const links = (unit.data?.materials ?? []).filter((x) => x.kind === 'link' && x.status === 'ready');
   const create = (archetype: Slide['archetype'], link_id?: string) => add.mutate({ lesson: n, after: where, archetype, ...(link_id ? { link_id } : {}) }, {
     onSuccess: (r) => { toast('Diapositiva añadida'); if (r.created) onAdded(r.created); else onClose(); },
@@ -337,11 +342,12 @@ function AddSlideSheet({ m, doc, n, after, onAdded, onClose }: {
   });
   const entries = Object.entries(table.data?.archetypes ?? {}) as [Slide['archetype'], NonNullable<typeof table.data>['archetypes'][Slide['archetype']]][];
   return (
-    <Sheet open onClose={onClose} title="Añadir diapositiva" size="large" subtitle={`Al final de la sesión ${n}, antes de los créditos. Después puedes moverla.`}>
+    <Sheet open onClose={onClose} title="Añadir diapositiva" size="large" subtitle={`Al final de la sesión ${n}, antes de la respuesta a la pregunta. Después puedes moverla.`}>
       {!table.data ? <SkeletonList rows={6} /> : (
         <div className="form">
           {GROUPS.map((g) => {
-            const items = entries.filter(([, a]) => a.group === g.group && a.writer);
+            // The cover and the credits are Sepia's; a link has its own section.
+            const items = entries.filter(([name, a]) => a.group === g.group && a.writer && name !== 'portada');
             if (!items.length) return null;
             return (
               <Section key={g.group} title={g.label}>
