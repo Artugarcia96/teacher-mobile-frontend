@@ -156,21 +156,6 @@ export default function Presentation({ m, doc, title, eyebrow, page, menu, path 
         actions={<Menu trigger={(open) => <IconButton label="Más opciones" glass onClick={open}><DotsThree size={22} weight="bold" /></IconButton>} items={menu} />}
         toolbar={toolbar}>
         <div className="material-body">
-          {editMode ? (
-            <Callout tone="accent" icon={<DotsThree size={20} weight="bold" />}>
-              Abre el menú de cada diapositiva para cambiar su texto, moverla, pasarla a reserva o reescribirla con IA. Cada cambio se guarda al momento y rehace sus imágenes y los PDF.
-            </Callout>
-          ) : isDraft(m) && (
-            <Callout tone="accent">
-              <div className="review-note">
-                <span>Borrador de la IA: revísalo antes de usarlo en clase.</span>
-                <Button size="sm" variant="tinted" icon={<Check size={16} weight="bold" />} loading={update.isPending} onClick={markReviewed}>Marcar como revisado</Button>
-              </div>
-            </Callout>
-          )}
-          <Problems m={m} />
-          {isDraft(m) && <ReviewNotes notes={m.review ?? []} facts={m.facts_unverified} doc={doc} onGo={go} />}
-
           {lessons.length > 1 && (
             <Segmented label="Sesión" value={n} onChange={choose}
               options={lessons.map((l) => ({
@@ -188,6 +173,21 @@ export default function Presentation({ m, doc, title, eyebrow, page, menu, path 
                 items={lessonMenu} />
             </div>
           )}
+          {editMode ? (
+            <Callout tone="accent" icon={<DotsThree size={20} weight="bold" />}>
+              Abre el menú de cada diapositiva para cambiar su texto, moverla, pasarla a reserva o reescribirla con IA. Cada cambio se guarda al momento y rehace sus imágenes y los PDF.
+            </Callout>
+          ) : isDraft(m) && (
+            <Callout tone="accent">
+              <div className="review-note">
+                <span>Borrador de la IA: revísalo antes de usarlo en clase.</span>
+                <Button size="sm" variant="tinted" icon={<Check size={16} weight="bold" />} loading={update.isPending} onClick={markReviewed}>Marcar como revisado</Button>
+              </div>
+            </Callout>
+          )}
+          <Problems m={m} />
+          {isDraft(m) && <ReviewNotes notes={m.review ?? []} facts={m.facts_unverified} doc={doc} onGo={go} />}
+
           {lesson && (
             <SlidesView m={m} doc={doc} lesson={lesson} showNotes={showNotes} editing={editMode} busy={busy}
               menu={(slide: Slide, k: number | null) => (

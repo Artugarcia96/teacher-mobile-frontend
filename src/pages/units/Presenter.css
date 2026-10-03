@@ -11,6 +11,9 @@
 .fullscreen__footer .icon-btn { width: 48px; height: 48px; }
 .fullscreen__footer .icon-btn:disabled { opacity: 0.3; }
 .presenter__notes { margin: 0; display: grid; gap: 10px; font-size: var(--fs-body); line-height: 1.45; }
+.presenter__notes dt, .presenter__notes dd { display: inline; margin: 0; }
+.presenter__notes dt { font-weight: 600; }
+.presenter__notes dt::after { content: ': '; }
 
 /* The projector window: the slide, nothing else. */
 .projector { position: fixed; inset: 0; background: var(--stage); display: grid; place-items: center; container-type: size; cursor: none; }
