@@ -17,6 +17,11 @@ const DELETED = [
   ['src/pages/units/SlideFace.tsx', /\bfunction (CoverSlide|slideKey)\b/, 'CoverSlide and slideKey'],
   ['src/pages/units/SlideFace.tsx', /Imagen sugerida/, 'the «Imagen sugerida» card line'],
   ['src/pages/units/EditElementSheet.tsx', /\.layout\b/, 'the per-layout slide fields'],
+  // Presentations show server-rendered slide images (wave 2).
+  ['src/pages/units/SlideFace.tsx', /./, 'SlideFace.tsx (slides are the server\'s images)'],
+  ['src/pages/units/Slides.css', /./, 'Slides.css (slides are the server\'s images)'],
+  ['src/pages/units/EditElementSheet.tsx', /\bslideFields\b/, 'the slide fields of the block sheet (slides use the slot table)'],
+  ['src/api/units.ts', /\{ block \}.*Element\b|mutationFn: \(block: Element\)/, 'a slide saved as a whole element (slides send their slots)'],
 ];
 
 const problems = DELETED.flatMap(([file, pattern, what]) => {

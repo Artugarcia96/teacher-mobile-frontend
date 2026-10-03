@@ -1,25 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeleteCourse, usePatchCourse } from '../../api/core';
+import type { ResponseMode } from '../../api/content';
 import type { CourseDetail, Slot } from '../../api/types';
 import { ApiError } from '../../lib/api';
 import { courseLabel } from '../../lib/format';
-import { Button, Sheet, TextField, useFeedback } from '../../ui';
+import { Button, Select, Sheet, TextField, useFeedback } from '../../ui';
 import ColorSwatches from './ColorSwatches';
 import ScheduleEditor from './ScheduleEditor';
 import './course-forms.css';
 
-interface Draft { subject: string; short: string; room: string; color: string; schedule: Slot[] }
+interface Draft { subject: string; short: string; room: string; color: string; schedule: Slot[]; response_mode: ResponseMode }
 
 const draftOf = (course: CourseDetail): Draft => ({
   subject: course.subject, short: course.short ?? '', room: course.room ?? '', color: course.color,
-  schedule: course.schedule.map((s) => ({ ...s })),
+  schedule: course.schedule.map((s) => ({ ...s })), response_mode: course.response_mode ?? 'cuaderno',
 });
 /** What saving would send, so «Guardar cambios» only wakes up when something would change. */
 const saved = (d: Draft) => JSON.stringify([d.subject.trim(), d.short.trim(), d.room.trim(), d.color,
-  d.schedule.map((s) => [s.weekday, s.start, s.end, s.room ?? null]).sort()]);
+  d.schedule.map((s) => [s.weekday, s.start, s.end, s.room ?? null]).sort(), d.response_mode]);
 
-/** Ajustes de la clase: datos y horario; archivar / eliminar al final. Las ponderaciones viven en el Cuaderno. */
+/** «Cómo responden tus alumnos a la vez» (the server's labels, Appendix A). */
+const RESPONSE_MODES: Record<ResponseMode, string> = {
+  cuaderno: 'En el cuaderno', mini_pizarra: 'Mini pizarras', tarjetas: 'Tarjetas A, B, C, D', mano_alzada: 'Mano alzada',
+};
+
+/** Ajustes de la clase: datos, horario y cómo responden los alumnos; archivar / eliminar al final. Las ponderaciones viven
+ *  en el Cuaderno. */
 export default function CourseSettingsSheet({ open, onClose, course }: { open: boolean; onClose: () => void; course: CourseDetail }) {
   const navigate = useNavigate();
   const { toast, confirm } = useFeedback();
@@ -45,6 +52,7 @@ export default function CourseSettingsSheet({ open, onClose, course }: { open: b
     try {
       await patch.mutateAsync({
         subject: d.subject.trim(), short: d.short.trim() || null, room: d.room.trim() || null, color: d.color, schedule: d.schedule,
+        ...(d.response_mode !== course.response_mode ? { response_mode: d.response_mode } : {}),
       });
       toast('Cambios guardados');
       onClose();
@@ -102,6 +110,11 @@ export default function CourseSettingsSheet({ open, onClose, course }: { open: b
           <ScheduleEditor value={d.schedule} onChange={(s) => set('schedule', s)} courseId={course.id} />
           <span className="field__hint">Cambiar el horario no borra las listas ni las sesiones pasadas.</span>
         </div>
+        <Select label="Cómo responden tus alumnos a la vez" value={d.response_mode}
+          onChange={(e) => set('response_mode', e.target.value as ResponseMode)}
+          hint="Las diapositivas de tarea y las notas de las preguntas dicen cómo responder. Al cambiarlo se rehacen las presentaciones de la clase.">
+          {(Object.keys(RESPONSE_MODES) as ResponseMode[]).map((k) => <option key={k} value={k}>{RESPONSE_MODES[k]}</option>)}
+        </Select>
 
         {error && <div className="field__error" role="alert">{error}</div>}
 

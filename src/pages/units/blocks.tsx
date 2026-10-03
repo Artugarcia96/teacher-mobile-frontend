@@ -62,7 +62,17 @@ export function BlockView({ block: b, number = 0, figures, solutions, levels }: 
     case 'worked':
       return <Worked b={b} figure={figures[b.id]} />;
     case 'note':
-      return <div className={`panel panel--${b.tone}`}><div className="panel__label">{b.title || NOTE[b.tone]}</div><RichText as="p" text={b.text} /></div>;
+      return (
+        <div className={`panel panel--${b.tone}`}>
+          <div className="panel__label">{b.title || NOTE[b.tone]}</div>
+          <RichText as="p" text={b.text} />
+          {(b.wrong || b.right) && (
+            <p className="note__fix">{b.wrong && <><s><RichText text={b.wrong} /></s>{' → '}</>}{b.right && <RichText text={b.right} />}</p>
+          )}
+          {b.check && <RichText as="p" text={b.check} />}
+          {b.source && <p className="note__source"><RichText text={b.source} /></p>}
+        </div>
+      );
     case 'list': {
       const Tag = b.ordered ? 'ol' : 'ul';
       return (

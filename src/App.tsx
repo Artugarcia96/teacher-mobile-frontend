@@ -16,6 +16,7 @@ const ActivityPage = lazy(() => import('./pages/activity/ActivityPage'));
 const ReviewPage = lazy(() => import('./pages/activity/ReviewPage'));
 const UnitPage = lazy(() => import('./pages/units/UnitPage'));
 const MaterialPage = lazy(() => import('./pages/units/MaterialPage'));
+const ProjectorPage = lazy(() => import('./pages/units/ProjectorPage'));
 const EvaluationPage = lazy(() => import('./pages/evaluation/EvaluationPage'));
 const InboxPage = lazy(() => import('./pages/inbox/InboxPage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
@@ -53,6 +54,8 @@ export default function App() {
             <Suspense fallback={<Loading />}>
               <Routes>
                 <Route path="/entrar" element={<LoginPage />} />
+                {/* The projector window: only the slide, outside the app's frame. */}
+                <Route path="/proyectar/:materialId" element={<RequireAuth><ProjectorPage /></RequireAuth>} />
                 <Route element={<RequireAuth><Shell /></RequireAuth>}>
                   <Route index element={<Navigate to="/hoy" replace />} />
                   <Route path="/hoy" element={<TodayPage />} />

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useJob } from '../../api/core';
 import type { Job } from '../../api/types';
@@ -63,6 +63,40 @@ function WatchOne({ w }: { w: Watched }) {
       else toast(`Materiales preparados: ${plural(ready, 'listo', 'listos')}${failed ? `, ${failed} sin crear` : ''}`, failed ? { tone: 'error' } : undefined);
     }
   };
-  useJob(w.job, { onDone: end, onFail: end });
+  const job = useJob(w.job, { onDone: end, onFail: end });
+  useLessonProgress(w, job);
   return null;
+}
+
+/** A presentation's lessons land one by one: each time the job advances the material and the unit are fetched again,
+ *  and each lesson new in `result.ready` says «Sesión k lista» (the material's own page says it when it is open). */
+function useLessonProgress(w: Watched, job: Job | undefined) {
+  const qc = useQueryClient();
+  const { toast } = useFeedback();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const seen = useRef<Set<number> | null>(null);
+  const progress = job?.status === 'running' ? job.progress : null;
+  const ready = readyLessons(job);
+  useEffect(() => {
+    if (w.kind !== 'material' || progress === null) return;
+    qc.invalidateQueries({ queryKey: ['material'] });
+    qc.invalidateQueries({ queryKey: ['unit'] });
+  }, [w.kind, progress, qc]);
+  useEffect(() => {
+    if (w.kind !== 'material' || !job || job.total < 2) return;
+    if (!seen.current) { seen.current = new Set(ready); return; }
+    for (const n of ready) {
+      if (seen.current.has(n)) continue;
+      seen.current.add(n);
+      if (pathname !== w.path && job.status === 'running') toast(`Sesión ${n} lista`, { action: { label: 'Abrir', run: () => navigate(`${w.path}?sesion=${n}`) } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready.join(',')]);
+}
+
+/** The lessons a presentation job has committed so far (`result.ready`, updated at every lesson). */
+export function readyLessons(job: Pick<Job, 'result'> | undefined): number[] {
+  const r = job?.result?.ready;
+  return Array.isArray(r) ? r.filter((n): n is number => typeof n === 'number') : [];
 }

@@ -187,6 +187,8 @@ export interface ExerciseBlock {
   shown: number[];
   /** The programación's criterion codes, printed in the solucionario only. */
   criteria: string[];
+  /** Code: the activities section an exercise moved to the annex comes back to. */
+  group: string;
 }
 export type Block =
   | TextBlock | DefinitionBlock | NoteBlock | ListBlock | TableBlock | FigureBlock | ImageBlock | WorkedBlock | CaseBlock

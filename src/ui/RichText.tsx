@@ -1,6 +1,6 @@
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { memo, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { createContext, memo, useContext, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 const MATH = /\$\$([\s\S]+?)\$\$|\$([^$]+?)\$/g;
 
@@ -40,12 +40,32 @@ function renderRich(text: string): string {
   return out + plain(text.slice(last));
 }
 
+/** What a material's text stands for when it is shown: `refs` «[[mapa-expansion]]» → «fig. 3», `names` «{nombre1}» →
+ *  «Lucía» (the server's fill, the same as the PDF's). */
+export interface TextSubs { refs?: Record<string, string>; names?: Record<string, string> }
+
+const SubsContext = createContext<TextSubs>({});
+/** Every RichText inside reads its `[[ref]]` and `{nombreN}` from here (the material page sets it once). */
+export const TextSubsProvider = SubsContext.Provider;
+
+/** `[[ref]]` and `{nombreN}` replaced by what they stand for; an unknown one is left as written. */
+export function resolveText(text: string, subs: TextSubs): string {
+  const { refs = {}, names = {} } = subs;
+  return text
+    .replace(/\[\[([^\]\n]+)\]\]/g, (m, ref: string) => refs[ref.trim()] ?? m)
+    .replace(/\{nombre\d+\}/g, (m) => names[m] ?? m);
+}
+
 /** Text with inline LaTeX math ($…$) and **bold**, as produced by the AI and stored in materials/rubrics. `oneLine`: a single line
  * (line breaks become spaces) that fades out at the right edge only when it is cut. */
 export const RichText = memo(function RichText({ text, as = 'span', className, oneLine = false }: {
   text: string; as?: 'span' | 'div' | 'p'; className?: string; oneLine?: boolean;
 }) {
-  const html = useMemo(() => renderRich(oneLine ? (text || '').replace(/\s*\n+\s*/g, ' ') : text || ''), [text, oneLine]);
+  const subs = useContext(SubsContext);
+  const html = useMemo(() => {
+    const t = resolveText(text || '', subs);
+    return renderRich(oneLine ? t.replace(/\s*\n+\s*/g, ' ') : t);
+  }, [text, oneLine, subs]);
   const ref = useRef<HTMLElement>(null);
   const [cut, setCut] = useState(false);
   useLayoutEffect(() => {
