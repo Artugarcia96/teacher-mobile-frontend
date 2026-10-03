@@ -150,6 +150,7 @@ test('presentación: «Descargar» da los cuatro archivos de cada sesión y el Z
 
 test('presentación: editar el texto con aviso, pasar a reserva, mover y añadir una bisagra', async ({ page, request }, info) => {
   test.skip(info.project.name === 'mobile', 'Una vez basta: cambia la presentación de la demo');
+  test.setTimeout(240_000); // seven edits, each answered after its lesson is rendered again (files and frames, ~7 s)
   const errors = trackErrors(page);
   const { material, deck } = await fractions(request);
   const d = await deck(PRES);
