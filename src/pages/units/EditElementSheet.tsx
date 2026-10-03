@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isSlide, type Block, type Element, type Slide, type SlideNotes } from '../../api/content';
+import type { Block } from '../../api/content';
 import { fromText, toText, type TextKind } from '../../features/materials/fieldText';
 import { Button, RichText, Sheet, TextArea, TextField } from '../../ui';
 
@@ -22,42 +22,9 @@ function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
   return f;
 }
 
-const NOTES: [keyof Omit<SlideNotes, 'clicks'>, string][] = [
-  ['say', 'Di'], ['ask', 'Pregunta'], ['expected', 'Respuesta esperada'], ['misconception', 'Error frecuente'],
-  ['if_not', 'Si no lo entienden'], ['manage', 'Gestión'], ['source_note', 'Dato para ti'],
-];
-
-/** The slots of a slide that hold text, in slot order (lists one element per line), then its notes. */
-function slideFields(s: Slide): Field[] {
-  const f: Field[] = [];
-  const text = (path: keyof Slide, label: string, kind: TextKind = 'line') => {
-    if (s[path]) f.push({ path, label, kind });
-  };
-  text('headline', 'Titular', 'area');
-  text('term', 'Término');
-  text('number', 'Número');
-  text('attribution', 'Fuente del dato');
-  text('text', 'Texto', 'area');
-  if (s.items.length) {
-    f.push(s.archetype === 'lista' ? { path: 'items', label: 'Elementos', kind: 'terms', hint: 'Uno por línea: «término | texto»' }
-      : s.archetype === 'practica' ? { path: 'items', label: 'Ejercicios', kind: 'practice', hint: 'Uno por línea: «nivel | texto | respuesta», con el nivel de 1 a 3' }
-        : { path: 'items', label: 'Elementos', kind: 'items', hint: 'Uno por línea: «texto | respuesta»' });
-  }
-  s.columns.forEach((_, i) => f.push({ path: `columns.${i}`, label: `Columna ${i + 1}`, kind: 'column', hint: 'El encabezado en la primera línea; después, una celda por línea' }));
-  if (s.steps.length) f.push({ path: 'steps', label: 'Pasos', kind: 'steps', hint: 'Uno por línea: «cuenta | por qué»' });
-  if (s.options.length) f.push({ path: 'options', label: 'Opciones', kind: 'lines', hint: 'Una por línea' });
-  text('answer', 'Respuesta correcta');
-  text('explanation', 'Explicación', 'area');
-  text('yes', 'Sí es…');
-  text('no', 'No es…');
-  text('aside', 'Línea secundaria');
-  for (const [k, label] of NOTES) if (k === 'say' || s.notes[k]) f.push({ path: `notes.${k}`, label, kind: 'area' });
-  return f;
-}
-
-/** The fields the teacher can edit in an element (the figure has its own sheet). */
-export function fieldsOf(el: Element): Field[] {
-  if (isSlide(el)) return slideFields(el);
+/** The fields the teacher can edit in a block (the figure has its own sheet; slides have «Editar texto» from the slot
+ *  table). */
+export function fieldsOf(el: Block): Field[] {
   switch (el.type) {
     case 'text': return [{ path: 'text', label: 'Texto', kind: 'area' }];
     case 'definition': return [{ path: 'term', label: 'Término', kind: 'line' }, { path: 'text', label: 'Definición', kind: 'area' }];
@@ -94,20 +61,20 @@ function set<T>(obj: T, path: string, value: unknown): T {
   return { ...o, [head]: v } as T;
 }
 
-/** «Editar texto» of one block or slide: its fields as plain text (lists one per line), saved as the whole element. */
+/** «Editar texto» of one block: its fields as plain text (lists one per line), saved as the whole element. */
 export default function EditElementSheet({ el, saving, onSave, onClose }: {
-  el: Element; saving: boolean; onSave: (el: Element) => void; onClose: () => void;
+  el: Block; saving: boolean; onSave: (el: Block) => void; onClose: () => void;
 }) {
   const fields = fieldsOf(el);
   const initial = Object.fromEntries(fields.map((f) => [f.path, toText(f.kind, get(el, f.path))]));
   const [values, setValues] = useState<Record<string, string>>(initial);
   const dirty = fields.some((f) => values[f.path] !== initial[f.path]);
   const math = JSON.stringify(el).includes('$');
-  const what = isSlide(el) ? 'diapositiva' : el.type === 'exercise' ? 'ejercicio' : 'apartado';
+  const what = el.type === 'exercise' ? 'ejercicio' : 'apartado';
 
   const save = () => {
     if (saving) return;
-    onSave(fields.reduce<Element>((acc, f) => set(acc, f.path, fromText(f.kind, values[f.path], get(el, f.path))), el));
+    onSave(fields.reduce<Block>((acc, f) => set(acc, f.path, fromText(f.kind, values[f.path], get(el, f.path))), el));
   };
 
   return (

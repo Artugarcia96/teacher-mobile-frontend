@@ -1,4 +1,4 @@
-import type { ContentDoc, DocSection, Element, Opener } from '../../api/content';
+import type { Block, ContentDoc, DocSection, Opener } from '../../api/content';
 import { LEVEL_LABEL } from '../../api/content';
 import { RichText } from '../../ui';
 import { BlockView } from './blocks';
@@ -12,7 +12,7 @@ interface Props {
   editing: boolean;
   /** Blocks the AI is rewriting now. */
   busy: Set<string>;
-  onAction: (action: ElementAction, el: Element) => void;
+  onAction: (action: ElementAction, el: Block) => void;
   noAI: string | null;
 }
 

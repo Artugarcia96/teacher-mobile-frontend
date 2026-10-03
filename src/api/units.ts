@@ -1,7 +1,7 @@
 /** Programación (units) & materials. Backend: app/api/units.py and app/api/library.py. */
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fileUrl, uploadWithProgress } from '../lib/api';
-import type { ContentDoc, Element, FigureSpec, LessonKind, Level } from './content';
+import type { Archetype, Archetypes, ContentDoc, Element, FigureSpec, LessonKind, Level, Slide, SlideNotes } from './content';
 import type { CourseRef, Job, JobRef } from './types';
 
 export type UnitStatus = 'pending' | 'current' | 'done';
@@ -394,12 +394,24 @@ export function useRetryMaterial() {
   });
 }
 
+/** The lessons of a presentation (its `lessons` are LessonInfo; other kinds have none or apuntes lessons). */
+export function presentationLessons(m: Pick<MaterialDetail, 'kind' | 'lessons'>): LessonInfo[] {
+  return m.kind === 'slides' ? (m.lessons as LessonInfo[]) : [];
+}
+
+/** A material refetches while it is created and while any of its lessons is being written (the global JobWatcher also
+ *  invalidates it at each lesson that lands). */
 export function useMaterial(materialId: string | undefined) {
   return useQuery({
     queryKey: unitKeys.material(materialId!),
     queryFn: () => api.get<MaterialDetail>(`/materials/${materialId}`),
     enabled: !!materialId,
-    refetchInterval: (q) => (q.state.data?.status === 'generating' ? 2000 : false),
+    refetchInterval: (q) => {
+      const m = q.state.data;
+      if (!m) return false;
+      if (m.status === 'generating') return 2000;
+      return presentationLessons(m).some((l) => l.status === 'generating') ? 4000 : false;
+    },
   });
 }
 
@@ -412,14 +424,104 @@ function useSetMaterial(materialId: string) {
   };
 }
 
-/** The teacher's version of one element (block or slide, same id): validated, files rebuilt (still a draft until she
- *  marks the material as reviewed). */
+/** The teacher's version of one apuntes block (same id): validated, files rebuilt (still a draft until she marks the
+ *  material as reviewed). */
 export function usePatchBlock(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
-    mutationFn: (block: Element) => api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${block.id}`, { block }, { slow: true }),
+    mutationFn: (block: Exclude<Element, Slide>) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${block.id}`, { block }, { slow: true }),
     onSuccess: set,
   });
+}
+
+/** «Editar texto» of a slide: its slots as text (§2.3.3 line syntax) and its notes fields. The server refuses only what
+ *  it cannot draw (a 400 in Spanish); text over a cap is saved with `warnings`. */
+export interface SlideFieldsInput {
+  id: string;
+  fields: Record<string, string | string[] | number>;
+  notes?: Partial<Record<keyof SlideNotes, string>>;
+}
+export function usePatchSlideFields(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: ({ id, fields, notes }: SlideFieldsInput) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${id}`, { fields, ...(notes ? { notes } : {}) }, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** The slot table of every archetype, lesson kinds and response modes (GET /content/archetypes): fixed data. */
+export function useArchetypes() {
+  return useQuery({ queryKey: ['content', 'archetypes'], queryFn: () => api.get<Archetypes>('/content/archetypes'), staleTime: Infinity });
+}
+
+/** A slide's place and state: hidden (a backup slide), its planned minutes. */
+export function usePatchSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; hidden?: boolean; minutes?: number }) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/slides/${id}`, body, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** Move a slide inside its lesson or to another one: `after` is the slide it goes after (null: right after the
+ *  cover). */
+export function useMoveSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: ({ id, lesson, after }: { id: string; lesson: number; after: string | null }) =>
+      api.post<MaterialDetail>(`/materials/${materialId}/slides/${id}/move`, { lesson, after }, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+export function useDuplicateSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: (id: string) => api.post<MaterialDetail>(`/materials/${materialId}/slides/${id}/duplicate`, undefined, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** «Añadir diapositiva»: an empty slide of an archetype (or a link of the unit) after `after`; `created` is its id. */
+export function useAddSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: (body: { lesson: number; after: string | null; archetype: Archetype; link_id?: string }) =>
+      api.post<MaterialDetail>(`/materials/${materialId}/slides`, body, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** «Editar sesión»: title, question, criteria, kind and minutes of a lesson (the server re-stamps its minutes). */
+export interface LessonPatch { title?: string; question?: string; criteria?: string[]; minutes?: number; kind?: LessonKind }
+export function usePatchLesson(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: ({ n, ...body }: LessonPatch & { n: number }) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/lessons/${n}`, body, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** A failed lesson again («Volver a intentar»), or any lesson written anew with an instruction («Regenerar sesión…»).
+ *  Only that lesson is written; the brief and the images are reused. */
+export function useLessonJob(materialId: string) {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: ({ n, regenerate, instructions }: { n: number; regenerate?: boolean; instructions?: string }) =>
+      api.post<{ material: Material; job: Job }>(
+        `/materials/${materialId}/lessons/${n}/${regenerate ? 'regenerate' : 'retry'}`, regenerate ? { instructions: instructions || undefined } : undefined),
+    onSuccess: done,
+  });
+}
+
+/** Where the presenter got to: stored by the server only inside a timetable session of the class («Cerrar clase»
+ *  pre-fills the lesson from it). Background, no feedback: a rehearsal at home changes nothing. */
+export function postPresented(materialId: string, lesson: number, slide: number) {
+  return api.post(`/materials/${materialId}/presented`, { lesson, slide }).catch(() => undefined);
 }
 
 export function useDeleteBlock(materialId: string) {

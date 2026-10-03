@@ -118,3 +118,28 @@
 }
 .edit-field { display: grid; gap: 6px; }
 .edit-field__preview { padding: 8px 12px; border-radius: 10px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); font-size: var(--fs-sub); }
+
+/* ── Presentation: lesson head, slide cards (server images), notes ─────────── */
+.lesson-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
+.lesson-head__text { display: grid; gap: 4px; min-width: 0; }
+.lesson-head__title { margin: 0; font-size: var(--fs-headline); font-weight: 600; line-height: 1.3; }
+.lesson-head__line { font-size: var(--fs-sub); color: var(--ink-2); }
+.lesson-head__question { margin: 0; font-size: var(--fs-body); }
+.slides { min-width: 0; display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1024px) { .slides { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 20px; } }
+.slides__hint { margin: 0 0 4px; font-size: var(--fs-footnote); color: var(--ink-2); }
+.slide-card { position: relative; margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.slide-card__img { border-radius: 4px; box-shadow: 0 0 0 1px var(--line); }
+.slide-card__caption { font-size: var(--fs-footnote); font-weight: 600; color: var(--ink-2); }
+.slide-card__folio { position: absolute; right: 5%; bottom: 4%; font-size: max(11px, 1.6cqi); color: var(--ink-3); }
+.slide-card__notes { margin: 0; display: grid; gap: 6px; padding: 0 2px; font-size: var(--fs-footnote); line-height: 1.45; color: var(--ink-2); }
+.slide-card__notes > div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; }
+.slide-card__notes dt { font-weight: 600; color: var(--ink); }
+.slide-card__notes dt::after { content: ':'; }
+.slide-card__notes dd { margin: 0; }
+.slides-preparing { display: flex; align-items: center; gap: 14px; padding: 28px 20px; border-radius: var(--r-card); background: var(--paper); box-shadow: var(--e1); color: var(--accent); }
+.slides-preparing__title { font-weight: 600; color: var(--ink); }
+.downloads { display: grid; gap: var(--s-4); }
+.downloads__note { margin: 0; font-size: var(--fs-footnote); color: var(--ink-2); }
+.edit-columns { display: grid; gap: 12px; }
+@media (min-width: 768px) { .edit-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); } .edit-columns > span { grid-column: 1 / -1; } }
