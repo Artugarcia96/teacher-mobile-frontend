@@ -25,7 +25,9 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     const mats = card.getByLabel('Materiales de la unidad').getByRole('button');
     const now = day.sessions.find((s: { status: string }) => s.status === 'now');
     // Each chip says the material without the unit, which the card already names.
-    await expect(mats).toHaveText(now.materials.map((m: { title: string }) => m.title.replace(/ · Fracciones$/, '')));
+    // A presentation of several lessons names the one it opens («Presentación · S2»).
+    await expect(mats).toHaveText(now.materials.map((m: { title: string; kind: string; lesson: number | null; lessons: number | null }) =>
+      m.title.replace(/ · Fracciones$/, '') + (m.kind === 'slides' && m.lesson && (m.lessons ?? 0) > 1 ? ` · S${m.lesson}` : '')));
     await expect(mats.first()).toHaveText(/^Presentación/); // the presentation first
     await expect(card.getByText('Toca: Problemas de la p. 34')).toBeVisible();
     await expect(card.getByText('Deberes: p. 33, ej. 15-18')).toBeVisible();
@@ -257,11 +259,15 @@ test.describe('hoy · demo day (Thursday 19 Nov, 10:40)', () => {
     await expect(page).toHaveURL(/\/hoy$/);
   });
 
-  test('hoy-13 · the presentation chip opens straight in projection mode', async ({ page }) => {
+  test('hoy-13 · the presentation chip projects the lesson the class is at', async ({ page, demo }) => {
+    const day = await demo.get(`/today?date=${TODAY}`);
+    const slides = day.sessions.find((s: { status: string }) => s.status === 'now').materials.find((m: { kind: string }) => m.kind === 'slides');
     await openHoy(page);
-    await nowCard(page).getByRole('button', { name: 'Presentación', exact: true }).click();
-    await expect(page).toHaveURL(/\/materiales\/[^/]+\?presentar=1$/);
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 }); // full-screen presentation
+    await nowCard(page).getByRole('button', { name: /^Presentación/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/materiales/[^/]+\\?presentar=1&sesion=${slides.lesson ?? 1}`));
+    await expect(page.getByRole('dialog', { name: `Proyectar sesión ${slides.lesson ?? 1}` })).toBeVisible({ timeout: 5000 });
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(new RegExp(`sesion=${slides.lesson ?? 1}`));  // the page stays at that lesson
   });
 
   test('hoy-14 · Pendiente opens what it names: the review, the gradebook, the list', async ({ page, demo }) => {

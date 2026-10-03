@@ -1,13 +1,14 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { shot, trackErrors } from './helpers';
 
-// Materials of the seeded demo (Matemáticas 2.º ESO B · Fracciones): edit an exercise by hand, project the
-// presentación, the solucionario of apuntes and lectura sencilla, and the choices of «Preparar el trimestre». Nothing
+// Materials of the seeded demo (Matemáticas 2.º ESO B · Fracciones): edit an exercise by hand; the presentación by
+// lessons (switch, project frame by frame, teacher view and projector window, downloads, editing); the solucionario of apuntes and lectura sencilla, and the choices of «Preparar el trimestre». Nothing
 // here calls the AI.
 const API = process.env.API || 'http://127.0.0.1:8000';
 
 interface MaterialRef { id: string; title: string }
-interface SlideRef { notes: string; question: { answer: string; explanation: string } | null; image: { description: string } | null }
+interface LessonRef { n: number; title: string; status: string; slide_ids: string[]; hidden_ids: string[] }
+interface Deck { id: string; lessons: LessonRef[]; slide_images: Record<string, { frames: string[] }>; slide_notes: Record<string, { label: string; text: string }[]> }
 
 async function fractions(request: APIRequestContext) {
   const r = await request.post(`${API}/api/auth/login`, { data: { email: 'demo@sepia.es', password: 'sepia1234' } });
@@ -19,9 +20,8 @@ async function fractions(request: APIRequestContext) {
   const unit = units.find((u) => u.title === 'Fracciones')!;
   const { materials }: { materials: MaterialRef[] } = await get(`/units/${unit.id}`);
   const material = (title: string) => `/clases/${course.id}/unidades/${unit.id}/materiales/${materials.find((m) => m.title === title)!.id}`;
-  const slides = async (title: string): Promise<SlideRef[]> =>
-    (await get(`/materials/${materials.find((m) => m.title === title)!.id}`)).content.slides;
-  return { course, material, slides };
+  const deck = async (title: string): Promise<Deck> => get(`/materials/${materials.find((m) => m.title === title)!.id}`);
+  return { course, material, deck };
 }
 
 async function editStatement(page: Page, text: (old: string) => string) {
@@ -55,32 +55,153 @@ test('ficha: editar el enunciado de un ejercicio la deja como borrador', async (
   expect(errors).toEqual([]);
 });
 
-// Text of a note without its formulas and bold marks: what would show if it were projected.
+// Text of a note line: what would show if the notes were projected.
 const said = (t: string) => t.replace(/\$[^$]*\$/g, ' ').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+const PRES = 'Presentación · Fracciones';
 
-test('presentación: proyectar y pasar con el teclado, sin notas del orador en la pantalla', async ({ page, request }, info) => {
+test('presentación: cambiar de sesión, proyectarla clic a clic y sin notas en la pantalla', async ({ page, request }, info) => {
   const errors = trackErrors(page);
-  const { material, slides } = await fractions(request);
-  const deck = await slides('Presentación · Fracciones');
-  await page.goto(material('Presentación · Fracciones'));
-  await page.getByRole('button', { name: 'Proyectar' }).click();
-  const presenter = page.getByRole('dialog', { name: /^Proyectar:/ });
-  await expect(presenter).toBeVisible();
-  const count = presenter.locator('.presenter__count');
-  await expect(count).toHaveText(/^1 \/ \d+$/);
-  await expect(presenter.getByRole('button', { name: /notas del orador/i })).toHaveCount(0);
-  for (const [k, slide] of deck.entries()) {  // every slide: what the class sees never carries notes, answers or reminders
-    await page.keyboard.press('ArrowRight');
-    await expect(count).toHaveText(new RegExp(`^${k + 2} / \\d+$`));
-    await page.keyboard.press('n');  // no key shows the notes
-    const shown = (await presenter.innerText()).replace(/\s+/g, ' ');
-    for (const note of [slide.notes, slide.question?.explanation ?? '', slide.image?.description ?? '']) {
-      if (said(note).length >= 12) expect(shown, `diapositiva ${k + 2}`).not.toContain(said(note));
-    }
-    if (k === 0) await shot(page, info, 'material-presenter');
+  const { material, deck } = await fractions(request);
+  const d = await deck(PRES);
+  const ready = d.lessons.filter((l) => l.status === 'ready');
+  const lesson = ready[ready.length - 1];
+  await page.goto(material(PRES));
+  if (ready.length > 1) {
+    await page.getByRole('group', { name: 'Sesión' }).getByRole('button', { name: String(lesson.n), exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`sesion=${lesson.n}`));
   }
+  await expect(page.getByRole('heading', { name: new RegExp(`^Sesión ${lesson.n} · `) })).toBeVisible();
+  await shot(page, info, 'presentation-page');
+  await page.getByRole('button', { name: `Proyectar sesión ${lesson.n}` }).click();
+  const presenter = page.getByRole('dialog', { name: `Proyectar sesión ${lesson.n}` });
+  await expect(presenter).toBeVisible();
+  await expect(presenter.getByText(`Diapositiva 1 de `)).toBeVisible();
+  // Through every frame of the second slide, then to the third: a build never changes the slide number.
+  await page.keyboard.press('ArrowRight');
+  const second = lesson.slide_ids[1];
+  for (let f = 1; f < d.slide_images[second].frames.length; f++) {
+    await page.keyboard.press('ArrowRight');
+    await expect(presenter.getByText('Diapositiva 2 de ')).toBeVisible();
+  }
+  await page.keyboard.press('ArrowRight');
+  await expect(presenter.getByText('Diapositiva 3 de ')).toBeVisible();
+  const shown = (await presenter.innerText()).replace(/\s+/g, ' ');
+  for (const line of d.slide_notes[lesson.slide_ids[2]] ?? []) if (said(line.text).length >= 12) expect(shown).not.toContain(said(line.text));
+  await page.keyboard.press('b');
+  await expect(presenter.getByLabel('Pantalla oscurecida')).toBeVisible();
+  await page.keyboard.press('b');
+  await shot(page, info, 'presentation-presenter');
   await page.keyboard.press('Escape');
   await expect(presenter).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('presentación: la vista del profesor lleva la ventana del proyector, y «Pasar lista» no llega a él', async ({ page, request, context }, info) => {
+  test.skip(info.project.name === 'mobile', 'La vista del profesor es de escritorio');
+  const errors = trackErrors(page);
+  const { material, deck } = await fractions(request);
+  const d = await deck(PRES);
+  const lesson = d.lessons.find((l) => l.status === 'ready')!;
+  await page.goto(`${material(PRES)}?sesion=${lesson.n}`);
+  await page.getByRole('button', { name: 'Abrir vista del profesor' }).click();
+  const view = page.getByRole('dialog', { name: 'Vista del profesor' });
+  await expect(view.getByText('Siguiente')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(view.getByText(/Diapositiva 2 de/)).toBeVisible();
+  for (const line of (d.slide_notes[lesson.slide_ids[1]] ?? []).slice(0, 2)) await expect(view.getByText(line.label, { exact: true }).first()).toBeVisible();
+  const [projector] = await Promise.all([context.waitForEvent('page'), view.getByRole('button', { name: 'Abrir ventana del proyector' }).click()]);
+  await projector.waitForLoadState();
+  const src = async (p: typeof page) => p.locator('.slide-img__img').first().getAttribute('src');
+  await expect.poll(() => src(projector)).toBe(await src(page));
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => src(projector)).toBe(await src(page));
+  await projector.keyboard.press('ArrowRight');  // a key on the panel moves the teacher view
+  await expect.poll(() => src(page)).toBe(await src(projector));
+  const list = view.getByRole('button', { name: /^Pasar lista/ });
+  if (await list.isEnabled()) {
+    await list.click();
+    await expect(page.getByRole('dialog').filter({ hasText: 'Toca a quien falte' })).toBeVisible();
+    await expect(projector.locator('body')).not.toContainText('Toca a quien falte');
+  }
+  await shot(page, info, 'presentation-teacher');
+  await projector.close();
+  expect(errors).toEqual([]);
+});
+
+test('presentación: «Descargar» da los cuatro archivos de cada sesión y el ZIP', async ({ page, request }, info) => {
+  const { material, deck } = await fractions(request);
+  const d = await deck(PRES);
+  const ready = d.lessons.filter((l) => l.status === 'ready');
+  await page.goto(material(PRES));
+  await page.getByRole('button', { name: 'Descargar', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Descargar' });
+  for (const l of ready) {
+    for (const f of ['PowerPoint', 'PDF para alumnos', 'PDF del profesor', 'Hoja para los alumnos']) {
+      await expect(sheet.getByRole('button', { name: `Descargar ${f} de la sesión ${l.n}` })).toBeVisible();
+    }
+  }
+  if (ready.length > 1) await expect(sheet.getByRole('button', { name: /Todas las sesiones \(PowerPoint, ZIP\)/ })).toBeVisible();
+  await expect(sheet.getByText('Los cambios que hagas en PowerPoint no vuelven a Sepia.', { exact: false })).toBeVisible();
+  await shot(page, info, 'presentation-downloads');
+  const download = page.waitForEvent('download').catch(() => null);
+  await sheet.getByRole('button', { name: `Descargar PDF para alumnos de la sesión ${ready[0].n}` }).click();
+  await download;
+});
+
+test('presentación: editar el texto con aviso, pasar a reserva, mover y añadir una bisagra', async ({ page, request }, info) => {
+  test.skip(info.project.name === 'mobile', 'Una vez basta: cambia la presentación de la demo');
+  const errors = trackErrors(page);
+  const { material, deck } = await fractions(request);
+  const d = await deck(PRES);
+  const ready = d.lessons.filter((l) => l.status === 'ready');
+  const lesson = ready[0];
+  await page.goto(`${material(PRES)}?sesion=${lesson.n}`);
+  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  const menuOf = (n: number) => page.getByRole('button', { name: `Opciones de la diapositiva ${n}` });
+  const toast = (t: string) => expect(page.getByText(t).last()).toBeVisible({ timeout: 60_000 });
+
+  // A headline over its cap is saved with a warning; then put back.
+  await menuOf(4).click();
+  await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+  const sheet = page.getByRole('dialog', { name: /^Editar · / });
+  const field = sheet.getByRole('textbox').first();
+  const old = await field.inputValue();
+  await field.fill(`${old} y además una frase larga para pasar del límite de palabras del titular de esta diapositiva`);
+  await expect(sheet.getByText(/^Más de \d+ palabras: puede no caber en dos líneas/)).toBeVisible();
+  await shot(page, info, 'presentation-edit-warning');
+  await sheet.getByRole('button', { name: 'Guardar cambios' }).click();
+  await toast('Cambios guardados');
+  await menuOf(4).click();
+  await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+  await page.getByRole('dialog', { name: /^Editar · / }).getByRole('textbox').first().fill(old);
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await toast('Cambios guardados');
+
+  // Backup slide and back.
+  await menuOf(5).click();
+  await page.getByRole('menuitem', { name: 'Pasar a reserva' }).click();
+  await toast('Diapositiva pasada a reserva');
+  await expect(page.getByRole('heading', { name: 'Diapositivas de reserva' })).toBeVisible();
+
+  // Move to another lesson.
+  if (ready.length > 1) {
+    await menuOf(5).click();
+    await page.getByRole('menuitem', { name: 'Mover a otra sesión…' }).click();
+    await page.getByRole('button', { name: /^Mover a la sesión \d$/ }).click();
+    await expect(page.getByText(/^Diapositiva movida a la sesión \d$/).last()).toBeVisible({ timeout: 60_000 });
+  }
+
+  // A bisagra added by hand: options, the answer among them, saved.
+  await page.getByRole('button', { name: `Opciones de la sesión ${lesson.n}` }).click();
+  await page.getByRole('menuitem', { name: 'Añadir diapositiva' }).click();
+  await page.getByRole('dialog', { name: 'Añadir diapositiva' }).getByRole('button', { name: 'Pregunta bisagra' }).click();
+  await toast('Diapositiva añadida');
+  const add = page.getByRole('dialog', { name: 'Editar · Pregunta bisagra' });
+  await add.getByRole('textbox').first().fill('¿Qué fracción es mayor, 2/3 o 3/5?');
+  await add.getByLabel('Opciones (una por línea)').fill('2/3\n3/5\nSon iguales');
+  await add.getByLabel('Respuesta correcta').selectOption('2/3');
+  await add.getByRole('button', { name: 'Guardar cambios' }).click();
+  await toast('Cambios guardados');
   expect(errors).toEqual([]);
 });
 

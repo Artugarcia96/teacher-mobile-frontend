@@ -32,7 +32,14 @@ export function fieldsOf(el: Block): Field[] {
       { path: 'title', label: 'Título', kind: 'line' }, { path: 'statement', label: 'Enunciado', kind: 'area' },
       { path: 'steps', label: 'Pasos', kind: 'steps', hint: 'Uno por línea: «cuenta | por qué»' }, { path: 'close', label: 'Resultado', kind: 'line' },
     ];
-    case 'note': return [{ path: 'text', label: 'Texto', kind: 'area' }];
+    case 'note': return [
+      { path: 'text', label: 'Texto', kind: 'area' },
+      ...(el.tone === 'error' ? [
+        { path: 'wrong', label: 'Cómo lo escribe el alumno', kind: 'line' as const }, { path: 'right', label: 'Cómo es', kind: 'line' as const },
+        { path: 'check', label: 'Cómo comprobarlo', kind: 'area' as const },
+      ] : []),
+      ...(el.tone === 'fact' ? [{ path: 'source', label: 'Fuente', kind: 'line' as const }] : []),
+    ];
     case 'list': return [{ path: 'title', label: 'Título', kind: 'line' }, { path: 'items', label: 'Elementos', kind: 'lines', hint: LINES }];
     case 'table': return [
       { path: 'header', label: 'Encabezados', kind: 'cells', hint: 'Separados por « | », con un espacio a cada lado' }, { path: 'rows', label: 'Filas', kind: 'rows', hint: ROWS },
