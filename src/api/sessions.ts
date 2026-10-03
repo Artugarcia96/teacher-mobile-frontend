@@ -11,6 +11,19 @@ export interface SessionLog {
   previous?: { date: string; start: string; done?: string | null; next?: string | null; homework?: string | null } | null;
   /** Unit in progress and the one «empezar la siguiente» would start. */
   unit?: UnitRef | null; next_unit?: UnitRef | null;
+  /** What was saved about the presentation lesson given («Terminada» / «A medias»). */
+  material_id: string | null; lesson: number | null; lesson_done: boolean | null;
+  /** The ready presentation of the unit in progress, for the lesson row (null: none). */
+  presentation: SessionPresentation | null;
+}
+export interface SessionPresentation {
+  id: string; title: string;
+  /** `slides`: visible slides; `homework` prefills «Deberes». */
+  lessons: { n: number; title: string; homework: string; slides: number }[];
+  /** Pre-selected: the lesson presented during this session, else the one «Hoy» opened. */
+  lesson: number;
+  /** The slide reached when it was presented during this session (the «A medias» line). */
+  slide: number | null;
 }
 export interface SessionLogInput {
   date: string; start: string; done?: string | null; next?: string | null; homework?: string | null; finish_unit?: boolean;

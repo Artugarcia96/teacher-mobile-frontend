@@ -62,7 +62,7 @@ export interface Item {
   answer: string;
   /** `lista`: the bold term on the left. */
   term: string;
-  /** `practica`: 1-3. */
+  /** `practica`: 1, 2 or 3; 0 elsewhere. */
   level: number;
   /** `practica`: the answer is written prose. */
   prose: boolean;
@@ -75,7 +75,8 @@ export interface Column {
   cells: string[];
   image_id: string;
 }
-/** A label on an image or figure: `anchor` is "mark:<n>", "fig:<anchor>" or "" (a side label). */
+/** A label on an image or figure: `anchor` is "mark:<n>" (1-based into `ImageRef.marks`), "fig:<anchor>" or "" (a side
+ *  label). */
 export interface Callout { label: string; anchor: string }
 /** The teacher's script of a slide, field by field («Di», «Pregunta», «Respuesta esperada»…). The app shows the lines
  *  the server composes from them (`MaterialDetail.slide_notes`). */
@@ -105,8 +106,8 @@ export interface Slide {
   figure: FigureSpec | null; image_id: string;
   /** A migrated image hint waiting for «Buscar imagen». */
   image_need: ImageNeed | null;
-  /** `enlace`: one of the unit's link materials. */
-  link_id: string;
+  /** `enlace`: one of the unit's link materials, and its URL (copied when the slide is added). */
+  link_id: string; link_url: string;
   callouts: Callout[];
   /** Build order (one click per ref). */
   reveal: string[];
@@ -203,7 +204,8 @@ export interface DocSection {
 // ── Images ───────────────────────────────────────────────────────────────────
 export type ImageKind =
   | 'lugar' | 'objeto' | 'obra' | 'retrato' | 'fuente_primaria' | 'mapa_historico' | 'esquema' | 'especie' | 'fenomeno';
-export type ImageRole = 'portada' | 'evidencia' | 'evidencia_ancha' | 'retrato' | 'mapa' | 'esquema';
+export type ImageRole =
+  | 'portada' | 'evidencia' | 'evidencia_ancha' | 'retrato' | 'mapa' | 'esquema' | 'fuente_primaria';
 /** What an image must show to prove a claim (written by the brief; a migrated slide keeps one for «Buscar imagen»). */
 export interface ImageNeed {
   id: string; content: string; use: 'presentacion' | 'apuntes' | 'ambos'; kind: ImageKind; subject: string;
@@ -216,7 +218,8 @@ export interface Credit {
   title: string; author: string;
   /** «Wikimedia Commons» | «Imagen del profesor». */
   source: string; page_url: string; license: string; license_url: string;
-  /** «recortada», «rótulos traducidos»… */
+  /** What was done when the image was acquired («rótulos traducidos»); «recortada» and «rótulos añadidos» depend on
+   *  where it is placed and are in the credit lines the server composes. */
   changes: string[];
 }
 /** An image the document uses (`ContentDoc.images`; slides and blocks point at it by `id`). */
@@ -232,6 +235,8 @@ export interface ImageRef {
   facts: string;
   /** Never cropped. */
   contain: boolean;
+  /** A Commons quality mark: '' | 'featured' | 'quality' | 'valued'. */
+  quality: string;
   credit: Credit;
 }
 
@@ -271,6 +276,8 @@ export interface ContentDoc {
   family: string;
   /** Content language («es» except Idiomas). */
   language: string;
+  /** How the class answers at once: the class's setting, copied by the server. */
+  response_mode: string;
   meta: Record<string, unknown>;
 }
 
@@ -283,15 +290,22 @@ export const isSlide = (el: Element): el is Slide => 'archetype' in el;
 export type ArchetypeGroup = 'empezar' | 'explicar' | 'comprobar' | 'practicar' | 'cerrar';
 /** How «Editar texto» shows a slot: one line per element for lists, with the line syntax of its kind. */
 export type SlotKind = 'text' | 'lines' | 'choice' | 'items' | 'steps' | 'columns' | 'number';
-export interface SlotField {
-  slot: string; label: string; kind: SlotKind; required?: boolean;
+interface SlotFieldBase {
+  slot: string; label: string; required?: boolean;
   /** Word and character caps (over them: a warning, not a refusal). */
   words?: number; chars?: number;
   /** List bounds the renderer needs (outside them: a refusal). */
   min?: number; max?: number;
-  /** `choice`: the slot whose values it picks from. */
-  from?: string;
+  /** `items` and `steps`: the syntax of a line («texto | respuesta», «nivel | texto | respuesta», «cuenta | por qué»…). */
+  syntax?: string;
 }
+/** A `choice` picks from the lines of another slot (`from`: bisagra's options) or from a fixed set (`options`:
+ *  «Verdadero», «Falso»), never both. */
+export type SlotField = SlotFieldBase & (
+  | { kind: Exclude<SlotKind, 'choice'>; from?: never; options?: never }
+  | { kind: 'choice'; from: string; options?: never }
+  | { kind: 'choice'; options: string[]; from?: never }
+);
 export interface ArchetypeInfo {
   label: string; group: ArchetypeGroup;
   /** False for slides the writer never makes (correccion, creditos, enlace); «Añadir diapositiva» offers enlace only as
@@ -311,7 +325,8 @@ export interface Archetypes {
     defaults: Record<string, Record<string, Record<string, LessonKind[]>>>;
   };
   response_modes: Record<ResponseMode, string>;
-  /** The labels of the notes fields in «Editar texto» («Di», «Pregunta»…). */
+  /** The labels of the notes fields in «Editar texto» («Di», «Pregunta»…): each one is edited as text, `clicks` one
+   *  line per click. */
   notes_fields: Record<keyof SlideNotes, string>;
 }
 

@@ -77,10 +77,14 @@ export interface MaterialDetail extends Material {
   /** What the verification withdrew or could not fix (an `unfixed` one points at its element by `id`). */
   review: ReviewNote[];
   course: CourseRef; unit_title?: string | null;
-  /** Presentación: each lesson with its slides; teoría: the sections of each lesson; [] for other kinds. */
+  /** Presentación: each lesson with its slides; teoría: the sections of each lesson; [] for práctica, resumen and
+   *  lectura sencilla. Which shape it is follows `kind`, never the fields. */
   lessons: (LessonInfo | LessonOfApuntes)[];
-  /** The server-rendered images of each slide by id (a slide missing here could not be rendered). */
+  /** The server-rendered images of each slide by id. A slide in neither this nor `frames_failed` is being rendered:
+   *  its card shows the placeholder and the page refetches once after 5 s. */
   slide_images: Record<string, SlideImages>;
+  /** Slides whose render failed («Esta diapositiva no se ha podido maquetar.»). */
+  frames_failed: string[];
   /** The teacher's notes of each slide by id, already composed («Tiempo», «Respuesta», «Di»…). Named apart from
    *  `Material.notes`, the teacher's note on the material. */
   slide_notes: Record<string, NotesLine[]>;
