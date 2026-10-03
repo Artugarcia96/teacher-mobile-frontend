@@ -15,7 +15,8 @@ export function useGeneration(m: Pick<Material, 'status' | 'job_id'>) {
   }
   const i = STEPS.indexOf(job?.message ?? '');
   const step = i < 0 ? 0 : i + 1;
-  return { text: step ? `${STEPS[i]} · paso ${step} de ${STEPS.length}` : 'En cola…', step };
+  // A presentation writes its lessons in parallel: its own lines («Escribiendo las sesiones…», «2 de 5 sesiones listas»).
+  return { text: step ? `${STEPS[i]} · paso ${step} de ${STEPS.length}` : job?.message || 'En cola…', step };
 }
 
 /** One line + bar for a material being created (unit list). */

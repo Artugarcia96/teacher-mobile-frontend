@@ -7,11 +7,12 @@ import { openSigned } from '../papers/openDoc';
 type Openable = { id: string; kind: MaterialKind; unit_id: string | null; url?: string | null };
 
 /** Open a material: files in a new tab (signed URL), links straight to their address, Sepia's own materials in
- *  their page. `present` opens slides straight in presentation mode (MaterialPage handles ?presentar=1). */
+ *  their page. `present` opens slides straight in presentation mode (?presentar=1), at `lesson` (?sesion=k) and
+ *  `slide` (?diapositiva=12). */
 export function useOpenMaterial() {
   const navigate = useNavigate();
   const { toast } = useFeedback();
-  return (m: Openable, courseId: string, opts?: { present?: boolean }) => {
+  return (m: Openable, courseId: string, opts?: { present?: boolean; lesson?: number | null; slide?: number | null }) => {
     if (m.kind === 'link' && m.url) {
       // External page: no window.opener back to Sepia (reverse tabnabbing). Remember "last used" in the background.
       window.open(m.url, '_blank', 'noopener,noreferrer');
@@ -22,8 +23,14 @@ export function useOpenMaterial() {
       void openSigned(() => api.get<{ url: string }>(`/materials/${m.id}/file?inline=1`), (msg) => toast(msg, { tone: 'error' }));
       return;
     }
-    const q = opts?.present && m.kind === 'slides' ? '?presentar=1' : '';
-    navigate(`/clases/${courseId}/unidades/${m.unit_id}/materiales/${m.id}${q}`);
+    // From Hoy a presentation projects the lesson the class is at (and the slide where it was left); apuntes open at
+    // that lesson's first section.
+    const q = new URLSearchParams();
+    if (opts?.present && m.kind === 'slides') q.set('presentar', '1');
+    if (opts?.lesson) q.set('sesion', String(opts.lesson));
+    if (opts?.slide && m.kind === 'slides') q.set('diapositiva', String(opts.slide));
+    const search = q.toString();
+    navigate(`/clases/${courseId}/unidades/${m.unit_id}/materiales/${m.id}${search ? `?${search}` : ''}`);
   };
 }
 

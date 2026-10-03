@@ -8,6 +8,7 @@ import { AIBadge, Button, IconButton, Menu, Row, RowIcon, Spinner, useFeedback, 
 import { failedText, isDraft, isGenerated, kindLabel, MaterialIcon, readyText, shortTitle, withArticle } from '../units/kinds';
 import { useOpenMaterial } from './open';
 import type { PlaceMode } from './PlaceMaterialSheet';
+import { lessonsCount } from './lessons';
 import { GenerationLine } from './progress';
 import { watchJob } from './watch';
 import './materials.css';
@@ -23,7 +24,8 @@ const FILE_TYPE: Record<string, string> = {
 };
 
 /** Type for the meta line, without repeating the title: "PDF", "Fotos · 6 páginas", "Vídeo de YouTube",
- *  "10 ejercicios · 3 páginas" (title "Ficha de refuerzo · …"), "5 páginas" for "Apuntes · Fracciones". */
+ *  "10 ejercicios · 3 páginas" (title "Ficha de refuerzo · …"), "5 páginas" for "Apuntes · Fracciones",
+ *  "5 sesiones" for "Presentación · Fracciones". */
 export function typeLabel(m: Material): string {
   if (m.kind === 'upload') {
     const pages = Number(m.options?.pages ?? 0);
@@ -36,7 +38,8 @@ export function typeLabel(m: Material): string {
   const n = Number(m.options?.n_items_used ?? m.options?.n_items ?? 0);
   const items = m.kind === 'worksheet' && n ? `${n} ejercicios` : '';
   const pages = m.kind !== 'slides' ? Number(m.options?.pages ?? 0) : 0;  // of the PDF: what printing it takes
-  return [named ? '' : label, items, pages ? plural(pages, 'página', 'páginas') : ''].filter(Boolean).join(' · ');
+  const lessons = m.kind === 'slides' ? lessonsCount(m) : '';  // «5 sesiones», «2 de 5 sesiones listas»
+  return [named ? '' : label, lessons, items, pages ? plural(pages, 'página', 'páginas') : ''].filter(Boolean).join(' · ');
 }
 
 /** One material of a unit: opens on tap, actions in its menu (grouped "Para alumnos" / "Solo para ti"). The title

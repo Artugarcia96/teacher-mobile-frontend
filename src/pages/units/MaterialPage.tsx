@@ -1,8 +1,8 @@
 import {
   Check, ClipboardText, DotsThree, DownloadSimple, PencilSimple, ShareNetwork, Trash, WarningCircle,
 } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { isContentDoc, type Block, type ContentDoc, type FigureSpec } from '../../api/content';
 import { useAIUnavailable } from '../../api/core';
 import {
@@ -69,6 +69,7 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
   const patchBlock = usePatchBlock(m.id);
   const deleteBlock = useDeleteBlock(m.id);
   const rewrite = useRewriteBlock(m.id);
+  const [params] = useSearchParams();
   const [renaming, setRenaming] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -79,6 +80,14 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
   const busy = new Set(watched.flatMap((w) => (w.kind === 'rewrite' && w.materialId === m.id ? [w.blockId] : [])));
 
   const doc: ContentDoc | null = isContentDoc(m.content) ? m.content : null;
+  // From Hoy, apuntes open at the first section of the lesson the class is at (?sesion=k).
+  const lessonSection = doc?.kind !== 'presentacion' ? doc?.sections.find((sec) => sec.lesson === Number(params.get('sesion'))) : undefined;
+  useEffect(() => {
+    if (!lessonSection) return undefined;
+    const t = window.setTimeout(() => document.getElementById(`sec-${lessonSection.id}`)?.scrollIntoView({ block: 'start' }), 100);
+    return () => window.clearTimeout(t);
+  }, [lessonSection]);
+
   const unitTitle = m.unit_title ?? '';
   const title = shortTitle(m.title, unitTitle);
   const path = `${unitPath}/materiales/${m.id}`;

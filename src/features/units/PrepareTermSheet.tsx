@@ -6,6 +6,7 @@ import { PREPARE_MAX, usePrepareMaterials, useUnitDetails, type GenKind, type Ma
 import { useAuth } from '../../lib/auth';
 import { plural, TERM_LABEL } from '../../lib/format';
 import { Button, List, Progress, Row, RowIcon, Section, Segmented, Sheet, Spinner, TextArea, useFeedback } from '../../ui';
+import { lessonsCount } from '../materials/lessons';
 import { useWatched, watchJob, type Watched } from '../materials/watch';
 import { KINDS } from './CreateMaterialSheet';
 import { kindLabel, MaterialIcon, shortTitle } from './kinds';
@@ -187,7 +188,9 @@ function PrepareProgress({ batch, units, courseId, onClose }: { batch: Batch; un
                   {m?.status === 'failed' ? <WarningCircle size={20} /> : <MaterialIcon kind={b.kind as GenKind} />}
                 </RowIcon>;
                 if (m?.status === 'ready') {
-                  return <Row key={b.id} lead={lead} title={label} sub="Listo" to={`/clases/${courseId}/unidades/${uid}/materiales/${b.id}`} />;
+                  // A presentation is ready at its first lesson: «2 de 5 sesiones listas» until the last one lands.
+                  const sub = m.kind === 'slides' && m.lessons_total ? `Listo · ${lessonsCount(m)}` : 'Listo';
+                  return <Row key={b.id} lead={lead} title={label} sub={sub} to={`/clases/${courseId}/unidades/${uid}/materiales/${b.id}`} />;
                 }
                 if (m?.status === 'failed') {
                   return <Row key={b.id} lead={lead} title={label} wrapSub sub={<span className="mrow__error">{m.error || 'No se ha podido crear'}</span>}
