@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ContentDoc } from '../../api/content';
 import { IconButton } from '../../ui';
-import { CoverSlide, SlideFace } from './SlideFace';
+import { SlideFace } from './SlideFace';
 import './Presenter.css';
 
 interface Props {
@@ -14,17 +14,18 @@ interface Props {
 }
 
 /** «Proyectar»: the browser's full screen, one slide at a time, and only the slide: what the class sees never carries the
- *  speaker notes, the answers or the teacher's reminders (those stay on the material page, «Notas del orador», and in the
- *  PowerPoint). Keys: → / Espacio / AvPág next, ← / RePág back, Inicio / Fin, F full screen, Esc leaves. Swipe or tap
- *  the sides on touch screens. */
+ *  speaker notes or the answers (those stay on the material page, «Notas del orador», and in the PowerPoint); backup
+ *  and credits slides are not projected. Keys: → / Espacio / AvPág next, ← / RePág back, Inicio / Fin, F full screen,
+ *  Esc leaves. Swipe or tap the sides on touch screens. */
 export default function Presenter({ doc, kicker, figures, onClose }: Props) {
-  const total = doc.slides.length + 1;
+  const slides = doc.slides.filter((s) => !s.hidden && s.archetype !== 'creditos');
+  const total = slides.length;
   const [i, setI] = useState(0);
   const [full, setFull] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
-  const go = useCallback((d: number) => setI((v) => Math.min(total - 1, Math.max(0, v + d))), [total]);
+  const go = useCallback((d: number) => setI((v) => Math.max(0, Math.min(total - 1, v + d))), [total]);
 
   const toggleFull = useCallback(async () => {
     try {
@@ -50,7 +51,7 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) go(1);
       else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) go(-1);
       else if (k === 'Home') setI(0);
-      else if (k === 'End') setI(total - 1);
+      else if (k === 'End') setI(Math.max(0, total - 1));
       else if (k === 'f' || k === 'F') void toggleFull();
       else if (k === 'Escape') void close();
       else return;
@@ -73,7 +74,7 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
     if (!document.fullscreenElement) root.current?.requestFullscreen?.().catch(() => undefined);
   }, []);
 
-  const slide = i > 0 ? doc.slides[i - 1] : null;
+  const slide = slides[i];
 
   return createPortal(
     <div ref={root} className="presenter" role="dialog" aria-modal="true" aria-label={`Proyectar: ${doc.title}`}
@@ -100,7 +101,7 @@ export default function Presenter({ doc, kicker, figures, onClose }: Props) {
           const r = e.currentTarget.getBoundingClientRect();
           go(e.clientX - r.left < r.width * 0.3 ? -1 : 1);
         }}>
-          {slide ? <SlideFace slide={slide} figure={figures[slide.id]} projected /> : <CoverSlide title={doc.title} kicker={kicker} />}
+          {slide && <SlideFace slide={slide} figure={figures[slide.id]} kicker={kicker} />}
         </div>
         <p className="presenter__hint">Gira el móvil para ver la diapositiva más grande.</p>
       </div>

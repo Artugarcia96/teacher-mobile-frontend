@@ -34,6 +34,10 @@ export interface SessionMaterial {
   id: string; unit_id: string; kind: MaterialKind; title: string; audience: Audience;
   /** Uploads: file name (icon). Links: site (icon) and address (opened directly). */
   filename?: string | null; link_kind?: LinkKind | null; url?: string | null;
+  /** Presentation: the lesson «Hoy» opens of `lessons`, and its slide; `presented` is where it was left during this
+   *  session (pre-fills «Cerrar clase»). */
+  lesson: number | null; lessons: number | null; slide: number | null;
+  presented: { lesson: number; slide: number } | null;
 }
 export interface TodayEvent {
   id: string; title: string; kind: EventKind; date: string; start?: string | null; end?: string | null; note?: string | null; course?: CourseRef | null;

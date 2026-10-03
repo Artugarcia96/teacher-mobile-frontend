@@ -1,7 +1,7 @@
 /** Programación (units) & materials. Backend: app/api/units.py and app/api/library.py. */
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fileUrl, uploadWithProgress } from '../lib/api';
-import type { ContentDoc, Element, FigureSpec, Level } from './content';
+import type { ContentDoc, Element, FigureSpec, LessonKind, Level } from './content';
 import type { CourseRef, Job, JobRef } from './types';
 
 export type UnitStatus = 'pending' | 'current' | 'done';
@@ -31,9 +31,11 @@ export type LinkKind = 'youtube' | 'drive' | 'genially' | 'canva' | 'wordwall' |
 export interface Material {
   id: string; unit_id: string | null; kind: MaterialKind; title: string; status: 'ready' | 'generating' | 'failed';
   error?: string | null; options: Record<string, unknown>; created_at: string; updated_at: string;
-  file_url?: string | null; extra_url?: string | null; pptx_url?: string | null;
-  /** While it is generated (its own job, or the «Preparar el trimestre» batch) or read by the AI. */
+  file_url?: string | null; extra_url?: string | null;
+  /** While it is generated (its own job, or the «Preparar el trimestre» batch, or one of its lessons) or read by the AI. */
   job_id?: string | null;
+  /** Lessons of a presentation or apuntes (0 for other kinds): how many there are, are ready and failed. */
+  lessons_total: number; lessons_ready: number; lessons_failed: number;
   /** Metadata (app/services/materials.py): who it is for, manual order, the teacher's note, last opened (date). */
   audience: Audience; position: number; notes?: string | null; last_used_at?: string | null;
   /** AI reading of photos / scanned PDFs, so generation for the unit can use their text. */
@@ -55,7 +57,8 @@ export interface Grounding { sources: GroundingSource[]; reading: { id: string; 
  *  fix in an element that stays as written (`unfixed`, until the teacher edits, rewrites or removes it). */
 export interface ReviewNote {
   kind: 'withdrawn' | 'unfixed'; id: string | null;
-  /** «Ejercicio», «Ejemplo», «Comprueba», «Diapositiva», «Apartado». */
+  /** «Ejercicio», «Diapositiva», «Apartado», an archetype label («Pregunta bisagra», «Dato clave»…) or a block name
+   *  («Ejemplo resuelto», «Documento», «Ahora tú»…). */
   element: string;
   /** The element in a few words. */
   text: string;
@@ -74,7 +77,54 @@ export interface MaterialDetail extends Material {
   /** What the verification withdrew or could not fix (an `unfixed` one points at its element by `id`). */
   review: ReviewNote[];
   course: CourseRef; unit_title?: string | null;
+  /** Presentación: each lesson with its slides; teoría: the sections of each lesson; [] for práctica, resumen and
+   *  lectura sencilla. Which shape it is follows `kind`, never the fields. */
+  lessons: (LessonInfo | LessonOfApuntes)[];
+  /** The server-rendered images of each slide by id. A slide in neither this nor `frames_failed` is being rendered:
+   *  its card shows the placeholder and the page refetches once after 5 s. */
+  slide_images: Record<string, SlideImages>;
+  /** Slides whose render failed («Esta diapositiva no se ha podido maquetar.»). */
+  frames_failed: string[];
+  /** The teacher's notes of each slide by id, already composed («Tiempo», «Respuesta», «Di»…). Named apart from
+   *  `Material.notes`, the teacher's note on the material. */
+  slide_notes: Record<string, NotesLine[]>;
+  /** Every image the document uses, by `ImageRef.id`. */
+  images: Record<string, ImageInfo>;
+  /** Apuntes: what each `[[ref]]` reads as («fig. 3»). */
+  refs: Record<string, string>;
+  /** The names that fill the `{nombre1}`… placeholders of the text when it is shown. */
+  names: Record<string, string>;
+  /** Dates and figures that do not come from the teacher's materials («Revisa esto»). */
+  facts_unverified: FactUnverified[];
+  /** POST slides and duplicate: the id of the new slide. */
+  created?: string;
+  /** PATCH blocks/{id}: the caps the new text goes over (saved anyway). */
+  warnings?: string[];
 }
+/** A lesson of a presentation: its slides in order (the credits slide last) and its backup slides. */
+export interface LessonInfo {
+  n: number; title: string; kind: LessonKind; question: string; criteria: string[]; minutes: number; homework: string;
+  status: 'ready' | 'generating' | 'failed'; error: string;
+  slide_ids: string[]; hidden_ids: string[];
+}
+/** A lesson of apuntes: the sections it covers. */
+export interface LessonOfApuntes { n: number; title: string; sections: string[] }
+/** Signed WebP images of a slide: one 1920 × 1080 frame per build state (clicks + 1) and a 960 px card. */
+export interface SlideImages { frames: string[]; card: string; alt: string }
+export interface NotesLine { label: string; text: string }
+export interface ImageInfo {
+  /** Signed URL of the 1280 px variant. */
+  url: string;
+  /** Short credit line («Foto: Daderot · CC0 · Wikimedia Commons»). */
+  credit: string;
+  /** The source page, "" for a teacher's upload. */
+  page_url: string;
+  /** «Qué se ve». */
+  depicts: string;
+  /** Other accepted candidates («Otras imágenes encontradas»). */
+  alternatives: number;
+}
+export interface FactUnverified { lesson: number | null; values: string[]; element_id: string }
 export interface UnitDetail {
   unit: Unit; course: CourseRef; materials: Material[];
   /** The class's own files outside any unit that the AI can follow as a guide (the imported «Programación»). */
@@ -82,10 +132,10 @@ export interface UnitDetail {
 }
 
 /** «Crear con IA». Ficha: one `level` (none = the three levels), at most `n_items` exercises and `notebook` (no space to
- *  answer); `sessions` splits it in class sessions. */
+ *  answer); `lessons` splits it in class sessions (null: as many as the unit needs), each of a kind and `minutes` long. */
 export interface GenerateInput {
-  kind: GenKind; instructions?: string; guide_material_id?: string; level?: Level; n_items?: number; sessions?: number;
-  notebook?: boolean;
+  kind: GenKind; instructions?: string; guide_material_id?: string; level?: Level; n_items?: number;
+  lessons?: number | null; kinds?: LessonKind[]; minutes?: number; notebook?: boolean;
 }
 
 /** A unit of an imported programación: its title, term and the saberes it lists (the unit's summary). */
@@ -414,9 +464,14 @@ export function useMaterialToActivity(materialId: string) {
   });
 }
 
-/** Ask for a signed download link and start the download (PDF, .pptx or solucionario). */
-export async function downloadMaterial(materialId: string, variant: 'pdf' | 'pptx' | 'key' = 'pdf') {
-  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?variant=${variant}`, { slow: true });
+/** pdf: the students' PDF; teacher: with the notes; sheet: «Hoja para los alumnos»; zip: every lesson's .pptx; key:
+ *  solucionario; bn: black and white; annex: «Actividades de repaso». */
+export type FileVariant = 'pdf' | 'pptx' | 'teacher' | 'sheet' | 'zip' | 'key' | 'bn' | 'annex';
+
+/** Ask for a signed download link and start the download; `lesson` picks one lesson's file. */
+export async function downloadMaterial(materialId: string, variant: FileVariant = 'pdf', lesson?: number) {
+  const query = `variant=${variant}${lesson ? `&lesson=${lesson}` : ''}`;
+  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?${query}`, { slow: true });
   const a = document.createElement('a');
   a.href = fileUrl(url)!;
   a.rel = 'noopener';

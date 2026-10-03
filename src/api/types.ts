@@ -1,6 +1,7 @@
 /** Shared API types (mirror backend app/schemas/common.py, me.py, courses.py, notes.py).
  * Feature-specific types live next to their hooks in src/api/<area>.ts. */
 
+import type { ResponseMode } from './content';
 import type { WatchItem } from './today';
 
 /** `region` = código de comunidad autónoma ("MD"). */
@@ -36,7 +37,11 @@ export interface Category { key: string; label: string; weight: number; activiti
 /** `taken`: the list of this session is already taken (only possible once it has started). */
 export interface NextSession { date: string; start: string; end: string; room?: string | null; taken?: boolean }
 export interface CourseSummary extends CourseRef { student_count: number; schedule: Slot[]; next_session?: NextSession | null; archived: boolean }
-export interface CourseDetail extends CourseSummary { categories: Category[]; current_unit?: string | null }
+export interface CourseDetail extends CourseSummary {
+  categories: Category[]; current_unit?: string | null;
+  /** How the class answers at once («Ajustes de la clase»): the instruction of the task slides follows it. */
+  response_mode: ResponseMode;
+}
 export interface GroupOut extends GroupRef { student_count: number; courses: CourseRef[] }
 
 export interface StudentRow extends StudentRef {

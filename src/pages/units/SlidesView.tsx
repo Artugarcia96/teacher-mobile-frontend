@@ -2,7 +2,7 @@ import type { ContentDoc, Element } from '../../api/content';
 import { WarningCircle } from '@phosphor-icons/react';
 import { Callout, RichText } from '../../ui';
 import { ElementMenu, Rewriting, type ElementAction } from './ElementMenu';
-import { CoverSlide, SlideFace, slideKey } from './SlideFace';
+import { SlideFace, slideNotes } from './SlideFace';
 
 interface Props {
   doc: ContentDoc;
@@ -17,33 +17,41 @@ interface Props {
   noAI: string | null;
 }
 
-/** The presentation as 16:9 cards, numbered like the PDF (the cover is 1). */
+/** The presentation as 16:9 cards, lesson by lesson, numbered like the PDF (backup slides carry no number). */
 export default function SlidesView({ doc, kicker, figures, showNotes, editing, busy, onAction, noAI }: Props) {
   return (
-    <div className="slides">
-      <figure className="slide-card"><CoverSlide title={doc.title} kicker={kicker} n={1} /></figure>
-      {doc.slides.map((s, i) => {
-        const isBusy = busy.has(s.id);
-        const key = slideKey(s);
+    <>
+      {doc.lessons.map((lesson) => {
+        let n = 0;
         return (
-          <figure key={s.id} data-element={s.id} className={`slide-card element${editing ? ' element--editing' : ''}${isBusy ? ' element--busy' : ''}`}>
-            <SlideFace slide={s} figure={figures[s.id]} n={i + 2} />
-            {s.figure && !figures[s.id] && (
-              <Callout tone="warn" icon={<WarningCircle size={20} />}>
-                La figura de esta diapositiva no se ha podido dibujar y no sale al proyectar. Edítala o reescríbela con IA.
-              </Callout>
-            )}
-            {editing && !isBusy && <div className="element__menu"><ElementMenu el={s} doc={doc} onAction={onAction} noAI={noAI} /></div>}
-            {isBusy && <Rewriting />}
-            {showNotes && (s.notes || key.length > 0) && (
-              <figcaption className="slide-card__notes">
-                {s.notes && <RichText as="p" text={s.notes} />}
-                {key.map((k, j) => <RichText key={j} as="p" className="slide-card__key" text={k} />)}
-              </figcaption>
-            )}
-          </figure>
+          <section key={lesson.n} className="slides-lesson" aria-label={`Sesión ${lesson.n}`}>
+            {doc.lessons.length > 1 && <h2 className="slides-lesson__title">Sesión {lesson.n} · <RichText text={lesson.title} /></h2>}
+            <div className="slides">
+              {doc.slides.filter((s) => s.lesson === lesson.n).map((s) => {
+                const isBusy = busy.has(s.id);
+                const notes = slideNotes(s);
+                return (
+                  <figure key={s.id} data-element={s.id} className={`slide-card element${editing ? ' element--editing' : ''}${isBusy ? ' element--busy' : ''}`}>
+                    <SlideFace slide={s} figure={figures[s.id]} n={s.hidden ? undefined : ++n} kicker={kicker} />
+                    {s.figure && !figures[s.id] && (
+                      <Callout tone="warn" icon={<WarningCircle size={20} />}>
+                        La figura de esta diapositiva no se ha podido dibujar y no sale al proyectar. Edítala o reescríbela con IA.
+                      </Callout>
+                    )}
+                    {editing && !isBusy && <div className="element__menu"><ElementMenu el={s} doc={doc} onAction={onAction} noAI={noAI} /></div>}
+                    {isBusy && <Rewriting />}
+                    {showNotes && notes.length > 0 && (
+                      <figcaption className="slide-card__notes">
+                        {notes.map((line, j) => <RichText key={j} as="p" text={line} />)}
+                      </figcaption>
+                    )}
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
         );
       })}
-    </div>
+    </>
   );
 }

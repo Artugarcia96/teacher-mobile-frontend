@@ -3,7 +3,7 @@ import {
 } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { isContentDoc, type ContentDoc, type Element, type FigureSpec } from '../../api/content';
+import { isContentDoc, isSlide, type ContentDoc, type Element, type FigureSpec } from '../../api/content';
 import { useAIUnavailable } from '../../api/core';
 import {
   downloadMaterial, useDeleteBlock, useDeleteMaterial, useMaterial, useMaterialToActivity, usePatchBlock, useRetryMaterial,
@@ -149,17 +149,17 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
     }
   };
 
-  const what = (el: Element) => ('layout' in el ? 'Diapositiva' : 'type' in el && el.type === 'exercise' ? 'Ejercicio' : 'Apartado');
+  const what = (el: Element) => (isSlide(el) ? 'Diapositiva' : el.type === 'exercise' ? 'Ejercicio' : 'Apartado');
   const onAction = async (action: ElementAction, el: Element) => {
     if (action !== 'remove') { setEditing({ action, el }); return; }
     const ok = await confirm({
-      title: `¿Quitar ${'layout' in el ? 'esta diapositiva' : `este ${what(el).toLowerCase()}`}?`,
+      title: `¿Quitar ${isSlide(el) ? 'esta diapositiva' : `este ${what(el).toLowerCase()}`}?`,
       text: 'Desaparece de la vista, del PDF y de las descargas. Si otro apartado lo menciona, edítalo después.',
       confirm: 'Quitar', danger: true,
     });
     if (!ok) return;
     deleteBlock.mutate(el.id, {
-      onSuccess: () => toast(`${what(el)} quitad${'layout' in el ? 'a' : 'o'}`), onError: (e) => toast((e as Error).message, { tone: 'error' }),
+      onSuccess: () => toast(`${what(el)} quitad${isSlide(el) ? 'a' : 'o'}`), onError: (e) => toast((e as Error).message, { tone: 'error' }),
     });
   };
   const save = (el: Element) => patchBlock.mutate(el, {
@@ -170,7 +170,7 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
     save({ ...el, [key]: spec, ...(caption !== undefined ? { caption } : {}) } as Element);
   const sendRewrite = (el: Element, instruction: string) => rewrite.mutate({ blockId: el.id, instruction }, {
     onSuccess: ({ job }) => {
-      watchJob({ job: job.id, kind: 'rewrite', materialId: m.id, blockId: el.id, done: `${what(el)} reescrit${'layout' in el ? 'a' : 'o'} con IA`, path });
+      watchJob({ job: job.id, kind: 'rewrite', materialId: m.id, blockId: el.id, done: `${what(el)} reescrit${isSlide(el) ? 'a' : 'o'} con IA`, path });
       setEditing(null);
       toast('Reescribiendo con IA. Puedes seguir trabajando.');
     },
@@ -190,7 +190,7 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
     : m.extra_url
       ? [{ variant: 'pdf', label: 'Descargar PDF' }, { variant: 'key', label: 'Descargar solucionario' }]
       : [{ variant: 'pdf', label: 'Descargar PDF' }];
-  const hasKey = !!doc && doc.sections.some((s) => s.blocks.some((b) => b.type === 'exercise' || b.type === 'check'));
+  const hasKey = !!doc && doc.sections.some((s) => s.blocks.some((b) => ['exercise', 'your_turn', 'review', 'case'].includes(b.type)));
 
   const toolbar = (
     <div className={`material-bar${slides ? '' : ' material-bar--reading'}`}>
@@ -221,7 +221,8 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
   );
 
   const kicker = [doc?.subject || m.course.subject, ordinals(m.course.group.name)].filter(Boolean).join(' · ');
-  const count = !doc ? null : slides ? plural(doc.slides.length + 1, 'diapositiva', 'diapositivas')
+  const count = !doc ? null : slides
+    ? (doc.lessons.length > 1 ? plural(doc.lessons.length, 'sesión', 'sesiones') : plural(doc.slides.filter((s) => !s.hidden).length, 'diapositiva', 'diapositivas'))
     : m.kind === 'worksheet' ? `${plural(doc.sections.flatMap((s) => s.blocks).filter((b) => b.type === 'exercise').length, 'ejercicio', 'ejercicios')} · con solucionario`
       : null;
 

@@ -8,7 +8,7 @@ Cuaderno del profesor para Secundaria/Bachillerato en España. Backend hermano e
 
 ```bash
 npm run dev          # http://127.0.0.1:5173 — proxy /api → http://127.0.0.1:8000 (VITE_API_PROXY para cambiarlo)
-npm run check        # typecheck + tokens (sin colores sueltos) + eslint. Debe pasar antes de cada commit.
+npm run check        # typecheck + tokens (sin colores sueltos) + código sustituido no vuelve + eslint. Debe pasar antes de cada commit.
 npm run build        # build de producción
 npm run e2e          # Playwright: flujos de profesor contra el backend en modo demo (e2e/README.md)
 npm run shots        # igual, guardando capturas en e2e/screenshots/

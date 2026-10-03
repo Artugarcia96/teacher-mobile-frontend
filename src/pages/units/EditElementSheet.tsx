@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Block, Element, Slide } from '../../api/content';
+import { isSlide, type Block, type Element, type Slide, type SlideNotes } from '../../api/content';
 import { fromText, toText, type TextKind } from '../../features/materials/fieldText';
 import { Button, RichText, Sheet, TextArea, TextField } from '../../ui';
 
@@ -7,6 +7,7 @@ interface Field { path: string; label: string; kind: TextKind; hint?: string }
 
 const LINES = 'Uno por línea';
 const ROWS = 'Una fila por línea; las celdas, separadas por « | », con un espacio a cada lado';
+const QUESTIONS = 'Una por línea: «pregunta | respuesta»';
 
 function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
   const f: Field[] = [{ path: 'statement', label: 'Enunciado', kind: 'area' }];
@@ -21,38 +22,48 @@ function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
   return f;
 }
 
+const NOTES: [keyof Omit<SlideNotes, 'clicks'>, string][] = [
+  ['say', 'Di'], ['ask', 'Pregunta'], ['expected', 'Respuesta esperada'], ['misconception', 'Error frecuente'],
+  ['if_not', 'Si no lo entienden'], ['manage', 'Gestión'], ['source_note', 'Dato para ti'],
+];
+
+/** The slots of a slide that hold text, in slot order (lists one element per line), then its notes. */
 function slideFields(s: Slide): Field[] {
-  const f: Field[] = [{ path: 'title', label: 'Título', kind: 'line' }];
-  if (s.layout === 'section' || s.subtitle) f.push({ path: 'subtitle', label: 'Subtítulo', kind: 'line' });
-  if (s.bullets.length || ['bullets', 'bullets_figure', 'summary', 'practice'].includes(s.layout)) {
-    f.push({ path: 'bullets', label: s.layout === 'practice' ? 'Ejercicios' : 'Viñetas', kind: 'lines', hint: 'Una por línea' });
+  const f: Field[] = [];
+  const text = (path: keyof Slide, label: string, kind: TextKind = 'line') => {
+    if (s[path]) f.push({ path, label, kind });
+  };
+  text('headline', 'Titular', 'area');
+  text('term', 'Término');
+  text('number', 'Número');
+  text('attribution', 'Fuente del dato');
+  text('text', 'Texto', 'area');
+  if (s.items.length) {
+    f.push(s.archetype === 'lista' ? { path: 'items', label: 'Elementos', kind: 'terms', hint: 'Uno por línea: «término | texto»' }
+      : s.archetype === 'practica' ? { path: 'items', label: 'Ejercicios', kind: 'practice', hint: 'Uno por línea: «nivel | texto | respuesta», con el nivel de 1 a 3' }
+        : { path: 'items', label: 'Elementos', kind: 'items', hint: 'Uno por línea: «texto | respuesta»' });
   }
-  if (s.layout === 'practice' || s.answers.length) f.push({ path: 'answers', label: 'Soluciones', kind: 'lines', hint: 'Una por línea, en el orden de los ejercicios' });
-  if (s.left) f.push({ path: 'left.heading', label: 'Columna izquierda', kind: 'line' }, { path: 'left.bullets', label: 'Viñetas de la izquierda', kind: 'lines' });
-  if (s.right) f.push({ path: 'right.heading', label: 'Columna derecha', kind: 'line' }, { path: 'right.bullets', label: 'Viñetas de la derecha', kind: 'lines' });
-  if (s.example) {
-    f.push({ path: 'example.statement', label: 'Enunciado del ejemplo', kind: 'area' }, { path: 'example.steps', label: 'Pasos', kind: 'lines', hint: 'Uno por línea' },
-      { path: 'example.result', label: 'Resultado', kind: 'line' });
-  }
-  if (s.question) {
-    f.push({ path: 'question.prompt', label: 'Pregunta', kind: 'area' });
-    if (s.question.options.length) f.push({ path: 'question.options', label: 'Opciones', kind: 'lines', hint: 'Una por línea' });
-    f.push({ path: 'question.answer', label: 'Respuesta', kind: 'line' });
-  }
-  if (s.figure) f.push({ path: 'caption', label: 'Pie de la figura', kind: 'line' });
-  f.push({ path: 'notes', label: 'Notas del orador', kind: 'area' });
+  s.columns.forEach((_, i) => f.push({ path: `columns.${i}`, label: `Columna ${i + 1}`, kind: 'column', hint: 'El encabezado en la primera línea; después, una celda por línea' }));
+  if (s.steps.length) f.push({ path: 'steps', label: 'Pasos', kind: 'steps', hint: 'Uno por línea: «cuenta | por qué»' });
+  if (s.options.length) f.push({ path: 'options', label: 'Opciones', kind: 'lines', hint: 'Una por línea' });
+  text('answer', 'Respuesta correcta');
+  text('explanation', 'Explicación', 'area');
+  text('yes', 'Sí es…');
+  text('no', 'No es…');
+  text('aside', 'Línea secundaria');
+  for (const [k, label] of NOTES) if (k === 'say' || s.notes[k]) f.push({ path: `notes.${k}`, label, kind: 'area' });
   return f;
 }
 
 /** The fields the teacher can edit in an element (the figure has its own sheet). */
 export function fieldsOf(el: Element): Field[] {
-  if ('layout' in el) return slideFields(el);
+  if (isSlide(el)) return slideFields(el);
   switch (el.type) {
     case 'text': return [{ path: 'text', label: 'Texto', kind: 'area' }];
     case 'definition': return [{ path: 'term', label: 'Término', kind: 'line' }, { path: 'text', label: 'Definición', kind: 'area' }];
-    case 'example': return [
+    case 'worked': return [
       { path: 'title', label: 'Título', kind: 'line' }, { path: 'statement', label: 'Enunciado', kind: 'area' },
-      { path: 'steps', label: 'Pasos', kind: 'lines', hint: LINES }, { path: 'result', label: 'Resultado', kind: 'line' },
+      { path: 'steps', label: 'Pasos', kind: 'steps', hint: 'Uno por línea: «cuenta | por qué»' }, { path: 'close', label: 'Resultado', kind: 'line' },
     ];
     case 'note': return [{ path: 'text', label: 'Texto', kind: 'area' }];
     case 'list': return [{ path: 'title', label: 'Título', kind: 'line' }, { path: 'items', label: 'Elementos', kind: 'lines', hint: LINES }];
@@ -61,8 +72,13 @@ export function fieldsOf(el: Element): Field[] {
       { path: 'caption', label: 'Pie', kind: 'line' },
     ];
     case 'figure': return [{ path: 'caption', label: 'Pie de la figura', kind: 'line' }];
-    case 'check': return [{ path: 'question', label: 'Pregunta', kind: 'area' }, { path: 'answer', label: 'Respuesta', kind: 'area' }];
+    case 'your_turn': case 'review': return [{ path: 'items', label: 'Preguntas', kind: 'items', hint: QUESTIONS }];
+    case 'case': return [
+      { path: 'title', label: 'Título', kind: 'line' }, { path: 'text', label: 'Caso', kind: 'area' },
+      { path: 'questions', label: 'Preguntas', kind: 'items', hint: QUESTIONS },
+    ];
     case 'exercise': return exerciseFields(el);
+    default: return [];
   }
 }
 
@@ -73,7 +89,9 @@ function get(obj: unknown, path: string): unknown {
 function set<T>(obj: T, path: string, value: unknown): T {
   const [head, ...rest] = path.split('.');
   const o = obj as Record<string, unknown>;
-  return { ...o, [head]: rest.length ? set(o[head], rest.join('.'), value) : value } as T;
+  const v = rest.length ? set(o[head], rest.join('.'), value) : value;
+  if (Array.isArray(obj)) return obj.map((x, i) => (i === Number(head) ? v : x)) as T;
+  return { ...o, [head]: v } as T;
 }
 
 /** «Editar texto» of one block or slide: its fields as plain text (lists one per line), saved as the whole element. */
@@ -85,11 +103,11 @@ export default function EditElementSheet({ el, saving, onSave, onClose }: {
   const [values, setValues] = useState<Record<string, string>>(initial);
   const dirty = fields.some((f) => values[f.path] !== initial[f.path]);
   const math = JSON.stringify(el).includes('$');
-  const what = 'layout' in el ? 'diapositiva' : el.type === 'exercise' ? 'ejercicio' : 'apartado';
+  const what = isSlide(el) ? 'diapositiva' : el.type === 'exercise' ? 'ejercicio' : 'apartado';
 
   const save = () => {
     if (saving) return;
-    onSave(fields.reduce<Element>((acc, f) => set(acc, f.path, fromText(f.kind, values[f.path])), el));
+    onSave(fields.reduce<Element>((acc, f) => set(acc, f.path, fromText(f.kind, values[f.path], get(el, f.path))), el));
   };
 
   return (

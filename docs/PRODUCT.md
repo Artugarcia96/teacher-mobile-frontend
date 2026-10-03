@@ -46,6 +46,8 @@ Sepia es el **cuaderno del profesor** de Secundaria/Bachillerato (y Primaria) en
 | Nota de evaluación  | `TermGrade`     | Nota calculada + nota final ajustada + comentario de boletín, por alumno/clase/evaluación. |
 | Observación         | `Note`          | Nota rápida del profesor (observación, incidencia, positivo, familia) ligada a alumnos y/o clase. |
 | Sesión              | calculada       | Cada hueco del horario en un día lectivo. No se guarda: se calcula de `Course.schedule` + curso escolar − festivos ± excepciones. |
+| Sesión de un material | `Lesson` (`ContentDoc.lessons`) | Una clase de una presentación, unos apuntes o una práctica: «Sesión 3 · La conquista (711-718)», con su tipo, su pregunta, sus criterios de éxito y su duración (la del hueco del horario de la clase). En el código es `Lesson`, para no confundirla con la sesión del horario. |
+| Tipo de sesión      | `Lesson.kind`   | Nueva · Problemas · Comentario de fuentes («Comentario de texto» en Lengua) · Laboratorio · Repaso. Cada tipo tiene su propia secuencia de diapositivas. |
 | Cierre de clase (diario) | `SessionLog` | «Cerrar clase»: hecho hoy, para la próxima y deberes de una sesión. Lo que la siguiente sesión muestra como «Toca: …». |
 | Deberes (revisión)  | `HomeworkCheck` | Revisión a toques de los deberes en una sesión; alimenta la actividad «Deberes (1.ª)» del cuaderno. |
 | Guardia             | `SessionCancel` `kind=guardia` | Sesión que da el profesorado de guardia porque el profesor falta; guarda la tarea y la hoja de guardia (PDF). En su agenda se lee «Ausente». |
