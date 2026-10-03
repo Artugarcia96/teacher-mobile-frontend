@@ -72,24 +72,31 @@ function SlideAction({ m, sheet, onClose }: { m: MaterialDetail; sheet: LessonSh
     if (done.current) return;
     done.current = true;
     const err = fail(toast);
+    // mutateAsync: the toast must come even though this component is gone when the server answers.
     const run = async () => {
-      if (sheet.kind === 'duplicate') duplicate.mutate(sheet.slideId, { onSuccess: () => toast('Diapositiva duplicada'), onError: err });
-      else if (sheet.kind === 'hidden') {
-        patch.mutate({ id: sheet.slideId, hidden: sheet.hidden }, {
-          onSuccess: () => toast(sheet.hidden ? 'Diapositiva pasada a reserva' : 'La diapositiva sale al proyectar'), onError: err,
-        });
-      } else if (sheet.kind === 'reorder') {
-        move.mutate({ id: sheet.slideId, lesson: sheet.lesson, after: sheet.after }, {
-          onSuccess: () => toast(sheet.up ? 'Diapositiva subida' : 'Diapositiva bajada'), onError: err,
-        });
-      } else if (sheet.kind === 'remove') {
-        const ok = await confirm({
-          title: sheet.n ? `¿Quitar la diapositiva ${sheet.n}?` : '¿Quitar esta diapositiva de reserva?',
-          text: 'Desaparece de la sesión, de los PDF y del PowerPoint.', confirm: 'Quitar', danger: true,
-        });
-        if (ok) remove.mutate(sheet.slideId, { onSuccess: () => toast('Diapositiva quitada'), onError: err });
-      }
       onClose();
+      try {
+        if (sheet.kind === 'duplicate') {
+          await duplicate.mutateAsync(sheet.slideId);
+          toast('Diapositiva duplicada');
+        } else if (sheet.kind === 'hidden') {
+          await patch.mutateAsync({ id: sheet.slideId, hidden: sheet.hidden });
+          toast(sheet.hidden ? 'Diapositiva pasada a reserva' : 'La diapositiva sale al proyectar');
+        } else if (sheet.kind === 'reorder') {
+          await move.mutateAsync({ id: sheet.slideId, lesson: sheet.lesson, after: sheet.after });
+          toast(sheet.up ? 'Diapositiva subida' : 'Diapositiva bajada');
+        } else if (sheet.kind === 'remove') {
+          const ok = await confirm({
+            title: sheet.n ? `¿Quitar la diapositiva ${sheet.n}?` : '¿Quitar esta diapositiva de reserva?',
+            text: 'Desaparece de la sesión, de los PDF y del PowerPoint.', confirm: 'Quitar', danger: true,
+          });
+          if (!ok) return;
+          await remove.mutateAsync(sheet.slideId);
+          toast('Diapositiva quitada');
+        }
+      } catch (e) {
+        err(e);
+      }
     };
     void run();
   });

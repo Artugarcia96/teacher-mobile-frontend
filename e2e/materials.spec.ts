@@ -111,7 +111,7 @@ test('presentación: la vista del profesor lleva la ventana del proyector, y «P
   for (const line of (d.slide_notes[lesson.slide_ids[1]] ?? []).slice(0, 2)) await expect(view.getByText(line.label, { exact: true }).first()).toBeVisible();
   const [projector] = await Promise.all([context.waitForEvent('page'), view.getByRole('button', { name: 'Abrir ventana del proyector' }).click()]);
   await projector.waitForLoadState();
-  const src = async (p: typeof page) => p.locator('.slide-img__img').first().getAttribute('src');
+  const src = async (p: typeof page) => p.locator(p === page ? '.teacher__main .slide-img__img' : '.slide-img__img').first().getAttribute('src');
   await expect.poll(() => src(projector)).toBe(await src(page));
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => src(projector)).toBe(await src(page));
@@ -244,5 +244,57 @@ test('preparar el trimestre: el botón cuenta los materiales y dice por qué no 
   await expect(sheet.getByRole('button', { name: 'Elige al menos un tipo de material' })).toBeDisabled();
   await sheet.getByRole('button', { name: 'Resumen', exact: true }).click();
   await expect(sheet.getByRole('button', { name: /^Crear \d+ materiales?$|^Esas unidades ya tienen esos materiales$/ })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('«Cerrar clase» a medias y Hoy abre esa sesión en la diapositiva donde se quedó', async ({ page, request }, info) => {
+  test.skip(info.project.name === 'mobile', 'Una vez basta: cierra la clase de la demo');
+  const errors = trackErrors(page);
+  const { course, deck } = await fractions(request);
+  const d = await deck(PRES);
+  const r = await request.post(`${API}/api/auth/login`, { data: { email: 'demo@sepia.es', password: 'sepia1234' } });
+  const headers = { Authorization: `Bearer ${(await r.json()).access_token}` };
+  // The presenter got to slide 12 of lesson 1 during this class (stored: it is inside the class's timetable slot).
+  await request.post(`${API}/api/materials/${d.id}/presented`, { headers, data: { lesson: 1, slide: 12 } });
+  const today = await (await request.get(`${API}/api/today`, { headers })).json();
+  const now = today.sessions.find((s: { status: string; course: { id: string } }) => s.status === 'now' && s.course.id === course.id);
+  try {
+    await page.goto('/hoy');
+    await page.getByRole('region', { name: /^Ahora/ }).getByRole('button', { name: 'Cerrar clase', exact: true }).click();
+    const sheet = page.getByRole('dialog', { name: /^Cerrar clase/ });
+    await expect(sheet.getByText(/^Presentación: Sesión 1 · /)).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'A medias' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(sheet.getByLabel('Hecho hoy')).toHaveValue(/, hasta la diapositiva 12$/);
+    await expect(sheet.getByLabel('Para la próxima')).toHaveValue('Terminar la sesión 1');
+    await shot(page, info, 'close-session-lesson');
+    await sheet.getByRole('button', { name: 'Guardar' }).click();
+    await expect(page.getByText('Clase cerrada').last()).toBeVisible();
+
+    // The next class of the group opens lesson 1 at slide 12.
+    let next: string | null = null;
+    for (let i = 1; i <= 7 && !next; i++) {
+      const day = new Date(`${today.date}T12:00:00Z`);
+      day.setUTCDate(day.getUTCDate() + i);
+      const date = day.toISOString().slice(0, 10);
+      const t = await (await request.get(`${API}/api/today?date=${date}`, { headers })).json();
+      const s = t.sessions.find((x: { course: { id: string } }) => x.course.id === course.id);
+      if (s) {
+        const slides = s.materials.find((m: { kind: string }) => m.kind === 'slides');
+        expect(slides.lesson).toBe(1);
+        expect(slides.slide).toBe(12);
+        next = date;
+      }
+    }
+    expect(next).not.toBeNull();
+    await page.goto(`/hoy?dia=${next}`);
+    await expect(page.getByText('Seguir en la diapositiva 12').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Presentación · S1' }).first().click();
+    await expect(page).toHaveURL(/sesion=1&diapositiva=12/);
+    await expect(page.getByText('Diapositiva 12 de ')).toBeVisible();
+  } finally {
+    await request.put(`${API}/api/courses/${course.id}/sessions/log`, {
+      headers, data: { date: now.date, start: now.start, done: '', next: '', homework: '', material_id: null, lesson: null, lesson_done: null },
+    });
+  }
   expect(errors).toEqual([]);
 });
