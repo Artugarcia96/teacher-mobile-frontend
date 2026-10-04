@@ -42,7 +42,7 @@ export function ElementMenu({ el, doc, onAction, noAI }: {
   );
 }
 
-/** An element being rewritten by the AI: dimmed, with what is happening. */
-export function Rewriting() {
-  return <div className="element__busy" role="status"><Spinner /><span>Reescribiendo con IA…</span></div>;
+/** An element being changed: dimmed, with what is happening (by default, the AI rewriting it). */
+export function Rewriting({ label = 'Reescribiendo con IA…' }: { label?: string }) {
+  return <div className="element__busy" role="status"><Spinner /><span>{label}</span></div>;
 }

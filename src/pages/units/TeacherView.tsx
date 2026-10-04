@@ -2,7 +2,7 @@ import { ArrowSquareOut, CaretDown, Monitor, MoonStars, UserList, X } from '@pho
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ContentDoc } from '../../api/content';
 import { useDay } from '../../api/today';
-import type { MaterialDetail } from '../../api/units';
+import { useArchetypes, type MaterialDetail } from '../../api/units';
 import TakeAttendanceSheet from '../../features/attendance/TakeAttendanceSheet';
 import { clock, deckOf, frameUrl, onScreen, slideOf, useNow, usePrefetch, usePresenterState, useReportPresented } from '../../features/materials/deck';
 import { currentSlide, initialState, keyAction, peek, position, type PresenterAction } from '../../features/materials/presenter';
@@ -28,7 +28,8 @@ const hhmm = (t: number) => new Date(t).toLocaleTimeString('es-ES', { hour: '2-d
  *  controls. It owns the projection: a projector window opened from here («Abrir ventana del proyector») shows only
  *  the slide state it broadcasts, so «Pasar lista» and the notes never reach the panel. */
 export default function TeacherView({ m, doc, lesson, slide, onClose }: Props) {
-  const deck = useMemo(() => deckOf(m, doc), [m, doc]);
+  const archetypes = useArchetypes();
+  const deck = useMemo(() => deckOf(m, doc, archetypes.data), [m, doc, archetypes.data]);
   const [s, dispatch] = usePresenterState(deck, initialState(lesson, slide));
   const now = useNow();
   const started = useRef(Date.now());

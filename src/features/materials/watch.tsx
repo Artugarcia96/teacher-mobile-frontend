@@ -96,7 +96,7 @@ function useLessonProgress(w: Watched, job: Job | undefined) {
 }
 
 /** The lessons a presentation job has committed so far (`result.ready`, updated at every lesson). */
-export function readyLessons(job: Pick<Job, 'result'> | undefined): number[] {
+function readyLessons(job: Pick<Job, 'result'> | undefined): number[] {
   const r = job?.result?.ready;
   return Array.isArray(r) ? r.filter((n): n is number => typeof n === 'number') : [];
 }

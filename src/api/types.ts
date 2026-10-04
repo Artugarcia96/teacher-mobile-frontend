@@ -41,6 +41,9 @@ export interface CourseDetail extends CourseSummary {
   categories: Category[]; current_unit?: string | null;
   /** How the class answers at once («Ajustes de la clase»): the instruction of the task slides follows it. */
   response_mode: ResponseMode;
+  /** What a new material starts from: the family and stage the server's pipeline reads (they choose the default kinds
+   *  of the lessons) and the class's usual slot length. */
+  lesson_defaults: { family: string; stage: string; minutes: number };
 }
 export interface GroupOut extends GroupRef { student_count: number; courses: CourseRef[] }
 

@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { ContentDoc, Slide } from '../../api/content';
 import { useAIUnavailable } from '../../api/core';
 import {
-  presentationLessons, useArchetypes, useLessonJob, useMaterial, useUpdateMaterial, type LessonInfo, type MaterialDetail,
+  lessonRendering, presentationLessons, useArchetypes, useLessonJob, useSlidesSaving, useUpdateMaterial, type LessonInfo, type MaterialDetail,
 } from '../../api/units';
 import DownloadsSheet from '../../features/materials/DownloadsSheet';
 import { lessonLine } from '../../features/materials/lessons';
@@ -40,14 +40,17 @@ interface Props {
 export default function Presentation({ m, doc, title, eyebrow, page, menu, path }: Props) {
   const [params, setParams] = useSearchParams();
   const { toast } = useFeedback();
-  const { refetch } = useMaterial(m.id);
   const archetypes = useArchetypes();
   const desktop = useMediaQuery(DESKTOP);
   const noAI = useAIUnavailable();
   const update = useUpdateMaterial();
   const lessonJob = useLessonJob(m.id);
   const watched = useWatched();
-  const busy = new Set(watched.flatMap((w) => (w.kind === 'rewrite' && w.materialId === m.id ? [w.blockId] : [])));
+  const saving = useSlidesSaving(m.id);
+  const busy = new Map([
+    ...[...saving].map((id) => [id, 'Guardando…'] as const),
+    ...watched.flatMap((w) => (w.kind === 'rewrite' && w.materialId === m.id ? [[w.blockId, 'Reescribiendo con IA…'] as const] : [])),
+  ]);
   const [editMode, setEditMode] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [downloads, setDownloads] = useState(false);
@@ -80,23 +83,13 @@ export default function Presentation({ m, doc, title, eyebrow, page, menu, path 
     }
   }, [lessons, toast]);
 
-  // A slide with no image and no failure is being rendered: look again once, 5 s later.
-  const rendering = !!lesson && lesson.status === 'ready'
-    && [...lesson.slide_ids, ...lesson.hidden_ids].some((id) => !m.slide_images[id] && !m.frames_failed.includes(id));
-  const looked = useRef(false);
-  useEffect(() => {
-    if (!rendering || looked.current) return undefined;
-    looked.current = true;
-    const t = window.setTimeout(() => void refetch(), 5000);
-    return () => window.clearTimeout(t);
-  }, [rendering, refetch]);
-
   const markReviewed = () => update.mutate({ id: m.id, reviewed: true }, {
     onSuccess: () => toast('Marcado como revisado'), onError: (e) => toast((e as Error).message, { tone: 'error' }),
   });
 
   const retry = () => lessonJob.mutate({ n }, {
     onSuccess: ({ job }) => {
+      ready.current.add(n);  // the job's own «Sesión n lista» announces it, not the page as well
       watchJob({ job: job.id, kind: 'material', done: `Sesión ${n} lista`, failed: 'No se ha podido preparar esta sesión.', path });
       toast(`Preparando de nuevo la sesión ${n}`);
     },
@@ -109,11 +102,13 @@ export default function Presentation({ m, doc, title, eyebrow, page, menu, path 
     window.setTimeout(() => scrollToElement(id), 50);
   };
 
-  const canProject = lesson?.status === 'ready';
-  const projectReason = lesson?.status === 'generating' ? 'Esta sesión se está preparando.' : lesson?.status === 'failed' ? 'Esta sesión no se ha podido preparar.' : null;
+  const rendering = !!lesson && lessonRendering(m, lesson);
+  const canProject = lesson?.status === 'ready' && !rendering;
+  const editReason = lesson?.status === 'generating' ? 'Esta sesión se está preparando.' : lesson?.status === 'failed' ? 'Esta sesión no se ha podido preparar.' : null;
+  const projectReason = editReason ?? (rendering ? 'Las imágenes de esta sesión se están preparando.' : null);
   const lessonMenu: MenuItem[] = [
-    { label: 'Editar sesión', onSelect: () => setSheet({ kind: 'lesson', n }), disabledReason: projectReason ?? undefined },
-    { label: 'Añadir diapositiva', onSelect: () => setSheet({ kind: 'add', n, after: null }), disabledReason: projectReason ?? undefined },
+    { label: 'Editar sesión', onSelect: () => setSheet({ kind: 'lesson', n }), disabledReason: editReason ?? undefined },
+    { label: 'Añadir diapositiva', onSelect: () => setSheet({ kind: 'add', n, after: null }), disabledReason: editReason ?? undefined },
     {
       label: 'Regenerar sesión…', onSelect: () => setSheet({ kind: 'regenerate', n }),
       disabledReason: lesson?.status === 'generating' ? 'Esta sesión se está preparando.' : noAI ?? undefined,
@@ -225,7 +220,7 @@ function SlideMenuButton({ slide, n, lesson, doc, onSheet, noAI }: {
 
 /** A slide's menu (§1.7). The slides Sepia composes (cover, credits) only say why they cannot be changed; nothing
  *  moves before the cover or after the credits. */
-export function slideMenu(slide: Slide, n: number | null, lesson: LessonInfo, archetypeOf: (id: string) => string | undefined,
+function slideMenu(slide: Slide, n: number | null, lesson: LessonInfo, archetypeOf: (id: string) => string | undefined,
   onSheet: (s: LessonSheet) => void, noAI: string | null): MenuItem[] {
   const fixed = slide.archetype === 'portada' || slide.archetype === 'creditos';
   const byCode = fixed ? 'Esta diapositiva la pone Sepia.' : undefined;

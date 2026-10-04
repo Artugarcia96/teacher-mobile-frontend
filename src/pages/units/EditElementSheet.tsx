@@ -24,7 +24,7 @@ function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
 
 /** The fields the teacher can edit in a block (the figure has its own sheet; slides have «Editar texto» from the slot
  *  table). */
-export function fieldsOf(el: Block): Field[] {
+function fieldsOf(el: Block): Field[] {
   switch (el.type) {
     case 'text': return [{ path: 'text', label: 'Texto', kind: 'area' }];
     case 'definition': return [{ path: 'term', label: 'Término', kind: 'line' }, { path: 'text', label: 'Definición', kind: 'area' }];

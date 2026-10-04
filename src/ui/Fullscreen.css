@@ -32,3 +32,7 @@
   position: absolute; right: 5%; bottom: calc(6.4% - 0.2em); font: 700 2.5cqi/1 'Liberation Sans', Arial, Helvetica, sans-serif;
   font-variant-numeric: tabular-nums; color: var(--stage-black); background: none; border: 0; padding: 0; cursor: pointer;
 }
+/* On touch the timer is a small text: an invisible 44 px target around it, so a near miss does not move the slide. */
+@media (pointer: coarse) {
+  .slide-img__timer::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+}

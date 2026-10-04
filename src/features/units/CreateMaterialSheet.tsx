@@ -5,7 +5,7 @@ import { useAIUnavailable, useCourse } from '../../api/core';
 import { useArchetypes, useGenerateMaterial, type GenKind, type Material, type Unit, type UnitDetail } from '../../api/units';
 import { List, Row, RowIcon, Segmented, Select, Sheet, Stepper, Switch, TextArea, Button, useFeedback } from '../../ui';
 import { GroundingList } from '../materials/GroundingList';
-import { defaultKinds, familyOf, LESSON_KINDS, lessonKindLabel, slotMinutes, stageOf } from '../materials/lessons';
+import { defaultKinds, LESSON_KINDS, lessonKindLabel } from '../materials/lessons';
 import { watchJob } from '../materials/watch';
 import { failedText, MaterialIcon, readyText, withArticle } from './kinds';
 import './units.css';
@@ -65,9 +65,7 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
   const [kinds, setKinds] = useState<LessonKind[] | null>(null);  // null: the defaults for the number of lessons
   const course = useCourse(courseId);
   const table = useArchetypes();
-  const family = familyOf(course.data?.subject ?? '');
-  const stage = stageOf(course.data?.group.name ?? '');
-  const slot = slotMinutes(course.data?.schedule ?? []);
+  const { family, stage, minutes: slot } = course.data?.lesson_defaults ?? { family: 'otra', stage: 'eso', minutes: 55 };
   const [minutes, setMinutes] = useState<number | null>(null);  // null: the class's slot
   const [guide, setGuide] = useState<string | null>(null);  // null: not chosen yet (the programación is proposed)
   const [instructions, setInstructions] = useState(initial?.instructions ?? '');
@@ -169,7 +167,7 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
         )}
         {kind === 'slides' && (
           <div className="option-line">
-            <span>Duración de la clase: {minutes ?? slot} min</span>
+            <span>Duración de la clase</span>
             <Stepper label="Duración de la clase" value={minutes ?? slot} onChange={setMinutes} min={30} max={120} step={5} format={(v) => `${v} min`} />
           </div>
         )}

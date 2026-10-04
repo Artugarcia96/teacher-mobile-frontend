@@ -1,11 +1,12 @@
+import { WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { isContentDoc, type ContentDoc } from '../../api/content';
-import { useMaterial, type MaterialDetail } from '../../api/units';
+import { useArchetypes, useMaterial, type MaterialDetail } from '../../api/units';
 import { deckOf, useNow, usePrefetch, usePresenterState, useReportPresented } from '../../features/materials/deck';
 import { initialState, reduce, type Deck, type PresenterState } from '../../features/materials/presenter';
 import { channelName, nextSeq, receive, startPeer, type ProjectorMessage, type SharedState, type Unsent } from '../../features/materials/projector';
-import { Spinner } from '../../ui';
+import { EmptyState, Spinner } from '../../ui';
 import { StageSlide, useStageKeys, useTap } from './stage';
 import './Presenter.css';
 
@@ -17,18 +18,22 @@ function follow(deck: Deck, s: PresenterState, shared: SharedState): PresenterSt
 
 /** «Ventana del proyector» (/proyectar/:materialId?sesion=k): only the slide, for the panel. Opened from the teacher
  *  view it follows that view (and sends its key presses there); opened on its own it is a presenter of its own. F puts
- *  it in full screen. */
+ *  it in full screen (a double click would also be two taps that move the slides). */
 export default function ProjectorPage() {
   const { materialId = '' } = useParams();
   const [params] = useSearchParams();
-  const { data: m } = useMaterial(materialId);
-  const doc = m && isContentDoc(m.content) ? m.content : null;
+  const { data: m, error } = useMaterial(materialId);
+  const doc = m && isContentDoc(m.content) && m.content.kind === 'presentacion' ? m.content : null;
+  if (error || (m && !doc)) {
+    return <div className="projector"><EmptyState icon={<WarningCircle size={24} />} title="No se ha podido abrir la presentación." /></div>;
+  }
   if (!m || !doc) return <div className="projector"><Spinner /></div>;
   return <Projector key={m.id} m={m} doc={doc} lesson={Number(params.get('sesion')) || 1} />;
 }
 
 function Projector({ m, doc, lesson }: { m: MaterialDetail; doc: ContentDoc; lesson: number }) {
-  const deck = useMemo(() => deckOf(m, doc), [m, doc]);
+  const archetypes = useArchetypes();
+  const deck = useMemo(() => deckOf(m, doc, archetypes.data), [m, doc, archetypes.data]);
   const [s, dispatch] = usePresenterState(deck, initialState(lesson));
   const [owner, setOwner] = useState(true);
   const now = useNow(!!s.timer);
@@ -78,7 +83,7 @@ function Projector({ m, doc, lesson }: { m: MaterialDetail; doc: ContentDoc; les
 
   return (
     <div className="projector" aria-label={`Proyector: ${doc.title}`}>
-      <div className="presenter__frame" {...tap} onDoubleClick={() => forward('f')}>
+      <div className="presenter__frame" {...tap}>
         <StageSlide m={m} doc={doc} deck={deck} s={s} now={now}
           onTimer={() => (owner ? dispatch({ type: 'timer', now: Date.now() }) : send({ type: 'key', key: 't' }))} />
       </div>

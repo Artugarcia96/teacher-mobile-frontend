@@ -1,7 +1,7 @@
 import { ArrowSquareOut, CaretLeft, CaretRight, Notepad, X } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import type { ContentDoc } from '../../api/content';
-import type { MaterialDetail } from '../../api/units';
+import { useArchetypes, type MaterialDetail } from '../../api/units';
 import { deckOf, onScreen, useNow, usePrefetch, usePresenterState, useReportPresented } from '../../features/materials/deck';
 import { initialState, position } from '../../features/materials/presenter';
 import { Button, DESKTOP, Fullscreen, IconButton, Sheet, useMediaQuery } from '../../ui';
@@ -24,7 +24,8 @@ interface Props {
  *  (PowerPoint's keys, §1.3). Nothing but the slide and the classroom timer is on screen; the notes stay on the phone
  *  («Notas») or in the teacher view. Backup slides are skipped unless H shows them; the credits slide is not projected. */
 export default function Presenter({ m, doc, lesson, slide, onClose, onTeacherView }: Props) {
-  const deck = useMemo(() => deckOf(m, doc), [m, doc]);
+  const archetypes = useArchetypes();
+  const deck = useMemo(() => deckOf(m, doc, archetypes.data), [m, doc, archetypes.data]);
   const [s, dispatch] = usePresenterState(deck, initialState(lesson, slide));
   const desktop = useMediaQuery(DESKTOP);
   const [notes, setNotes] = useState(false);

@@ -14,8 +14,8 @@ interface Props {
   /** Speaker notes under each card. */
   showNotes: boolean;
   editing: boolean;
-  /** Slides the AI is rewriting now. */
-  busy: Set<string>;
+  /** Slides being changed now, with what is happening («Reescribiendo con IA…», «Guardando…»). */
+  busy: Map<string, string>;
   /** The menu of a slide in edit mode. */
   menu: (slide: Slide, n: number | null) => ReactNode;
   /** A failed lesson: «Volver a intentar» (null while it cannot: `retryReason` says why). */
@@ -47,7 +47,7 @@ export default function SlidesView({ m, doc, lesson, showNotes, editing, busy, m
         {caption && <div className="slide-card__caption">{caption}</div>}
         <SlideCardImage m={m} id={id} n={n} />
         {editing && !isBusy && <div className="element__menu">{menu(slide, n)}</div>}
-        {isBusy && <Rewriting />}
+        {isBusy && <Rewriting label={busy.get(id)} />}
         {showNotes && <Notes lines={m.slide_notes[id] ?? []} />}
       </figure>
     );
@@ -69,14 +69,15 @@ export default function SlidesView({ m, doc, lesson, showNotes, editing, busy, m
   );
 }
 
-/** The card image of a slide: the server's 960 px image; the folio placeholder while it is being rendered; the
- *  neutral line when its render failed. */
+/** The card image of a slide: the server's 960 px image; «Preparando la imagen…» and the folio while it is being
+ *  rendered; the neutral line when its render failed. */
 export function SlideCardImage({ m, id, n }: { m: MaterialDetail; id: string; n: number | null }) {
   const img = m.slide_images[id];
   const failed = m.frames_failed.includes(id);
   return (
     <SlideImage className="slide-card__img" src={fileUrl(img?.card)} alt={img?.alt ?? ''}
-      placeholder={failed ? 'Esta diapositiva no se ha podido maquetar.' : <span className="slide-card__folio num">{n ?? ''}</span>} />
+      placeholder={failed ? 'Esta diapositiva no se ha podido maquetar.'
+        : <><span>Preparando la imagen…</span><span className="slide-card__folio num">{n ?? ''}</span></>} />
   );
 }
 

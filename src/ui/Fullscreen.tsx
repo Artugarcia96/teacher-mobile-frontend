@@ -2,6 +2,7 @@ import { X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
+import { sheetOpen } from './Sheet';
 import './Fullscreen.css';
 
 interface Props {
@@ -28,7 +29,7 @@ export function Fullscreen({ onClose, label, children, variant = 'paper', bar, f
   const [idle, setIdle] = useState(false);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !sheetOpen() && close.current();
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

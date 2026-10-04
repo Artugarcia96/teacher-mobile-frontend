@@ -313,6 +313,8 @@ export interface ArchetypeInfo {
   /** False for slides the writer never makes (correccion, creditos, enlace); «Añadir diapositiva» offers enlace only as
    *  «Enlace de la unidad». */
   writer: boolean;
+  /** A task the class does on its own: the presenter runs the classroom timer with the slide's minutes. */
+  timed: boolean;
   fields: SlotField[];
 }
 /** How the class answers at once («Ajustes de la clase»): the task slides' instruction follows it. */

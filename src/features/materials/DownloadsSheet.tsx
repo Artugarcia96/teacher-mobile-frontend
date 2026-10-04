@@ -1,7 +1,7 @@
 import { DownloadSimple, FilePdf, FileZip, PresentationChart, Scissors } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { downloadMaterial, type FileVariant, type LessonInfo } from '../../api/units';
-import { List, Row, RowIcon, Section, Sheet, Spinner, useFeedback } from '../../ui';
+import { List, RichText, Row, RowIcon, Section, Sheet, Spinner, useFeedback } from '../../ui';
 
 const PER_LESSON: { variant: FileVariant; label: string; aria: string; icon: ReactNode }[] = [
   { variant: 'pptx', label: 'PowerPoint', aria: 'PowerPoint', icon: <PresentationChart size={20} /> },
@@ -30,13 +30,17 @@ export default function DownloadsSheet({ materialId, lessons, onClose }: {
   };
   const trail = (key: string) => (busy === key ? <Spinner /> : <DownloadSimple size={18} />);
   const ready = lessons.filter((l) => l.status === 'ready');
-  const pending = lessons.length - ready.length;
+  const pending = lessons.filter((l) => l.status === 'generating').length;
+  const failed = lessons.filter((l) => l.status === 'failed').map((l) => l.n);
+  const lines = [
+    pending ? `${pending === 1 ? 'Una sesión se está' : `${pending} sesiones se están`} preparando: sus archivos aparecerán aquí.` : '',
+    failed.length ? `${failed.length === 1 ? `La sesión ${failed[0]} no se ha` : `Las sesiones ${failed.join(', ')} no se han`} podido preparar.` : '',
+  ].filter(Boolean);
   return (
-    <Sheet open onClose={onClose} title="Descargar" size="large"
-      subtitle={pending ? `${pending === 1 ? 'Una sesión se está' : `${pending} sesiones se están`} preparando: sus archivos aparecerán aquí.` : undefined}>
+    <Sheet open onClose={onClose} title="Descargar" size="large" subtitle={lines.length ? lines.join(' ') : undefined}>
       <div className="downloads">
         {ready.map((l) => (
-          <Section key={l.n} title={`Sesión ${l.n} · ${l.title}`}>
+          <Section key={l.n} title={<>Sesión {l.n} · <RichText text={l.title} /></>}>
             <List>
               {PER_LESSON.map((f) => (
                 <Row key={f.variant} lead={<RowIcon>{f.icon}</RowIcon>} title={f.label} chevron={false}

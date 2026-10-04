@@ -1,3 +1,4 @@
+import { WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import type { ArchetypeGroup, ContentDoc, LessonKind, Slide, SlideNotes, SlotField } from '../../api/content';
 import {
@@ -7,7 +8,7 @@ import {
 import { LESSON_KINDS, lessonKindLabel } from '../../features/materials/lessons';
 import { checkSlot, slotToText, slotValue } from '../../features/materials/slotText';
 import { watchJob } from '../../features/materials/watch';
-import { Button, List, RichText, Row, Section, Select, Sheet, SkeletonList, Stepper, TextArea, TextField, useFeedback } from '../../ui';
+import { Button, EmptyState, List, RichText, Row, Section, Select, Sheet, SkeletonList, Stepper, TextArea, TextField, useFeedback } from '../../ui';
 import RewriteSheet from './RewriteSheet';
 
 /** What a slide or lesson menu asked for: a sheet to open, or an action done at once (duplicate, reorder, hide). */
@@ -111,6 +112,15 @@ const NOTES_LABEL: Record<keyof SlideNotes, string> = {
 
 const notesText = (n: SlideNotes, k: keyof SlideNotes) => (k === 'clicks' ? n.clicks.join('\n') : n[k]);
 
+/** The slot table could not be loaded (offline, an expired session): say so and offer to try again. */
+function TableError({ table }: { table: ReturnType<typeof useArchetypes> }) {
+  return (
+    <EmptyState icon={<WarningCircle size={24} />} title="No se han podido cargar las diapositivas"
+      text={(table.error as Error).message}
+      action={<Button variant="tinted" onClick={() => void table.refetch()} loading={table.isFetching}>Reintentar</Button>} />
+  );
+}
+
 /** «Editar texto»: one field per slot of the archetype, in slot order (§2.3.3), then the notes. What the slide cannot
  *  draw is refused before saving; text over a cap is saved with a warning under its field. */
 function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide; onClose: () => void }) {
@@ -131,7 +141,8 @@ function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide
     setValues(v);
   }, [info, slide, values]);
 
-  const changed = (f: SlotField) => JSON.stringify(values?.[f.slot]) !== JSON.stringify(initial.current[f.slot]);
+  const changedSlot = (slot: string) => JSON.stringify(values?.[slot]) !== JSON.stringify(initial.current[slot]);
+  const changed = (f: SlotField) => changedSlot(f.slot);
   const notesChanged = NOTES_ORDER.filter((k) => notes[k] !== notesText(slide.notes, k));
   const dirty = !!values && (fields.some(changed) || notesChanged.length > 0);
   const linesOf = (slot: string) => String(values?.[slot] ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
@@ -162,12 +173,13 @@ function EditSlideSheet({ m, slide, onClose }: { m: MaterialDetail; slide: Slide
       footer={<Button full onClick={submit} loading={save.isPending} disabled={!dirty || !!blocked}>
         {blocked ? `Revisa «${blocked.label}»` : dirty ? 'Guardar cambios' : 'Sin cambios'}
       </Button>}>
-      {!values ? <SkeletonList rows={4} /> : (
+      {table.error && !values ? <TableError table={table} /> : !values ? <SkeletonList rows={4} /> : (
         <form className="form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           {fields.map((f, i) => {
             const value = values[f.slot] ?? '';
             const c = checks[f.slot] ?? {};
-            const shown = tried || changed(f) ? c.error : undefined;
+            // a choice among the lines of another field fails when those lines change: say so as soon as they do
+            const shown = tried || changed(f) || (f.kind === 'choice' && f.from && changedSlot(f.from)) ? c.error : undefined;
             const note = shown ?? c.warning;
             const set = (v: string | string[]) => setValues({ ...values, [f.slot]: v });
             const auto = i === 0 ? { 'data-autofocus': true } : {};
@@ -252,7 +264,7 @@ function MoveSheet({ m, doc, slide, onClose }: { m: MaterialDetail; doc: Content
       {targets.length === 0 ? <p className="muted">Esta presentación no tiene otra sesión lista.</p> : (
         <List>
           {targets.map((l) => (
-            <Row key={l.n} title={`Sesión ${l.n} · ${l.title}`} sub="Al final, antes de la respuesta a la pregunta" chevron={false}
+            <Row key={l.n} title={<>Sesión {l.n} · <RichText text={l.title} /></>} sub="Al final, antes de la respuesta a la pregunta" chevron={false}
               trail={n === l.n ? <span className="muted">Elegida</span> : undefined} onClick={() => setN(l.n)} aria-label={`Sesión ${l.n}`} />
           ))}
         </List>
@@ -350,7 +362,7 @@ function AddSlideSheet({ m, doc, n, after, onAdded, onClose }: {
   const entries = Object.entries(table.data?.archetypes ?? {}) as [Slide['archetype'], NonNullable<typeof table.data>['archetypes'][Slide['archetype']]][];
   return (
     <Sheet open onClose={onClose} title="Añadir diapositiva" size="large" subtitle={`Al final de la sesión ${n}, antes de la respuesta a la pregunta. Después puedes moverla.`}>
-      {!table.data ? <SkeletonList rows={6} /> : (
+      {table.error && !table.data ? <TableError table={table} /> : !table.data ? <SkeletonList rows={6} /> : (
         <div className="form">
           {GROUPS.map((g) => {
             // The cover and the credits are Sepia's; a link has its own section.

@@ -1,5 +1,5 @@
 /** Programación (units) & materials. Backend: app/api/units.py and app/api/library.py. */
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useMutationState, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fileUrl, uploadWithProgress } from '../lib/api';
 import type { Archetype, Archetypes, ContentDoc, Element, FigureSpec, LessonKind, Level, Slide, SlideNotes } from './content';
 import type { CourseRef, Job, JobRef } from './types';
@@ -15,6 +15,7 @@ export const unitKeys = {
   one: (unitId: string) => ['unit', unitId] as const,
   material: (materialId: string) => ['material', materialId] as const,
   grounding: (unitIds: string[]) => ['grounding', ...unitIds] as const,
+  slideChange: (materialId: string) => ['material', materialId, 'slide-change'] as const,
 };
 
 export function useUnits(courseId: string | undefined) {
@@ -391,8 +392,15 @@ export function presentationLessons(m: Pick<MaterialDetail, 'kind' | 'lessons'>)
   return m.kind === 'slides' ? (m.lessons as LessonInfo[]) : [];
 }
 
-/** A material refetches while it is created and while any of its lessons is being written (the global JobWatcher also
- *  invalidates it at each lesson that lands). */
+/** A ready lesson some of whose slides have neither images nor a failed render yet: the server is rendering them (a
+ *  copied presentation, an edit that moved a frame). */
+export function lessonRendering(m: Pick<MaterialDetail, 'slide_images' | 'frames_failed'>, l: LessonInfo): boolean {
+  return l.status === 'ready'
+    && [...l.slide_ids, ...l.hidden_ids].some((id) => !m.slide_images[id] && !m.frames_failed.includes(id));
+}
+
+/** A material refetches while it is created, while any of its lessons is being written (the global JobWatcher also
+ *  invalidates it at each lesson that lands) and while the slide images of a lesson are being rendered. */
 export function useMaterial(materialId: string | undefined) {
   return useQuery({
     queryKey: unitKeys.material(materialId!),
@@ -402,7 +410,7 @@ export function useMaterial(materialId: string | undefined) {
       const m = q.state.data;
       if (!m) return false;
       if (m.status === 'generating') return 2000;
-      return presentationLessons(m).some((l) => l.status === 'generating') ? 4000 : false;
+      return presentationLessons(m).some((l) => l.status === 'generating' || lessonRendering(m, l)) ? 4000 : false;
     },
   });
 }
@@ -452,6 +460,7 @@ export function useArchetypes() {
 export function usePatchSlide(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
     mutationFn: ({ id, ...body }: { id: string; hidden?: boolean; minutes?: number }) =>
       api.patch<MaterialDetail>(`/materials/${materialId}/slides/${id}`, body, { slow: true }),
     onSuccess: set,
@@ -463,15 +472,27 @@ export function usePatchSlide(materialId: string) {
 export function useMoveSlide(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
     mutationFn: ({ id, lesson, after }: { id: string; lesson: number; after: string | null }) =>
       api.post<MaterialDetail>(`/materials/${materialId}/slides/${id}/move`, { lesson, after }, { slow: true }),
     onSuccess: set,
   });
 }
 
+/** The slides of a material whose duplicate, move, reserve or removal the server is saving now (it renders their
+ *  lesson before it answers): the page marks them busy so a second tap does not repeat the change. */
+export function useSlidesSaving(materialId: string): Set<string> {
+  const vars = useMutationState({
+    filters: { mutationKey: unitKeys.slideChange(materialId), status: 'pending' },
+    select: (mu) => mu.state.variables as string | { id: string } | undefined,
+  });
+  return new Set(vars.flatMap((v) => (typeof v === 'string' ? [v] : v ? [v.id] : [])));
+}
+
 export function useDuplicateSlide(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
     mutationFn: (id: string) => api.post<MaterialDetail>(`/materials/${materialId}/slides/${id}/duplicate`, undefined, { slow: true }),
     onSuccess: set,
   });
@@ -519,6 +540,7 @@ export function postPresented(materialId: string, lesson: number, slide: number)
 export function useDeleteBlock(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
     mutationFn: (blockId: string) => api.delete<MaterialDetail>(`/materials/${materialId}/blocks/${blockId}`, { slow: true }),
     onSuccess: set,
   });

@@ -2,22 +2,21 @@
  *  slides), and the hooks the presenter, the teacher view and the projector window share: the state, prefetching the
  *  frames, the classroom clock and telling the server where the class got to. */
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { Archetype, ContentDoc, Slide } from '../../api/content';
+import type { Archetypes, ContentDoc, Slide } from '../../api/content';
 import { postPresented, presentationLessons, type MaterialDetail } from '../../api/units';
 import { fileUrl } from '../../lib/api';
 import { clamp, currentSlide, reduce, type Deck, type DeckSlide, type PresenterAction, type PresenterState } from './presenter';
 
-/** Task slides carry the classroom timer (§1.3): it counts down from the slide's minutes. */
-const TIMED: Archetype[] = ['para_empezar', 'piensa_comparte', 'practica', 'clasifica', 'tu_turno', 'ticket_salida'];
-
-export function deckOf(m: MaterialDetail, doc: ContentDoc): Deck {
+/** The deck of a material. The slides the server marks `timed` (tasks the class does on its own) carry the classroom
+ *  timer: it counts down from the slide's minutes (none until the slot table has loaded). */
+export function deckOf(m: MaterialDetail, doc: ContentDoc, table: Archetypes | undefined): Deck {
   const byId = new Map(doc.slides.map((s) => [s.id, s]));
   const slide = (id: string): DeckSlide | null => {
     const s = byId.get(id);
     if (!s) return null;
     return {
       id, frames: Math.max(1, m.slide_images[id]?.frames.length ?? 1), backupFor: s.backup_for,
-      timer: TIMED.includes(s.archetype) ? s.minutes : 0,
+      timer: table?.archetypes[s.archetype]?.timed ? s.minutes : 0,
     };
   };
   return presentationLessons(m).filter((l) => l.status === 'ready').map((l) => ({

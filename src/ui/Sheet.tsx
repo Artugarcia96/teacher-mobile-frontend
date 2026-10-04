@@ -28,6 +28,9 @@ interface SheetProps {
 // router's, so pops between a page and its own sheet entries never reach the router.
 type OpenSheet = { back: () => void };
 const openSheets: OpenSheet[] = []; // bottom → top
+
+/** Some sheet is open: Esc belongs to it (the stage under it stays). */
+export const sheetOpen = () => openSheets.length > 0;
 let marks: string[] = []; // the history entries of openSheets that are in place, bottom → top
 let pageKey: string | undefined; // router key of the page entry under the sheets
 let lengthAtPush = 0;
