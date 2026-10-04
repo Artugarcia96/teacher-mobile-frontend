@@ -115,8 +115,9 @@ test('presentación: la vista del profesor lleva la ventana del proyector, y «P
   await expect.poll(() => src(projector)).toBe(await src(page));
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => src(projector)).toBe(await src(page));
-  await projector.keyboard.press('ArrowRight');  // a key on the panel moves the teacher view
-  await expect.poll(() => src(page)).toBe(await src(projector));
+  const before = await src(page);
+  await projector.keyboard.press('ArrowRight');  // a key on the panel moves the teacher view, and the panel follows it
+  await expect.poll(async () => { const now = await src(page); return now !== before && now === await src(projector); }).toBe(true);
   const list = view.getByRole('button', { name: /^Pasar lista/ });
   if (await list.isEnabled()) {
     await list.click();
@@ -168,7 +169,8 @@ test('presentación: editar el texto con aviso, pasar a reserva, mover y añadir
   const field = sheet.getByRole('textbox').first();
   const old = await field.inputValue();
   await field.fill(`${old} y además una frase larga para pasar del límite de palabras del titular de esta diapositiva`);
-  await expect(sheet.getByText(/^Más de \d+ palabras: puede no caber en dos líneas/)).toBeVisible();
+  // the headline's own warning (another field of the slide may already be over its cap)
+  await expect(sheet.getByText(/^Más de \d+ palabras: puede no caber en dos líneas/).first()).toBeVisible();
   await shot(page, info, 'presentation-edit-warning');
   await sheet.getByRole('button', { name: 'Guardar cambios' }).click();
   await toast('Cambios guardados');
@@ -289,7 +291,7 @@ test('«Cerrar clase» a medias y Hoy abre esa sesión en la diapositiva donde s
     expect(next).not.toBeNull();
     await page.goto(`/hoy?dia=${next}`);
     await expect(page.getByText('Seguir en la diapositiva 12').first()).toBeVisible();
-    await page.getByRole('button', { name: 'Presentación · S1' }).first().click();
+    await page.getByRole('button', { name: /^Presentación( · S1)?$/ }).first().click();  // «· S1» when it has several lessons
     await expect(page).toHaveURL(/sesion=1&diapositiva=12/);
     await expect(page.getByText('Diapositiva 12 de ')).toBeVisible();
   } finally {
