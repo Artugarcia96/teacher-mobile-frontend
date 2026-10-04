@@ -209,7 +209,8 @@
     // stays and its button plays it. Without JS, or without either format, the posters are the page.
     (() => {
       const probe = document.createElement('video');
-      const ext = probe.canPlayType('video/webm; codecs="vp9"') ? 'webm' : probe.canPlayType('video/mp4; codecs="avc1.640028"') ? 'mp4' : '';
+      // H.264 first: every phone decodes it in hardware; VP9 only where MP4 does not play (some decoders show black frames).
+      const ext = probe.canPlayType('video/mp4; codecs="avc1.640028"') ? 'mp4' : probe.canPlayType('video/webm; codecs="vp9"') ? 'webm' : '';
       if (!ext) return;
       const reduce = matchMedia('(prefers-reduced-motion: reduce)');
       const dark = matchMedia('(prefers-color-scheme: dark)');
@@ -255,7 +256,15 @@
       }, { threshold: 0.25 });
       for (const c of clips) {
         c.button.hidden = false;
-        c.video.addEventListener('playing', () => c.fig.classList.add('is-live'));
+        // The poster stays until the video has really painted a frame; an error or a stall brings it back.
+        const live = () => c.fig.classList.add('is-live');
+        const poster = () => c.fig.classList.remove('is-live');
+        c.video.addEventListener('playing', () => {
+          if (c.video.requestVideoFrameCallback) c.video.requestVideoFrameCallback(live);
+          else c.video.addEventListener('timeupdate', function first() { if (c.video.currentTime > 0) { live(); c.video.removeEventListener('timeupdate', first); } });
+        });
+        c.video.addEventListener('error', poster);
+        c.video.addEventListener('emptied', poster);
         c.button.addEventListener('click', () => { c.held = !c.held; sync(c); });
         paint(c);
         seen.observe(c.fig);
