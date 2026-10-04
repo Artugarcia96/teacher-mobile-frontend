@@ -5,7 +5,7 @@ export { Sheet } from './Sheet';
 export { ErrorBoundary } from './ErrorBoundary';
 export { Segmented } from './Segmented';
 export { TextField, PasswordField, TextArea, Select, Switch, Stepper, DateField, TimeField, SearchField } from './Field';
-export { Chip, Logo, AIBadge, Dot, Avatar, Grade, GradePill, EmptyState, Skeleton, SkeletonList, Progress, Callout, Stats } from './bits';
+export { Aside, Chip, Logo, AIBadge, Dot, Avatar, Grade, GradePill, EmptyState, Skeleton, SkeletonList, Progress, Callout, Stats } from './bits';
 export { FeedbackProvider, useFeedback, Menu, type MenuItem } from './feedback';
 export { RichText, TextSubsProvider, resolveText, type TextSubs } from './RichText';
 export { WeekStrip, MonthGrid } from './Calendar';

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isContentDoc, isSlide, type Slide, type SlotField, type TextBlock } from './content';
+import { docNumbers, isContentDoc, isSlide, type ContentDoc, type Slide, type SlotField, type TextBlock } from './content';
 
 const doc = {
   kind: 'presentacion', title: 'Fracciones', subtitle: '', subject: 'Matemáticas', level: '1.º ESO', unit: 'Fracciones',
-  intro: '', objectives: [], instructions: '', opener: null, sections: [], slides: [], images: [], summary: [], glossary: [],
+  intro: '', objectives: [], instructions: '', opener: null, sections: [], slides: [], images: [], glossary: [],
   family: 'matematicas', language: 'es', response_mode: 'cuaderno', meta: {},
   lessons: [{
     n: 1, title: 'Fracciones equivalentes', kind: 'nueva', question: '', criteria: [], minutes: 55, homework: '', contents: [],
@@ -21,6 +21,26 @@ describe('content documents', () => {
     expect(isContentDoc({ ...old, sessions: ['Sesión 1: Fracciones'] })).toBe(false);
     expect(isContentDoc(null)).toBe(false);
     expect(isContentDoc({ ...doc, kind: 'libro' })).toBe(false);
+  });
+
+  it('numbers the tasks of apuntes in one series and their figures', () => {
+    const q = (text: string) => ({ text, answer: 'x', term: '', level: 0, prose: false });
+    const ex = { type: 'exercise', level: 'basico', item_type: 'calculo', statement: 'Calcula', passage: '', items: [], options: [],
+      categories: [], pairs: [], figure: null, solution_figure: null, steps: [], item_answers: [], answer: '1', space: 'none',
+      lines: 1, points: null, skill: '', contents: [], shown: [], criteria: [] };
+    const apuntes = { ...doc, kind: 'teoria', lessons: [], sections: [
+      { id: 's1', title: 'Uno', role: 'content', level: null, lesson: null, blocks: [
+        { id: 'b1', type: 'your_turn', items: [q('a'), q('b')] },
+        { id: 'b2', type: 'figure', figure: { type: 'number_line' }, caption: '', place: 'text' },
+        { id: 'b3', type: 'source', source_id: 'hist.x', questions: [q('c')] },
+        { id: 'b4', type: 'figure', figure: { type: 'scheme' }, caption: '', place: 'wide' },
+        { id: 'b5', type: 'image', image_id: 'img1', caption: '', place: 'text', callouts: [] }] },
+      { id: 'actividades', title: 'Actividades', role: 'activities', level: null, lesson: null, blocks: [{ id: 'b6', ...ex }] }],
+    } as unknown as ContentDoc;
+    const { tasks, figures } = docNumbers(apuntes);
+    expect(tasks).toEqual({ b1: [1, 2], b3: [3], b6: [4] });
+    expect(figures).toEqual({ b2: 1, b5: 2 });
+    expect(docNumbers({ ...apuntes, kind: 'practica' }).tasks).toEqual({ b6: [1] });
   });
 
   it('tells a slide from a block', () => {

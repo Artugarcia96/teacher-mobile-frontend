@@ -326,6 +326,11 @@ button.chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .skel { border-radius: 8px; background: linear-gradient(90deg, var(--fill) 25%, var(--fill-2) 50%, var(--fill) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite linear; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
+/* ── Margin note of a document ──────────────────────────── */
+.aside { display: grid; gap: 4px; min-width: 0; padding-left: 12px; box-shadow: inset 2px 0 0 var(--line-strong); font-size: var(--fs-footnote); line-height: 1.45; color: var(--ink-2); }
+.aside p { margin: 0; }
+.aside b { color: var(--ink); font-weight: 600; }
+
 /* ── Banner / callout ───────────────────────────────────── */
 .callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-row); background: var(--canvas); color: var(--ink-2); font-size: var(--fs-sub); }
 .callout b { color: var(--ink); font-weight: 600; }
