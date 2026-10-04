@@ -68,6 +68,12 @@ export function GradePill({ value, label, proposal, max }: {
   );
 }
 
+/** A margin note of a document (a gloss, a reminder, a small figure): the page places it beside its paragraph on a
+ *  wide screen and under it on a phone. */
+export function Aside({ children }: { children: ReactNode }) {
+  return <aside className="aside">{children}</aside>;
+}
+
 export function EmptyState({ icon, title, text, action }: { icon: ReactNode; title: string; text?: ReactNode; action?: ReactNode }) {
   return (
     <div className="empty">

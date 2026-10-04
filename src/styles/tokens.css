@@ -91,6 +91,7 @@
   --gutter: 16px;
   --content-max: 1180px;
   --reading-max: 720px;
+  --reading-margin: 880px;  /* apuntes: the reading column and its margin column */
   --sidebar-w: 248px;
 
   /* Tab capsule (phones/tablets): pages and sticky bars keep clear of it */

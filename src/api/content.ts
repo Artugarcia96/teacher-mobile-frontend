@@ -38,14 +38,12 @@ export interface Lesson {
 
 /** The first page of apuntes (teoría). */
 export interface Opener {
-  /** A concrete case (lengua and idiomas: the framing paragraph of `source_id`). */
-  hook: string; source_id: string;
+  /** A concrete case that raises the unit's question. */
+  hook: string;
   /** «Pregunta de la unidad», «Contenidos» and «Procedimientos». */
   question: string; know: string[]; can_do: string[];
-  /** An image of role `portada`. */
+  /** The opener's photo (one of `ContentDoc.images`), or ''. */
   image_id: string;
-  /** Historia: the unit's milestones as a full-width timeline. */
-  timeline: boolean;
 }
 
 // ── Slides ───────────────────────────────────────────────────────────────────
@@ -131,50 +129,25 @@ export interface NoteBlock {
   source: string; place: 'margin' | 'text';
 }
 export interface ListBlock { id: string; type: 'list'; title: string; items: string[]; ordered: boolean }
-/** `ref`: the slug prose cites as `[[ref]]` («tabla 1»); `symbols`: the «Magnitud · Símbolo · Unidad» table. */
-export interface TableBlock {
-  id: string; type: 'table'; header: string[]; rows: string[][]; caption: string; ref: string; symbols: boolean;
-}
-export interface FigureBlock { id: string; type: 'figure'; figure: FigureSpec; caption: string; ref: string; place: Place }
-export interface ImageBlock {
-  id: string; type: 'image'; image_id: string; caption: string; ref: string; place: Place; callouts: Callout[];
-}
+export interface TableBlock { id: string; type: 'table'; header: string[]; rows: string[][]; caption: string }
+/** A drawn figure; in apuntes a `scheme` figure is the unit's esquema. */
+export interface FigureBlock { id: string; type: 'figure'; figure: FigureSpec; caption: string; place: Place }
+/** A real photo, map or document (one of `ContentDoc.images`) with its caption; its credit comes with it. */
+export interface ImageBlock { id: string; type: 'image'; image_id: string; caption: string; place: Place; callouts: Callout[] }
 /** «Ejemplo resuelto»: the why (`say`) beside the work (`show`); the last `fade` shows are left for «Termina tú». */
 export interface WorkedBlock {
   id: string; type: 'worked'; title: string; statement: string; steps: Step[]; close: string; fade: number;
-  figure: FigureSpec | null; ref: string;
+  figure: FigureSpec | null;
 }
 /** «Caso»: an invented scene with 0-3 questions. */
 export interface CaseBlock { id: string; type: 'case'; title: string; text: string; questions: Item[] }
 /** «Doc. N»: a text of the source library (its text, author, work and date come from the library) with graded
  *  questions. */
-export interface SourceBlock { id: string; type: 'source'; source_id: string; questions: Item[]; ref: string }
+export interface SourceBlock { id: string; type: 'source'; source_id: string; questions: Item[] }
 /** «Ahora tú». */
 export interface YourTurnBlock { id: string; type: 'your_turn'; items: Item[] }
-/** «Para repasar». */
-export interface ReviewBlock { id: string; type: 'review'; items: Item[] }
-export interface HowStep { name: string; text: string }
-/** «Técnica: …»: how it is done, an example on a real material of the unit and «Entrena». */
-export interface TechniqueBlock { id: string; type: 'technique'; title: string; how: HowStep[]; example: WorkedBlock; train: string }
-export interface EssentialRow { concept: string; explanation: string; example: string }
-/** «Lo esencial». */
-export interface EssentialsBlock { id: string; type: 'essentials'; rows: EssentialRow[] }
-/** «Respuesta a la pregunta de la unidad» (matemáticas, física y química: the opener's problem solved). */
-export interface AnswerBlock { id: string; type: 'answer'; text: string; solved: WorkedBlock | null }
-export interface QuizItem { text: string; options: string[]; answer: string; distractor_misconceptions: string[] }
-export interface CanDo { objective: string; section_id: string }
-/** «Autoevaluación» and «Sé hacerlo» (annex). */
-export interface SelfCheckBlock { id: string; type: 'self_check'; items: QuizItem[]; can_do: CanDo[] }
-export interface PriorItem { reminder: string; example: string; exercises: Item[] }
-/** «Lo que ya sabes». */
-export interface PriorBlock { id: string; type: 'prior'; items: PriorItem[] }
-export interface SituationStep { text: string; section_id: string }
-export interface RubricRow { criterion: string; levels: string[] }
-/** «Situación de aprendizaje» (annex). */
-export interface SituationBlock {
-  id: string; type: 'situation'; context: string; challenge: string; product: string; steps: SituationStep[];
-  rubric: RubricRow[];
-}
+/** «Lo esencial»: the unit's key ideas, one sentence each. */
+export interface EssentialsBlock { id: string; type: 'essentials'; items: string[] }
 export interface ExerciseBlock {
   id: string; type: 'exercise'; level: Level; item_type: ItemType; statement: string; passage: string; items: string[];
   options: string[]; categories: string[]; pairs: string[][]; figure: FigureSpec | null; solution_figure: FigureSpec | null;
@@ -187,15 +160,13 @@ export interface ExerciseBlock {
   shown: number[];
   /** The programación's criterion codes, printed in the solucionario only. */
   criteria: string[];
-  /** Code: the activities section an exercise moved to the annex comes back to. */
-  group: string;
 }
 export type Block =
   | TextBlock | DefinitionBlock | NoteBlock | ListBlock | TableBlock | FigureBlock | ImageBlock | WorkedBlock | CaseBlock
-  | SourceBlock | YourTurnBlock | ReviewBlock | TechniqueBlock | EssentialsBlock | AnswerBlock | SelfCheckBlock | PriorBlock
-  | SituationBlock | ExerciseBlock;
+  | SourceBlock | YourTurnBlock | EssentialsBlock | ExerciseBlock;
 
-export type SectionRole = 'prior' | 'content' | 'technique' | 'closing' | 'activities' | 'situacion' | 'annex';
+/** Apuntes: numbered sections, the closing («Repasa la unidad»: esquema and «Lo esencial») and the activities. */
+export type SectionRole = 'content' | 'closing' | 'activities';
 export interface DocSection {
   id: string; title: string; role: SectionRole; level: Level | null;
   /** The lesson it belongs to (apuntes split in sessions). */
@@ -272,8 +243,8 @@ export interface ContentDoc {
   lessons: Lesson[];
   /** Every image the document uses. */
   images: ImageRef[];
-  /** Teoría: key ideas. Lectura sencilla: `glossary`. */
-  summary: string[]; glossary: Term[];
+  /** Lectura sencilla. */
+  glossary: Term[];
   /** Subject family (matematicas, sociales…): colours and labels. */
   family: string;
   /** Content language («es» except Idiomas). */
@@ -345,3 +316,26 @@ export function isContentDoc(c: unknown): c is ContentDoc {
 
 /** One name for each level, the same in the app, the PDF, the solucionario and the rubric. */
 export const LEVEL_LABEL: Record<Level, string> = { refuerzo: 'Refuerzo', basico: 'Básica', avanzado: 'Ampliación' };
+
+/** The numbers each block prints, as the PDF and the solucionario print them: tasks in one series (apuntes: each
+ *  question of «Ahora tú», of a case and of a document, and each activity; any other document: its exercises) and,
+ *  in apuntes, the figures and photos («Fig. N»; the esquema has none). */
+export function docNumbers(doc: ContentDoc): { tasks: Record<string, number[]>; figures: Record<string, number> } {
+  const tasks: Record<string, number[]> = {};
+  const figures: Record<string, number> = {};
+  const apuntes = doc.kind === 'teoria';
+  let n = 0;
+  let f = 0;
+  for (const b of doc.sections.flatMap((s) => s.blocks)) {
+    const k = b.type === 'exercise' ? 1
+      : !apuntes ? 0
+        : b.type === 'your_turn' ? b.items.length
+          : b.type === 'case' || b.type === 'source' ? b.questions.length : 0;
+    if (k) {
+      tasks[b.id] = Array.from({ length: k }, (_, i) => n + i + 1);
+      n += k;
+    }
+    if (apuntes && (b.type === 'image' || (b.type === 'figure' && b.figure.type !== 'scheme'))) figures[b.id] = ++f;
+  }
+  return { tasks, figures };
+}

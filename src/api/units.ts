@@ -66,6 +66,10 @@ export interface ReviewNote {
   reason: string;
 }
 
+/** A photo, map or document of apuntes as the app shows it. */
+export interface DocImage { url: string; credit: string; page_url: string; alt: string }
+/** A library text a «Doc.» block prints (prose, or lines of verse, dialogue or theatre; '' = a stanza break). */
+export interface SourceText { form: string; text: string; lines: { text: string; speaker: string }[]; reference: string }
 export interface MaterialDetail extends Material {
   /** Generated: the ContentDoc (anything else is content that could not be converted: shown read-only). */
   content: ContentDoc | Record<string, unknown> | null;
@@ -91,6 +95,10 @@ export interface MaterialDetail extends Material {
   slide_notes: Record<string, NotesLine[]>;
   /** The names that fill the `{nombre1}`… placeholders of the text when it is shown. */
   names: Record<string, string>;
+  /** Apuntes: each image of the document by id (a JPEG with its credit). */
+  images: Record<string, DocImage>;
+  /** Apuntes: each library text its «Doc.» blocks print, by id. */
+  sources: Record<string, SourceText>;
   /** POST slides and duplicate: the id of the new slide. */
   created?: string;
   /** PATCH blocks/{id}: the caps the new text goes over (saved anyway). */
@@ -581,8 +589,8 @@ export function useMaterialToActivity(materialId: string) {
 }
 
 /** pdf: the students' PDF; teacher: with the notes; sheet: «Hoja para los alumnos»; zip: every lesson's .pptx; key:
- *  solucionario; bn: black and white; annex: «Actividades de repaso». */
-export type FileVariant = 'pdf' | 'pptx' | 'teacher' | 'sheet' | 'zip' | 'key' | 'bn' | 'annex';
+ *  solucionario; bn: the apuntes' copy to photocopy in black and white. */
+export type FileVariant = 'pdf' | 'pptx' | 'teacher' | 'sheet' | 'zip' | 'key' | 'bn';
 
 /** Ask for a signed download link and start the download; `lesson` picks one lesson's file. */
 export async function downloadMaterial(materialId: string, variant: FileVariant = 'pdf', lesson?: number) {

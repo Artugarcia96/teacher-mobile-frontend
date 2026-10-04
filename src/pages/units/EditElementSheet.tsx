@@ -45,8 +45,10 @@ function fieldsOf(el: Block): Field[] {
       { path: 'header', label: 'Encabezados', kind: 'cells', hint: 'Separados por « | », con un espacio a cada lado' }, { path: 'rows', label: 'Filas', kind: 'rows', hint: ROWS },
       { path: 'caption', label: 'Pie', kind: 'line' },
     ];
-    case 'figure': return [{ path: 'caption', label: 'Pie de la figura', kind: 'line' }];
-    case 'your_turn': case 'review': return [{ path: 'items', label: 'Preguntas', kind: 'items', hint: QUESTIONS }];
+    case 'figure': case 'image': return [{ path: 'caption', label: 'Pie', kind: 'line' }];
+    case 'your_turn': return [{ path: 'items', label: 'Preguntas', kind: 'items', hint: QUESTIONS }];
+    case 'source': return [{ path: 'questions', label: 'Preguntas sobre el documento', kind: 'items', hint: QUESTIONS }];
+    case 'essentials': return [{ path: 'items', label: 'Ideas', kind: 'lines', hint: LINES }];
     case 'case': return [
       { path: 'title', label: 'Título', kind: 'line' }, { path: 'text', label: 'Caso', kind: 'area' },
       { path: 'questions', label: 'Preguntas', kind: 'items', hint: QUESTIONS },
