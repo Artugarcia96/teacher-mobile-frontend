@@ -227,7 +227,7 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
       subtitle={<>{unitTitle && <span>{unitTitle}</span>}{count && <span>{count}</span>}{isDraft(m) && <AIBadge />}</>}
       actions={<Menu trigger={(open) => <IconButton label="Más opciones" glass onClick={open}><DotsThree size={22} weight="bold" /></IconButton>} items={menu} />}
       toolbar={toolbar}>
-      <TextSubsProvider value={{ names: m.names, refs: m.refs }}>
+      <TextSubsProvider value={{ names: m.names }}>
       <div className="material-layout">
       <div className="material-body material-body--reading">
         {!doc ? (
@@ -245,7 +245,7 @@ function Material({ m, courseId, unitPath }: { m: MaterialDetail; courseId: stri
           </Callout>
         )}
         {doc && <Problems m={m} />}
-        {doc && isDraft(m) && <ReviewNotes notes={m.review ?? []} facts={m.facts_unverified} doc={doc} onGo={scrollToElement} />}
+        {doc && isDraft(m) && <ReviewNotes notes={m.review ?? []} doc={doc} onGo={scrollToElement} />}
         {doc && typeof m.options.coverage_note === 'string' && m.options.coverage_note && (
           <Callout>{m.options.coverage_note} Si quieres una ficha con todas, créala con más ejercicios.</Callout>
         )}

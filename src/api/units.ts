@@ -88,14 +88,8 @@ export interface MaterialDetail extends Material {
   /** The teacher's notes of each slide by id, already composed («Tiempo», «Respuesta», «Di»…). Named apart from
    *  `Material.notes`, the teacher's note on the material. */
   slide_notes: Record<string, NotesLine[]>;
-  /** Every image the document uses, by `ImageRef.id`. */
-  images: Record<string, ImageInfo>;
-  /** Apuntes: what each `[[ref]]` reads as («fig. 3»). */
-  refs: Record<string, string>;
   /** The names that fill the `{nombre1}`… placeholders of the text when it is shown. */
   names: Record<string, string>;
-  /** Dates and figures that do not come from the teacher's materials («Revisa esto»). */
-  facts_unverified: FactUnverified[];
   /** POST slides and duplicate: the id of the new slide. */
   created?: string;
   /** PATCH blocks/{id}: the caps the new text goes over (saved anyway). */
@@ -112,19 +106,6 @@ export interface LessonOfApuntes { n: number; title: string; sections: string[] 
 /** Signed WebP images of a slide: one 1920 × 1080 frame per build state (clicks + 1) and a 960 px card. */
 export interface SlideImages { frames: string[]; card: string; alt: string }
 export interface NotesLine { label: string; text: string }
-export interface ImageInfo {
-  /** Signed URL of the 1280 px variant. */
-  url: string;
-  /** Short credit line («Foto: Daderot · CC0 · Wikimedia Commons»). */
-  credit: string;
-  /** The source page, "" for a teacher's upload. */
-  page_url: string;
-  /** «Qué se ve». */
-  depicts: string;
-  /** Other accepted candidates («Otras imágenes encontradas»). */
-  alternatives: number;
-}
-export interface FactUnverified { lesson: number | null; values: string[]; element_id: string }
 export interface UnitDetail {
   unit: Unit; course: CourseRef; materials: Material[];
   /** The class's own files outside any unit that the AI can follow as a guide (the imported «Programación»). */

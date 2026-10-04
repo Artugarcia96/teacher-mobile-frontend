@@ -1,6 +1,6 @@
 import { WarningCircle } from '@phosphor-icons/react';
 import type { ContentDoc } from '../../api/content';
-import type { FactUnverified, MaterialDetail, ReviewNote } from '../../api/units';
+import type { MaterialDetail, ReviewNote } from '../../api/units';
 import { Callout, List, Row, Section } from '../../ui';
 import { elementLabel } from './DocView';
 
@@ -21,27 +21,15 @@ export function Problems({ m }: { m: MaterialDetail }) {
   );
 }
 
-/** «711, 718 y 756»: values joined as a Spanish list. */
-function values(v: string[]) {
-  return v.length > 1 ? `${v.slice(0, -1).join(', ')} y ${v[v.length - 1]}` : v[0] ?? '';
-}
-
 /** «Revisa esto», while the material is a draft: what the verification withdrew or could not fix (never dropped
- *  silently) and, per lesson, the dates and figures that do not come from the teacher's materials. A row with an
- *  element leads to it (`onGo`). */
-export function ReviewNotes({ notes, facts = [], doc, onGo }: {
-  notes: ReviewNote[]; facts?: FactUnverified[]; doc: ContentDoc; onGo: (id: string) => void;
+ *  silently). A row with an element leads to it (`onGo`). */
+export function ReviewNotes({ notes, doc, onGo }: {
+  notes: ReviewNote[]; doc: ContentDoc; onGo: (id: string) => void;
 }) {
-  const rows = facts.filter((f) => f.values.length > 0);
-  if (!notes.length && !rows.length) return null;
+  if (!notes.length) return null;
   return (
     <Section title="Revisa esto">
       <List>
-        {rows.map((f, i) => (
-          <Row key={`f${i}`} wrapSub title={`Fechas y cifras que no salen de tus materiales: ${values(f.values)} · compruébalas`}
-            sub={f.lesson != null && doc.lessons.length > 1 ? `Sesión ${f.lesson}` : undefined}
-            onClick={f.element_id ? () => onGo(f.element_id) : undefined} />
-        ))}
         {notes.map((r, i) => (r.kind === 'unfixed' && r.id
           ? <Row key={i} title={`${elementLabel(doc, r.id, r.element)}: ${r.text}`} sub={`Sin arreglar. ${r.reason}`} wrapSub
             onClick={() => onGo(r.id!)} />

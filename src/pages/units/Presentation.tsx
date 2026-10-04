@@ -150,7 +150,7 @@ export default function Presentation({ m, doc, title, eyebrow, page, menu, path 
   const count = lessons.length > 1 ? `${lessons.length} sesiones` : null;
 
   return (
-    <TextSubsProvider value={{ names: m.names, refs: m.refs }}>
+    <TextSubsProvider value={{ names: m.names }}>
       <Page title={title} eyebrow={eyebrow} {...page} wide
         subtitle={<>{m.unit_title && <span>{m.unit_title}</span>}{count && <span>{count}</span>}{isDraft(m) && <AIBadge />}</>}
         actions={<Menu trigger={(open) => <IconButton label="Más opciones" glass onClick={open}><DotsThree size={22} weight="bold" /></IconButton>} items={menu} />}
@@ -186,7 +186,7 @@ export default function Presentation({ m, doc, title, eyebrow, page, menu, path 
             </Callout>
           )}
           <Problems m={m} />
-          {isDraft(m) && <ReviewNotes notes={m.review ?? []} facts={m.facts_unverified} doc={doc} onGo={go} />}
+          {isDraft(m) && <ReviewNotes notes={m.review ?? []} doc={doc} onGo={go} />}
 
           {lesson && (
             <SlidesView m={m} doc={doc} lesson={lesson} showNotes={showNotes} editing={editMode} busy={busy}

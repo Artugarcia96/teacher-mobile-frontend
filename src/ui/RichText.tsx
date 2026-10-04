@@ -40,20 +40,18 @@ function renderRich(text: string): string {
   return out + plain(text.slice(last));
 }
 
-/** What a material's text stands for when it is shown: `refs` «[[mapa-expansion]]» → «fig. 3», `names` «{nombre1}» →
- *  «Lucía» (the server's fill, the same as the PDF's). */
-export interface TextSubs { refs?: Record<string, string>; names?: Record<string, string> }
+/** What a material's text stands for when it is shown: `names` «{nombre1}» → «Lucía» (the server's fill, the same
+ *  as the PDF's). */
+export interface TextSubs { names?: Record<string, string> }
 
 const SubsContext = createContext<TextSubs>({});
-/** Every RichText inside reads its `[[ref]]` and `{nombreN}` from here (the material page sets it once). */
+/** Every RichText inside reads its `{nombreN}` from here (the material page sets it once). */
 export const TextSubsProvider = SubsContext.Provider;
 
-/** `[[ref]]` and `{nombreN}` replaced by what they stand for; an unknown one is left as written. */
+/** `{nombreN}` replaced by the name it stands for; an unknown one is left as written. */
 export function resolveText(text: string, subs: TextSubs): string {
-  const { refs = {}, names = {} } = subs;
-  return text
-    .replace(/\[\[([^\]\n]+)\]\]/g, (m, ref: string) => refs[ref.trim()] ?? m)
-    .replace(/\{nombre\d+\}/g, (m) => names[m] ?? m);
+  const { names = {} } = subs;
+  return text.replace(/\{nombre\d+\}/g, (m) => names[m] ?? m);
 }
 
 /** Text with inline LaTeX math ($…$) and **bold**, as produced by the AI and stored in materials/rubrics. `oneLine`: a single line
