@@ -110,7 +110,7 @@ export default function DocView({ doc, figures, images, sources, solutions, edit
         )}
         {apuntes && sec.role !== 'activities'
           ? rows(sec.blocks).map((r, i) => (
-            <div key={r.main?.id ?? `side-${i}`} className="doc__row">
+            <div key={r.main?.id ?? `side-${i}`} className={r.side.length ? 'doc__row doc__row--side' : 'doc__row'}>
               <div className="doc__main">{r.main && element(r.main, levels)}</div>
               {r.side.length > 0 && <div className="doc__side">{r.side.map((b) => element(b, levels))}</div>}
             </div>
