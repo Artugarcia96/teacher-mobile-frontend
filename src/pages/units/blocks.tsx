@@ -69,7 +69,7 @@ export function BlockView(props: BlockViewProps) {
     case 'text':
       return <div className="dblock__text">{b.text.split(/\n{2,}/).map((p, i) => <RichText key={i} as="p" text={p} />)}</div>;
     case 'definition':
-      if (b.place === 'margin') return <Aside><b className="dblock__term"><RichText text={b.term} />.</b> <RichText text={b.text} /></Aside>;
+      if (b.place === 'margin') return <Aside><p><b className="dblock__term"><RichText text={b.term} />.</b> <RichText text={b.text} /></p></Aside>;
       return <div className="panel panel--definition"><p><strong><RichText text={b.term} />.</strong> <RichText text={b.text} /></p></div>;
     case 'worked':
       return <Worked b={b} figure={figures[b.id]} />;
