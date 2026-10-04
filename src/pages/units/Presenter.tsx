@@ -1,118 +1,73 @@
-import { CaretLeft, CaretRight, CornersIn, CornersOut, X } from '@phosphor-icons/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { ArrowSquareOut, CaretLeft, CaretRight, Notepad, X } from '@phosphor-icons/react';
+import { useMemo, useState } from 'react';
 import type { ContentDoc } from '../../api/content';
-import { IconButton } from '../../ui';
-import { CoverSlide, SlideFace } from './SlideFace';
+import { useArchetypes, type MaterialDetail } from '../../api/units';
+import { deckOf, onScreen, useNow, usePrefetch, usePresenterState, useReportPresented } from '../../features/materials/deck';
+import { initialState, position } from '../../features/materials/presenter';
+import { Button, DESKTOP, Fullscreen, IconButton, Sheet, useMediaQuery } from '../../ui';
+import { Notes } from './SlidesView';
+import { StageSlide, useStageKeys, useTap } from './stage';
 import './Presenter.css';
 
 interface Props {
+  m: MaterialDetail;
   doc: ContentDoc;
-  kicker: string;
-  figures: Record<string, string>;
+  lesson: number;
+  /** Slide to start at (1-based among the projected ones): «Seguir en la diapositiva 12». */
+  slide?: number;
   onClose: () => void;
+  /** P (desktop): the teacher view takes over at the same place. */
+  onTeacherView?: (lesson: number, slide: number) => void;
 }
 
-/** «Proyectar»: the browser's full screen, one slide at a time, and only the slide: what the class sees never carries the
- *  speaker notes, the answers or the teacher's reminders (those stay on the material page, «Notas del orador», and in the
- *  PowerPoint). Keys: → / Espacio / AvPág next, ← / RePág back, Inicio / Fin, F full screen, Esc leaves. Swipe or tap
- *  the sides on touch screens. */
-export default function Presenter({ doc, kicker, figures, onClose }: Props) {
-  const total = doc.slides.length + 1;
-  const [i, setI] = useState(0);
-  const [full, setFull] = useState(false);
-  const touch = useRef<{ x: number; y: number } | null>(null);
-  const root = useRef<HTMLDivElement>(null);
+/** «Proyectar sesión k»: the browser's full screen, the lesson's slides as the server rendered them, frame by frame
+ *  (PowerPoint's keys, §1.3). Nothing but the slide and the classroom timer is on screen; the notes stay on the phone
+ *  («Notas») or in the teacher view. Backup slides are skipped unless H shows them; the credits slide is not projected. */
+export default function Presenter({ m, doc, lesson, slide, onClose, onTeacherView }: Props) {
+  const archetypes = useArchetypes();
+  const deck = useMemo(() => deckOf(m, doc, archetypes.data), [m, doc, archetypes.data]);
+  const [s, dispatch] = usePresenterState(deck, initialState(lesson, slide));
+  const desktop = useMediaQuery(DESKTOP);
+  const [notes, setNotes] = useState(false);
+  const now = useNow(!!s.timer);
+  usePrefetch(m, deck, s);
+  useReportPresented(m.id, s);
+  useStageKeys(dispatch, (key) => {
+    if ((key === 'p' || key === 'P') && desktop && onTeacherView) { onTeacherView(s.lesson, s.pos + 1); return true; }
+    return false;
+  });
+  const tap = useTap(dispatch);
+  const { content } = onScreen(m, doc, deck, s);
+  const { n, total } = position(deck, s);
+  const link = content?.archetype === 'enlace' ? content.link_url : '';
 
-  const go = useCallback((d: number) => setI((v) => Math.min(total - 1, Math.max(0, v + d))), [total]);
-
-  const toggleFull = useCallback(async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await root.current?.requestFullscreen?.();
-    } catch {
-      /* not allowed (iPhone): the overlay already covers the screen */
-    }
-  }, []);
-
-  const close = useCallback(async () => {
-    if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined);
-    onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = e.key;
-      const t = e.target as HTMLElement | null;
-      // Enter / Espacio on a focused control (Salir, pantalla completa…) activate it; they do not change the slide.
-      if ((k === 'Enter' || k === ' ') && t?.closest('button, a, input, textarea, select, [role="button"]')) return;
-      if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) go(1);
-      else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) go(-1);
-      else if (k === 'Home') setI(0);
-      else if (k === 'End') setI(total - 1);
-      else if (k === 'f' || k === 'F') void toggleFull();
-      else if (k === 'Escape') void close();
-      else return;
-      e.preventDefault();
-    };
-    const onFs = () => setFull(!!document.fullscreenElement);
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('fullscreenchange', onFs);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('fullscreenchange', onFs);
-      document.body.style.overflow = prev;
-    };
-  }, [go, total, toggleFull, close]);
-
-  // Full screen on open (it needs the tap that opened it; ignored where not allowed).
-  useEffect(() => {
-    if (!document.fullscreenElement) root.current?.requestFullscreen?.().catch(() => undefined);
-  }, []);
-
-  const slide = i > 0 ? doc.slides[i - 1] : null;
-
-  return createPortal(
-    <div ref={root} className="presenter" role="dialog" aria-modal="true" aria-label={`Proyectar: ${doc.title}`}
-      onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
-      onTouchEnd={(e) => {
-        const t = touch.current;
-        touch.current = null;
-        if (!t) return;
-        const dx = e.changedTouches[0].clientX - t.x, dy = e.changedTouches[0].clientY - t.y;
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
-      }}>
-      <div className="presenter__bar">
-        <span className="presenter__count num" aria-live="polite">{i + 1} / {total}</span>
-        <div className="presenter__tools">
-          <IconButton label={full ? 'Salir de pantalla completa (F)' : 'Pantalla completa (F)'} onClick={() => void toggleFull()}>
-            {full ? <CornersIn size={22} /> : <CornersOut size={22} />}
-          </IconButton>
-          <IconButton label="Salir (Esc)" onClick={() => void close()}><X size={22} /></IconButton>
-        </div>
+  return (
+    <Fullscreen variant="stage" label={`Proyectar sesión ${s.lesson}`} onClose={onClose}
+      bar={<>
+        <span className="presenter__count num" aria-live="polite">{n ? `Diapositiva ${n} de ${total}` : 'Diapositiva de reserva'}</span>
+        <span className="presenter__tools">
+          {link && <Button size="sm" variant="glass" icon={<ArrowSquareOut size={16} />} onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}>Abrir enlace</Button>}
+          {!desktop && <IconButton label="Notas" onClick={() => setNotes(true)}><Notepad size={22} /></IconButton>}
+          <IconButton label="Salir (Esc)" onClick={onClose}><X size={22} /></IconButton>
+        </span>
+      </>}
+      footer={<>
+        <IconButton label="Anterior" onClick={() => dispatch({ type: 'prev' })} disabled={s.pos === 0 && s.frame === 0 && !s.detour}>
+          <CaretLeft size={26} weight="bold" />
+        </IconButton>
+        <IconButton label="Siguiente" onClick={() => dispatch({ type: 'next' })}><CaretRight size={26} weight="bold" /></IconButton>
+      </>}>
+      <div className="presenter__frame" {...tap}>
+        <StageSlide m={m} doc={doc} deck={deck} s={s} now={now} onTimer={() => dispatch({ type: 'timer', now: Date.now() })} />
       </div>
-
-      <div className="presenter__stage">
-        <div className="presenter__frame" onClick={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          go(e.clientX - r.left < r.width * 0.3 ? -1 : 1);
-        }}>
-          {slide ? <SlideFace slide={slide} figure={figures[slide.id]} projected /> : <CoverSlide title={doc.title} kicker={kicker} />}
-        </div>
-        <p className="presenter__hint">Gira el móvil para ver la diapositiva más grande.</p>
-      </div>
-
-      <div className="presenter__nav">
-        <IconButton label="Diapositiva anterior" onClick={() => go(-1)} disabled={i === 0}><CaretLeft size={26} weight="bold" /></IconButton>
-        <div className="presenter__dots" aria-hidden>
-          {Array.from({ length: total }, (_, k) => <i key={k} className={k === i ? 'on' : undefined} />)}
-        </div>
-        <IconButton label="Diapositiva siguiente" onClick={() => go(1)} disabled={i === total - 1}><CaretRight size={26} weight="bold" /></IconButton>
-      </div>
-    </div>,
-    document.body,
+      <p className="presenter__hint">Gira el móvil para ver la diapositiva más grande.</p>
+      {notes && (
+        <Sheet open onClose={() => setNotes(false)} title={n ? `Notas · diapositiva ${n}` : 'Notas · reserva'}>
+          {content && (m.slide_notes[content.id]?.length
+            ? <Notes lines={m.slide_notes[content.id]} className="presenter__notes" />
+            : <p className="muted">Esta diapositiva no tiene notas.</p>)}
+        </Sheet>
+      )}
+    </Fullscreen>
   );
 }

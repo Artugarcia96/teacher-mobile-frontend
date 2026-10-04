@@ -1,3 +1,38 @@
 .fullscreen { position: fixed; inset: 0; z-index: 150; background: var(--paper); display: flex; flex-direction: column; animation: fade-in var(--t-med) var(--ease); }
 .fullscreen > .fullscreen__close { position: absolute; z-index: 2; top: calc(12px + env(safe-area-inset-top)); right: 12px; }
 .fullscreen__stage { flex: 1; overflow: auto; display: grid; place-items: center; padding: 64px 20px 32px; }
+
+/* Stage: the dark projection surface between the app (40) and its sheets (100), so the notes and «Pasar lista»
+   open over it. */
+.fullscreen--stage {
+  z-index: 90; background: var(--stage); color: var(--stage-ink); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.fullscreen--stage .fullscreen__stage { container-type: size; overflow: hidden; padding: 0; min-height: 0; }
+.fullscreen__bar, .fullscreen__footer { display: flex; align-items: center; gap: 8px; padding: 6px 12px; transition: opacity var(--t-slow) var(--ease); }
+.fullscreen__bar { justify-content: space-between; }
+.fullscreen__footer { justify-content: center; }
+.fullscreen--idle .fullscreen__bar, .fullscreen--idle .fullscreen__footer { opacity: 0; }
+.fullscreen--idle { cursor: none; }
+.fullscreen--stage .icon-btn, .fullscreen--stage .btn--glass { color: var(--stage-ink); }
+.fullscreen--stage .muted { color: var(--stage-muted); }
+
+/* A slide image, 16:9, at its own scale (container units): the timer and the blank screen sit on it. */
+.slide-img { position: relative; aspect-ratio: 16 / 9; width: 100%; container-type: inline-size; overflow: hidden; background: var(--stage-white); user-select: none; }
+.slide-img__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: none; }
+.slide-img__img--fade { animation: fade-in 200ms linear; }
+@media (prefers-reduced-motion: reduce) { .slide-img__img--fade { animation: none; } }
+.slide-img__placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 8%; text-align: center; background: var(--paper-2); color: var(--ink-2); font-size: max(13px, 3.2cqi); }
+.slide-img__blank { position: absolute; inset: 0; }
+.slide-img__blank--black { background: var(--stage-black); }
+.slide-img__blank--white { background: var(--stage-white); }
+/* The classroom timer takes the folio's place: right margin (0.667 of 13.333 in), baseline at 7.02 of 7.5 in, 48 px
+   on the 1920 px frame. */
+.slide-img__timer {
+  position: absolute; right: 5%; bottom: calc(6.4% - 0.2em); font: 700 2.5cqi/1 'Liberation Sans', Arial, Helvetica, sans-serif;
+  font-variant-numeric: tabular-nums; color: var(--stage-black); background: none; border: 0; padding: 0; cursor: pointer;
+}
+/* On touch the timer is a small text: an invisible 44 px target around it, so a near miss does not move the slide. */
+@media (pointer: coarse) {
+  .slide-img__timer::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+}

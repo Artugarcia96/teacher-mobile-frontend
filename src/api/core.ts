@@ -100,7 +100,7 @@ export function useCreateCourse() {
 export function usePatchCourse(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Partial<CourseInput> & { categories?: CourseDetail['categories']; archived?: boolean }) =>
+    mutationFn: (body: Partial<CourseInput> & { categories?: CourseDetail['categories']; archived?: boolean; response_mode?: CourseDetail['response_mode'] }) =>
       api.patch<CourseDetail>(`/courses/${id}`, body),
     onSuccess: (data) => {
       qc.setQueryData(keys.course(id), data);

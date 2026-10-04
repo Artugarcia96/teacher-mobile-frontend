@@ -1,26 +1,25 @@
 import { ArrowsClockwise, ChartBar, DotsThree, PencilSimple, Trash } from '@phosphor-icons/react';
-import type { ContentDoc, Element, FigureSpec } from '../../api/content';
+import type { Block, ContentDoc, FigureSpec } from '../../api/content';
 import { canEditFigure } from '../../features/materials/FigureSheet';
 import { IconButton, Menu, Spinner, type MenuItem } from '../../ui';
 
 export type ElementAction = 'edit' | 'figure' | 'solution_figure' | 'rewrite' | 'remove';
 
-const isSlide = (el: Element): boolean => 'layout' in el;
-const figureOf = (el: Element): FigureSpec | null => ('figure' in el ? (el.figure ?? null) : null);
+const figureOf = (el: Block): FigureSpec | null => ('figure' in el ? (el.figure ?? null) : null);
 
-function onlyExercise(doc: ContentDoc, el: Element) {
-  if (!('type' in el) || el.type !== 'exercise') return false;
+function onlyExercise(doc: ContentDoc, el: Block) {
+  if (el.type !== 'exercise') return false;
   return doc.sections.flatMap((s) => s.blocks).filter((b) => b.type === 'exercise').length <= 1;
 }
 
-/** The actions on one element of a material in edit mode: its text, its figure, an AI rewrite, remove. */
+/** The actions on one block of apuntes, ficha, resumen or lectura sencilla in edit mode: its text, its figure, an AI rewrite, remove. */
 export function ElementMenu({ el, doc, onAction, noAI }: {
-  el: Element; doc: ContentDoc; onAction: (action: ElementAction, el: Element) => void; noAI: string | null;
+  el: Block; doc: ContentDoc; onAction: (action: ElementAction, el: Block) => void; noAI: string | null;
 }) {
-  const what = isSlide(el) ? 'diapositiva' : 'type' in el && el.type === 'exercise' ? 'ejercicio' : 'apartado';
+  const what = el.type === 'exercise' ? 'ejercicio' : 'apartado';
   const figure = figureOf(el);
   const solved = 'solution_figure' in el ? el.solution_figure : null;
-  const figureBlock = 'type' in el && el.type === 'figure';
+  const figureBlock = el.type === 'figure';
   const items: MenuItem[] = [
     ...(!figureBlock ? [{ label: 'Editar texto', icon: <PencilSimple size={18} />, onSelect: () => onAction('edit', el) }] : []),
     ...(figure ? [{
@@ -38,12 +37,12 @@ export function ElementMenu({ el, doc, onAction, noAI }: {
     },
   ];
   return (
-    <Menu trigger={(open) => <IconButton size="sm" label={isSlide(el) ? 'Opciones de la diapositiva' : 'Opciones del apartado'} onClick={open}><DotsThree size={18} weight="bold" /></IconButton>}
+    <Menu trigger={(open) => <IconButton size="sm" label="Opciones del apartado" onClick={open}><DotsThree size={18} weight="bold" /></IconButton>}
       items={items} />
   );
 }
 
-/** An element being rewritten by the AI: dimmed, with what is happening. */
-export function Rewriting() {
-  return <div className="element__busy" role="status"><Spinner /><span>Reescribiendo con IA…</span></div>;
+/** An element being changed: dimmed, with what is happening (by default, the AI rewriting it). */
+export function Rewriting({ label = 'Reescribiendo con IA…' }: { label?: string }) {
+  return <div className="element__busy" role="status"><Spinner /><span>{label}</span></div>;
 }

@@ -1,7 +1,7 @@
 /** Programación (units) & materials. Backend: app/api/units.py and app/api/library.py. */
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useMutationState, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fileUrl, uploadWithProgress } from '../lib/api';
-import type { ContentDoc, Element, FigureSpec, Level } from './content';
+import type { Archetype, Archetypes, ContentDoc, Element, FigureSpec, LessonKind, Level, Slide, SlideNotes } from './content';
 import type { CourseRef, Job, JobRef } from './types';
 
 export type UnitStatus = 'pending' | 'current' | 'done';
@@ -15,6 +15,7 @@ export const unitKeys = {
   one: (unitId: string) => ['unit', unitId] as const,
   material: (materialId: string) => ['material', materialId] as const,
   grounding: (unitIds: string[]) => ['grounding', ...unitIds] as const,
+  slideChange: (materialId: string) => ['material', materialId, 'slide-change'] as const,
 };
 
 export function useUnits(courseId: string | undefined) {
@@ -31,9 +32,11 @@ export type LinkKind = 'youtube' | 'drive' | 'genially' | 'canva' | 'wordwall' |
 export interface Material {
   id: string; unit_id: string | null; kind: MaterialKind; title: string; status: 'ready' | 'generating' | 'failed';
   error?: string | null; options: Record<string, unknown>; created_at: string; updated_at: string;
-  file_url?: string | null; extra_url?: string | null; pptx_url?: string | null;
-  /** While it is generated (its own job, or the «Preparar el trimestre» batch) or read by the AI. */
+  file_url?: string | null; extra_url?: string | null;
+  /** While it is generated (its own job, or the «Preparar el trimestre» batch, or one of its lessons) or read by the AI. */
   job_id?: string | null;
+  /** Lessons of a presentation or apuntes (0 for other kinds): how many there are, are ready and failed. */
+  lessons_total: number; lessons_ready: number; lessons_failed: number;
   /** Metadata (app/services/materials.py): who it is for, manual order, the teacher's note, last opened (date). */
   audience: Audience; position: number; notes?: string | null; last_used_at?: string | null;
   /** AI reading of photos / scanned PDFs, so generation for the unit can use their text. */
@@ -55,7 +58,8 @@ export interface Grounding { sources: GroundingSource[]; reading: { id: string; 
  *  fix in an element that stays as written (`unfixed`, until the teacher edits, rewrites or removes it). */
 export interface ReviewNote {
   kind: 'withdrawn' | 'unfixed'; id: string | null;
-  /** «Ejercicio», «Ejemplo», «Comprueba», «Diapositiva», «Apartado». */
+  /** «Ejercicio», «Diapositiva», «Apartado», an archetype label («Pregunta bisagra», «Dato clave»…) or a block name
+   *  («Ejemplo resuelto», «Documento», «Ahora tú»…). */
   element: string;
   /** The element in a few words. */
   text: string;
@@ -74,7 +78,35 @@ export interface MaterialDetail extends Material {
   /** What the verification withdrew or could not fix (an `unfixed` one points at its element by `id`). */
   review: ReviewNote[];
   course: CourseRef; unit_title?: string | null;
+  /** Presentación: each lesson with its slides; teoría: the sections of each lesson; [] for práctica, resumen and
+   *  lectura sencilla. Which shape it is follows `kind`, never the fields. */
+  lessons: (LessonInfo | LessonOfApuntes)[];
+  /** The server-rendered images of each slide by id. A slide in neither this nor `frames_failed` is being rendered:
+   *  its card shows the placeholder and the page refetches once after 5 s. */
+  slide_images: Record<string, SlideImages>;
+  /** Slides whose render failed («Esta diapositiva no se ha podido maquetar.»). */
+  frames_failed: string[];
+  /** The teacher's notes of each slide by id, already composed («Tiempo», «Respuesta», «Di»…). Named apart from
+   *  `Material.notes`, the teacher's note on the material. */
+  slide_notes: Record<string, NotesLine[]>;
+  /** The names that fill the `{nombre1}`… placeholders of the text when it is shown. */
+  names: Record<string, string>;
+  /** POST slides and duplicate: the id of the new slide. */
+  created?: string;
+  /** PATCH blocks/{id}: the caps the new text goes over (saved anyway). */
+  warnings?: string[];
 }
+/** A lesson of a presentation: its slides in order (the credits slide last) and its backup slides. */
+export interface LessonInfo {
+  n: number; title: string; kind: LessonKind; question: string; criteria: string[]; minutes: number; homework: string;
+  status: 'ready' | 'generating' | 'failed'; error: string;
+  slide_ids: string[]; hidden_ids: string[];
+}
+/** A lesson of apuntes: the sections it covers. */
+export interface LessonOfApuntes { n: number; title: string; sections: string[] }
+/** Signed WebP images of a slide: one 1920 × 1080 frame per build state (clicks + 1) and a 960 px card. */
+export interface SlideImages { frames: string[]; card: string; alt: string }
+export interface NotesLine { label: string; text: string }
 export interface UnitDetail {
   unit: Unit; course: CourseRef; materials: Material[];
   /** The class's own files outside any unit that the AI can follow as a guide (the imported «Programación»). */
@@ -82,10 +114,10 @@ export interface UnitDetail {
 }
 
 /** «Crear con IA». Ficha: one `level` (none = the three levels), at most `n_items` exercises and `notebook` (no space to
- *  answer); `sessions` splits it in class sessions. */
+ *  answer); `lessons` splits it in class sessions (null: as many as the unit needs), each of a kind and `minutes` long. */
 export interface GenerateInput {
-  kind: GenKind; instructions?: string; guide_material_id?: string; level?: Level; n_items?: number; sessions?: number;
-  notebook?: boolean;
+  kind: GenKind; instructions?: string; guide_material_id?: string; level?: Level; n_items?: number;
+  lessons?: number | null; kinds?: LessonKind[]; minutes?: number; notebook?: boolean;
 }
 
 /** A unit of an imported programación: its title, term and the saberes it lists (the unit's summary). */
@@ -166,10 +198,21 @@ export function useBulkUnits(courseId: string) {
   });
 }
 
+/** `skipped`: presentations left out because some of their lessons are not ready. */
+export interface CopyUnitsResult { units: Unit[]; skipped: number }
+
+/** What the toast adds when a copy leaves presentations out. */
+export function skippedNote(skipped: number): string {
+  if (!skipped) return '';
+  return skipped === 1
+    ? '. Una presentación no se ha copiado: tiene sesiones sin preparar'
+    : `. ${skipped} presentaciones no se han copiado: tienen sesiones sin preparar`;
+}
+
 export function useCopyUnits(courseId: string) {
   const done = useInvalidateCourse(courseId);
   return useMutation({
-    mutationFn: (fromCourseId: string) => api.post<Unit[]>(`/courses/${courseId}/units/copy`, { from_course_id: fromCourseId }),
+    mutationFn: (fromCourseId: string) => api.post<CopyUnitsResult>(`/courses/${courseId}/units/copy`, { from_course_id: fromCourseId }),
     onSuccess: done,
   });
 }
@@ -344,12 +387,31 @@ export function useRetryMaterial() {
   });
 }
 
+/** The lessons of a presentation (its `lessons` are LessonInfo; other kinds have none or apuntes lessons). */
+export function presentationLessons(m: Pick<MaterialDetail, 'kind' | 'lessons'>): LessonInfo[] {
+  return m.kind === 'slides' ? (m.lessons as LessonInfo[]) : [];
+}
+
+/** A ready lesson some of whose slides have neither images nor a failed render yet: the server is rendering them (a
+ *  copied presentation, an edit that moved a frame). */
+export function lessonRendering(m: Pick<MaterialDetail, 'slide_images' | 'frames_failed'>, l: LessonInfo): boolean {
+  return l.status === 'ready'
+    && [...l.slide_ids, ...l.hidden_ids].some((id) => !m.slide_images[id] && !m.frames_failed.includes(id));
+}
+
+/** A material refetches while it is created, while any of its lessons is being written (the global JobWatcher also
+ *  invalidates it at each lesson that lands) and while the slide images of a lesson are being rendered. */
 export function useMaterial(materialId: string | undefined) {
   return useQuery({
     queryKey: unitKeys.material(materialId!),
     queryFn: () => api.get<MaterialDetail>(`/materials/${materialId}`),
     enabled: !!materialId,
-    refetchInterval: (q) => (q.state.data?.status === 'generating' ? 2000 : false),
+    refetchInterval: (q) => {
+      const m = q.state.data;
+      if (!m) return false;
+      if (m.status === 'generating') return 2000;
+      return presentationLessons(m).some((l) => l.status === 'generating' || lessonRendering(m, l)) ? 4000 : false;
+    },
   });
 }
 
@@ -362,19 +424,123 @@ function useSetMaterial(materialId: string) {
   };
 }
 
-/** The teacher's version of one element (block or slide, same id): validated, files rebuilt (still a draft until she
- *  marks the material as reviewed). */
+/** The teacher's version of one apuntes block (same id): validated, files rebuilt (still a draft until she marks the
+ *  material as reviewed). */
 export function usePatchBlock(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
-    mutationFn: (block: Element) => api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${block.id}`, { block }, { slow: true }),
+    mutationFn: (block: Exclude<Element, Slide>) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${block.id}`, { block }, { slow: true }),
     onSuccess: set,
   });
+}
+
+/** «Editar texto» of a slide: its slots as text (§2.3.3 line syntax) and its notes fields. The server refuses only what
+ *  it cannot draw (a 400 in Spanish); text over a cap is saved with `warnings`. */
+export interface SlideFieldsInput {
+  id: string;
+  fields: Record<string, string | string[] | number>;
+  notes?: Partial<Record<keyof SlideNotes, string>>;
+}
+export function usePatchSlideFields(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: ({ id, fields, notes }: SlideFieldsInput) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/blocks/${id}`, { fields, ...(notes ? { notes } : {}) }, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** The slot table of every archetype, lesson kinds and response modes (GET /content/archetypes): fixed data. */
+export function useArchetypes() {
+  return useQuery({ queryKey: ['content', 'archetypes'], queryFn: () => api.get<Archetypes>('/content/archetypes'), staleTime: Infinity });
+}
+
+/** A slide's place and state: hidden (a backup slide), its planned minutes. */
+export function usePatchSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
+    mutationFn: ({ id, ...body }: { id: string; hidden?: boolean; minutes?: number }) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/slides/${id}`, body, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** Move a slide inside its lesson or to another one: `after` is the slide it goes after (null: right after the
+ *  cover). */
+export function useMoveSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
+    mutationFn: ({ id, lesson, after }: { id: string; lesson: number; after: string | null }) =>
+      api.post<MaterialDetail>(`/materials/${materialId}/slides/${id}/move`, { lesson, after }, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** The slides of a material whose duplicate, move, reserve or removal the server is saving now (it renders their
+ *  lesson before it answers): the page marks them busy so a second tap does not repeat the change. */
+export function useSlidesSaving(materialId: string): Set<string> {
+  const vars = useMutationState({
+    filters: { mutationKey: unitKeys.slideChange(materialId), status: 'pending' },
+    select: (mu) => mu.state.variables as string | { id: string } | undefined,
+  });
+  return new Set(vars.flatMap((v) => (typeof v === 'string' ? [v] : v ? [v.id] : [])));
+}
+
+export function useDuplicateSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
+    mutationFn: (id: string) => api.post<MaterialDetail>(`/materials/${materialId}/slides/${id}/duplicate`, undefined, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** «Añadir diapositiva»: an empty slide of an archetype (or a link of the unit) after `after`; `created` is its id. */
+export function useAddSlide(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: (body: { lesson: number; after: string | null; archetype: Archetype; link_id?: string }) =>
+      api.post<MaterialDetail>(`/materials/${materialId}/slides`, body, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** «Editar sesión»: title, question, criteria, kind and minutes of a lesson (the server re-stamps its minutes). */
+export interface LessonPatch { title?: string; question?: string; criteria?: string[]; minutes?: number; kind?: LessonKind }
+export function usePatchLesson(materialId: string) {
+  const set = useSetMaterial(materialId);
+  return useMutation({
+    mutationFn: ({ n, ...body }: LessonPatch & { n: number }) =>
+      api.patch<MaterialDetail>(`/materials/${materialId}/lessons/${n}`, body, { slow: true }),
+    onSuccess: set,
+  });
+}
+
+/** A failed lesson again («Volver a intentar»), or any lesson written anew with an instruction («Regenerar sesión…»).
+ *  Only that lesson is written; the brief and the images are reused. */
+export function useLessonJob(materialId: string) {
+  const done = useInvalidateMaterials();
+  return useMutation({
+    mutationFn: ({ n, regenerate, instructions }: { n: number; regenerate?: boolean; instructions?: string }) =>
+      api.post<{ material: Material; job: Job }>(
+        `/materials/${materialId}/lessons/${n}/${regenerate ? 'regenerate' : 'retry'}`, regenerate ? { instructions: instructions || undefined } : undefined),
+    onSuccess: done,
+  });
+}
+
+/** Where the presenter got to: stored by the server only inside a timetable session of the class («Cerrar clase»
+ *  pre-fills the lesson from it). Background, no feedback: a rehearsal at home changes nothing. */
+export function postPresented(materialId: string, lesson: number, slide: number) {
+  return api.post(`/materials/${materialId}/presented`, { lesson, slide }).catch(() => undefined);
 }
 
 export function useDeleteBlock(materialId: string) {
   const set = useSetMaterial(materialId);
   return useMutation({
+    mutationKey: unitKeys.slideChange(materialId),
     mutationFn: (blockId: string) => api.delete<MaterialDetail>(`/materials/${materialId}/blocks/${blockId}`, { slow: true }),
     onSuccess: set,
   });
@@ -414,9 +580,14 @@ export function useMaterialToActivity(materialId: string) {
   });
 }
 
-/** Ask for a signed download link and start the download (PDF, .pptx or solucionario). */
-export async function downloadMaterial(materialId: string, variant: 'pdf' | 'pptx' | 'key' = 'pdf') {
-  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?variant=${variant}`, { slow: true });
+/** pdf: the students' PDF; teacher: with the notes; sheet: «Hoja para los alumnos»; zip: every lesson's .pptx; key:
+ *  solucionario; bn: black and white; annex: «Actividades de repaso». */
+export type FileVariant = 'pdf' | 'pptx' | 'teacher' | 'sheet' | 'zip' | 'key' | 'bn' | 'annex';
+
+/** Ask for a signed download link and start the download; `lesson` picks one lesson's file. */
+export async function downloadMaterial(materialId: string, variant: FileVariant = 'pdf', lesson?: number) {
+  const query = `variant=${variant}${lesson ? `&lesson=${lesson}` : ''}`;
+  const { url } = await api.get<{ url: string }>(`/materials/${materialId}/file?${query}`, { slow: true });
   const a = document.createElement('a');
   a.href = fileUrl(url)!;
   a.rel = 'noopener';

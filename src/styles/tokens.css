@@ -117,6 +117,14 @@
   --band-notable: color-mix(in srgb, var(--accent) 55%, var(--paper));
   /* Figures of materials are drawn by the server on white (the same drawing as the PDF): dark mode inverts them */
   --figure-filter: none;
+
+  /* Projection stage (presenter, teacher view, projector window): the same in light and dark. Slide images are
+     server-rendered and never take --figure-filter */
+  --stage: #111214;
+  --stage-ink: #F2F1EE;
+  --stage-muted: #9C9A95;
+  --stage-white: #FFFFFF;
+  --stage-black: #000000;
 }
 
 @media (min-width: 768px) {

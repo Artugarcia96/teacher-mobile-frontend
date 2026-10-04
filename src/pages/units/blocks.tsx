@@ -1,12 +1,12 @@
 import { WarningCircle } from '@phosphor-icons/react';
-import type { Block, ExampleBlock, ExerciseBlock, FigureBlock, FigureSpec } from '../../api/content';
+import type { Block, ExerciseBlock, FigureBlock, FigureSpec, Item, NoteTone, WorkedBlock } from '../../api/content';
 import { LEVEL_LABEL } from '../../api/content';
 import { Figure } from '../../features/materials/Figure';
 import { formatNumber } from '../../lib/format';
 import { Callout, RichText } from '../../ui';
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
-const NOTE: Record<string, string> = { ojo: 'Ojo', sabias: '¿Sabías que…?', consejo: 'Consejo' };
+const NOTE: Record<NoteTone, string> = { error: 'Error frecuente', remember: 'Recuerda', fact: 'Dato', how: '¿Cómo lo sabemos?' };
 const pts = (p: number) => `${formatNumber(p, 2)} ${p === 1 ? 'punto' : 'puntos'}`;
 
 /** The printed order of a matching's right column or of the elements to order (stored in the document by the
@@ -59,10 +59,20 @@ export function BlockView({ block: b, number = 0, figures, solutions, levels }: 
       return <div className="dblock__text">{b.text.split(/\n{2,}/).map((p, i) => <RichText key={i} as="p" text={p} />)}</div>;
     case 'definition':
       return <div className="panel panel--definition"><div className="panel__label">Definición</div><p><strong><RichText text={b.term} />.</strong> <RichText text={b.text} /></p></div>;
-    case 'example':
-      return <Example b={b} figure={figures[b.id]} />;
+    case 'worked':
+      return <Worked b={b} figure={figures[b.id]} />;
     case 'note':
-      return <div className={`panel panel--${b.tone}`}><div className="panel__label">{NOTE[b.tone] ?? 'Nota'}</div><RichText as="p" text={b.text} /></div>;
+      return (
+        <div className={`panel panel--${b.tone}`}>
+          <div className="panel__label">{b.title || NOTE[b.tone]}</div>
+          <RichText as="p" text={b.text} />
+          {(b.wrong || b.right) && (
+            <p className="note__fix">{b.wrong && <><s><RichText text={b.wrong} /></s>{' → '}</>}{b.right && <RichText text={b.right} />}</p>
+          )}
+          {b.check && <RichText as="p" text={b.check} />}
+          {b.source && <p className="note__source"><RichText text={b.source} /></p>}
+        </div>
+      );
     case 'list': {
       const Tag = b.ordered ? 'ol' : 'ul';
       return (
@@ -86,31 +96,64 @@ export function BlockView({ block: b, number = 0, figures, solutions, levels }: 
       );
     case 'figure':
       return <DocFigure spec={b.figure} svg={figures[b.id]} caption={figureCaption(b)} />;
-    case 'check':
+    case 'your_turn':
+    case 'review':
       return (
         <div className="panel panel--check">
-          <div className="panel__label">Comprueba</div>
-          <RichText as="p" text={b.question} />
-          {solutions && <div className="solution"><RichText text={b.answer} /></div>}
+          <div className="panel__label">{b.type === 'your_turn' ? 'Ahora tú' : 'Para repasar'}</div>
+          <Questions items={b.items} solutions={solutions} />
+        </div>
+      );
+    case 'case':
+      return (
+        <div className="panel panel--example">
+          <div className="panel__label">Caso</div>
+          {b.title && <div className="dblock__title"><RichText text={b.title} /></div>}
+          <RichText as="p" text={b.text} />
+          <Questions items={b.questions} solutions={solutions} />
         </div>
       );
     case 'exercise':
       return <Exercise b={b} number={number} figure={figures[b.id]} solved={figures[`${b.id}:solucion`]} solutions={solutions} levels={levels} />;
+    default:
+      return null;
   }
 }
 
-function Example({ b, figure }: { b: ExampleBlock; figure?: string }) {
+/** Questions with their short answers (shown only with the solutions). */
+function Questions({ items, solutions }: { items: Item[]; solutions: boolean }) {
+  if (!items.length) return null;
+  return (
+    <ol type="a" className="ex__items">
+      {items.map((it, i) => (
+        <li key={i}>
+          <RichText text={it.text} />
+          {solutions && it.answer && <div className="solution solution--inline"><RichText text={it.answer} /></div>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Worked({ b, figure }: { b: WorkedBlock; figure?: string }) {
   const title = b.title.replace(/^ejemplo\s*\d*\s*[:.·-]?\s*/i, '');
   return (
     <div className="panel panel--example">
-      <div className="panel__label">Ejemplo</div>
+      <div className="panel__label">Ejemplo resuelto</div>
       {title && <div className="dblock__title"><RichText text={title} /></div>}
       <RichText as="p" text={b.statement} />
       <DocFigure spec={b.figure} svg={figure} />
-      {b.steps.length > 0 && (b.format === 'pasos'
-        ? <ol className="dblock__steps">{b.steps.map((s, i) => <li key={i}><RichText text={s} /></li>)}</ol>
-        : <ul className="dblock__list">{b.steps.map((s, i) => <li key={i}><RichText text={s} /></li>)}</ul>)}
-      {b.result && <p className="panel__result"><span className="panel__result-label">Resultado</span> <RichText text={b.result} /></p>}
+      {b.steps.length > 0 && (
+        <ol className="dblock__steps">
+          {b.steps.map((s, i) => (
+            <li key={i}>
+              {s.show && <RichText as="div" text={s.show} />}
+              {s.say && <RichText as="div" className={s.show ? 'dblock__say' : undefined} text={s.say} />}
+            </li>
+          ))}
+        </ol>
+      )}
+      {b.close && <p className="panel__result"><span className="panel__result-label">Resultado</span> <RichText text={b.close} /></p>}
     </div>
   );
 }

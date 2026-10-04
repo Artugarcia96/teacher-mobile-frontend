@@ -1,4 +1,4 @@
-import type { ContentDoc, DocSection, Element } from '../../api/content';
+import type { Block, ContentDoc, DocSection, Opener } from '../../api/content';
 import { LEVEL_LABEL } from '../../api/content';
 import { RichText } from '../../ui';
 import { BlockView } from './blocks';
@@ -12,7 +12,7 @@ interface Props {
   editing: boolean;
   /** Blocks the AI is rewriting now. */
   busy: Set<string>;
-  onAction: (action: ElementAction, el: Element) => void;
+  onAction: (action: ElementAction, el: Block) => void;
   noAI: string | null;
 }
 
@@ -38,10 +38,14 @@ export function docOutline(doc: ContentDoc): OutlineEntry[] {
   });
 }
 
-/** How the document names an element: «Ejercicio 4» (numbered as printed), «Diapositiva 13», «Ejemplo»… */
+/** How the document names an element: «Ejercicio 4» (numbered as printed), «Diapositiva 13» (in a deck of several
+ *  lessons, «Sesión 2 · diapositiva 7»), «Ejemplo»… */
 export function elementLabel(doc: ContentDoc, id: string, name: string): string {
-  const slide = doc.slides.findIndex((s) => s.id === id);
-  if (slide >= 0) return `Diapositiva ${slide + 2}`;
+  const slide = doc.slides.find((s) => s.id === id);
+  if (slide) {
+    const n = doc.slides.filter((s) => s.lesson === slide.lesson).indexOf(slide) + 1;
+    return doc.lessons.length > 1 ? `Sesión ${slide.lesson} · diapositiva ${n}` : `Diapositiva ${n}`;
+  }
   const activities = doc.kind === 'teoria' ? doc.sections.find((s) => s.id === 'actividades') : undefined;
   let n = 0;
   for (const sec of [...doc.sections.filter((s) => s !== activities), ...(activities ? [activities] : [])]) {
@@ -57,19 +61,19 @@ export function elementLabel(doc: ContentDoc, id: string, name: string): string 
 export default function DocView({ doc, figures, solutions, editing, busy, onAction, noAI }: Props) {
   let n = 0;
   let numbered = 0;
-  let session: number | null = null;
+  let lesson: number | null = null;
   const teoria = doc.kind === 'teoria';
   const activities = teoria ? doc.sections.find((s) => s.id === 'actividades') : undefined;
   const main = doc.sections.filter((s) => s !== activities);
 
   const section = (sec: DocSection) => {
-    const newSession = sec.session != null && sec.session !== session ? sec.session : null;
-    if (newSession != null) session = newSession;
+    const newLesson = sec.lesson != null && sec.lesson !== lesson ? sec.lesson : null;
+    if (newLesson != null) lesson = newLesson;
     const levels = new Set(sec.blocks.flatMap((b) => (b.type === 'exercise' ? [b.level] : [])));
     const number = teoria && sec !== activities ? ++numbered : 0;
     return (
       <section key={sec.id} id={`sec-${sec.id}`} className="doc__section">
-        {newSession != null && <div className="doc__session">Sesión {newSession}</div>}
+        {newLesson != null && <div className="doc__session">Sesión {newLesson}</div>}
         <h2>
           {number > 0 && <span className="doc__n num">{number}</span>}
           <RichText text={sectionTitle(sec)} />
@@ -96,16 +100,11 @@ export default function DocView({ doc, figures, solutions, editing, busy, onActi
         ? <div className="panel panel--example"><div className="panel__label">Idea clave</div><RichText as="p" text={doc.intro} /></div>
         : <RichText as="p" className={teoria ? 'doc__intro' : undefined} text={doc.intro} />)}
       {doc.instructions && <RichText as="p" className="doc__instructions" text={doc.instructions} />}
-      {teoria && doc.objectives.length > 0 && (
-        <div className="doc__objectives">
-          <div className="doc__label">Al terminar esta unidad…</div>
-          <ul>{doc.objectives.map((o, i) => <li key={i}><RichText text={o} /></li>)}</ul>
-        </div>
-      )}
-      {doc.sessions.length > 0 && (
+      {doc.opener && <OpenerView opener={doc.opener} />}
+      {doc.lessons.length > 1 && (
         <div className="panel panel--example">
           <div className="panel__label">Plan de sesiones</div>
-          <ul className="dblock__list">{doc.sessions.map((x, i) => <li key={i}><RichText text={x} /></li>)}</ul>
+          <ul className="dblock__list">{doc.lessons.map((l) => <li key={l.n}>Sesión {l.n}: <RichText text={l.title} /></li>)}</ul>
         </div>
       )}
       {main.map(section)}
@@ -125,5 +124,29 @@ export default function DocView({ doc, figures, solutions, editing, busy, onActi
         </section>
       )}
     </article>
+  );
+}
+
+/** The first page of apuntes: the case that opens the unit, its question and what it teaches. */
+function OpenerView({ opener: o }: { opener: Opener }) {
+  const lists = [
+    { label: 'Contenidos', items: o.know },
+    { label: 'Procedimientos', items: o.can_do },
+  ].filter((l) => l.items.length > 0);
+  return (
+    <>
+      {o.hook && <RichText as="p" className="doc__intro" text={o.hook} />}
+      {(o.question || lists.length > 0) && (
+        <div className="doc__objectives">
+          {o.question && <><div className="doc__label">Pregunta de la unidad</div><RichText as="p" text={o.question} /></>}
+          {lists.map((l) => (
+            <div key={l.label}>
+              <div className="doc__label">{l.label}</div>
+              <ul>{l.items.map((x, i) => <li key={i}><RichText text={x} /></li>)}</ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

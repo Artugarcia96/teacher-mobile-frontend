@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Block, Element, Slide } from '../../api/content';
+import type { Block } from '../../api/content';
 import { fromText, toText, type TextKind } from '../../features/materials/fieldText';
 import { Button, RichText, Sheet, TextArea, TextField } from '../../ui';
 
@@ -7,6 +7,7 @@ interface Field { path: string; label: string; kind: TextKind; hint?: string }
 
 const LINES = 'Uno por línea';
 const ROWS = 'Una fila por línea; las celdas, separadas por « | », con un espacio a cada lado';
+const QUESTIONS = 'Una por línea: «pregunta | respuesta»';
 
 function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
   const f: Field[] = [{ path: 'statement', label: 'Enunciado', kind: 'area' }];
@@ -21,48 +22,37 @@ function exerciseFields(b: Extract<Block, { type: 'exercise' }>): Field[] {
   return f;
 }
 
-function slideFields(s: Slide): Field[] {
-  const f: Field[] = [{ path: 'title', label: 'Título', kind: 'line' }];
-  if (s.layout === 'section' || s.subtitle) f.push({ path: 'subtitle', label: 'Subtítulo', kind: 'line' });
-  if (s.bullets.length || ['bullets', 'bullets_figure', 'summary', 'practice'].includes(s.layout)) {
-    f.push({ path: 'bullets', label: s.layout === 'practice' ? 'Ejercicios' : 'Viñetas', kind: 'lines', hint: 'Una por línea' });
-  }
-  if (s.layout === 'practice' || s.answers.length) f.push({ path: 'answers', label: 'Soluciones', kind: 'lines', hint: 'Una por línea, en el orden de los ejercicios' });
-  if (s.left) f.push({ path: 'left.heading', label: 'Columna izquierda', kind: 'line' }, { path: 'left.bullets', label: 'Viñetas de la izquierda', kind: 'lines' });
-  if (s.right) f.push({ path: 'right.heading', label: 'Columna derecha', kind: 'line' }, { path: 'right.bullets', label: 'Viñetas de la derecha', kind: 'lines' });
-  if (s.example) {
-    f.push({ path: 'example.statement', label: 'Enunciado del ejemplo', kind: 'area' }, { path: 'example.steps', label: 'Pasos', kind: 'lines', hint: 'Uno por línea' },
-      { path: 'example.result', label: 'Resultado', kind: 'line' });
-  }
-  if (s.question) {
-    f.push({ path: 'question.prompt', label: 'Pregunta', kind: 'area' });
-    if (s.question.options.length) f.push({ path: 'question.options', label: 'Opciones', kind: 'lines', hint: 'Una por línea' });
-    f.push({ path: 'question.answer', label: 'Respuesta', kind: 'line' });
-  }
-  if (s.figure) f.push({ path: 'caption', label: 'Pie de la figura', kind: 'line' });
-  f.push({ path: 'notes', label: 'Notas del orador', kind: 'area' });
-  return f;
-}
-
-/** The fields the teacher can edit in an element (the figure has its own sheet). */
-export function fieldsOf(el: Element): Field[] {
-  if ('layout' in el) return slideFields(el);
+/** The fields the teacher can edit in a block (the figure has its own sheet; slides have «Editar texto» from the slot
+ *  table). */
+function fieldsOf(el: Block): Field[] {
   switch (el.type) {
     case 'text': return [{ path: 'text', label: 'Texto', kind: 'area' }];
     case 'definition': return [{ path: 'term', label: 'Término', kind: 'line' }, { path: 'text', label: 'Definición', kind: 'area' }];
-    case 'example': return [
+    case 'worked': return [
       { path: 'title', label: 'Título', kind: 'line' }, { path: 'statement', label: 'Enunciado', kind: 'area' },
-      { path: 'steps', label: 'Pasos', kind: 'lines', hint: LINES }, { path: 'result', label: 'Resultado', kind: 'line' },
+      { path: 'steps', label: 'Pasos', kind: 'steps', hint: 'Uno por línea: «cuenta | por qué»' }, { path: 'close', label: 'Resultado', kind: 'line' },
     ];
-    case 'note': return [{ path: 'text', label: 'Texto', kind: 'area' }];
+    case 'note': return [
+      { path: 'text', label: 'Texto', kind: 'area' },
+      ...(el.tone === 'error' ? [
+        { path: 'wrong', label: 'Cómo lo escribe el alumno', kind: 'line' as const }, { path: 'right', label: 'Cómo es', kind: 'line' as const },
+        { path: 'check', label: 'Cómo comprobarlo', kind: 'area' as const },
+      ] : []),
+      ...(el.tone === 'fact' ? [{ path: 'source', label: 'Fuente', kind: 'line' as const }] : []),
+    ];
     case 'list': return [{ path: 'title', label: 'Título', kind: 'line' }, { path: 'items', label: 'Elementos', kind: 'lines', hint: LINES }];
     case 'table': return [
       { path: 'header', label: 'Encabezados', kind: 'cells', hint: 'Separados por « | », con un espacio a cada lado' }, { path: 'rows', label: 'Filas', kind: 'rows', hint: ROWS },
       { path: 'caption', label: 'Pie', kind: 'line' },
     ];
     case 'figure': return [{ path: 'caption', label: 'Pie de la figura', kind: 'line' }];
-    case 'check': return [{ path: 'question', label: 'Pregunta', kind: 'area' }, { path: 'answer', label: 'Respuesta', kind: 'area' }];
+    case 'your_turn': case 'review': return [{ path: 'items', label: 'Preguntas', kind: 'items', hint: QUESTIONS }];
+    case 'case': return [
+      { path: 'title', label: 'Título', kind: 'line' }, { path: 'text', label: 'Caso', kind: 'area' },
+      { path: 'questions', label: 'Preguntas', kind: 'items', hint: QUESTIONS },
+    ];
     case 'exercise': return exerciseFields(el);
+    default: return [];
   }
 }
 
@@ -73,23 +63,25 @@ function get(obj: unknown, path: string): unknown {
 function set<T>(obj: T, path: string, value: unknown): T {
   const [head, ...rest] = path.split('.');
   const o = obj as Record<string, unknown>;
-  return { ...o, [head]: rest.length ? set(o[head], rest.join('.'), value) : value } as T;
+  const v = rest.length ? set(o[head], rest.join('.'), value) : value;
+  if (Array.isArray(obj)) return obj.map((x, i) => (i === Number(head) ? v : x)) as T;
+  return { ...o, [head]: v } as T;
 }
 
-/** «Editar texto» of one block or slide: its fields as plain text (lists one per line), saved as the whole element. */
+/** «Editar texto» of one block: its fields as plain text (lists one per line), saved as the whole element. */
 export default function EditElementSheet({ el, saving, onSave, onClose }: {
-  el: Element; saving: boolean; onSave: (el: Element) => void; onClose: () => void;
+  el: Block; saving: boolean; onSave: (el: Block) => void; onClose: () => void;
 }) {
   const fields = fieldsOf(el);
   const initial = Object.fromEntries(fields.map((f) => [f.path, toText(f.kind, get(el, f.path))]));
   const [values, setValues] = useState<Record<string, string>>(initial);
   const dirty = fields.some((f) => values[f.path] !== initial[f.path]);
   const math = JSON.stringify(el).includes('$');
-  const what = 'layout' in el ? 'diapositiva' : el.type === 'exercise' ? 'ejercicio' : 'apartado';
+  const what = el.type === 'exercise' ? 'ejercicio' : 'apartado';
 
   const save = () => {
     if (saving) return;
-    onSave(fields.reduce<Element>((acc, f) => set(acc, f.path, fromText(f.kind, values[f.path])), el));
+    onSave(fields.reduce<Block>((acc, f) => set(acc, f.path, fromText(f.kind, values[f.path], get(el, f.path))), el));
   };
 
   return (

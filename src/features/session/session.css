@@ -5,3 +5,5 @@
 .absence-task__mats { display: grid; gap: 6px; }
 .absence-task__due { margin: 0; font-size: var(--fs-sub); }
 .close-done.textarea { min-height: 64px; }
+.close-lesson { display: grid; gap: 10px; padding-bottom: 4px; }
+.close-lesson__title { font-weight: 600; }

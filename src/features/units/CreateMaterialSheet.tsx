@@ -1,10 +1,11 @@
 import { CheckCircle, Circle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import { LEVEL_LABEL, type Level } from '../../api/content';
-import { useAIUnavailable } from '../../api/core';
-import { useGenerateMaterial, type GenKind, type Material, type Unit, type UnitDetail } from '../../api/units';
+import { LEVEL_LABEL, type LessonKind, type Level } from '../../api/content';
+import { useAIUnavailable, useCourse } from '../../api/core';
+import { useArchetypes, useGenerateMaterial, type GenKind, type Material, type Unit, type UnitDetail } from '../../api/units';
 import { List, Row, RowIcon, Segmented, Select, Sheet, Stepper, Switch, TextArea, Button, useFeedback } from '../../ui';
 import { GroundingList } from '../materials/GroundingList';
+import { defaultKinds, LESSON_KINDS, lessonKindLabel } from '../materials/lessons';
 import { watchJob } from '../materials/watch';
 import { failedText, MaterialIcon, readyText, withArticle } from './kinds';
 import './units.css';
@@ -12,7 +13,7 @@ import './units.css';
 export const KINDS: { kind: GenKind; title: string; sub: string; verb: string }[] = [
   { kind: 'notes', title: 'Apuntes', sub: 'Teoría con ejemplos resueltos y actividades', verb: 'Crear apuntes' },
   { kind: 'worksheet', title: 'Ficha', sub: 'Ejercicios por niveles con solucionario', verb: 'Crear ficha' },
-  { kind: 'slides', title: 'Presentación', sub: 'Diapositivas para proyectar y PowerPoint editable', verb: 'Crear presentación' },
+  { kind: 'slides', title: 'Presentación', sub: 'Una presentación por sesión de clase, con notas del profesor y PowerPoint', verb: 'Crear presentación' },
   { kind: 'summary', title: 'Resumen', sub: 'Una página para repasar', verb: 'Crear resumen' },
   { kind: 'adapted', title: 'Lectura sencilla', sub: 'Los apuntes adaptados según pautas de lectura fácil (NEAE)', verb: 'Crear lectura sencilla' },
 ];
@@ -26,7 +27,7 @@ const LEVELS: { value: LevelChoice; label: string }[] = [
 const PLACEHOLDER: Record<GenKind, string> = {
   notes: 'Por ejemplo: sigue el orden del libro y usa ejemplos de la vida diaria',
   worksheet: 'Por ejemplo: problemas con datos de la vida diaria, sin calculadora',
-  slides: 'Por ejemplo: para una clase de 50 minutos, con una pregunta para empezar',
+  slides: 'Por ejemplo: más práctica y menos explicación',
   summary: 'Por ejemplo: en forma de esquema',
   adapted: 'Por ejemplo: para un alumno con dislexia',
 };
@@ -60,7 +61,12 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
   const [level, setLevel] = useState<LevelChoice>(initial?.level ?? 'todos');
   const [nItems, setNItems] = useState(10);
   const [notebook, setNotebook] = useState(false);
-  const [sessions, setSessions] = useState(1);
+  const [lessons, setLessons] = useState<number | 'auto'>('auto');
+  const [kinds, setKinds] = useState<LessonKind[] | null>(null);  // null: the defaults for the number of lessons
+  const course = useCourse(courseId);
+  const table = useArchetypes();
+  const { family, stage, minutes: slot } = course.data?.lesson_defaults ?? { family: 'otra', stage: 'eso', minutes: 55 };
+  const [minutes, setMinutes] = useState<number | null>(null);  // null: the class's slot
   const [guide, setGuide] = useState<string | null>(null);  // null: not chosen yet (the programación is proposed)
   const [instructions, setInstructions] = useState(initial?.instructions ?? '');
   const notes = materials.find((m) => m.kind === 'notes' && m.status === 'ready');
@@ -72,6 +78,9 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
   const chosen = KINDS.find((k) => k.kind === kind)!;
   const buildsOnNotes = kind === 'worksheet' || kind === 'slides' || kind === 'adapted';
 
+  const shownKinds = lessons === 'auto' ? [] : kinds && kinds.length === lessons ? kinds : defaultKinds(table.data, family, stage, lessons);
+  const setLessonKind = (i: number, k: LessonKind) => setKinds(shownKinds.map((x, j) => (j === i ? k : x)));
+
   const submit = async () => {
     if (generate.isPending) return;
     try {
@@ -79,7 +88,9 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
         kind, instructions: instructions.trim(),
         ...(guide ? { guide_material_id: guide } : {}),
         ...(kind === 'worksheet' ? { n_items: nItems, notebook, ...(level !== 'todos' ? { level } : {}) } : {}),
-        ...((kind === 'notes' || kind === 'slides') && sessions > 1 ? { sessions } : {}),
+        ...((kind === 'notes' || kind === 'slides') && lessons !== 'auto' ? { lessons } : {}),
+        ...(kind === 'slides' && lessons !== 'auto' ? { kinds: shownKinds } : {}),
+        ...(kind === 'slides' && minutes !== null && minutes !== slot ? { minutes } : {}),
       });
       watchJob({
         job: job.id, kind: 'material', done: readyText(material, unit.title),
@@ -137,10 +148,27 @@ function CreateMaterial({ onClose, unit, materials, guides, courseId, initial }:
           </>
         )}
         {(kind === 'notes' || kind === 'slides') && (
+          <div className="field">
+            <span className="field__label">Sesiones de clase</span>
+            <Segmented full label="Sesiones de clase" value={lessons}
+              onChange={(v) => { setLessons(v); setKinds(null); }}
+              options={[{ value: 'auto' as const, label: 'Auto' }, ...[1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) }))]} />
+            <span className="field__hint">Auto: las mismas sesiones que los apuntes de la unidad o las que indique el temario.</span>
+          </div>
+        )}
+        {kind === 'slides' && lessons !== 'auto' && (
+          <div className="lesson-kinds">
+            {shownKinds.map((k, i) => (
+              <Select key={i} label={`Tipo de sesión · Sesión ${i + 1}`} value={k} onChange={(e) => setLessonKind(i, e.target.value as LessonKind)}>
+                {LESSON_KINDS.map((x) => <option key={x} value={x}>{lessonKindLabel(x, family, table.data)}</option>)}
+              </Select>
+            ))}
+          </div>
+        )}
+        {kind === 'slides' && (
           <div className="option-line">
-            <span>Sesiones de clase</span>
-            <Stepper label="Sesiones de clase" value={sessions} onChange={setSessions} min={1} max={6}
-              format={(n) => (n === 1 ? 'Una' : String(n))} />
+            <span>Duración de la clase</span>
+            <Stepper label="Duración de la clase" value={minutes ?? slot} onChange={setMinutes} min={30} max={120} step={5} format={(v) => `${v} min`} />
           </div>
         )}
 

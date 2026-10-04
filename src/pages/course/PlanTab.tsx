@@ -4,7 +4,7 @@ import {
 import { useState } from 'react';
 import { useAIUnavailable, useCourses, useJob } from '../../api/core';
 import type { CourseDetail } from '../../api/types';
-import { useCopyUnits, useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
+import { skippedNote, useCopyUnits, useDeleteUnit, useOrderUnits, usePatchUnit, useUnits, type Unit, type UnitStatus } from '../../api/units';
 import { useCourseMenu } from '../../features/course/CourseMenu';
 import CopyUnitsSheet from '../../features/units/CopyUnitsSheet';
 import { useWatched } from '../../features/materials/watch';
@@ -132,8 +132,8 @@ function CopyFromSibling({ course, onImport }: { course: CourseDetail; onImport:
   const from = ordinals(sibling.group.name);
   const run = async () => {
     try {
-      await copy.mutateAsync(sibling.id);
-      toast(`Temario copiado de ${from}: ${plural(n, 'unidad', 'unidades')}`);
+      const { skipped } = await copy.mutateAsync(sibling.id);
+      toast(`Temario copiado de ${from}: ${plural(n, 'unidad', 'unidades')}${skippedNote(skipped)}`);
     } catch (e) {
       toast((e as Error).message, { tone: 'error' });
     }
